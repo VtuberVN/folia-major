@@ -25,6 +25,8 @@ Lyrics Reimagined // 辞曲新境
 ·
 [使用指南](https://folia-site.cielaniska.top/guide/)
 ·
+[Tiếng Việt](README.vi.md)
+·
 [技术说明](docs/technical.md)
 
 </div>

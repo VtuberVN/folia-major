@@ -110,7 +110,7 @@ export default {
   libraryTui: {
     back: "Quay lại",
     sourceOnline: "trực tuyến · {{provider}}",
-    sourceLocal: "cục bộ",
+    sourceLocal: "nội bộ",
     sourceNavidrome: "navidrome",
     loaded: "Đã tải {{loaded}}",
     loadedOfTotal: "{{loaded}} / {{total}}",
@@ -187,7 +187,7 @@ export default {
     accountless:
       "{{provider}} không có thư viện tài khoản. Dùng tìm kiếm để tìm nhạc.",
     createPlaylistPrompt: "danh sách phát mới",
-    confirmRemoveSelection: "Xóa {{count}} bài hát khỏi thư viện cục bộ?",
+    confirmRemoveSelection: "Xóa {{count}} bài hát khỏi thư viện nội bộ?",
     confirmRemoveRoot: "Xóa thư mục đã nhập “{{path}}” khỏi thư viện?",
     artistSongsPane: "bài hát nổi bật",
     artistAlbumsPane: "album",
@@ -453,14 +453,14 @@ export default {
     added_to_play_queue: "Đã thêm vào hàng đợi phát",
     matchingLyricsAndCover: "Đang khớp lời và bìa...",
     localSongNotInLibrary:
-      "Bài hát cục bộ phát trước đó không còn trong thư viện",
+      "Bài hát nội bộ phát trước đó không còn trong thư viện",
     localFileReauthorize:
-      "Tệp nhạc cục bộ cần cấp quyền lại. Hãy chọn lại từ danh sách nhạc cục bộ.",
+      "Tệp nhạc nội bộ cần cấp quyền lại. Hãy chọn lại từ danh sách nhạc nội bộ.",
     localFilePlaybackError:
-      "Không thể phát tệp cục bộ (tệp có thể đã bị di chuyển hoặc mất quyền)",
+      "Không thể phát tệp nội bộ (tệp có thể đã bị di chuyển hoặc mất quyền)",
     localFileAccessError: "Không thể truy cập tệp. Hãy nhập lại thư mục",
-    waitingNowPlayingInput: "Đang chờ dữ liệu Đang phát cục bộ",
-    localMusicLoaded: "Đã tải nhạc cục bộ",
+    waitingNowPlayingInput: "Đang chờ dữ liệu Đang phát nội bộ",
+    localMusicLoaded: "Đã tải nhạc nội bộ",
     navidromeSongLoaded: "Đã tải bài hát Navidrome",
     playbackFailed: "Phát thất bại",
     transcodeFallbackStarting: "Đang chuyển mã âm thanh không hỗ trợ...",
@@ -619,7 +619,7 @@ export default {
     fmModeHint: "Chọn ngữ cảnh để chuyển thẳng sang chế độ ngữ cảnh",
     fmModeFilterPlaceholder: "Nhập để lọc chế độ và ngữ cảnh",
     sourceCurrent: "nguồn hiện tại",
-    sourceLocal: "thư viện cục bộ",
+    sourceLocal: "thư viện nội bộ",
     sourceNavidrome: "Navidrome",
     sourceNetease: "NetEase Cloud Music",
     groupSearch: "Tìm kiếm",
@@ -679,8 +679,8 @@ export default {
         description: "Tìm bài hát trong nguồn hiện tại",
       },
       "search-local": {
-        title: "Tìm bài hát cục bộ",
-        description: "Tìm trong thư viện cục bộ",
+        title: "Tìm bài hát nội bộ",
+        description: "Tìm trong thư viện nội bộ",
       },
       "search-navidrome": {
         title: "Tìm bài hát Navidrome",
@@ -744,7 +744,7 @@ export default {
         description: "Mở bộ cân bằng và chuỗi hiệu ứng",
       },
       "playback-sound-preset-flat": {
-        title: "Âm thanh: Cân bằng (Flat)",
+        title: "Âm thanh: Flat",
         description: "Đặt lại bộ cân bằng và mọi hiệu ứng",
       },
       "playback-sound-preset-lofi": {
@@ -756,15 +756,15 @@ export default {
         description: "Dải tần hẹp, âm sắc phát thanh gần như mono",
       },
       "playback-sound-preset-hall": {
-        title: "Âm thanh: Khán phòng (Hall)",
+        title: "Âm thanh: Hall",
         description: "Không gian stereo rộng cùng âm vang",
       },
       "playback-sound-preset-vocal": {
-        title: "Âm thanh: Giọng hát (Vocal)",
+        title: "Âm thanh: Vocal",
         description: "Nâng dải giọng hát và siết gọn dải động",
       },
       "playback-sound-preset-bass": {
-        title: "Âm thanh: Tăng Bass (Bass Boost)",
+        title: "Âm thanh: Bass Boost",
         description: "Dải trầm dày hơn và lực đánh mạnh mẽ",
       },
       "playback-sound-preset-custom1": {
@@ -776,12 +776,12 @@ export default {
         description: "Áp dụng cấu hình âm thanh tùy chỉnh 2",
       },
       "settings-local-lyrics-priority": {
-        title: "Độ ưu tiên lời bài hát cục bộ",
+        title: "Độ ưu tiên lời bài hát nội bộ",
         description:
-          "Chọn ưu tiên lời cục bộ hay trực tuyến cho bài hát cục bộ",
+          "Chọn ưu tiên lời nội bộ hay trực tuyến cho bài hát nội bộ",
       },
       "settings-local-lyric-format-order": {
-        title: "Độ ưu tiên định dạng tệp lời cục bộ",
+        title: "Độ ưu tiên định dạng tệp lời nội bộ",
         description: "Chọn định dạng ưu tiên khi bài hát có nhiều tệp lời",
       },
       "settings-integration": {
@@ -828,7 +828,7 @@ export default {
       },
       "desktop-toggle-lyric-api": {
         title: "API lời bài hát",
-        description: "Bật/tắt endpoint lời bài hát cục bộ không cần xác thực",
+        description: "Bật/tắt endpoint lời bài hát nội bộ không cần xác thực",
       },
       "settings-obs-copy-css": {
         title: "Sao chép CSS OBS",
@@ -863,12 +863,12 @@ export default {
           "Lưu lời bài hát dạng LRC nâng cao tương thích với các trình phát khác",
       },
       "settings-local-library-watch": {
-        title: "Cài đặt theo dõi thư mục cục bộ",
-        description: "Mở cài đặt tự động quét thư mục cục bộ đã nhập",
+        title: "Cài đặt theo dõi thư mục nội bộ",
+        description: "Mở cài đặt tự động quét thư mục nội bộ đã nhập",
       },
       "local-library-auto-scan-toggle": {
-        title: "Tự động quét thư mục cục bộ",
-        description: "Bật hoặc tắt tự động quét lại thư mục cục bộ đã nhập",
+        title: "Tự động quét thư mục nội bộ",
+        description: "Bật hoặc tắt tự động quét lại thư mục nội bộ đã nhập",
       },
       "settings-desktop": {
         title: "Cài đặt Desktop",
@@ -913,8 +913,8 @@ export default {
         description: "Hiện hoặc ẩn lớp video tắt tiếng phía sau lời bài hát",
       },
       "video-layer-pick": {
-        title: "Lớp video: Chọn video cục bộ",
-        description: "Chọn video cục bộ phát phía sau lời bài hát",
+        title: "Lớp video: Chọn video nội bộ",
+        description: "Chọn video nội bộ phát phía sau lời bài hát",
       },
       "visualizer-toggle-random-per-song": {
         title: "Hiệu ứng thị giác ngẫu nhiên theo bài",
@@ -1023,17 +1023,17 @@ export default {
         description: "Chuyển giao diện Bravais giữa đục, mờ và trong suốt",
       },
       "bravais-more-windows": {
-        title: "Thêm ô cửa sổ (Bravais)",
+        title: "Thêm khung (Bravais)",
         description:
-          "Thêm một ô cửa trong suốt vào mỗi khối Không gian Bravais",
+          "Thêm một khung trong suốt vào mỗi khối Không gian Bravais",
       },
       "bravais-fewer-windows": {
-        title: "Bớt ô cửa sổ (Bravais)",
-        description: "Đóng một ô cửa trong suốt ở mỗi khối Không gian Bravais",
+        title: "Bỏ bớt khung (Bravais)",
+        description: "Bỏ một khung trong suốt ở mỗi khối Không gian Bravais",
       },
       "navigate-lattice": {
         title: "Mở Lattice",
-        description: "Hiển thị hàng đợi phát dưới dạng ảnh ghép",
+        description: "Hiển thị hàng đợi phát dưới dạng queue collage",
       },
       "browser-fullscreen": {
         title: "Toàn màn hình",
@@ -1044,8 +1044,8 @@ export default {
         description: "Mở tab trang chủ danh sách phát",
       },
       "home-local": {
-        title: "Mở nhạc cục bộ",
-        description: "Mở tab nhạc cục bộ",
+        title: "Mở nhạc nội bộ",
+        description: "Mở tab nhạc nội bộ",
       },
       "home-albums": {
         title: "Mở album",
@@ -1061,20 +1061,20 @@ export default {
       },
       "grid-sort-file-name": {
         title: "Sắp xếp theo tên tệp",
-        description: "Sắp xếp các bản nhạc cục bộ theo tên tệp",
+        description: "Sắp xếp các bản nhạc nội bộ theo tên tệp",
       },
       "grid-sort-modified-date": {
         title: "Sắp xếp theo ngày sửa đổi",
         description:
-          "Sắp xếp các bản nhạc cục bộ theo thời gian sửa đổi tệp gần nhất",
+          "Sắp xếp các bản nhạc nội bộ theo thời gian sửa đổi tệp gần nhất",
       },
       "grid-sort-album-track": {
         title: "Sắp xếp theo số track album",
-        description: "Sắp xếp các bản nhạc cục bộ theo số đĩa và số track",
+        description: "Sắp xếp các bản nhạc nội bộ theo số đĩa và số track",
       },
       "grid-sort-direction": {
         title: "Đảo ngược thứ tự sắp xếp",
-        description: "Chuyển danh sách nhạc cục bộ giữa tăng dần và giảm dần",
+        description: "Chuyển danh sách nhạc nội bộ giữa tăng dần và giảm dần",
       },
       "grid-toggle-info-panel": {
         title: "Bật/tắt bảng bộ sưu tập",
@@ -1086,11 +1086,11 @@ export default {
       },
       "grid-resync-folder": {
         title: "Nhập lại thư mục này",
-        description: "Quét lại thư mục cục bộ này và làm mới các bài hát",
+        description: "Quét lại thư mục nội bộ này và làm mới các bài hát",
       },
       "grid-resync-all-folders": {
         title: "Nhập lại tất cả thư mục",
-        description: "Quét lại mọi thư mục cục bộ và làm mới thư viện",
+        description: "Quét lại mọi thư mục nội bộ và làm mới thư viện",
       },
       "grid-organize-song-info": {
         title: "Sắp xếp thông tin bài hát",
@@ -1170,8 +1170,8 @@ export default {
         description: "Mở thẻ bảng tài khoản",
       },
       "panel-local": {
-        title: "Bảng: Cục bộ",
-        description: "Mở thẻ bảng cục bộ",
+        title: "Bảng: Nội bộ",
+        description: "Mở thẻ bảng nội bộ",
       },
       "panel-navi": {
         title: "Bảng: Navidrome",
@@ -1187,7 +1187,7 @@ export default {
       },
       "artist-edit-entity": {
         title: "Sửa thông tin nghệ sĩ",
-        description: "Mở trình chỉnh sửa thư viện cục bộ cho nghệ sĩ này",
+        description: "Mở trình chỉnh sửa thư viện nội bộ cho nghệ sĩ này",
       },
       "settings-interaction": {
         title: "Cài đặt tương tác",
@@ -1268,12 +1268,12 @@ export default {
       },
       "grid-export-playlist": {
         title: "Xuất danh sách phát này",
-        description: "Lưu danh sách phát cục bộ này thành tệp m3u8",
+        description: "Lưu danh sách phát nội bộ này thành tệp m3u8",
       },
       "grid-edit-entity": {
         title: "Chỉnh sửa album hoặc nghệ sĩ này",
         description:
-          "Mở trình chỉnh sửa thực thể thư viện cục bộ cho bộ sưu tập này",
+          "Mở trình chỉnh sửa thực thể thư viện nội bộ cho bộ sưu tập này",
       },
       "grid-toggle-edit-mode": {
         title: "Bật/tắt chế độ chỉnh sửa",
@@ -1302,12 +1302,12 @@ export default {
       },
       "directory-create-playlist": {
         title: "Tạo danh sách phát từ mục đã chọn",
-        description: "Tạo danh sách phát cục bộ từ bài hát của các thẻ đã chọn",
+        description: "Tạo danh sách phát nội bộ từ bài hát của các thẻ đã chọn",
       },
       "directory-remove-selection": {
         title: "Xóa mục đã chọn khỏi thư viện",
         description:
-          "Xác nhận xóa các thư mục đã chọn cùng bài hát khỏi thư viện cục bộ",
+          "Xác nhận xóa các thư mục đã chọn cùng bài hát khỏi thư viện nội bộ",
       },
       "directory-select-all": {
         title: "Chọn tất cả thẻ đã lọc",
@@ -1335,7 +1335,7 @@ export default {
       "directory-remove-root": {
         title: "Xóa thư mục đã nhập đang chọn",
         description:
-          "Xác nhận xóa thư mục gốc đã nhập đang chọn và bài hát khỏi thư viện cục bộ",
+          "Xác nhận xóa thư mục gốc đã nhập đang chọn và bài hát khỏi thư viện nội bộ",
       },
       "directory-clear-ignore": {
         title: "Khôi phục thư mục bị bỏ qua đang chọn",
@@ -1430,7 +1430,7 @@ export default {
       "playback-toggle-pure-music": {
         title: "Đánh dấu/bỏ nhạc không lời",
         description:
-          "Đánh dấu bài hát cục bộ là không lời để dừng tự khớp lời; chạy lại để bỏ đánh dấu",
+          "Đánh dấu bài hát nội bộ là không lời để dừng tự khớp lời; chạy lại để bỏ đánh dấu",
       },
       "visualizer-picker": {
         title: "Chọn hiệu ứng thị giác",
@@ -1467,7 +1467,7 @@ export default {
       "settings-toggle-transcode-fallback": {
         title: "Chuyển mã âm thanh không hỗ trợ",
         description:
-          "Bật/tắt Electron phục hồi âm thanh cục bộ và Navidrome mà Chromium không giải mã được",
+          "Bật/tắt Electron phục hồi âm thanh nội bộ và Navidrome mà Chromium không giải mã được",
       },
       "settings-toggle-playback-fade": {
         title: "Mờ âm khi dừng và tiếp tục",
@@ -1703,7 +1703,7 @@ export default {
     equalizerDescription: "Cân bằng dải tần và hiệu ứng âm thanh",
     equalizerEnabled: "Bật xử lý âm",
     equalizerDisabled: "Tắt xử lý âm",
-    equalizerGain: "Khuếch đại EQ (Gain)",
+    equalizerGain: "Khuếch đại EQ",
     equalizerReset: "Đặt lại cấu hình tùy chỉnh hiện tại",
     equalizerEffects: "Chuỗi hiệu ứng",
     equalizerEffectsHint: "Áp dụng sau các dải tần",
@@ -1722,14 +1722,14 @@ export default {
       punch: "Độ nảy",
     },
     equalizerPreset: {
-      flat: "Cân bằng (Flat)",
+      flat: "Flat",
       lofi: "Lo-Fi",
       radio: "Radio",
-      hall: "Khán phòng (Hall)",
-      vocal: "Giọng hát (Vocal)",
-      bass: "Tăng Bass (Bass Boost)",
-      custom1: "Tùy chỉnh 1",
-      custom2: "Tùy chỉnh 2",
+      hall: "Hall",
+      vocal: "Vocal",
+      bass: "Bass Boost",
+      custom1: "Custom 1",
+      custom2: "Custom 2",
     },
     cadenze: {
       fontScale: "Tỷ lệ cỡ chữ",
@@ -1746,9 +1746,9 @@ export default {
       syncTestSuccess: "Kiểm tra thành công",
       syncTestFailed: "Kết nối thất bại hoặc thông tin xác thực không hợp lệ",
       syncThemesComplete:
-        "Đã đồng bộ chủ đề. Tải lên {{uploaded}}, tải xuống {{downloaded}}, cục bộ {{local}}, đã xử lý {{diff}} nhóm khác biệt.",
+        "Đã đồng bộ chủ đề. Tải lên {{uploaded}}, tải xuống {{downloaded}}, nội bộ {{local}}, đã xử lý {{diff}} nhóm khác biệt.",
       syncAppliedRemote: "Đã tải và áp dụng cài đặt đám mây",
-      syncPushedLocal: "Đã đẩy cài đặt cục bộ mới nhất lên đám mây",
+      syncPushedLocal: "Đã đẩy cài đặt nội bộ mới nhất lên đám mây",
       syncSettingsComplete: "Đã đồng bộ cài đặt hiển thị. {{details}}",
       syncSettingsNoChange: "Cài đặt hiển thị đã khớp, không có thay đổi.",
     },
@@ -1787,7 +1787,7 @@ export default {
     visualizerWorkbench: "Xưởng hiệu ứng lời",
     visualizerTemporary: "Bàn làm việc tạm thời",
     visualizerMode: "Chế độ",
-    visualizerStill: "Tĩnh",
+    visualizerStill: "Still",
     visualizerClassic: "Classic",
     visualizerCadenze: "Cadenza",
     visualizerPartita: "Partita",
@@ -1801,10 +1801,10 @@ export default {
     visualizerSonnet: "Sonnet",
     visualizerTempera: "Tempera",
     visualizerLumiere: "Lumiere",
-    cadenzeTuning: "Tinh chỉnh Cadenza",
+    cadenzeTuning: "Hiệu chỉnh Tâm cảnh",
     resetVisualizerTuning: "Đặt lại thông số hiệu ứng lời",
     livePreview: "Xem trước trực tiếp",
-    cadenzeOnly: "Chỉ Cadenza",
+    cadenzeOnly: "Chỉ ở Tâm cảnh",
     background: "Nền",
     default: "Mặc định",
     aiTheme: "Chủ đề AI",
@@ -1813,7 +1813,7 @@ export default {
   panel: {
     cover: "Ảnh bìa",
     controls: "Điều khiển",
-    visualizer: "Hoạt họa lời bài hát",
+    visualizer: "Hoạt ảnh lời bài hát",
     playlist: "Danh sách phát",
     account: "Tài khoản",
   },
@@ -1827,9 +1827,9 @@ export default {
     scopeOnline: "Bộ nhớ đệm bài hát trực tuyến",
     scopeOnlineDesc:
       "Lời bài hát lưu trong bộ nhớ đệm từ các bài trực tuyến đã phát",
-    scopeLocal: "Thư viện cục bộ",
+    scopeLocal: "Thư viện nội bộ",
     scopeLocalDesc:
-      "Lời bài hát trực tuyến khớp với bài cục bộ, đặt tên theo tệp âm thanh trong thư mục gốc, có thể đặt ngay cạnh tệp nhạc",
+      "Lời bài hát trực tuyến khớp với bài nội bộ, đặt tên theo tệp âm thanh trong thư mục gốc, có thể đặt ngay cạnh tệp nhạc",
     formatFia: ".fia (Folia, lossless)",
     formatFiaDesc:
       "Giữ nguyên khớp từng từ, bản dịch, giọng bè và phân đoạn đã lưu; có thể nhập thẳng lại vào Folia",
@@ -2061,12 +2061,10 @@ export default {
   search: {
     placeholder: "Tìm bài hát...",
     sourceNetease: "NetEase",
-    sourceLocal: "Cục bộ",
+    sourceLocal: "Nội bộ",
     sourceNavidrome: "Navidrome",
     sourceZing: "Zing MP3",
-    sourceSpotify: "Spotify",
     sourceNct: "NhacCuaTui",
-    sourceYoutube: "YouTube",
     playTrack: "Phát bài hát",
     error: "Tìm kiếm thất bại. Thử lại sau.",
     retry: "Thử lại",
@@ -2090,48 +2088,48 @@ export default {
       PUZZLE_MODE_RCMD: "Phối ghép",
     },
     scene: {
-      JAPANESE: "Tiếng Nhật",
-      FRANCH: "Tiếng Pháp",
-      LATIN: "Latin",
-      GLOBAL: "Toàn cầu",
-      NIGHT_EMO: "Tâm trạng",
-      CURE: "Chữa lành",
-      CHEERFUL: "Vui tươi",
-      LYRICAL: "Trữ tình",
-      INSPIRATIONAL: "Cảm hứng",
-      RELAX: "Thư giãn",
-      SWEET: "Tình ca",
-      EXERCISE: "Tập luyện",
-      FOCUS: "Tập trung",
-      SLEEP_HELP: "Dễ ngủ",
-      TAKE_SHOWER: "Tắm gội",
-      COMMUTE: "Di chuyển",
-      COFFEE_SHOP: "Quán cà phê",
-      GAMES: "Chơi game",
-      DANCE: "Vũ đạo",
-      RAINY: "Ngày mưa",
+      NIGHT_EMO: "Melancholy",
+      CURE: "Healing",
+      CHEERFUL: "Cheerful",
+      LYRICAL: "Lyrical",
+      INSPIRATIONAL: "Inspirational",
+      RELAX: "Relax",
+      SWEET: "Love Songs",
+      EXERCISE: "Workout",
+      FOCUS: "Focus",
+      SLEEP_HELP: "Sleep",
+      TAKE_SHOWER: "Shower",
+      COMMUTE: "Commute",
+      COFFEE_SHOP: "Coffee Shop",
+      GAMES: "Gaming",
+      DANCE: "Dance",
+      RAINY: "Rainy Day",
       RHYTHM_BLUES: "R&B",
       RAP: "Rap",
       K_POP: "K-Pop",
-      ELECTRONIC: "Điện tử",
+      ELECTRONIC: "Electronic",
       ROCK: "Rock",
-      FOLK: "Dân ca",
-      GUDIAN: "Cổ điển",
+      FOLK: "Folk",
+      GUDIAN: "Classical",
       JAZZ: "Jazz",
       BLUE: "Blues",
       PUNK: "Funk",
-      COUNTRY: "Đồng quê",
-      LIGHT: "Nhạc nhẹ",
-      GUOFENG: "Cổ phong",
+      COUNTRY: "Country",
+      LIGHT: "Light Music",
+      GUOFENG: "Guofeng",
       MANYAO: "Slow DJ",
-      MUSICAL: "Nhạc kịch",
+      MUSICAL: "Musical",
       ACG: "ACG",
-      JINGDIAN: "Kinh điển",
-      ORIGINAL_MUSICIAL: "Indie độc lập",
-      YINGSHI: "Nhạc phim",
-      CHINESE: "Nhạc Hoa",
-      ENGLISH: "Âu Mỹ",
-      YUEYU: "Nhạc Quảng",
+      JINGDIAN: "Classics",
+      ORIGINAL_MUSICIAL: "Indie Original",
+      YINGSHI: "Soundtrack",
+      CHINESE: "Mandarin",
+      ENGLISH: "Western",
+      YUEYU: "Cantonese",
+      JAPANESE: "Japanese",
+      FRANCH: "French",
+      LATIN: "Latin",
+      GLOBAL: "Global",
     },
     statusPending: "Chế độ FM cá nhân",
     statusApplied: "FM cá nhân đã chuyển sang",
@@ -2208,7 +2206,7 @@ export default {
     qrScanned: "Đã quét! Xác nhận trên điện thoại.",
     loginSuccess: "Đăng nhập thành công!",
     loginError: "Lỗi đăng nhập",
-    loginBackendDown: "Dịch vụ NetEase cục bộ chưa chạy",
+    loginBackendDown: "Dịch vụ NetEase nội bộ chưa chạy",
     restartBackend: "Khởi động lại backend",
     restartingBackend: "Đang khởi động lại…",
     retryQr: "Làm mới mã QR",
@@ -2259,10 +2257,10 @@ export default {
     qrDiagnosticsPasteHint:
       "Dán thông tin chẩn đoán Folia đã sao chép vào đây và mô tả ngắn sự cố (mạng, trạng thái proxy,...).",
     qrSelfCheckTitle: "Tự động kiểm tra",
-    qrSelfCheckRunning: "Đang kiểm tra mạng và dịch vụ cục bộ…",
+    qrSelfCheckRunning: "Đang kiểm tra mạng và dịch vụ nội bộ…",
     qrSelfCheckFailed: "Kiểm tra tự động không hoàn tất: {{message}}",
     qrSelfCheckBackendDown:
-      "Dịch vụ {{provider}} cục bộ hoạt động không bình thường ({{detail}}). Khởi động lại Folia và thử lại.",
+      "Dịch vụ {{provider}} nội bộ hoạt động không bình thường ({{detail}}). Khởi động lại Folia và thử lại.",
     qrSelfCheckRemoteUnreachable:
       "Không thể kết nối máy chủ API ({{detail}}). Kiểm tra địa chỉ triển khai và kết nối mạng.",
     qrSelfCheckCredentialStore:
@@ -2284,7 +2282,7 @@ export default {
       "Proxy chế độ TUN (fake-ip) đang tiếp quản kết nối. Nếu vẫn thất bại, hãy cho phép kết nối trực tiếp tên miền {{provider}} rồi thử lại.",
     qrSelfCheckProxyEnv:
       "Đã đặt biến môi trường proxy, yêu cầu đăng nhập có thể qua proxy. Nếu vẫn thất bại, gỡ proxy rồi thử lại.",
-    qrSelfCheckItemBackend: "Dịch vụ cục bộ",
+    qrSelfCheckItemBackend: "Dịch vụ nội bộ",
     qrSelfCheckItemRemote: "Máy chủ API",
     qrSelfCheckItemCredentialStore: "Lưu trữ thông tin xác thực",
     qrSelfCheckItemDns: "DNS",
@@ -2328,7 +2326,7 @@ export default {
     gridFolderAddToQueue: "Thêm vào hàng đợi",
     gridFolderRemoveSelected: "Xóa khỏi thư viện",
     gridFolderCreatePlaylistDescription:
-      "Tạo danh sách phát với {{count}} bài hát cục bộ đã chọn.",
+      "Tạo danh sách phát với {{count}} bài hát nội bộ đã chọn.",
     gridFolderPlaylistNamePlaceholder: "Tên danh sách phát",
     gridFolderRemoveSelectedTitle: "Xóa các bài hát đã chọn?",
     gridFolderRemoveSelectedDescription:
@@ -2499,7 +2497,7 @@ export default {
     customShortcutClear: "Xóa",
     customShortcutTaken: "Phím này đã được gán cho phím tắt khác",
     customShortcutLettersOnly: "Chỉ chấp nhận chữ cái A–Z",
-    replayGainSettings: "Cân bằng âm lượng (ReplayGain)",
+    replayGainSettings: "Cân bằng âm lượng",
     replayGainMode: "Chế độ ReplayGain (Cân bằng âm lượng)",
     replayGainModeDesc:
       "Chuẩn hóa âm lượng phát bằng siêu dữ liệu ReplayGain của bài hát hoặc album khi khả dụng.",
@@ -2618,7 +2616,7 @@ export default {
     lyricApi: "API lời bài hát",
     enableLyricApi: "Bật API lời bài hát",
     lyricApiDesc:
-      "Mở endpoint cục bộ cố định không cần xác thực để ứng dụng ngoài đọc lời bài hát hiện tại. Chỉ lắng nghe trên 127.0.0.1.",
+      "Mở endpoint nội bộ cố định không cần xác thực để ứng dụng ngoài đọc lời bài hát hiện tại. Chỉ lắng nghe trên 127.0.0.1.",
     lyricApiAddress: "Endpoint",
     copyLyricApiAddress: "Sao chép endpoint",
     lyricApiRunning: "Đang chạy",
@@ -2682,13 +2680,13 @@ export default {
     resetCacheDirectory: "Dùng thư mục mặc định",
     cacheDirectoryPendingDesc:
       "Electron hiện lưu tệp đệm âm thanh tại thư mục này. Lời bài hát, ảnh bìa và bộ đệm trình duyệt khác vẫn nằm trong thư mục dữ liệu ứng dụng.",
-    localLibraryWatch: "Theo dõi thư mục cục bộ",
+    localLibraryWatch: "Theo dõi thư mục nội bộ",
     localLibraryAutoScan: "Tự động quét thư mục đã nhập",
     localLibraryAutoScanDesc:
       "Theo dõi các thư mục đã nhập và quét tăng dần mỗi khi tệp thay đổi.",
     localLibraryWatchAttaching: "Đang kết nối thư mục đã nhập...",
     localLibraryWatchNoFolders:
-      "Chưa có thư mục nào. Hãy nhập từ trang thư viện cục bộ.",
+      "Chưa có thư mục nào. Hãy nhập từ trang thư viện nội bộ.",
     localLibraryWatchNoPermission:
       "Quyền truy cập hết hạn. Nhập lại thư mục để tiếp tục theo dõi.",
     localLibraryWatchActive: "Đang theo dõi thư mục này và thư mục con.",
@@ -2720,7 +2718,7 @@ export default {
     bravaisStackEdges: "Viền chồng bộ sưu tập",
     bravaisStackEdgesDesc:
       "Album, danh sách phát và thư mục hiện các mép so le ở góc dưới phải như chồng đĩa hát. Khi tắt sẽ hiển thị dạng poster thường; số bài hát vẫn ở trên nhãn.",
-    bravaisSeamClear: "Thanh thông tin trong suốt (See-through)",
+    bravaisSeamClear: "Thanh thông tin trong suốt",
     bravaisSeamClearDesc:
       "Thanh thông tin (thanh trang chủ, thanh thu gọn, thanh bộ sưu tập và nghệ sĩ, các bảng điều khiển) bỏ nền đặc để lộ hiệu ứng thị giác phía sau qua lớp phủ mờ, kể cả khi giao diện ở dạng màu đặc. Các kiểu thanh thông tin bên dưới không áp dụng khi bật tùy chọn này.",
     bravaisSeamStyle: "Kiểu thanh thông tin",
@@ -2753,7 +2751,7 @@ export default {
     showHomeTabPlaylist: "Hiện danh sách phát",
     showHomeTabRadio: "Hiện Radio",
     showHomeTabAlbums: "Hiện Album",
-    showHomeTabLocal: "Hiện tệp cục bộ",
+    showHomeTabLocal: "Hiện tệp nội bộ",
     pinnedCommands: "Lệnh đã ghim",
     pinnedCommandsDesc: "Chọn tối đa ba lệnh để hiển thị bên dưới bảng lệnh.",
     pinnedCommandSlot: "Vị trí {{index}}",
@@ -2765,7 +2763,7 @@ export default {
     r2SyncExportLibrary: "Xuất zip",
     r2SyncImportLibrary: "Nhập zip",
     r2SyncImportConfirm:
-      "Nhập thư viện đồng bộ này và ghi đè bộ nhớ đệm cục bộ? Nếu đã bật đồng bộ, dữ liệu nhập cũng sẽ được tải lên máy chủ.",
+      "Nhập thư viện đồng bộ này và ghi đè bộ nhớ đệm nội bộ? Nếu đã bật đồng bộ, dữ liệu nhập cũng sẽ được tải lên máy chủ.",
     r2SyncLastSync: "Lần đồng bộ gần nhất",
     r2SyncStatusIdle: "Chưa đồng bộ",
     r2SyncStatusError: "Đồng bộ thất bại",
@@ -2890,27 +2888,27 @@ export default {
     lyricMatchPriority: "Ưu tiên khớp lời bài hát",
     lyricMatchPriorityDesc:
       "Ưu tiên nguồn này khi nhiều nguồn lời bài hát đều có kết quả khớp tin cậy cao.",
-    localLyricsPriority: "Ưu tiên lời bài hát cục bộ",
+    localLyricsPriority: "Ưu tiên lời bài hát nội bộ",
     localLyricsPriorityDesc:
-      "Chọn lời bài hát ưu tiên khi bài hát cục bộ cũng có lời khớp trực tuyến. Nguồn lời chọn thủ công vẫn được giữ nguyên.",
-    localLyricsPriorityLocal: "Lời cục bộ",
+      "Chọn lời bài hát ưu tiên khi bài hát nội bộ cũng có lời khớp trực tuyến. Nguồn lời chọn thủ công vẫn được giữ nguyên.",
+    localLyricsPriorityLocal: "Lời nội bộ",
     localLyricsPriorityLocalDesc:
       "Ưu tiên tệp lời cùng thư mục và lời nhúng, sau đó mới dùng lời trực tuyến.",
     localLyricsPriorityOnline: "Ưu tiên trực tuyến",
     localLyricsPriorityOnlineDesc:
-      "Ưu tiên lời trực tuyến đã khớp, sau đó mới dùng lời cục bộ.",
-    localLyricFormatOrder: "Thứ tự định dạng lời cục bộ",
+      "Ưu tiên lời trực tuyến đã khớp, sau đó mới dùng lời nội bộ.",
+    localLyricFormatOrder: "Thứ tự định dạng lời nội bộ",
     localLyricFormatOrderDesc:
       "Khi bài hát có nhiều tệp lời trùng tên, định dạng đầu tiên trong danh sách sẽ được dùng. .fia luôn ưu tiên cao nhất. Lời tải lên không bị ảnh hưởng.",
     localLyricFormatOrderReset: "Đặt lại",
     localLyricFormatDragHandle: "Kéo để đổi thứ tự {{format}}",
     localLyricFormatResyncHint:
-      "Thứ tự mới sẽ áp dụng trong lần đồng bộ lại thư mục cục bộ tiếp theo.",
+      "Thứ tự mới sẽ áp dụng trong lần đồng bộ lại thư mục nội bộ tiếp theo.",
     localLyricFormatResync: "Đồng bộ lại ngay",
     localLyricFormatResyncing: "Đang đồng bộ lại…",
-    localLyricFormatResyncDone: "Đã đồng bộ lại thư mục cục bộ",
-    localLyricFormatResyncNoFolders: "Chưa nhập thư mục cục bộ nào",
-    localLyricFormatResyncFailed: "Lỗi đồng bộ lại thư mục cục bộ",
+    localLyricFormatResyncDone: "Đã đồng bộ lại thư mục nội bộ",
+    localLyricFormatResyncNoFolders: "Chưa nhập thư mục nội bộ nào",
+    localLyricFormatResyncFailed: "Lỗi đồng bộ lại thư mục nội bộ",
     labHidePlayerUi: "Ẩn giao diện trình phát",
     labHidePlayerUiDesc:
       "Chỉ áp dụng trên trang trình phát. Có thể ẩn riêng thanh điều khiển dưới, phụ đề dưới và nút bên phải. Sau khi ẩn nút bên phải, vẫn có thể dùng phím P để đóng/mở bảng bên phải.",
@@ -3023,7 +3021,7 @@ export default {
     nowPlayingFixedConnectionDesc:
       "Kết nối cố định ws://localhost:9863/api/ws/lyric. Cần khởi chạy dịch vụ now-playing trên máy trước.",
     enableStageModeDescWeb:
-      "Khi bật, lối vào Stage sẽ xuất hiện ở trang chủ; chọn nguồn lời bài hát để kết nối tới dịch vụ cục bộ.",
+      "Khi bật, lối vào Stage sẽ xuất hiện ở trang chủ; chọn nguồn lời bài hát để kết nối tới dịch vụ nội bộ.",
     playerCapAddress: "Địa chỉ Nexus PlayerCap",
     playerCapAddressHint:
       "Để trống dùng mặc định localhost:8765; tự lưu và kết nối lại khi rời tiêu điểm.",
@@ -3510,7 +3508,7 @@ export default {
     systemFontDesc: "",
     systemFontActive: "Đang bật",
     systemFontInactive: "Đã tắt",
-    systemFontUnsupported: "Môi trường này không thể đọc phông chữ cục bộ.",
+    systemFontUnsupported: "Môi trường này không thể đọc phông chữ nội bộ.",
     systemFontEmpty: "Không có phông chữ nào.",
     systemFontPermissionDenied:
       "Đọc phông chữ máy thất bại. Kiểm tra quyền truy cập.",
@@ -3628,7 +3626,7 @@ export default {
     audioOutputSettings: "Thiết bị phát",
     transcodeFallback: "Tự động chuyển đổi âm thanh không hỗ trợ",
     transcodeFallbackDesc:
-      "Trong ứng dụng Electron, dùng FFmpeg để khôi phục bài hát cục bộ và Navidrome mà Chromium không giải mã được. Tệp gốc không bị thay đổi.",
+      "Trong ứng dụng Electron, dùng FFmpeg để khôi phục bài hát nội bộ và Navidrome mà Chromium không giải mã được. Tệp gốc không bị thay đổi.",
     playbackFade: "Làm mờ khi tạm dừng và tiếp tục",
     playbackFadeDesc:
       "Giảm âm dần trước khi tạm dừng và tăng dần khi tiếp tục thay vì ngắt âm đột ngột. Bỏ qua nếu âm thanh không đi qua bộ xử lý âm thanh.",
@@ -3706,7 +3704,7 @@ export default {
     aiTestEmptyReasoning:
       "Đã kết nối nhưng mô hình không trả về văn bản: quá trình suy luận đã dùng hết token.",
     aiTestEmpty: "Đã kết nối nhưng mô hình không trả về văn bản.",
-    geminiApiKeyDesc: "Dịch vụ backend API Netease đang chạy cục bộ.",
+    geminiApiKeyDesc: "Dịch vụ backend API Netease đang chạy nội bộ.",
     openaiApiUrlDesc:
       "API tương thích OpenAI không nhất thiết phải là API chính thức từ OpenAI. Có thể dùng các nhà cung cấp tương thích như DeepSeek.",
     save: "Lưu",
@@ -3917,23 +3915,23 @@ export default {
     videoLayerEnabled: "Hiện video phía sau lời bài hát",
     videoLayerDesc:
       "Video tắt tiếng nằm giữa nền và lời bài hát. Tự phát, tạm dừng và tua đồng bộ theo nhạc.",
-    videoLayerLocalFile: "Video cục bộ",
+    videoLayerLocalFile: "Video nội bộ",
     videoLayerLocalFileDesc:
       "Ưu tiên hơn URL. Tự động nhớ video đã chọn sau khi khởi động lại.",
     videoLayerLocalFileSessionDesc:
       "Ưu tiên hơn URL. Trình duyệt không thể lưu lựa chọn, cần chọn lại sau khi khởi động lại.",
     videoLayerPickFile: "Chọn video",
     videoLayerRegrant: "Cấp lại quyền truy cập",
-    videoLayerClearFile: "Xóa video cục bộ",
+    videoLayerClearFile: "Xóa video nội bộ",
     videoLayerPickFailed: "Không thể mở video",
     videoLayerUrl: "URL video",
-    videoLayerUrlDesc: "Dùng khi chưa chọn video cục bộ.",
+    videoLayerUrlDesc: "Dùng khi chưa chọn video nội bộ.",
     videoLayerOpacity: "Độ mờ đục",
     videoLayerFit: "Khớp khung",
     videoLayerFitCover: "Phủ kín (cắt viền)",
     videoLayerFitContain: "Vừa khung (nguyên vẹn)",
     videoLayerNotInExport:
-      "Không kèm trong nhập/xuất giao diện và không hiện trên nguồn OBS: OBS dùng trình duyệt riêng nên không thể đọc video cục bộ tại đây.",
+      "Không kèm trong nhập/xuất giao diện và không hiện trên nguồn OBS: OBS dùng trình duyệt riêng nên không thể đọc video nội bộ tại đây.",
     exportThemeLabel: "Chủ đề đính kèm trong mã cấu hình",
     exportAiTheme: "Chủ đề AI",
     exportCustomTheme: "Chủ đề tùy chỉnh",
@@ -3953,7 +3951,7 @@ export default {
     scrobbleSettings: "Ghi nhận bài nghe",
     neteaseScrobble: "Báo cáo lượt nghe (chỉ NetEase)",
     neteaseScrobbleDesc:
-      "Gửi báo cáo nghe tới tài khoản NetEase sau khi nghe thực tế tối thiểu 30 giây nhạc NetEase trực tuyến. Tệp cục bộ, nhạc tải lên đám mây và nguồn khác sẽ không ghi nhận. Tính năng này tiềm ẩn rủi ro - hãy thận trọng.",
+      "Gửi báo cáo nghe tới tài khoản NetEase sau khi nghe thực tế tối thiểu 30 giây nhạc NetEase trực tuyến. Tệp nội bộ, nhạc tải lên đám mây và nguồn khác sẽ không ghi nhận. Tính năng này tiềm ẩn rủi ro - hãy thận trọng.",
     neteaseScrobbleSignInHint: "Đăng nhập NetEase Cloud Music để sử dụng.",
     queueDefaultBehavior: "Vị trí mặc định khi thêm vào hàng đợi",
     queueDefaultBehaviorDesc: "Hành vi mặc định khi thêm bài hát vào hàng đợi.",
@@ -4020,7 +4018,7 @@ export default {
       awlrcLyrics: {
         title: "Lời bài hát từng từ AWLRC",
         description:
-          "Lời bài hát cục bộ nay có thể tải vùng chứa AWLRC đồng thời giữ nguyên khớp thời gian từng từ, bản dịch và phiên âm La-tinh.",
+          "Lời bài hát nội bộ nay có thể tải vùng chứa AWLRC đồng thời giữ nguyên khớp thời gian từng từ, bản dịch và phiên âm La-tinh.",
       },
       desktopWindowTools: {
         title: "Lớp phủ desktop và xuất video mượt hơn",
@@ -4064,7 +4062,7 @@ export default {
     },
     v0_7_2: {
       intro:
-        "Phiên bản 0.7.2 cải thiện khả năng xử lý lời bài hát, điều hướng cài đặt, phân cảnh Tempera và hoạt ảnh Automix, cùng nhiều bản sửa lỗi cho ứng dụng máy tính và thư viện cục bộ.",
+        "Phiên bản 0.7.2 cải thiện khả năng xử lý lời bài hát, điều hướng cài đặt, phân cảnh Tempera và hoạt ảnh Automix, cùng nhiều bản sửa lỗi cho ứng dụng máy tính và thư viện nội bộ.",
       smartStaffCredits: {
         title: "Xử lý thông tin ê-kíp mở đầu thông minh",
         description:
@@ -4136,12 +4134,12 @@ export default {
       transcodeFallback: {
         title: "Tự động phát âm thanh không hỗ trợ giải mã",
         description:
-          "Ứng dụng máy tính nay tích hợp FFmpeg, tự động chuyển đổi các bài hát cục bộ hoặc Navidrome mà Chromium không thể giải mã và tiếp tục phát ngay tại chỗ mà không làm thay đổi tệp gốc. Kết quả chuyển mã sẽ được lưu vào bộ nhớ đệm và có thể tắt hoàn toàn cơ chế dự phòng này trong cài đặt phát lại.",
+          "Ứng dụng máy tính nay tích hợp FFmpeg, tự động chuyển đổi các bài hát nội bộ hoặc Navidrome mà Chromium không thể giải mã và tiếp tục phát ngay tại chỗ mà không làm thay đổi tệp gốc. Kết quả chuyển mã sẽ được lưu vào bộ nhớ đệm và có thể tắt hoàn toàn cơ chế dự phòng này trong cài đặt phát lại.",
       },
       localFolderAutoScan: {
         title: "Tự động quét lại thư mục đã nhập",
         description:
-          "Khi bật, Folia sẽ theo dõi các thư mục cục bộ đã nhập và tự động quét gia tăng mỗi khi tệp được thêm, sửa hoặc xóa — không cần nhập lại thủ công. Tính năng này mặc định tắt; cài đặt lưu trữ hiển thị trạng thái theo dõi của từng thư mục. Một số môi trường chỉ hỗ trợ theo dõi thư mục gốc.",
+          "Khi bật, Folia sẽ theo dõi các thư mục nội bộ đã nhập và tự động quét gia tăng mỗi khi tệp được thêm, sửa hoặc xóa — không cần nhập lại thủ công. Tính năng này mặc định tắt; cài đặt lưu trữ hiển thị trạng thái theo dõi của từng thư mục. Một số môi trường chỉ hỗ trợ theo dõi thư mục gốc.",
       },
       lyricFilterPersistence: {
         title: "Giữ nguyên biểu thức lọc lời bài hát",
@@ -4156,7 +4154,7 @@ export default {
     },
     v0_7_17: {
       intro:
-        'Chào mừng bạn đến với 0.7.17, bản cập nhật Spica — một bản phát hành lớn. Thư viện sở hữu giao diện Bravais hoàn toàn mới: không gian poster 3D cho phép kéo duyệt linh hoạt. Sau khi cập nhật, Folia sẽ hỏi một lần để bạn chọn Bravais hay dạng lưới cổ điển; chế độ xem mở khi phát nhạc có thêm tùy chọn "Ở lại đây", cùng khả năng đánh dấu bài hát cục bộ là nhạc không lời.',
+        'Chào mừng bạn đến với 0.7.17, bản cập nhật Spica — một bản phát hành lớn. Thư viện sở hữu giao diện Bravais hoàn toàn mới: không gian poster 3D cho phép kéo duyệt linh hoạt. Sau khi cập nhật, Folia sẽ hỏi một lần để bạn chọn Bravais hay dạng lưới cổ điển; chế độ xem mở khi phát nhạc có thêm tùy chọn "Ở lại đây", cùng khả năng đánh dấu bài hát nội bộ là nhạc không lời.',
       bravais: {
         title: "Bravais, giao diện thư viện mới",
         description:
@@ -4173,14 +4171,14 @@ export default {
           "Không gian Bravais có thể hiển thị màu đặc, bán trong suốt hoặc trong suốt hoàn toàn để lộ trình phát phía sau. Các bộ sưu tập có thể hiện viền trang xếp chồng, thanh thông tin có nhiều kiểu dáng, nền sau có thể hiện lời bài hát và làm mờ. Ánh sáng và màu phủ poster dùng chung với Lattice, đồng thời Lattice nay cuộn mượt mà hơn bằng con lăn chuột.",
       },
       pureMusic: {
-        title: "Đánh dấu bài hát cục bộ là nhạc không lời",
+        title: "Đánh dấu bài hát nội bộ là nhạc không lời",
         description:
-          'Trong cửa sổ khớp lời bài hát (Khớp trực tuyến ở tab Cục bộ trên bảng trình phát, hoặc Khớp trực tuyến thủ công trong thư viện), chọn "Đánh dấu là nhạc không lời" để Folia ngừng tự động tìm lời cho bài hát đó; chọn lại để hoàn tác. Bảng lệnh cũng hỗ trợ bật tắt nhanh mục này.',
+          'Trong cửa sổ khớp lời bài hát (Khớp trực tuyến ở tab Nội bộ trên bảng trình phát, hoặc Khớp trực tuyến thủ công trong thư viện), chọn "Đánh dấu là nhạc không lời" để Folia ngừng tự động tìm lời cho bài hát đó; chọn lại để hoàn tác. Bảng lệnh cũng hỗ trợ bật tắt nhanh mục này.',
       },
       navidromePreset: {
         title: "Cấu hình sẵn tài khoản Navidrome cho Docker",
         description:
-          "Bản triển khai Docker có thể đặt sẵn địa chỉ và tài khoản Navidrome trên máy chủ, giúp thiết bị mới trong mạng cục bộ tự động đăng nhập. Tài khoản bạn tự cấu hình trong Cài đặt vẫn luôn được ưu tiên.",
+          "Bản triển khai Docker có thể đặt sẵn địa chỉ và tài khoản Navidrome trên máy chủ, giúp thiết bị mới trong mạng nội bộ tự động đăng nhập. Tài khoản bạn tự cấu hình trong Cài đặt vẫn luôn được ưu tiên.",
       },
       qqPlaylists: {
         title: "Danh sách phát gợi ý từ QQ Music",
@@ -4190,7 +4188,7 @@ export default {
     },
     v0_7_16: {
       intro:
-        "Phiên bản 0.7.16 chuyển lời bài hát AMLL sang API chính thức, tìm được nhiều lời AMLL hơn cho bài hát QQ Music và hỗ trợ khớp thủ công trực tiếp từ AMLL. Bản cập nhật cũng bổ sung phím Tab để chuyển thẻ trang chủ và sửa lỗi thiếu liên kết album, nghệ sĩ trong kết quả tìm kiếm cục bộ.",
+        "Phiên bản 0.7.16 chuyển lời bài hát AMLL sang API chính thức, tìm được nhiều lời AMLL hơn cho bài hát QQ Music và hỗ trợ khớp thủ công trực tiếp từ AMLL. Bản cập nhật cũng bổ sung phím Tab để chuyển thẻ trang chủ và sửa lỗi thiếu liên kết album, nghệ sĩ trong kết quả tìm kiếm nội bộ.",
       amllSource: {
         title: "Lời bài hát AMLL qua API chính thức",
         description:
@@ -4199,26 +4197,26 @@ export default {
       amllSearch: {
         title: "Khớp lời AMLL thủ công chuẩn xác hơn",
         description:
-          "Thẻ AMLLDB trong cửa sổ khớp lời bài hát hiện tìm kiếm trực tiếp trong kho nhạc AMLL và hỗ trợ tự nhập từ khóa. Cơ chế tìm theo tên bài hát và nghệ sĩ giúp bài có tên ngắn không còn trả về mọi bài có lời chứa từ đó. Chọn kết quả AMLL cho bài hát cục bộ chỉ ghi nhận lời bài hát, giữ nguyên tên bài, nghệ sĩ và ảnh bìa.",
+          "Thẻ AMLLDB trong cửa sổ khớp lời bài hát hiện tìm kiếm trực tiếp trong kho nhạc AMLL và hỗ trợ tự nhập từ khóa. Cơ chế tìm theo tên bài hát và nghệ sĩ giúp bài có tên ngắn không còn trả về mọi bài có lời chứa từ đó. Chọn kết quả AMLL cho bài hát nội bộ chỉ ghi nhận lời bài hát, giữ nguyên tên bài, nghệ sĩ và ảnh bìa.",
       },
       gridTabKeys: {
         title: "Chuyển thẻ trang chủ bằng phím Tab",
         description:
-          "Trên trang chủ Không gian Bravais, dùng Tab và Shift + Tab để chuyển vòng quanh giữa danh sách phát, radio, album, nhạc cục bộ và Navidrome, tự động bỏ qua thẻ không khả dụng. Thao tác này giúp điều khiển bằng bàn phím và remote dễ dàng hơn.",
+          "Trên trang chủ Không gian Bravais, dùng Tab và Shift + Tab để chuyển vòng quanh giữa danh sách phát, radio, album, nhạc nội bộ và Navidrome, tự động bỏ qua thẻ không khả dụng. Thao tác này giúp điều khiển bằng bàn phím và remote dễ dàng hơn.",
       },
       searchLinks: {
-        title: "Kết quả tìm kiếm cục bộ giữ nguyên liên kết",
+        title: "Kết quả tìm kiếm nội bộ giữ nguyên liên kết",
         description:
           "Khi tìm kiếm ngay sau khi nhập thư mục, các liên kết album và nghệ sĩ trong kết quả sẽ tự động điền đầy đủ sau khi thư viện tải xong mà không cần tìm kiếm lại.",
       },
     },
     v0_7_15: {
       intro:
-        "Phiên bản 0.7.15 cải thiện khả năng xử lý tiếng Trung trong lời bài hát cục bộ và thẻ MP3, giúp đăng nhập bằng mã QR ổn định hơn kèm hướng dẫn rõ ràng khi gặp lỗi, hỗ trợ phím tắt từ thao tác mô phỏng, đồng thời sửa lỗi lịch sử quay lại phình to giữa trang nghệ sĩ và album cùng lỗi chuyển mã trên Apple Silicon.",
+        "Phiên bản 0.7.15 cải thiện khả năng xử lý tiếng Trung trong lời bài hát nội bộ và thẻ MP3, giúp đăng nhập bằng mã QR ổn định hơn kèm hướng dẫn rõ ràng khi gặp lỗi, hỗ trợ phím tắt từ thao tác mô phỏng, đồng thời sửa lỗi lịch sử quay lại phình to giữa trang nghệ sĩ và album cùng lỗi chuyển mã trên Apple Silicon.",
       localLyrics: {
-        title: "Tương thích tệp lời bài hát cục bộ tốt hơn",
+        title: "Tương thích tệp lời bài hát nội bộ tốt hơn",
         description:
-          "Hỗ trợ giải mã lời bài hát KRC, tự động nhận diện mã hóa GBK và chuẩn hóa dấu ngắt dòng, giúp lời xuất từ công cụ cũ không còn bị lỗi trống. Dòng trống không còn đẩy lời gốc vào dòng bản dịch. Khi tệp LRC song ngữ gắn sai mốc thời gian bản dịch, Folia sẽ thông báo khi phát và hướng dẫn khắc phục tại tab Cục bộ trên bảng phát.",
+          "Hỗ trợ giải mã lời bài hát KRC, tự động nhận diện mã hóa GBK và chuẩn hóa dấu ngắt dòng, giúp lời xuất từ công cụ cũ không còn bị lỗi trống. Dòng trống không còn đẩy lời gốc vào dòng bản dịch. Khi tệp LRC song ngữ gắn sai mốc thời gian bản dịch, Folia sẽ thông báo khi phát và hướng dẫn khắc phục tại tab Nội bộ trên bảng phát.",
       },
       mp3Tags: {
         title: "Không còn lỗi hiển thị thẻ MP3 tiếng Trung",
@@ -4265,7 +4263,7 @@ export default {
           "Tùy chọn giữ mở hàng đợi command palette sau khi đổi bài, giữ nguyên bộ lọc khi chọn liên tục và cuộn mượt về bài đang phát. Mặc định vẫn đóng sau khi chọn.",
       },
       flacCompatibility: {
-        title: "Cải thiện tương thích FLAC cục bộ",
+        title: "Cải thiện tương thích FLAC nội bộ",
         description:
           "Sửa lỗi đọc thẻ, ảnh bìa và lỗi phát do siêu dữ liệu ảnh bìa sai định dạng (kể cả khi nhãn định dạng không khớp với ảnh nhúng). Tệp nhạc gốc giữ nguyên vẹn.",
       },
@@ -4294,14 +4292,14 @@ export default {
           "Thực hiện các thao tác trên lưới hiện tại bằng bàn phím — như sắp xếp, bảng điều khiển, quét lại, dọn dẹp siêu dữ liệu, xuất danh sách phát và chỉnh sửa. Các lệnh cài đặt nay nhảy thẳng đến từng mục cụ thể, và lệnh --play hoặc --add có thể áp dụng trực tiếp cho các bài hát đã lọc.",
       },
       localFolderRecovery: {
-        title: "Bỏ qua và khôi phục thư mục con cục bộ",
+        title: "Bỏ qua và khôi phục thư mục con nội bộ",
         description:
-          "Xóa thư mục con khỏi thư viện cục bộ đã nhập nay sẽ tiếp tục bỏ qua thư mục đó trong các lần quét sau mà không xóa phần còn lại của thư mục gốc. Cây thư mục lưu một mục có thể khôi phục để bạn lấy lại và quét lại khi cần.",
+          "Xóa thư mục con khỏi thư viện nội bộ đã nhập nay sẽ tiếp tục bỏ qua thư mục đó trong các lần quét sau mà không xóa phần còn lại của thư mục gốc. Cây thư mục lưu một mục có thể khôi phục để bạn lấy lại và quét lại khi cần.",
       },
       neteaseScrobble: {
         title: "Tùy chọn ghi nhận lượt nghe NetEase",
         description:
-          "Người dùng NetEase đã đăng nhập có thể chọn ghi nhận lượt nghe khi phát bài hát trực tuyến NetEase từ 30 giây trở lên. Tệp cục bộ, bài hát trên đám mây và nguồn khác sẽ không bao giờ được ghi nhận; tính năng đồng bộ tài khoản này mặc định tắt.",
+          "Người dùng NetEase đã đăng nhập có thể chọn ghi nhận lượt nghe khi phát bài hát trực tuyến NetEase từ 30 giây trở lên. Tệp nội bộ, bài hát trên đám mây và nguồn khác sẽ không bao giờ được ghi nhận; tính năng đồng bộ tài khoản này mặc định tắt.",
       },
       desktopReliability: {
         title: "Cập nhật và báo cáo sự cố rõ ràng hơn trên máy tính",
@@ -4316,16 +4314,16 @@ export default {
     },
     v0_7_7: {
       intro:
-        "Phiên bản 0.7.7 khôi phục khả năng phát QQ Music ổn định, cải thiện xử lý ảnh bìa và lời bài hát nhúng cục bộ, đồng thời giảm tài nguyên tải ảnh bìa trong Lattice.",
+        "Phiên bản 0.7.7 khôi phục khả năng phát QQ Music ổn định, cải thiện xử lý ảnh bìa và lời bài hát nhúng nội bộ, đồng thời giảm tài nguyên tải ảnh bìa trong Lattice.",
       qqPlaybackReliability: {
         title: "Phát QQ Music ổn định hơn",
         description:
           "Phát nhạc QQ Music nay bổ sung CDN và đường truyền dự phòng nhanh hơn nhằm giảm thiểu sự cố do giới hạn tần suất từ nguồn phát.",
       },
       localLibraryCovers: {
-        title: "Giữ ảnh bìa cục bộ khi thiếu thẻ album",
+        title: "Giữ ảnh bìa nội bộ khi thiếu thẻ album",
         description:
-          "Ảnh bìa nhúng nay vẫn hiển thị trong trình phát và hàng đợi ngay cả khi tệp cục bộ thiếu tên album. Chế độ xem danh sách cục bộ cũng sử dụng ảnh thu nhỏ nhỏ gọn, phù hợp hơn.",
+          "Ảnh bìa nhúng nay vẫn hiển thị trong trình phát và hàng đợi ngay cả khi tệp nội bộ thiếu tên album. Chế độ xem danh sách nội bộ cũng sử dụng ảnh thu nhỏ nhỏ gọn, phù hợp hơn.",
       },
       embeddedLyricTracks: {
         title: "Bản dịch và phiên âm nhúng rõ ràng hơn",
@@ -4491,7 +4489,7 @@ export default {
     importing: "Đang nhập...",
     importPlaylist: "Nhập danh sách phát",
     importingPlaylist: "Đang nhập danh sách...",
-    noLocalMusic: "Chưa nhập nhạc cục bộ",
+    noLocalMusic: "Chưa nhập nhạc nội bộ",
     noFoldersFound: "Không tìm thấy thư mục",
     noAlbumsFound: "Không tìm thấy album",
     switchToAlbums: "Chuyển sang Album",
@@ -4521,7 +4519,7 @@ export default {
     importNotSupported:
       "Trình duyệt không hỗ trợ nhập thư mục hoặc tác vụ đã hủy",
     insecureHttpDisabled:
-      "Thư viện cục bộ bị vô hiệu hóa qua HTTP từ xa. Dùng HTTPS, localhost hoặc ứng dụng Electron.",
+      "Thư viện nội bộ bị vô hiệu hóa qua HTTP từ xa. Dùng HTTPS, localhost hoặc ứng dụng Electron.",
     resyncFailed: "Đồng bộ lại thư mục thất bại. Hãy thử lại.",
     deleteFailed: "Xóa thư mục thất bại. Hãy thử lại.",
     matchStatus: "Trạng thái khớp",
@@ -4537,7 +4535,7 @@ export default {
     markPureMusicHint:
       "Sau khi đánh dấu là không lời, bài hát sẽ không tự động khớp lời nữa",
     pureMusicMarkFailed: "Không thể cập nhật đánh dấu không lời",
-    notALocalSong: "Không phải bài hát cục bộ",
+    notALocalSong: "Không phải bài hát nội bộ",
     fileInfo: "Thông tin tệp",
     filename: "Tên tệp",
     durationMatched: "Khớp thời lượng",
@@ -4547,7 +4545,7 @@ export default {
     matchOnline: "Khớp trực tuyến",
     original: "Gốc",
     translation: "Bản dịch",
-    statusLocal: "Cục bộ",
+    statusLocal: "Nội bộ",
     statusEmbedded: "Nhúng",
     statusOnline: "Trực tuyến",
     statusImported: "Đã nhập",
@@ -4573,7 +4571,7 @@ export default {
     coverSource: "Bìa",
     metadataSource: "Siêu dữ liệu",
     kugouNoCover:
-      "Kugou không cung cấp ảnh bìa, do đó ảnh bìa cục bộ sẽ được giữ lại.",
+      "Kugou không cung cấp ảnh bìa, do đó ảnh bìa nội bộ sẽ được giữ lại.",
     artistLabel: "Nghệ sĩ",
     albumLabel: "Album",
     noSelection: "Chọn bài hát ở bên trái",
@@ -4649,7 +4647,7 @@ export default {
     playlistImportPartial:
       "Đã nhập {{count}} bài vào “{{name}}”; bỏ qua {{skipped}} đường dẫn thiếu hoặc không rõ ràng.",
     playlistImportNoMatches:
-      "Không có đường dẫn nào khớp với nhạc cục bộ hiện có trong Folia.",
+      "Không có đường dẫn nào khớp với nhạc nội bộ hiện có trong Folia.",
     playlistImportFailed:
       "Nhập danh sách phát thất bại. Hãy đảm bảo tệp M3U hoặc M3U8 hợp lệ.",
     playlistExportSuccess: "Đã xuất “{{name}}”.",
@@ -4691,10 +4689,10 @@ export default {
     useOnlineCoverResult: "Dùng ảnh bìa trực tuyến",
     candidateHasNoCover: "Kết quả này không có ảnh bìa",
     applyMetadataMatch: "Lưu lựa chọn",
-    localInfoBadge: "Thông tin cục bộ",
-    localInfoAutoMatchSkipped: "Thông tin cục bộ · Đã bỏ qua khi khớp tự động",
-    localInfoSkippedCount: "Đã bỏ qua {{count}} mục dùng thông tin cục bộ",
-    useLocalInfoForSelected: "Dùng thông tin cục bộ ({{count}})",
+    localInfoBadge: "Thông tin nội bộ",
+    localInfoAutoMatchSkipped: "Thông tin nội bộ · Đã bỏ qua khi khớp tự động",
+    localInfoSkippedCount: "Đã bỏ qua {{count}} mục dùng thông tin nội bộ",
+    useLocalInfoForSelected: "Dùng thông tin nội bộ ({{count}})",
     coverCacheFailed:
       "Đã lưu siêu dữ liệu nhưng không thể lưu đệm ảnh bìa. URL trực tuyến vẫn sẽ được dùng khi khả dụng.",
     lyricsNotAppliedOtherSaved:
@@ -4774,42 +4772,11 @@ export default {
     cookieHint:
       "Đăng nhập tài khoản hỗ trợ phát nhạc VIP 320kbps / Lossless. Chế độ khách mặc định vẫn nghe tốt 128kbps.",
   },
-  spotify: {
-    title: "Spotify",
-    heading: "Spotify (Web API & Tài khoản)",
-    clientId: "Spotify Client ID",
-    clientIdPlaceholder: "Client ID từ Spotify Developer Dashboard",
-    clientSecret: "Spotify Client Secret (Tùy chọn)",
-    clientSecretPlaceholder: "Client Secret (để tự động cấp token)",
-    token: "Access Token người dùng",
-    tokenPlaceholder: "Bearer Token người dùng Spotify",
-    saveSettings: "Lưu cấu hình",
-    saved: "Đã lưu!",
-    loginButton: "Đăng nhập Spotify (OAuth)",
-    logoutButton: "Đăng xuất",
-    saveSuccess: "Đã lưu cấu hình Spotify!",
-    clearSuccess: "Đã xóa phiên đăng nhập Spotify.",
-    connected: "✓ Đã kết nối tài khoản Spotify",
-    notConnected: "• Chưa kết nối tài khoản Spotify (Dùng Client ID mặc định)",
-    clear: "Xóa",
-    advancedTitle: "Cài đặt nhà phát triển & Token thủ công",
-    oauthHint:
-      "Bấm Đăng nhập Spotify để cấp quyền truy cập danh sách phát và thư viện của bạn.",
-    needClientId: "Vui lòng cấu hình Spotify Client ID trong Cài đặt",
-    loginFailed: "Đăng nhập Spotify không thành công.",
-    loginRequired:
-      "Cần cấu hình Client ID hoặc đăng nhập Spotify để tìm kiếm bài hát.",
-    needCredentials: "Chưa cấu hình Spotify Client ID",
-    needCredentialsHint:
-      "Vui lòng nhập Client ID trong Cài đặt (Redirect URI: http://127.0.0.1:8888/callback) hoặc chuyển sang Zing MP3 / NhacCuaTui để tìm kiếm ngay.",
-    redirectUriLabel: "Redirect URI (trong Spotify Dashboard):",
-    copiedRedirectUri: "Đã sao chép Redirect URI!",
-  },
   unifiedPanel: {
     nowPlayingStageDescription:
       "Now Playing do trình phát ngoài điều khiển. Folia chỉ hiển thị lời bài hát và hiệu ứng thị giác.",
     stageLocalInputDescription:
-      "Stage đang ở chế độ nhập cục bộ đơn luồng. Thiết bị ngoài có thể đẩy lời hoặc phương tiện, nhưng Folia sẽ tự kiểm soát phát và hiển thị.",
+      "Stage đang ở chế độ nhập nội bộ đơn luồng. Thiết bị ngoài có thể đẩy lời hoặc phương tiện, nhưng Folia sẽ tự kiểm soát phát và hiển thị.",
   },
   libraryBravaisArtist: {
     playTopSongs: "Phát bài nổi bật",
@@ -4827,7 +4794,7 @@ export default {
     panelTitle: "Bài hát nổi bật và album",
   },
   artistGrid: {
-    localArtist: "Nghệ sĩ cục bộ: {{artistName}}",
+    localArtist: "Nghệ sĩ nội bộ: {{artistName}}",
     popularSongs: "Nổi bật / POPULAR",
     artistAlbums: "Album / ALBUMS",
     searchAlbums: "Tìm album...",
@@ -5131,17 +5098,17 @@ export default {
       local_folder_actions:
         "Quét lại, dọn dẹp thẻ thông tin và nút đỏ dùng để xóa.",
       local_grid_controls:
-        "Chuyển thư mục cục bộ, album, nghệ sĩ, playlist; nhập hoặc làm mới thư viện.",
+        "Chuyển thư mục nội bộ, album, nghệ sĩ, playlist; nhập hoặc làm mới thư viện.",
       online_collection_actions:
         "Các tác vụ khả dụng cho bộ sưu tập trực tuyến hoặc máy chủ.",
       local_grid_map_page:
-        "Bản đồ thư viện cục bộ, chọn hàng loạt và thao tác trên các bài hát.",
+        "Bản đồ thư viện nội bộ, chọn hàng loạt và thao tác trên các bài hát.",
       local_grid_map_directory_tree:
         "Chọn cây thư mục con, chỉ bài hát trực tiếp và quản lý thư mục gốc đã nhập.",
       local_metadata_match:
         "Biểu tượng bút chì chỉ xuất hiện sau ba điều kiện.",
       local_track_sorting:
-        "Chỉ sắp xếp thư mục cục bộ, lựa chọn được giữ qua các phiên.",
+        "Chỉ sắp xếp thư mục nội bộ, lựa chọn được giữ qua các phiên.",
       lyrics_animation_settings:
         "Nơi đổi hiệu ứng động lời bài hát, cùng hai công tắc đổi giao diện.",
       panel_account_tab:
@@ -5164,11 +5131,11 @@ export default {
       grid_palette_hotkey: "Tại trang lưới, phím S mở cửa sổ lệnh hay bộ lọc.",
       panel_slide: "Nút này cũng có thể trượt sang trái để mở cửa sổ lệnh.",
       panel_source_tab:
-        "Ô theo nguồn: cân bằng âm lượng (ReplayGain), nguồn lời, độ lệch mốc thời gian.",
+        "Ô theo nguồn: cân bằng âm lượng, nguồn lời bài hát, độ lệch mốc thời gian.",
       lyric_export:
         "Đóng gói lời bài hát lưu tạm trên thiết bị thành tệp zip chứa .fia và LRC nâng cao.",
       player_bar:
-        "Chi tiết trên thanh điều khiển (Capsule) và hai vị trí bạn tự tùy chọn.",
+        "Chi tiết trên thanh điều khiển và hai vị trí bạn tự tùy chọn.",
       player_page:
         "Chi tiết trên trang phát, vị trí từng mục và cách phát xáo trộn.",
       ponder_basics:
@@ -5196,7 +5163,7 @@ export default {
       openAudioEqualizer: "Mở hiệu ứng âm thanh",
       openCustomShortcut: "Mở cài đặt phím tắt",
       openPinnedCommands: "Mở lệnh đã ghim",
-      openReplayGain: "Mở cân bằng âm lượng (ReplayGain)",
+      openReplayGain: "Mở cân bằng âm lượng",
       openImportExport: "Mở sao lưu & nhập",
       openBottomUiSettings: "Mở cài đặt thanh đáy",
       openLyricsAnimation: "Mở cài đặt hiệu ứng lời",
@@ -5240,7 +5207,7 @@ export default {
         homePage: "Trang chủ",
         homeSeam: "Thanh trang chủ",
         tabs: "Tab chính",
-        tabLocal: "Cục bộ",
+        tabLocal: "Nội bộ",
         sections: "Phân mục",
         shortcuts: "Lối tắt",
         account: "Mục tài khoản",
@@ -5428,7 +5395,7 @@ export default {
         notice: "Thông báo thiếu điều kiện",
       },
       libraryWatch: {
-        panel: "Cài đặt · Theo dõi thư mục cục bộ",
+        panel: "Cài đặt · Theo dõi thư mục nội bộ",
         enable: "Tự động quét",
         roots: "Thư mục đang theo dõi",
         recheck: "Kiểm tra lại",
@@ -5441,7 +5408,7 @@ export default {
       lyricsSource: {
         panel: "Cài đặt · Lời bài hát",
         autoBest: "Tự động chọn bản tốt nhất",
-        priorityLocal: "Ưu tiên cục bộ",
+        priorityLocal: "Ưu tiên nội bộ",
         priorityOnline: "Ưu tiên trực tuyến",
         globalOffset: "Độ lệch mốc thời gian toàn cục",
       },
@@ -5501,10 +5468,10 @@ export default {
         remove: "Xóa khỏi thư viện",
       },
       localGridControls: {
-        panel: "Điều khiển thư viện cục bộ",
-        tabs: "Loại bộ sưu tập cục bộ",
+        panel: "Điều khiển thư viện nội bộ",
+        tabs: "Loại bộ sưu tập nội bộ",
         folders: "Thư mục",
-        playlists: "Danh sách phát cục bộ",
+        playlists: "Danh sách phát nội bộ",
         imports: "Nhập tệp",
         refresh: "Làm mới thư viện",
         playlistImport: "Nhập danh sách phát",
@@ -5518,10 +5485,10 @@ export default {
         destructiveAction: "Xóa hoặc gỡ",
       },
       localGridMap: {
-        page: "Sơ đồ bộ sưu tập cục bộ",
+        page: "Sơ đồ bộ sưu tập nội bộ",
         back: "Quay lại Grid3D",
         title: "Bật/tắt bảng chọn hàng loạt",
-        cards: "Bộ sưu tập cục bộ",
+        cards: "Bộ sưu tập nội bộ",
         panel: "Bảng chọn hàng loạt",
         tree: "Cây thư mục",
         row: "Thư mục và thư mục con",
@@ -5696,12 +5663,12 @@ export default {
       sidePanel: "Bảng điều khiển bên",
       gridActionButton: "Nút tác vụ Không gian Bravais",
       gridViewEditMode: "Chế độ sửa bộ sưu tập",
-      localFolderActions: "Tác vụ cho bộ sưu tập cục bộ",
+      localFolderActions: "Tác vụ cho bộ sưu tập nội bộ",
       localMetadataMatch: "Khớp thông tin bài hát thủ công",
-      localTrackSorting: "Sắp xếp bài hát cục bộ",
-      localGridControls: "Bộ chọn và nhập thư viện cục bộ",
+      localTrackSorting: "Sắp xếp bài hát nội bộ",
+      localGridControls: "Bộ chọn và nhập thư viện nội bộ",
       onlineCollectionActions: "Thao tác bộ sưu tập trực tuyến",
-      localGridMapPage: "GridMap cục bộ",
+      localGridMapPage: "GridMap nội bộ",
       localGridMapDirectoryTree: "Cây thư mục GridMap",
       grid3dCardStyle: "Kiểu thẻ trang chủ",
       gridViewCardSettings: "Cài đặt thẻ dạng lưới",
@@ -5722,7 +5689,7 @@ export default {
       foliaDesktop: "Tính năng riêng cho Desktop",
       queueCommandSurface: "Cửa sổ hàng đợi",
       transitionSettings: "Chuyển tiếp và automix",
-      localLibraryWatch: "Theo dõi thư mục cục bộ",
+      localLibraryWatch: "Theo dõi thư mục nội bộ",
       queueSettings: "Tác vụ “thêm vào hàng đợi”",
       lyricsSettings: "Nguồn và độ lệch lời bài hát",
       gridPaletteHotkey: "Phím S trên lưới",
@@ -5809,13 +5776,13 @@ export default {
       localFolderActionsMaintenance: "Quét lại và dọn dẹp thẻ bài hát",
       localFolderActionsDelete: "Nút màu đỏ dùng để xóa",
       localMetadataMatchReveal: "Biểu tượng bút chì và 3 điều kiện",
-      localTrackSortingFields: "Chỉ sắp xếp được thư mục cục bộ",
+      localTrackSortingFields: "Chỉ sắp xếp được thư mục nội bộ",
       localGridControlsSources:
-        "Thư mục, album, nghệ sĩ và danh sách phát cục bộ",
-      localGridControlsMaintenance: "Nhập và làm mới thư viện cục bộ",
+        "Thư mục, album, nghệ sĩ và danh sách phát nội bộ",
+      localGridControlsMaintenance: "Nhập và làm mới thư viện nội bộ",
       onlineCollectionActionsCommon: "Thao tác chung cho bộ sưu tập trực tuyến",
       onlineCollectionActionsProvider: "Thao tác phụ thuộc nguồn hiện tại",
-      localGridMapStructure: "Sơ đồ bộ sưu tập cục bộ",
+      localGridMapStructure: "Sơ đồ bộ sưu tập nội bộ",
       localGridMapBatch: "Chọn bộ sưu tập và xử lý bài hát",
       localGridMapFilter: "Lọc và quay lại",
       localGridMapDirectoryHierarchy: "Cấu trúc phân cấp thư mục",
@@ -5899,11 +5866,11 @@ export default {
         collectionList:
           "“Danh sách” mở rộng thanh thành danh sách bài hát, và thanh điều hướng thêm cấp “Danh sách”. Rê chuột vào một hàng để làm sáng mọi bản sao của bài hát đó trên không gian album; nhấp để chuyển tới, nhấp đúp để phát. Quay lại sẽ đóng danh sách trước.",
         homeTabs:
-          "Tại trang chủ, thanh thông tin là một dải hẹp: “Thư viện” cùng nút thu gọn ở trên cùng, bên dưới là các thẻ dọc: Danh sách phát, Radio, Album, Cục bộ, Navidrome.",
+          "Tại trang chủ, thanh thông tin là một dải hẹp: “Thư viện” cùng nút thu gọn ở trên cùng, bên dưới là các thẻ dọc: Danh sách phát, Radio, Album, Nội bộ, Navidrome.",
         homeFlip:
           "Chuyển thẻ sẽ lật toàn bộ thanh thông tin và đổi toàn bộ không gian sang thẻ đó. Trên bàn phím, dùng F6 / Shift + F6 để chuyển qua lại giữa các thẻ.",
         homeSections:
-          "Mục Cục bộ và Navidrome có thêm một cột phân mục (thư mục, album, nghệ sĩ, danh sách phát…). Chỉ mục được chọn mới hiện tên; các mục còn lại là biểu tượng, rê chuột để xem tên đầy đủ. Chuyển đổi sẽ đổi nội dung hiển thị mà không mở cấp mới.",
+          "Mục Nội bộ và Navidrome có thêm một cột phân mục (thư mục, album, nghệ sĩ, danh sách phát…). Chỉ mục được chọn mới hiện tên; các mục còn lại là biểu tượng, rê chuột để xem tên đầy đủ. Chuyển đổi sẽ đổi nội dung hiển thị mà không mở cấp mới.",
         homeShortcuts:
           "Các chữ dọc nhỏ bên dưới là lối tắt: Bài hát yêu thích, FM cá nhân, Tất cả bài hát… Nhấp vào tương tự như nhấp thẻ trong không gian album; FM cá nhân sẽ phát ngay lập tức. Khi hết chỗ, chúng được chuyển vào “⋯”.",
         dockAccount:
@@ -6059,7 +6026,7 @@ export default {
           "Ctrl + G là thao tác bạn vừa thực hiện: mở hướng dẫn cho trang hiện tại. Bất cứ khi nào bỡ ngỡ, hãy nhấn tổ hợp phím này.",
         hintSettings:
           'Đã quen thuộc với Folia? Bạn có thể tắt gợi ý Khám phá trong cài đặt hoặc chỉ giữ ở các mục chưa xem — tùy chọn nằm ở Cài đặt · Chung, "Gợi ý hướng dẫn Khám phá", gồm ba chế độ: luôn hiển thị, chỉ nơi chưa xem và tắt. Nút bên dưới đưa bạn đến thẳng cài đặt.',
-        docs: "Bốn chương này chỉ là phần mở đầu. Lệnh, phím tắt, nguồn trực tuyến, thư viện cục bộ, hiệu ứng thị giác và giao diện đều có bài hướng dẫn đầy đủ trên trang tài liệu — nút bên dưới mở trang này.",
+        docs: "Bốn chương này chỉ là phần mở đầu. Lệnh, phím tắt, nguồn trực tuyến, thư viện nội bộ, hiệu ứng thị giác và giao diện đều có bài hướng dẫn đầy đủ trên trang tài liệu — nút bên dưới mở trang này.",
         overviewCtrlG:
           "Bước 1: Trên trang bất kỳ, nhấn Ctrl + G để mở Khám phá cho trang đó.",
         overviewWholePage:
@@ -6078,13 +6045,13 @@ export default {
         gridHelp:
           "Biểu tượng bánh răng mở Trợ giúp. Khi có bản cập nhật, huy hiệu thông báo cũng hiện tại đây. Trợ giúp chứa ghi chú phát hành và mục Khám phá cho trang trợ giúp.",
         gridTabs:
-          "Các tab ở giữa chuyển đổi danh sách phát, radio, album, nhạc cục bộ, Navidrome và Stage. Lattice chỉ xuất hiện khi có hàng đợi phát.",
+          "Các tab ở giữa chuyển đổi danh sách phát, radio, album, nhạc nội bộ, Navidrome và Stage. Lattice chỉ xuất hiện khi có hàng đợi phát.",
         gridSearchBox:
           "Ô bên phải tìm bài hát trong nguồn hiện tại. Enter mở không gian tìm kiếm; ô này không lọc poster bộ sưu tập bên dưới.",
         gridTabResult:
           "Chuyển tab sẽ đổi thanh trượt 3D sang bộ sưu tập của nguồn đó và ghi nhớ vị trí tiêu điểm gần nhất cho từng nguồn.",
         gridSourceActions:
-          "Các nút điều khiển này chỉ hiện khi nguồn yêu cầu: thao tác nhập và làm mới cục bộ, nhập tệp danh sách phát hoặc tải lại thư viện máy chủ.",
+          "Các nút điều khiển này chỉ hiện khi nguồn yêu cầu: thao tác nhập và làm mới nội bộ, nhập tệp danh sách phát hoặc tải lại thư viện máy chủ.",
         gridCardMove:
           "Kéo, cuộn chuột hoặc dùng phím Trái/Phải để di chuyển thanh trượt. Nhấp vào poster lệch tâm chỉ đưa poster về giữa chứ không mở ngay.",
         gridCardOpen:
@@ -6237,7 +6204,7 @@ export default {
         scope:
           "Mục này chứa toàn bộ thiết lập giao diện Folia: chủ đề màu, hiệu ứng động lời bài hát và thông số dựng hình, phụ đề, phông chữ, hình nền cùng thẻ bài hát.",
         notBackup:
-          "Mục này không phải bản sao lưu toàn bộ Folia. Danh sách phát, thư viện cục bộ, cài đặt phát nhạc, phím tắt và tài khoản không nằm trong tệp này.",
+          "Mục này không phải bản sao lưu toàn bộ Folia. Danh sách phát, thư viện nội bộ, cài đặt phát nhạc, phím tắt và tài khoản không nằm trong tệp này.",
         themeChoice:
           'Trước khi xuất, hãy chọn chủ đề kèm theo: chủ đề AI, chủ đề tùy chỉnh hoặc không kèm theo. Chọn "Không có" vẫn giữ thiết lập thị giác nhưng bỏ qua bảng màu — thích hợp khi chỉ chia sẻ hiệu ứng lời bài hát.',
         clipboard:
@@ -6369,16 +6336,16 @@ export default {
           "Hai nút dưới cùng là bỏ qua và thích. Bỏ qua không phải “xóa dòng này” — không hề có dòng nào cả: nút này báo dịch vụ không phát lại bài này cho bạn nữa, và radio sẽ chuyển tiếp.",
         cover:
           "Ảnh bìa bài hát hiện tại nằm ở đầu bảng điều khiển, là một khối vuông chiếm toàn bộ chiều rộng. Ảnh không thuộc thẻ nào — chuyển thẻ vẫn giữ nguyên vị trí. Rê chuột lên sẽ hiện nút ở bốn góc.",
-        tabs: "Ngay dưới ảnh bìa là hàng thẻ: ảnh bìa, điều khiển, hàng đợi, tài khoản. Khi bài hiện tại là tệp cục bộ, từ Navidrome hoặc trực tuyến, thẻ nguồn sẽ được thêm vào sau thẻ ảnh bìa. Chúng cùng chung một khung; chuyển đổi không làm dịch chuyển bảng điều khiển.",
+        tabs: "Ngay dưới ảnh bìa là hàng thẻ: ảnh bìa, điều khiển, hàng đợi, tài khoản. Khi bài hiện tại là tệp nội bộ, từ Navidrome hoặc trực tuyến, thẻ nguồn sẽ được thêm vào sau thẻ ảnh bìa. Chúng cùng chung một khung; chuyển đổi không làm dịch chuyển bảng điều khiển.",
         body: "Mọi thứ dưới hàng thẻ là nội dung thẻ hiện tại. Toàn bộ cấu trúc gồm: ảnh bìa, hàng thẻ và nội dung bên dưới — không có dải cố định thứ ba nào ở giữa.",
         cycle:
           "Bạn không cần nhấp vào hàng ô nhỏ đó. Khi bảng đang mở, nhấn Tab để chuyển tiếp một thẻ.",
         cycleReverse:
           "Shift + Tab để lùi lại một thẻ. Vòng lặp chỉ đi qua các thẻ đang tồn tại — các nguồn nhạc khác nhau sẽ có các thẻ khác nhau.",
         sourceTab:
-          "Ô này không phải lúc nào cũng xuất hiện. Ô chỉ được chèn sau thẻ ảnh bìa khi bài hát hiện tại đến từ tệp cục bộ, Navidrome hoặc nguồn trực tuyến, và biểu tượng hiển thị theo nguồn đó; khi phát bài hát không có nguồn riêng, hàng sẽ trở lại bốn ô.",
+          "Ô này không phải lúc nào cũng xuất hiện. Ô chỉ được chèn sau thẻ ảnh bìa khi bài hát hiện tại đến từ tệp nội bộ, Navidrome hoặc nguồn trực tuyến, và biểu tượng hiển thị theo nguồn đó; khi phát bài hát không có nguồn riêng, hàng sẽ trở lại bốn ô.",
         sourceInfo:
-          "Trên cùng là thông tin bài hát theo nguồn: tệp cục bộ hiển thị tên tệp, kích thước, bitrate và trạng thái lời bài hát, Navidrome hiển thị ID bài hát trên máy chủ, còn nguồn trực tuyến không có khối này.",
+          "Trên cùng là thông tin bài hát theo nguồn: tệp nội bộ hiển thị tên tệp, kích thước, bitrate và trạng thái lời bài hát, Navidrome hiển thị ID bài hát trên máy chủ, còn nguồn trực tuyến không có khối này.",
         sourceGain:
           "“Cân bằng âm lượng” là ReplayGain: tắt, bài hát hoặc album. Giá trị ở bên phải tiêu đề là giá trị sẵn có của bài hát — T cho bài hát, A cho album — và hiển thị không khả dụng nếu tệp không có.",
         sourceLyrics:
@@ -6420,7 +6387,7 @@ export default {
       },
       libraryWatch: {
         enable:
-          "Khi bật, Folia sẽ theo dõi các thư mục cục bộ đã nhập và quét gia tăng mỗi khi có thay đổi tệp — không cần quét lại thủ công mỗi lần thêm nhạc.",
+          "Khi bật, Folia sẽ theo dõi các thư mục nội bộ đã nhập và quét gia tăng mỗi khi có thay đổi tệp — không cần quét lại thủ công mỗi lần thêm nhạc.",
         roots:
           "Danh sách chỉ mở ra phía dưới công tắc, mỗi dòng là một thư mục gốc được theo dõi, dòng chữ nhỏ bên dưới là đường dẫn thực tế.",
         warning:
@@ -6437,7 +6404,7 @@ export default {
         autoBest:
           "Khi bật “tự động chọn nguồn tốt nhất”, Folia sẽ tìm bài hát trên NetEase, AMLLDB, QQ và KuGou rồi lấy bản khớp từng từ chuẩn xác nhất. Điểm trừ là tính năng này sẽ ghi đè nguồn đã chọn thủ công ở tab nguồn — nếu lựa chọn thủ công không giữ nguyên, thường là vì lý do này.",
         priority:
-          "Hai thẻ bên dưới quyết định ưu tiên lời bài hát cục bộ hay trực tuyến. Khi tệp cục bộ có sẵn lời và cũng tìm thấy lời trực tuyến, cài đặt này sẽ phân xử.",
+          "Hai thẻ bên dưới quyết định ưu tiên lời bài hát nội bộ hay trực tuyến. Khi tệp nội bộ có sẵn lời và cũng tìm thấy lời trực tuyến, cài đặt này sẽ phân xử.",
         globalOffset:
           "“Độ lệch dòng thời gian toàn cục” mở thước đo toàn màn hình để dịch chuyển lời bài hát sớm hoặc muộn hơn — thường dùng để bù độ trễ cố định của card âm thanh hoặc Bluetooth.",
         offsetSum:
@@ -6451,7 +6418,7 @@ export default {
         whatItIs:
           "Trang này đóng gói các lời bài hát đã có trên thiết bị thành tệp zip. Không tải về lời bài hát mới.",
         effective:
-          "Bộ nhớ đệm trực tuyến gồm các bài hát trực tuyến đã phát, được xuất đúng như hiển thị khi phát, nên lời bài hát tự nhập hoặc khớp thủ công sẽ được ưu tiên. Thư viện cục bộ chỉ xuất lời bài hát khớp trực tuyến: mỗi tệp đặt tên theo tệp âm thanh tương ứng và nằm trong thư mục local của zip theo đúng cấu trúc cây thư mục, nên khi giải nén vào thư mục chứa thư viện, mỗi tệp sẽ nằm cạnh bài hát đó. Bản nhạc không lời và bài không có lời sẽ bị bỏ qua và liệt kê trong manifest.json.",
+          "Bộ nhớ đệm trực tuyến gồm các bài hát trực tuyến đã phát, được xuất đúng như hiển thị khi phát, nên lời bài hát tự nhập hoặc khớp thủ công sẽ được ưu tiên. Thư viện nội bộ chỉ xuất lời bài hát khớp trực tuyến: mỗi tệp đặt tên theo tệp âm thanh tương ứng và nằm trong thư mục local của zip theo đúng cấu trúc cây thư mục, nên khi giải nén vào thư mục chứa thư viện, mỗi tệp sẽ nằm cạnh bài hát đó. Bản nhạc không lời và bài không có lời sẽ bị bỏ qua và liệt kê trong manifest.json.",
         formats:
           ".fia là định dạng không tổn hao và có thể nhập thẳng lại vào Folia; LRC dùng được ở mọi nơi nhưng lược bỏ giọng nền và phân đoạn từ. Đánh dấu cả hai thì tệp zip sẽ chứa hai thư mục.",
         names:
@@ -6491,7 +6458,7 @@ export default {
       },
       gridActionButton: {
         tap: "Cả trang bộ sưu tập và Không gian Bravais đều có nút này ở góc dưới cùng bên phải. Nhấn vào để trượt danh sách bản nhạc từ bên phải vào — đó là thao tác đầu tiên.",
-        list: "Mỗi dòng một bài hát; nhấp vào một dòng để phát từ bài đó. Trong thư mục cục bộ, danh sách còn có hai nút điều khiển sắp xếp ở phần đầu.",
+        list: "Mỗi dòng một bài hát; nhấp vào một dòng để phát từ bài đó. Trong thư mục nội bộ, danh sách còn có hai nút điều khiển sắp xếp ở phần đầu.",
         track:
           "Phía sau còn có một rãnh trượt ẩn kéo sang trái — cùng thao tác vuốt như tay nắm ở cạnh phải trang phát nhạc. Nhấn giữ nút và kéo sang trái.",
         slideTarget:
@@ -6503,13 +6470,13 @@ export default {
         editCard:
           "Trong chế độ chỉnh sửa, hai nút đó biến mất và dấu chéo đỏ xuất hiện ở góc trên cùng bên phải. Nhấn vào sẽ xóa bài hát khỏi danh sách phát ngay mà không cần xác nhận — tác vụ duy nhất không thể hoàn tác trong chế độ chỉnh sửa.",
         rename:
-          "Danh sách phát cục bộ và Navidrome có thêm điểm này: tiêu đề trong bảng thông tin chuyển thành ô nhập văn bản. Tên mới chỉ được lưu khi thoát chế độ chỉnh sửa — nhấn Escape hoặc đóng trang giữa chừng sẽ làm mất thay đổi.",
+          "Danh sách phát nội bộ và Navidrome có thêm điểm này: tiêu đề trong bảng thông tin chuyển thành ô nhập văn bản. Tên mới chỉ được lưu khi thoát chế độ chỉnh sửa — nhấn Escape hoặc đóng trang giữa chừng sẽ làm mất thay đổi.",
         onlinePlaylist:
           "Danh sách phát trực tuyến thuộc sở hữu lại hoạt động khác: chỉnh sửa trực tiếp, thay đổi áp dụng ngay mà không có bước lưu khi thoát. Cùng một nút nhưng có hai hành vi tùy theo nguồn.",
       },
       localFolderActions: {
         conditional:
-          "Cột ở chân bảng thông tin thay đổi theo loại bộ sưu tập cục bộ: thư mục có nhập lại và sắp xếp thông tin bài hát, danh sách phát có xuất, còn album hoặc nghệ sĩ có chỉnh sửa thực thể.",
+          "Cột ở chân bảng thông tin thay đổi theo loại bộ sưu tập nội bộ: thư mục có nhập lại và sắp xếp thông tin bài hát, danh sách phát có xuất, còn album hoặc nghệ sĩ có chỉnh sửa thực thể.",
         playAll:
           "Hai nút trên cùng luôn có trong mọi bộ sưu tập: Phát tất cả và Thêm vào hàng đợi. Khi đang lọc, chúng chỉ áp dụng cho các bài được lọc và nút sẽ hiển thị số lượng.",
         reimport:
@@ -6579,11 +6546,11 @@ export default {
       },
       localGridControls: {
         sources:
-          "Hàng này chuyển đổi thư viện cục bộ giữa thư mục, album, nghệ sĩ và danh sách phát cục bộ. Nó đổi nội dung trên thanh Grid3D, không chuyển sang nguồn trực tuyến.",
+          "Hàng này chuyển đổi thư viện nội bộ giữa thư mục, album, nghệ sĩ và danh sách phát nội bộ. Nó đổi nội dung trên thanh Grid3D, không chuyển sang nguồn trực tuyến.",
         foldersAndPlaylists:
-          "Thư mục giữ nguyên cấu trúc khi nhập. Danh sách phát cục bộ do Folia lưu trữ, độc lập với danh sách phát trực tuyến và Navidrome.",
+          "Thư mục giữ nguyên cấu trúc khi nhập. Danh sách phát nội bộ do Folia lưu trữ, độc lập với danh sách phát trực tuyến và Navidrome.",
         imports:
-          "Nhập thư mục thêm nhạc từ một đường dẫn. Nhập danh sách phát đọc tệp M3U hoặc M3U8 và tạo danh sách phát cục bộ từ các bản nhạc Folia nhận diện được.",
+          "Nhập thư mục thêm nhạc từ một đường dẫn. Nhập danh sách phát đọc tệp M3U hoặc M3U8 và tạo danh sách phát nội bộ từ các bản nhạc Folia nhận diện được.",
         refresh:
           "Làm mới sẽ quét lại các thư mục gốc đã nhập để tìm tệp mới, thay đổi hoặc bị thiếu. Thao tác không tạo thêm bản sao thư viện.",
       },
@@ -6591,21 +6558,21 @@ export default {
         common:
           "Phát tất cả và Thêm vào hàng đợi dùng chung cho cả bộ sưu tập trực tuyến lẫn máy chủ. Khi trang có bộ lọc, cả hai chỉ áp dụng cho bài khớp và hiển thị số lượng.",
         provider:
-          "Các nút còn lại phụ thuộc nguồn và loại bộ sưu tập: Navidrome có thể hỗ trợ thao tác danh sách phát máy chủ, còn album/danh sách trực tuyến hỗ trợ theo dõi, hủy theo dõi hoặc gợi ý. Quét lại tệp và sửa thẻ cục bộ không có tại đây.",
+          "Các nút còn lại phụ thuộc nguồn và loại bộ sưu tập: Navidrome có thể hỗ trợ thao tác danh sách phát máy chủ, còn album/danh sách trực tuyến hỗ trợ theo dõi, hủy theo dõi hoặc gợi ý. Quét lại tệp và sửa thẻ nội bộ không có tại đây.",
         destructive:
-          "Nút xóa hoặc gỡ bỏ chỉ xuất hiện khi nguồn hỗ trợ và bộ sưu tập cho phép chỉnh sửa. Thao tác tác động lên bộ sưu tập từ xa hoặc máy chủ, không ảnh hưởng tệp âm thanh cục bộ.",
+          "Nút xóa hoặc gỡ bỏ chỉ xuất hiện khi nguồn hỗ trợ và bộ sưu tập cho phép chỉnh sửa. Thao tác tác động lên bộ sưu tập từ xa hoặc máy chủ, không ảnh hưởng tệp âm thanh nội bộ.",
       },
       localGridMap: {
-        page: "Đây là GridMap của thư viện cục bộ. Bản đồ trải các thư mục, album, nghệ sĩ hoặc danh sách phát hiện tại thành dạng tổ ong thay vì một thanh Grid3D duy nhất.",
+        page: "Đây là GridMap của thư viện nội bộ. Bản đồ trải các thư mục, album, nghệ sĩ hoặc danh sách phát hiện tại thành dạng tổ ong thay vì một thanh Grid3D duy nhất.",
         cards:
           "Kéo hoặc cuộn chuột để di chuyển trên bản đồ. Nhấp vào thẻ sẽ quay lại Grid3D và tiêu điểm vào bộ sưu tập đó; kích hoạt thẻ để mở trực tiếp.",
         openPanel:
           "Bản đồ thư mục, album và nghệ sĩ có thể mở chọn hàng loạt từ tiêu đề: thư mục hiển thị cây thư mục, album và nghệ sĩ hiển thị danh sách phẳng. Bản đồ danh sách phát chỉ hỗ trợ duyệt.",
         batchActions:
-          "Bảng điều khiển chuyển các mục đã chọn thành bài hát. Bạn có thể phát, thêm vào hàng đợi, tạo danh sách phát cục bộ và (ở bản đồ thư mục) xóa các bản ghi thư viện đã chọn.",
+          "Bảng điều khiển chuyển các mục đã chọn thành bài hát. Bạn có thể phát, thêm vào hàng đợi, tạo danh sách phát nội bộ và (ở bản đồ thư mục) xóa các bản ghi thư viện đã chọn.",
         filter:
           "{{mod}} + F hoặc gõ phím để lọc bản đồ. Chọn hàng loạt và cây thư mục sẽ bám theo các thẻ đã lọc, nên thao tác chỉ ảnh hưởng đến phần đang hiển thị.",
-        back: "Quay lại đóng GridMap và đưa bạn về danh mục cùng vị trí tiêu điểm Grid3D cục bộ trước đó.",
+        back: "Quay lại đóng GridMap và đưa bạn về danh mục cùng vị trí tiêu điểm Grid3D nội bộ trước đó.",
       },
       localGridMapDirectory: {
         hierarchy:
@@ -6619,15 +6586,15 @@ export default {
       },
       localMetadata: {
         conditions:
-          "Khi siêu dữ liệu bài hát cục bộ bị sai, bạn có thể khớp thủ công. Biểu tượng bút chì chỉ hiện khi thỏa mãn cả ba điều kiện: thẻ đang được tiêu điểm, bài hát là cục bộ và con trỏ đang đặt trên vùng tiêu đề.",
+          "Khi siêu dữ liệu bài hát nội bộ bị sai, bạn có thể khớp thủ công. Biểu tượng bút chì chỉ hiện khi thỏa mãn cả ba điều kiện: thẻ đang được tiêu điểm, bài hát là nội bộ và con trỏ đang đặt trên vùng tiêu đề.",
         pencil:
           "Khi thỏa mãn, biểu tượng nổi ở góc phải tiêu đề với độ mờ 65%. Nhấp vào để mở bảng khớp thủ công, nơi bạn chọn lại tên bài, nghệ sĩ và album chính xác.",
       },
       localTrackSorting: {
         whereOnly:
-          "Hai nút sắp xếp ở đầu danh sách bài hát chỉ xuất hiện với thư mục cục bộ. Danh sách phát trực tuyến, album và danh sách Navidrome không có nút này — thứ tự do các nguồn đó tự quyết định.",
+          "Hai nút sắp xếp ở đầu danh sách bài hát chỉ xuất hiện với thư mục nội bộ. Danh sách phát trực tuyến, album và danh sách Navidrome không có nút này — thứ tự do các nguồn đó tự quyết định.",
         fields:
-          "Ba tiêu chí sắp xếp: tên tệp, thời gian sửa đổi và số thứ tự bài trong album. Tùy chọn được lưu cục bộ, các thư mục mở tiếp theo vẫn giữ nguyên thứ tự này.",
+          "Ba tiêu chí sắp xếp: tên tệp, thời gian sửa đổi và số thứ tự bài trong album. Tùy chọn được lưu nội bộ, các thư mục mở tiếp theo vẫn giữ nguyên thứ tự này.",
         direction:
           "Nút bên trái chuyển đổi giữa tăng dần và giảm dần, độc lập với tiêu chí sắp xếp.",
       },
