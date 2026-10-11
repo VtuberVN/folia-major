@@ -18,6 +18,7 @@ describe('visualizer background registry', () => {
             'nomand',
             'latent',
             'url',
+            'tide',
             'sora',
         ]);
     });

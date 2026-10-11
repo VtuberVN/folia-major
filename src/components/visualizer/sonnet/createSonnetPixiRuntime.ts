@@ -1,6 +1,7 @@
 import type { MotionValue } from 'framer-motion';
 import type { AudioBands, SonnetTuning, Theme } from '../../../types';
 import type { SonnetProgram } from './types';
+import { beginTideAnchors, releaseTideAnchorCanvas } from '../backgrounds/tide/tideAnchorBridge';
 import { findSonnetParagraphIndexAtTime } from './sonnetProgram';
 import { buildSonnetScene, type SceneView } from './sonnetSceneBuilder';
 import { snapResolutionToTexturePool } from '../pixiTextureBudget';
@@ -318,6 +319,9 @@ export class SonnetPixiRuntime {
         // Advanced before the paragraph lookup so a commit lands on this frame's scene selection
         // instead of leaving one frame of the outgoing program on the incoming one.
         this.advanceSongSwap();
+        // 本帧重开锚点列表（登记自己的画布：主舞台与样式预览各持一份，互不覆盖）：
+        // 字在 updateSonnetShot 里逐个发布，tide 侧的取样频率与这里无关。
+        beginTideAnchors(this.app.canvas);
         if (this.options.program.paragraphs.length === 0) {
             sonnetDebugState.activeShot = null;
             sonnetDebugState.paragraphIndex = -1;
@@ -652,6 +656,8 @@ export class SonnetPixiRuntime {
         this.resizeObserver = null;
         this.app.stop();
         this.app.ticker.remove(this.renderFrame);
+        // 交还锚点帧：预览/主舞台的实例卸载后不留残留，别的实例读取不受影响。
+        releaseTideAnchorCanvas(this.app.canvas);
         this.clearScenes();
         destroySonnetContainerChildren(this.creditsContainer);
         this.iconTextures.clear();

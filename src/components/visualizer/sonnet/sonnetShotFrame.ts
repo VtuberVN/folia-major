@@ -17,6 +17,8 @@ import { hashSonnetSeed } from './sonnetRandom';
 import type { ShotView } from './sonnetSceneBuilder';
 import { isSonnetEmphasisRole } from './sonnetTypographyLayout';
 import { resolveSonnetSegmentCameraFocus } from './sonnetCameraTracking';
+import { publishTideAnchorFrom, resolveGlyphAnchorStrength } from '../backgrounds/tide/tideAnchorBridge';
+import { shouldPublishTideAnchors } from '../backgrounds/tide/tideAnchorDemand';
 
 // src/components/visualizer/sonnet/sonnetShotFrame.ts
 // 单个 shot 的逐帧姿态：镜头运动、间隙漂移与呼吸、逐段落焦点跟踪、MG / 引导线 / 开放画框时间，
@@ -196,6 +198,10 @@ export const updateSonnetShot = (
         );
     }
 
+    // 只有当前背景是 tide 且它开着跟随歌词时才发布逐字锚点：否则这一帧的字形位置没人读，
+    // getGlobalPosition() 纯属浪费（别的背景不该替 tide 付这份钱）。每帧只读一次状态。
+    const publishTideAnchors = shouldPublishTideAnchors();
+
     view.segments.forEach(segmentView => {
         const guide = segmentView.guide;
         const guideActive = time >= guide.startTime && time <= guide.endTime;
@@ -263,6 +269,13 @@ export const updateSonnetShot = (
             glyph.display.scale.set(scale * depthScale);
             glyph.display.position.set(x + parallaxX, y + parallaxY);
             glyph.display.rotation = rotation;
+            // 逐字发布给 tide：商籁的字画在 Pixi 画布里，DOM 里没有字形，tide 只能靠这条桥
+            // 知道「字现在在哪、亮到什么程度」，水才做得出随字飘散。（见 tideAnchorBridge）
+            // 关掉发布时不做任何事：本帧的锚点列表已由 renderFrame 的 beginTideAnchors 清空，
+            // 读到的是空，不是残影。
+            if (publishTideAnchors && glyphVisible && !waiting) {
+                publishTideAnchorFrom(glyph.display, resolveGlyphAnchorStrength(time, glyph.startTime, glyph.settleTime));
+            }
             if (glyph.halo) {
                 glyph.halo.alpha = haloAlpha;
                 glyph.halo.scale.set(scale * (1.08 - glyphProgress * 0.08));

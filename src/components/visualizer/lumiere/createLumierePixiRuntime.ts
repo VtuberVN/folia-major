@@ -14,6 +14,7 @@ import {
     toLumiereSceneTuning,
 } from './lumiereRuntimeTuning';
 import { resolveLumiereSceneFrames } from './lumiereSceneFrames';
+import { beginTideAnchors, releaseTideAnchorCanvas } from '../backgrounds/tide/tideAnchorBridge';
 import {
     applyLumiereLayerFrame,
     applyLumiereSceneQuality,
@@ -306,6 +307,10 @@ export class LumierePixiRuntime {
         const lyricAlpha = creditsFrame.active ? creditsFrame.lyricAlpha : 1;
         const lyricBlur = creditsFrame.active ? creditsFrame.lyricBlur : 0;
         const blurResolution = this.renderResolution * 0.5;
+        // 本帧重开锚点列表（登记自己的画布：主舞台与样式预览各持一份，互不覆盖）：
+        // 字在下面 unit.update 里逐个发布，tide 侧的取样频率与这里无关。
+        beginTideAnchors(this.app.canvas);
+
         this.sceneCache.forEach((entry, index) => {
             // 同时在画的段落最多两三个，直接找，不必每帧建一张表。
             const layer = frames.layers.find(candidate => candidate.index === index);
@@ -460,6 +465,8 @@ export class LumierePixiRuntime {
         this.resizeObserver = null;
         this.app.stop();
         this.app.ticker.remove(this.renderFrame);
+        // 交还锚点帧：预览/主舞台的实例卸载后不留残留，别的实例读取不受影响。
+        releaseTideAnchorCanvas(this.app.canvas);
         this.sceneCache.destroyAll();
         this.credits?.destroy();
         this.darkField?.destroy();

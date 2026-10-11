@@ -63,10 +63,7 @@ export function resolveBuildKind(env) {
   if (env.VERCEL === '1') return { kind: 'self-hosted', host: 'vercel' };
   if (env.CF_PAGES === '1' || env.WORKERS_CI === '1') return { kind: 'self-hosted', host: 'cloudflare' };
   const repo = String(env.GITHUB_REPOSITORY ?? '').trim();
-  if (repo === OFFICIAL_BUILD_REPO || repo === 'chthollyphile/folia-major') {
-    return { kind: 'official', host: null };
-  }
-  if (env.ELECTRON === 'true') {
+  if (env.GITHUB_ACTIONS === 'true' && (repo === OFFICIAL_BUILD_REPO || repo === 'chthollyphile/folia-major')) {
     return { kind: 'official', host: null };
   }
   return { kind: 'unofficial', host: null };

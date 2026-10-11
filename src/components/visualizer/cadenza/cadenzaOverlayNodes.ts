@@ -23,6 +23,10 @@ export const createOverlayWordNodes = (): OverlayWordNodes => {
     body.style.whiteSpace = 'pre';
 
     const glow = document.createElement('span');
+    // 纯光效层（透明文本 + text-shadow）。不标注的话，潮汐背景的字形采集会把它的文本
+    // 当成第二份歌词 —— 同一行字在舞台上出现两遍，整行定位随之失败，水面锚点退回时序
+    // 兜底且在每行结束时重新洗牌（读作「向量跟不上字、一直在往错的地方跑」）。
+    glow.dataset.tideSkipAnchor = 'true';
     glow.style.color = 'transparent';
     glow.style.lineHeight = '1';
     glow.style.display = 'block';

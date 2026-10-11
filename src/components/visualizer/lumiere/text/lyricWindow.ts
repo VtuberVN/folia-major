@@ -28,6 +28,8 @@ import {
 import { createWindowLineStore } from './windowLineStore';
 import { createWindowGeometry, toWorld } from './windowGeometry';
 import { createWindowProtection } from './windowProtection';
+import { publishTideAnchorFrom, resolveGlyphAnchorStrength } from '../../backgrounds/tide/tideAnchorBridge';
+import { shouldPublishTideAnchors } from '../../backgrounds/tide/tideAnchorDemand';
 
 // src/components/visualizer/lumiere/text/lyricWindow.ts
 // 局部平铺窗口：只排当前行附近的几行（fume 的错落版式，但不是整首歌）。未来行是未点亮的刻字，
@@ -218,6 +220,9 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
             trackLayer.clear();
             tracksDrawn = false;
         }
+        // 只有当前背景是 tide 且它开着跟随歌词时才发布锚点；否则这一帧的字形位置没人读，
+        // getGlobalPosition() 纯属浪费（别的背景不该替 tide 付这份钱）。
+        const publishTideAnchors = shouldPublishTideAnchors();
         if (KEYWORDS) lines.refreshKeywordTints(litColor);
         const litHex = hexOf(litColor);
         const starHex = hexOf(mixRgb(litColor, WHITE, 0.5));
@@ -275,6 +280,12 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
                 // 没唱到的字也会被光柱照出来（冷色、半亮），唱到之后才是暖金色并带辉光；飞行中的字像带电粒子一样发亮。
                 const revealed = Math.min(1, unlitAlpha + illumination * 0.45 + local.flying * 0.4);
                 glyph.glyph.alpha = glyphAlpha * (revealed * (1 - lit) + lit * Math.min(1, 0.55 + 0.4 * heat + 0.3 * local.flying));
+                // 逐字发布给 tide：绘光的字画在 Pixi 画布里，DOM 里没有字形，tide 只能靠这条桥
+                // 知道「字现在在哪、亮到什么程度」，水才做得出随字飘散。（见 tideAnchorBridge）
+                // 关掉发布时不做任何事：本帧的锚点列表已由运行时 beginTideAnchors 清空，读到的是空，不是残影。
+                if (publishTideAnchors) {
+                    publishTideAnchorFrom(glyph.glyph, resolveGlyphAnchorStrength(time, glyph.timing.start, glyph.timing.end));
+                }
                 // 关键字：点亮后的字身、光晕、闪点换成关键字光色（未唱时仍是冷色）。
                 const tints = glyph.tints;
                 const hot = mixRgb(tints ? tints.glyph : litColor, WHITE, clamp01(0.08 * illumination + 0.1 * flash + 0.25 * local.flying));
