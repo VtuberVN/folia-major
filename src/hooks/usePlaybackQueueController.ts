@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { MotionValue } from 'framer-motion';
 import { applyOnlineAudioSourceMetadata, loadOnlineSongAudioSource, loadOnlineSongLyrics } from '../services/onlinePlayback';
+import { watchDeferredAudioQuality } from '../services/deferredAudioQuality';
 import { getSongReplacement, isSongUnavailable } from '../services/onlineMusic/songAvailability';
 import { getSongResourceCacheKey } from '../services/onlineMusic/resourceKeys';
 import { omni } from '../services/onlineMusic/omni';
@@ -609,7 +610,7 @@ export function usePlaybackQueueController({
         shouldAutoPlayRef.current = true;
         const songKey = getPlaybackSongKey(song);
         const resolvedSong = preloadedOnlineAudioResult?.kind === 'ok'
-            ? applyOnlineAudioSourceMetadata(song, preloadedOnlineAudioResult.replayGain)
+            ? applyOnlineAudioSourceMetadata(song, preloadedOnlineAudioResult.replayGain, preloadedOnlineAudioResult.audioQualityInfo)
             : song;
         const resolvedQueue = replacePlaybackSongInQueue(newQueue, resolvedSong);
         currentSongRef.current = songKey;
@@ -673,6 +674,7 @@ export function usePlaybackQueueController({
             currentOnlineAudioUrlFetchedAtRef.current = null;
         }
         setAudioSrc(audioResult.audioSrc);
+        watchDeferredAudioQuality(song, audioResult.audioSrc, audioResult.audioQualityInfoReady);
 
         try {
             await loadOnlineSongLyrics(song, prefetched, userId, {

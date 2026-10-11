@@ -51,6 +51,10 @@ const normalizeSupportedLanguage = (value: string | null | undefined): Exclude<A
     return 'zh-CN';
   }
 
+  if (value.toLowerCase().startsWith('vi')) {
+    return 'vi';
+  }
+
   return 'en';
 };
 

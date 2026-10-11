@@ -762,12 +762,32 @@ describe('qqProvider', () => {
             url: 'https://audio.example.test/song.mp3',
             fetchedAt: expect.any(Number),
             quality: 'high',
+            audioQualityInfo: { codec: 'mp3' },
         });
         expect(requestMock.mock.calls).toEqual([
             ['song_info', { songmid: '003rJSwm3TechU' }],
             ['music_play', { songmid: '003rJSwm3TechU', mediaId: '001MediaMidFixture', quality: 'flac' }],
             ['music_play', { songmid: '003rJSwm3TechU', mediaId: '001MediaMidFixture', quality: '320' }],
         ]);
+    });
+
+    it('uses the returned audio format without inventing bitrate from a quality preference', async () => {
+        requestMock.mockResolvedValueOnce({ data: { playUrl: {
+            '003rJSwm3TechU': { url: 'https://audio.example.test/F000actual.flac?vkey=secret' },
+        } } });
+        const source = await qqProvider.playback!.getAudioSource(normalizeQqSong(SEARCH_ITEM), 'standard');
+        expect(source?.audioQualityInfo).toEqual({ codec: 'flac' });
+        expect(source?.audioQualityInfo?.bitrate).toBeUndefined();
+    });
+
+    it('keeps ambiguous containers and extensionless URLs unknown instead of claiming AAC or a bitrate', async () => {
+        for (const path of ['song.m4a', 'stream']) {
+            requestMock.mockResolvedValueOnce({ data: { playUrl: {
+                '003rJSwm3TechU': { url: 'https://audio.example.test/' + path },
+            } } });
+            const source = await qqProvider.playback!.getAudioSource(normalizeQqSong(SEARCH_ITEM), 'high');
+            expect(source?.audioQualityInfo).toBeUndefined();
+        }
     });
 
     it('loads regular playlists normally but uses the encrypted-UIN endpoint for liked songs', async () => {

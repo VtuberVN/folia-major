@@ -67,7 +67,11 @@ export interface SubsonicSong {
     contentType: string;
     suffix: string;
     duration: number; // seconds
-    bitRate?: number;
+    bitRate?: number; // Subsonic kilobits per second
+    samplingRate?: number; // OpenSubsonic Hz
+    bitDepth?: number;
+    transcodedSuffix?: string;
+    transcodedContentType?: string;
     path: string;
     playCount?: number;
     discNumber?: number;
@@ -328,7 +332,12 @@ export interface NavidromeSong extends SongResult {
         albumId: string;
         artistId: string;
         path: string;
-        bitRate?: number;
+        bitRate?: number; // Subsonic kilobits per second
+        samplingRate?: number;
+        bitDepth?: number;
+        contentType?: string;
+        transcodedSuffix?: string;
+        transcodedContentType?: string;
         suffix: string;
         starred?: string;
         replayGain?: SubsonicSong['replayGain'];

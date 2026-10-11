@@ -8,7 +8,7 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "0.7.17",
+  "version": "0.7.17-vi.1",
   "license": "AGPL-3.0",
   "type": "module",
   "main": "electron/main.cjs",
@@ -79,8 +79,9 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "chthollyphile",
-        "repo": "folia-major"
+        "owner": "VtuberVN",
+        "repo": "folia-major",
+        "channel": "vi"
       }
     ],
     "files": [
@@ -194,7 +195,7 @@
         "en_US",
         "zh_CN",
         "id",
-        "vi"
+        "vi_VN"
       ],
       "include": "build/installer.nsh"
     },
@@ -304,5 +305,6 @@
     "three-stdlib": {
       "fflate": "$fflate"
     }
-  }
+  },
+  "foliaReleaseChannel": "vietnamese"
 }

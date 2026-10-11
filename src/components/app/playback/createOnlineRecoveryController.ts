@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import { applyOnlineAudioSourceMetadata, loadOnlineSongAudioSource } from '../../../services/onlinePlayback';
+import { watchDeferredAudioQuality } from '../../../services/deferredAudioQuality';
 import type { SongResult } from '../../../types';
 import type { AudioQualityPreference } from '../../../types/onlineMusic';
 import {
@@ -139,20 +140,15 @@ export const createOnlineRecoveryController = ({
                     blobUrlRef.current = audioResult.blobUrl;
                 }
 
-                const resolvedSong = applyOnlineAudioSourceMetadata(song, audioResult.replayGain);
+                const resolvedSong = applyOnlineAudioSourceMetadata(song, audioResult.replayGain, audioResult.audioQualityInfo);
                 const replayGain = resolvedSong.replayGain;
-                if (replayGain) {
-                    setCurrentSong(prev => {
-                        if (!prev || !isSamePlaybackSong(prev, song)) return prev;
-                        return { ...prev, replayGain };
-                    });
-                    const resolvedQueue = replacePlaybackSongInQueue(playQueue, resolvedSong);
-                    setPlayQueue(resolvedQueue);
-                    void persistLastPlaybackCache(
-                        resolvedSong,
-                        resolvedQueue,
-                    );
-                }
+                setCurrentSong(prev => {
+                    if (!prev || !isSamePlaybackSong(prev, song)) return prev;
+                    return { ...prev, replayGain, audioQualityInfo: resolvedSong.audioQualityInfo };
+                });
+                const resolvedQueue = replacePlaybackSongInQueue(playQueue, resolvedSong);
+                setPlayQueue(resolvedQueue);
+                void persistLastPlaybackCache(resolvedSong, resolvedQueue);
 
                 pendingResumeTimeRef.current = Math.max(0, resumeAt ?? audioRef.current.currentTime ?? 0);
                 // Resolving a fresh source must not undo a pause while the request
@@ -162,6 +158,7 @@ export const createOnlineRecoveryController = ({
                     ? null
                     : Date.now();
                 setAudioSrc(audioResult.audioSrc);
+                watchDeferredAudioQuality(song, audioResult.audioSrc, audioResult.audioQualityInfoReady);
                 return true;
             } catch (error) {
                 console.error('[App] Failed to recover online playback source', error);

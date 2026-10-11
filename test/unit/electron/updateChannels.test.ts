@@ -8,6 +8,7 @@ const {
     getUpdateDiscoveryConfig,
     getUpdateProviderConfig,
     parseUpdateMetadataVersion,
+    migrateVietnameseChannelPreference,
     resolveReleaseChannel,
 } = require('../../../electron/updateChannels.cjs') as {
     compareVersions: (left: string, right: string) => number;
@@ -29,6 +30,9 @@ const {
         github: { owner: string; repo: string },
     ) => { format: string; url: string } | null;
     parseUpdateMetadataVersion: (text: string) => string;
+    migrateVietnameseChannelPreference: (input: {
+        version: string; declaredChannel?: string | null; storedChannel?: string; migrationComplete?: boolean;
+    }) => { channel?: string; migrationComplete: boolean };
     resolveReleaseChannel: (version: string, declaredChannel?: string | null) => {
         id: string;
         updaterChannel: string | null;
@@ -49,6 +53,7 @@ describe('release update channels', () => {
 
     it.each([
         ['0.7.0', 'realeco', 'latest', false],
+        ['0.7.16-vi.1', 'vietnamese', 'vi', true],
         ['0.7.0-beta.123', 'limo', 'beta', true],
         ['0.7.0-alpha.123', 'cielo', 'alpha', true],
     ])('maps %s to the %s lane', (version, id, updaterChannel, allowPrerelease) => {
@@ -116,5 +121,50 @@ describe('release update channels', () => {
     it('reads the version from electron-builder channel metadata', () => {
         expect(parseUpdateMetadataVersion("version: 0.7.4-beta.1788851094\nfiles:\n  - url: Folia.exe\n"))
             .toBe('0.7.4-beta.1788851094');
+    });
+
+    it('isolates Vietnamese metadata and downloads from stable and beta releases', () => {
+        const github = { owner: 'Lynx-1ST', repo: 'folia-major' };
+        const lane = resolveReleaseChannel('0.7.16-vi.2', 'vietnamese');
+        expect(getReleaseUrl(lane.id, '0.7.16-vi.2', 'https://github.com/Lynx-1ST/folia-major/releases'))
+            .toBe('https://github.com/Lynx-1ST/folia-major/releases/tag/vietnamese');
+        expect(getUpdateProviderConfig(lane, github)).toEqual({
+            provider: 'generic',
+            url: 'https://github.com/Lynx-1ST/folia-major/releases/download/vietnamese/',
+            channel: 'vi',
+            useMultipleRangeRequest: false,
+        });
+        expect(getUpdateDiscoveryConfig(lane, github)).toEqual({
+            format: 'yaml',
+            url: 'https://github.com/Lynx-1ST/folia-major/releases/download/vietnamese/vi.yml',
+        });
+    });
+
+    it.each([undefined, 'realeco'])('migrates legacy Vietnamese preferences %s once', (storedChannel) => {
+        const result = migrateVietnameseChannelPreference({
+            version: '0.7.16-vi.1', declaredChannel: 'realeco', storedChannel,
+        });
+        expect(result).toEqual({ channel: 'vietnamese', migrationComplete: true });
+        // After migration, switching to stable intentionally must survive every restart.
+        expect(migrateVietnameseChannelPreference({
+            version: '0.7.16-vi.2', declaredChannel: 'vietnamese', storedChannel: 'realeco',
+            migrationComplete: result.migrationComplete,
+        })).toEqual({ channel: 'realeco', migrationComplete: true });
+    });
+
+    it.each(['limo', 'cielo', 'vietnamese'])('preserves an existing %s selection during migration', (storedChannel) => {
+        expect(migrateVietnameseChannelPreference({ version: '0.7.16-vi.1', storedChannel }))
+            .toEqual({ channel: storedChannel, migrationComplete: true });
+    });
+
+    it('recognizes explicit Vietnamese packaging but leaves non-Vietnamese installations alone', () => {
+        expect(migrateVietnameseChannelPreference({
+            version: '0.7.17', declaredChannel: 'vietnamese', storedChannel: 'realeco',
+        })).toEqual({ channel: 'vietnamese', migrationComplete: true });
+        expect(migrateVietnameseChannelPreference({
+            version: '0.7.17', declaredChannel: 'realeco', storedChannel: 'realeco',
+        })).toEqual({ channel: 'realeco', migrationComplete: false });
+        expect(resolveReleaseChannel('0.7.16-vi.2', 'realeco').id).toBe('realeco');
+        expect(compareVersions('0.7.16-vi.10', '0.7.16-vi.2')).toBe(1);
     });
 });

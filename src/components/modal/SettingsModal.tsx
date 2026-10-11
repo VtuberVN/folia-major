@@ -136,13 +136,15 @@ interface SettingsModalProps {
 
 const QUARK_DOWNLOAD_URL = 'https://pan.quark.cn/s/6e4c6fa3bc6f';
 const BAIDU_DOWNLOAD_URL = 'https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia';
-const DEFAULT_UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'internal' = __APP_RELEASE_CHANNEL__ === 'limo'
-    ? 'limo'
-    : __APP_RELEASE_CHANNEL__ === 'cielo'
-        ? 'cielo'
-        : __APP_RELEASE_CHANNEL__ === 'internal'
-            ? 'internal'
-            : 'realeco';
+const DEFAULT_UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'vietnamese' | 'internal' = __APP_RELEASE_CHANNEL__ === 'vietnamese'
+    ? 'vietnamese'
+    : __APP_RELEASE_CHANNEL__ === 'limo'
+        ? 'limo'
+        : __APP_RELEASE_CHANNEL__ === 'cielo'
+            ? 'cielo'
+            : __APP_RELEASE_CHANNEL__ === 'internal'
+                ? 'internal'
+                : 'realeco';
 
 // Synchronous on purpose: the first render has to know which sections exist before the isElectron state below settles.
 const hasElectronBridge = () => typeof window !== 'undefined' && Boolean((window as any).electron);
@@ -492,6 +494,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         UPDATE_CHANNEL: DEFAULT_UPDATE_CHANNEL,
         STAGE_MODE_SOURCE: 'stage-api',
         DISCORD_RICH_PRESENCE_ENABLED: false,
+        DISCORD_RICH_PRESENCE_APPLICATION_ID: '',
     });
     const [electronSettingsLoaded, setElectronSettingsLoaded] = useState(false);
     const [savedElectronAiCredentials, setSavedElectronAiCredentials] = useState({
@@ -647,6 +650,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         }
     };
 
+    const handleSaveDiscordApplicationId = async (applicationId: string) => {
+        await window.electron?.saveSettings?.('DISCORD_RICH_PRESENCE_APPLICATION_ID', applicationId);
+        setElectronSettings(previous => ({ ...previous, DISCORD_RICH_PRESENCE_APPLICATION_ID: applicationId }));
+        const status = await window.electron?.getDiscordPresenceStatus?.();
+        if (status) setDiscordPresenceStatus(status);
+    };
+
     const handleToggleDiscordPresence = async (enabled: boolean) => {
         const nextSettings = {
             ...electronSettings,
@@ -699,7 +709,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         }
     };
 
-    const handleUpdateChannelChange = async (channel: 'realeco' | 'limo' | 'cielo') => {
+    const handleUpdateChannelChange = async (channel: 'realeco' | 'limo' | 'cielo' | 'vietnamese') => {
         if (!window.electron?.saveSettings) {
             return;
         }
@@ -1505,7 +1515,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             >
                                                 {t('help.madeBy')}
                                             </button>{' '}
-                                            <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline decoration-white/30 hover:decoration-white">chthollyphile/folia-major</a>
+                                            <a href="https://github.com/Lynx-1ST/folia-major" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline decoration-white/30 hover:decoration-white">Lynx-1ST/folia-major</a>
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-center gap-2 mt-6 mb-2 text-xs font-mono text-center">
@@ -1799,6 +1809,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 }}
                                                 discord={{
                                                     enabled: electronSettings.DISCORD_RICH_PRESENCE_ENABLED,
+                                                    applicationId: electronSettings.DISCORD_RICH_PRESENCE_APPLICATION_ID,
+                                                    onSaveApplicationId: handleSaveDiscordApplicationId,
                                                     onToggle: handleToggleDiscordPresence,
                                                     status: discordPresenceStatus,
                                                 }}

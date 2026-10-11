@@ -19,6 +19,7 @@ import SettingsSectionHeading from './navigation/SettingsSectionHeading';
 import { setStatusMessage } from '../../../stores/useStatusMessageStore';
 import { useThemeSettingsStore } from '../../../stores/useThemeSettingsStore';
 import { useStageSettingsStore } from '../../../stores/useStageSettingsStore';
+import DiscordApplicationIdField from './DiscordApplicationIdField';
 
 // src/components/modal/settings/IntegrationSettingsSubview.tsx
 // Integration settings for Discord, Stage, Now Playing, OBS, and Navidrome.
@@ -81,6 +82,8 @@ export type IntegrationNavidromeModel = {
 
 export type IntegrationDiscordModel = {
     enabled: boolean;
+    applicationId?: string;
+    onSaveApplicationId?: (value: string) => Promise<void>;
     onToggle: (enabled: boolean) => Promise<void> | void;
     status?: ElectronDiscordPresenceStatus | null;
 };
@@ -430,7 +433,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     {t('options.enableDiscordRichPresence') || 'Enable Discord playback status'}
                                 </div>
                                 <div className="text-[10px] opacity-40 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
-                                    {t('options.discordRichPresenceDesc') || 'Show the current Folia track in Discord desktop. Folia connects with its built-in application identity.'}
+                                    {t('options.discordRichPresenceDesc')}
                                 </div>
                             </div>
                             <button
@@ -444,6 +447,9 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                             </button>
                         </div>
 
+                        {discord.onSaveApplicationId && (
+                            <DiscordApplicationIdField value={discord.applicationId ?? ''} onSave={discord.onSaveApplicationId} />
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`px-2 py-1 rounded-full text-[10px] ${discordPresenceStatus?.connected ? successBgColor : errorBgColor} ${discordPresenceStatus?.connected ? successTextColor : errorTextColor}`}>
                                 {discordPresenceStatusLabel}

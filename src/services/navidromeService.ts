@@ -30,6 +30,35 @@ import {
     NavidromeServerProfile,
 } from '../types/navidrome';
 import md5 from 'blueimp-md5';
+import { normalizeAudioQualityInfo } from '../utils/audioQualityInfo';
+import type { AudioQualityInfo } from '../types/audioQuality';
+
+// Subsonic child metadata describes the source file, not a server-transcoded stream.
+// format=raw explicitly disables transcoding; otherwise keep the source provenance
+// and discard source precision whenever the server advertises conversion.
+export function getNavidromeAudioQualityInfo(
+    metadata: Pick<SubsonicSong, 'bitRate' | 'samplingRate' | 'bitDepth' | 'suffix' | 'transcodedSuffix' | 'transcodedContentType'>,
+    streamUrl: string,
+): AudioQualityInfo | undefined {
+    let raw = false;
+    try {
+        const params = new URL(streamUrl).searchParams;
+        const format = params.get('format')?.toLowerCase();
+        raw = format === 'raw';
+        if (!raw && (format || params.has('maxBitRate') || metadata.transcodedSuffix || metadata.transcodedContentType)) {
+            return undefined;
+        }
+    } catch {
+        return undefined;
+    }
+    const info = normalizeAudioQualityInfo({
+        bitrate: Number(metadata.bitRate) * 1000,
+        sampleRate: metadata.samplingRate,
+        bitDepth: metadata.bitDepth,
+        codec: metadata.suffix,
+    });
+    return info ? { ...info, provenance: raw ? 'stream' : 'source' } : undefined;
+}
 
 // LocalStorage key for config
 const CONFIG_KEY = 'navidrome_config';
@@ -668,6 +697,7 @@ export const navidromeApi = {
             ? navidromeApi.getCoverArtUrl(config, coverArtId, 600)
             : undefined;
 
+        const streamUrl = navidromeApi.getStreamUrl(config, song.id);
         const displayArtists = [{ id: 0, name: song.artist }];
         const displayAlbum = {
             id: 0,
@@ -683,15 +713,21 @@ export const navidromeApi = {
             album: displayAlbum,
             durationMs: song.duration * 1000, // Convert to milliseconds
             isNavidrome: true,
+            audioQualityInfo: getNavidromeAudioQualityInfo(song, streamUrl),
             sourceRef: { kind: 'navidrome', mediaId: song.id },
             navidromeData: {
                 id: song.id,
-                streamUrl: navidromeApi.getStreamUrl(config, song.id),
+                streamUrl,
                 coverArtUrl,
                 albumId: song.albumId,
                 artistId: song.artistId,
                 path: song.path,
                 bitRate: song.bitRate,
+                samplingRate: song.samplingRate,
+                bitDepth: song.bitDepth,
+                contentType: song.contentType,
+                transcodedSuffix: song.transcodedSuffix,
+                transcodedContentType: song.transcodedContentType,
                 suffix: song.suffix,
                 starred: song.starred,
                 replayGain: song.replayGain,

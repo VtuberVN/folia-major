@@ -1672,6 +1672,8 @@ export default {
     },
   },
   ui: {
+    audioQualityInfo: "Chất lượng tệp / luồng âm thanh",
+    audioQualitySource: "Nguồn",
     noTrack: "Không có bài hát",
     previousTrack: "Bài trước",
     nextTrack: "Bài tiếp theo",
@@ -2219,6 +2221,22 @@ export default {
       "Sao chép thông tin chẩn đoán gửi cho chúng tôi để hỗ trợ tìm nguyên nhân.",
     qrDiagnosticsPromptScanned:
       "Nếu đã xác nhận trên điện thoại nhưng chưa đăng nhập được, sao chép thông tin chẩn đoán gửi cho chúng tôi để tìm nguyên nhân.",
+    qrDeviceLimit:
+      "Tài khoản QQ Music này đã đạt giới hạn thiết bị đăng nhập, cần xóa bớt thiết bị cũ trước.",
+    qrDeviceLimitTipQuota:
+      "QQ Music giới hạn số thiết bị đăng nhập đồng thời: tài khoản miễn phí 1 thiết bị, Green Diamond 3 thiết bị, Super VIP 5 thiết bị.",
+    qrDeviceLimitTipRemove:
+      "Mở ứng dụng chính thức QQ Music, vào Cài đặt → Quản lý thiết bị (ở cuối trang Cài đặt) và xóa thiết bị bạn không còn sử dụng.",
+    qrDeviceLimitTipRescan:
+      "Sau đó quay lại Folia và quét mã đăng nhập lại.",
+    qrDeviceLimitTipsTitle:
+      "Xóa bớt thiết bị đã đăng nhập trước",
+    qrDiagnosticsToggleElsewhere:
+      "Vẫn không được? Xem thông tin chẩn đoán",
+    qrReportUnofficialBuild:
+      "Bạn đang sử dụng bản dựng không chính thức hoặc chưa theo hướng dẫn tự lưu trữ (có thể do người khác đóng gói hoặc chỉnh sửa). Vui lòng phản hồi vấn đề cho người cung cấp bản này. Bản chính thức luôn có tại GitHub Releases.",
+    qrReportWebDeployment:
+      "Đây là sự cố của bản triển khai web này: trang web chưa cấu hình API nền tảng âm nhạc hoặc không thể kết nối. Vui lòng gửi báo cáo chẩn đoán cho người triển khai trang web; nếu đó là bạn, hãy kiểm tra VITE_*_API_BASE theo tài liệu và build lại. Nếu chỉ muốn sử dụng trực tiếp, bạn nên tải bản ứng dụng desktop chính thức.",
     qrDiagnosticsDisclosure:
       "Thông tin chẩn đoán gồm: phiên bản ứng dụng và hệ thống, card mạng và IP, cài đặt proxy, nhật ký yêu cầu đăng nhập kèm lỗi gốc và kết quả kiểm tra mạng. Không chứa mật khẩu, cookie hay token.",
     qrDiagnosticsCopy: "Sao chép chẩn đoán",
@@ -2583,6 +2601,10 @@ export default {
       "Biểu tượng bóng đèn ở góc trên bên phải trên thiết bị cảm ứng: hiện vài giây khi vào trang và chạm góc đó để mở lại. Khi tắt, chỉ có thể mở Khám phá từ cửa sổ lệnh.",
     refresh: "Làm mới",
     cacheDetails: "Chi tiết bộ nhớ đệm",
+    selfHostedBuildNotice:
+      "Bản tự lưu trữ: do người triển khai tự build và quản lý, bao gồm cả backend nền tảng âm nhạc. Vui lòng liên hệ người triển khai trước; chỉ báo cáo lên GitHub khi xác định rõ là lỗi của Folia.",
+    unofficialBuildNotice:
+      "Bản dựng không chính thức: phiên bản này không được build từ CI của repo Folia cũng như không triển khai theo hướng dẫn (Docker, Vercel, Cloudflare), có thể đã bị chỉnh sửa hoặc thiếu dịch vụ backend. Vui lòng liên hệ người cung cấp trước; bản chính thức có tại GitHub Releases.",
     settingsGroupAppearance: "Giao diện",
     settingsGroupControls: "Điều khiển",
     settingsGroupConnections: "Kết nối & Dữ liệu",
@@ -2785,6 +2807,7 @@ export default {
       "Vẫn phát hiện phiên bản mới, nhưng cần tải bộ cài đặt đầy đủ hoặc dùng trình quản lý gói được hỗ trợ để nâng cấp.",
     updateChannel: "Kênh cập nhật",
     updateChannelDesc: "Chọn kênh phát hành cho ứng dụng máy tính này.",
+    updateChannelVietnamese: "Tiếng Việt",
     updateChannelRealeco: "Realeco · Ổn định",
     updateChannelLimo: "Limo · Nightly",
     updateChannelCielo: "Cielo · Canary",
@@ -3057,6 +3080,17 @@ export default {
     discordRichPresenceDesc:
       "Hiển thị bài hát Folia đang phát trên Discord desktop. Folia kết nối bằng danh tính ứng dụng tích hợp sẵn.",
     discordPresenceDisabled: "Đã tắt",
+    discordApplicationId: "Discord Application ID",
+    discordApplicationIdHint:
+      "Nhập Application ID công khai từ Discord Developer Portal. Không cần token hay Client Secret.",
+    discordApplicationIdInvalid:
+      "Nhập Application ID gồm 16–24 chữ số.",
+    discordApplicationIdSaveFailed:
+      "Không thể lưu Application ID. Vui lòng thử lại.",
+    discordApplicationIdSaved:
+      "Đã lưu Application ID. Discord sẽ kết nối lại với danh tính mới.",
+    discordApplicationIdSaving:
+      "Đang lưu…",
     discordPresenceConnected: "Đã kết nối",
     discordPresenceDisconnected: "Chưa kết nối",
     obsBrowserSource: "Nguồn trình duyệt OBS",

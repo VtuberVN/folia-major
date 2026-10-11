@@ -81,6 +81,7 @@ export interface ProviderPage<T> {
 }
 
 export interface ProviderAudioSource {
+    audioQualityInfo?: import('./audioQuality').AudioQualityInfo;
     url: string;
     fetchedAt: number;
     expiresAt?: number;

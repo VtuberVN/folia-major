@@ -22,6 +22,7 @@ import { modeNeedsBeatGrid } from './automix/transitionStrategy';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import type { AudioQualityInfo } from '../types/audioQuality';
 
 // Prefetch configuration
 //
@@ -82,6 +83,7 @@ export interface PrefetchedSongData {
     audioUrlFetchedAt: number;
     audioUrlQuality: string | null; // Track which quality the URL was fetched for
     replayGain?: ReplayGainInfo;
+    audioQualityInfo?: AudioQualityInfo;
     lyrics: LyricData | null;
     lyricRaw: {
         mainLrc: string | null;
@@ -143,6 +145,7 @@ export const getPrefetchedData = (song: SongResult, requiredQuality?: AudioQuali
         cached.audioUrl = null;
         cached.audioUrlQuality = null;
         cached.replayGain = undefined;
+        cached.audioQualityInfo = undefined;
     }
 
     // Check if quality matches (if requiredQuality is specified)
@@ -152,6 +155,7 @@ export const getPrefetchedData = (song: SongResult, requiredQuality?: AudioQuali
         cached.audioUrl = null;
         cached.audioUrlQuality = null;
         cached.replayGain = undefined;
+        cached.audioQualityInfo = undefined;
     }
 
     return touchPrefetchCacheEntry(songKey, cached);
@@ -204,6 +208,7 @@ const prefetchSong = async (
         audioUrl: existing?.audioUrl && existing.audioUrlQuality === audioQuality && isUrlValid(existing.audioUrlFetchedAt) ? existing.audioUrl : null,
         audioUrlFetchedAt: existing?.audioUrlFetchedAt || 0,
         audioUrlQuality: existing?.audioUrlQuality || null,
+        audioQualityInfo: existing?.audioUrlQuality === audioQuality ? existing.audioQualityInfo : undefined,
         replayGain: existing?.replayGain ?? song.replayGain,
         lyrics: existing?.lyrics || null,
         lyricRaw: existing?.lyricRaw || null,
@@ -226,6 +231,7 @@ const prefetchSong = async (
                     data.audioUrl = url;
                     data.audioUrlFetchedAt = Date.now();
                     data.audioUrlQuality = audioQuality;
+                    data.audioQualityInfo = audioSource?.audioQualityInfo;
                     data.replayGain = audioSource?.replayGain
                         ? { ...data.replayGain, ...audioSource.replayGain }
                         : data.replayGain;
@@ -381,6 +387,7 @@ export const updatePrefetchedAudioUrl = (
     audioUrl: string,
     audioQuality: string,
     replayGain?: ReplayGainInfo,
+    audioQualityInfo?: AudioQualityInfo,
 ): void => {
     const songKey = getPrefetchSongKey(song);
     const existing = prefetchCache.get(songKey);
@@ -391,6 +398,7 @@ export const updatePrefetchedAudioUrl = (
         audioUrl,
         audioUrlFetchedAt: Date.now(),
         audioUrlQuality: audioQuality,
+        audioQualityInfo,
         replayGain: replayGain
             ? { ...song.replayGain, ...existing?.replayGain, ...replayGain }
             : existing?.replayGain ?? song.replayGain,

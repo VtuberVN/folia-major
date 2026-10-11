@@ -1,6 +1,6 @@
 const DISCORD_PRESENCE_UPDATE_INTERVAL_MS = 15_000;
 const DISCORD_ACTIVITY_TYPE_LISTENING = 2;
-const DEFAULT_DISCORD_APPLICATION_ID = '1518508445483925645';
+const DEFAULT_DISCORD_APPLICATION_ID = '1203744706702610522';
 
 // electron/discordPresence.cjs
 // Maintains Discord Rich Presence from the main-process playback snapshot.
@@ -65,8 +65,9 @@ function buildDiscordActivity(snapshot) {
   const coverImageUrl = normalizeDiscordImageUrl(snapshot.coverUrl);
 
   const activity = {
-    name: 'Folia',
+    name: title,
     type: DISCORD_ACTIVITY_TYPE_LISTENING,
+    statusDisplayType: 2,
     details: title,
     state: playerState === 'PLAYING' ? artist : `Paused - ${artist}`,
     largeImageText: coverImageUrl ? title : 'Folia',
@@ -104,9 +105,15 @@ function createDiscordPresenceController({
   getApplicationId,
   isEnabled,
   onStatusChange,
+  createClient = (applicationId) => {
+    const { Client } = require('@xhayper/discord-rpc');
+    return new Client({ clientId: applicationId, transport: { type: 'ipc' } });
+  },
 } = {}) {
   let client = null;
   let connectingPromise = null;
+  let pendingClient = null;
+  let connectionGeneration = 0;
   let currentApplicationId = '';
   let lastActivityKey = '';
   let lastUpdateAt = 0;
@@ -142,17 +149,12 @@ function createDiscordPresenceController({
 
   const getStatus = () => ({ ...status });
 
-  const destroyClient = async () => {
-    const activeClient = client;
-    client = null;
-    connectingPromise = null;
-    lastActivityKey = '';
-    lastUpdateAt = 0;
-    if (!activeClient) {
-      return;
-    }
+  const disposeClient = async (activeClient) => {
+    if (!activeClient) return;
     try {
-      await activeClient.user?.clearActivity?.(process.pid);
+      if (activeClient.isConnected) {
+        await activeClient.user?.clearActivity?.(process.pid);
+      }
     } catch {
       // Clearing presence is best-effort; Discord may already be closed.
     }
@@ -161,6 +163,18 @@ function createDiscordPresenceController({
     } catch {
       // The local Discord IPC can disappear at any time.
     }
+  };
+
+  const destroyClient = async () => {
+    const generation = ++connectionGeneration;
+    const clients = [...new Set([client, pendingClient].filter(Boolean))];
+    client = null;
+    pendingClient = null;
+    connectingPromise = null;
+    lastActivityKey = '';
+    lastUpdateAt = 0;
+    await Promise.all(clients.map(disposeClient));
+    return generation;
   };
 
   const ensureClient = async () => {
@@ -173,7 +187,8 @@ function createDiscordPresenceController({
     });
 
     if (!enabled || !applicationId) {
-      await destroyClient();
+      const generation = await destroyClient();
+      if (generation !== connectionGeneration) return null;
       publishStatus({
         connected: false,
         error: enabled ? 'Discord application identity is unavailable.' : null,
@@ -189,38 +204,46 @@ function createDiscordPresenceController({
       return connectingPromise;
     }
 
-    await destroyClient();
+    const generation = await destroyClient();
+    if (generation !== connectionGeneration) return null;
     currentApplicationId = applicationId;
 
-    connectingPromise = Promise.resolve()
-      .then(() => {
-        const { Client } = require('@xhayper/discord-rpc');
-        const nextClient = new Client({
-          clientId: applicationId,
-          transport: { type: 'ipc' },
-        });
+    let nextClient;
+    const connection = Promise.resolve()
+      .then(async () => {
+        if (generation !== connectionGeneration) return null;
+        nextClient = createClient(applicationId);
+        pendingClient = nextClient;
         nextClient.on('disconnected', () => {
-          if (client === nextClient) {
+          if (client === nextClient && generation === connectionGeneration) {
             publishStatus({ connected: false, error: 'Discord disconnected.' });
           }
         });
-        return nextClient.login().then(() => {
-          client = nextClient;
-          publishStatus({ connected: true, error: null });
-          return nextClient;
-        });
+        await nextClient.login();
+        if (generation !== connectionGeneration) {
+          await disposeClient(nextClient);
+          return null;
+        }
+        client = nextClient;
+        publishStatus({ connected: true, error: null });
+        return nextClient;
       })
-      .catch((error) => {
-        client = null;
-        publishStatus({
-          connected: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      .catch(async (error) => {
+        await disposeClient(nextClient);
+        if (generation === connectionGeneration) {
+          client = null;
+          publishStatus({
+            connected: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         return null;
       })
       .finally(() => {
-        connectingPromise = null;
+        if (connectingPromise === connection) connectingPromise = null;
+        if (pendingClient === nextClient) pendingClient = null;
       });
+    connectingPromise = connection;
 
     return connectingPromise;
   };
@@ -229,18 +252,22 @@ function createDiscordPresenceController({
     lastSnapshot = snapshot || null;
     const activity = buildDiscordActivity(lastSnapshot);
     const activeClient = await ensureClient();
-    if (!activeClient) {
+    if (!activeClient || activeClient !== client) {
       return getStatus();
     }
+    const generation = connectionGeneration;
 
     if (!activity) {
       if (lastActivityKey !== 'empty') {
         try {
           await activeClient.user?.clearActivity?.(process.pid);
+          if (generation !== connectionGeneration || activeClient !== client) return getStatus();
           lastActivityKey = 'empty';
           publishStatus({ connected: true, error: null });
         } catch (error) {
-          publishStatus({ connected: false, error: error instanceof Error ? error.message : String(error) });
+          if (generation === connectionGeneration && activeClient === client) {
+            publishStatus({ connected: false, error: error instanceof Error ? error.message : String(error) });
+          }
         }
       }
       return getStatus();
@@ -254,11 +281,14 @@ function createDiscordPresenceController({
 
     try {
       await activeClient.user?.setActivity(activity, process.pid);
+      if (generation !== connectionGeneration || activeClient !== client) return getStatus();
       lastActivityKey = activityKey;
       lastUpdateAt = now;
       publishStatus({ connected: true, error: null });
     } catch (error) {
-      publishStatus({ connected: false, error: error instanceof Error ? error.message : String(error) });
+      if (generation === connectionGeneration && activeClient === client) {
+        publishStatus({ connected: false, error: error instanceof Error ? error.message : String(error) });
+      }
     }
     return getStatus();
   };

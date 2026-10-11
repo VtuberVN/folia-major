@@ -8,6 +8,7 @@ import { buildNavidromeSourceRevision } from '../../../services/playbackRecovery
 import { getLocalLibraryCatalogSnapshot } from '../../../services/localLibraryEntityRepository';
 import { getNavidromeConfig, navidromeApi } from '../../../services/navidromeService';
 import { applyOnlineAudioSourceMetadata, loadOnlineSongAudioSource } from '../../../services/onlinePlayback';
+import { watchDeferredAudioQuality } from '../../../services/deferredAudioQuality';
 import type { ThemeCacheSongKey } from '../../../services/themeCache';
 import type { LyricData, LocalSong, SongResult, StatusMessage } from '../../../types';
 import type { NavidromeSong } from '../../../types/navidrome';
@@ -233,16 +234,15 @@ export const restorePlaybackSourceForSong = async (
     }
     setAudioSrc(audioResult.audioSrc);
 
-    const restoredSong = applyOnlineAudioSourceMetadata(song, audioResult.replayGain);
-    if (restoredSong.replayGain) {
-        setCurrentSong(prev => {
-            if (!prev || !isSamePlaybackSong(prev, song)) return prev;
-            return { ...prev, replayGain: restoredSong.replayGain };
-        });
-        const restoredQueue = replacePlaybackSongInQueue(queue || [restoredSong], restoredSong);
-        setPlayQueue?.(restoredQueue);
-        void persistLastPlaybackCache?.(restoredSong, restoredQueue);
-    }
+    const restoredSong = applyOnlineAudioSourceMetadata(song, audioResult.replayGain, audioResult.audioQualityInfo);
+    setCurrentSong(prev => {
+        if (!prev || !isSamePlaybackSong(prev, song)) return prev;
+        return { ...prev, replayGain: restoredSong.replayGain, audioQualityInfo: restoredSong.audioQualityInfo };
+    });
+    const restoredQueue = replacePlaybackSongInQueue(queue || [restoredSong], restoredSong);
+    setPlayQueue?.(restoredQueue);
+    void persistLastPlaybackCache?.(restoredSong, restoredQueue);
+    watchDeferredAudioQuality(song, audioResult.audioSrc, audioResult.audioQualityInfoReady);
 
     const cachedLyrics = await getSongCacheWithLegacyMigration<LyricData>('lyric', song, migrateLyricDataRenderHints);
     const restoredPreferredLyrics = resolveOnlineLyrics(onlineLyricsState, cachedLyrics);

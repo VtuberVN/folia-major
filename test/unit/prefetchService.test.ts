@@ -38,11 +38,12 @@ describe('prefetched online ReplayGain metadata', () => {
     });
 
     it('invalidates URL metadata together on a quality mismatch', () => {
-        updatePrefetchedAudioUrl(song, 'https://audio.test/song.flac', 'high', { trackGain: -7.1 });
+        updatePrefetchedAudioUrl(song, 'https://audio.test/song.flac', 'high', { trackGain: -7.1 }, { bitrate: 960000, codec: 'FLAC' });
 
         expect(getPrefetchedData(song, 'lossless')).toMatchObject({
             audioUrl: null,
             replayGain: undefined,
+            audioQualityInfo: undefined,
         });
     });
 });

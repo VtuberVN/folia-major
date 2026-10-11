@@ -15,13 +15,16 @@ import { toSafePlaybackUrl } from '../utils/appPlaybackHelpers';
 import { getProviderSongMetadata } from './onlineMusic/songMetadata';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { saveLyricCacheSongMetadata } from './lyricExport/lyricCacheMetadata';
+import type { AudioQualityInfo } from '../types/audioQuality';
+import { normalizeAudioQualityInfo } from '../utils/audioQualityInfo';
+import { readCachedAudioQuality } from './cachedAudioQuality';
 
 export async function loadOnlineSongAudioSource(
     song: SongResult,
     audioQuality: AudioQualityPreference,
     prefetched: PrefetchedSongData | null
 ): Promise<
-    | { kind: 'ok'; audioSrc: string; blobUrl?: string; replayGain?: ReplayGainInfo }
+    | { kind: 'ok'; audioSrc: string; blobUrl?: string; replayGain?: ReplayGainInfo; audioQualityInfo?: AudioQualityInfo; audioQualityInfoReady?: Promise<AudioQualityInfo | undefined> }
     | { kind: 'unavailable'; reason?: ProviderErrorCode }
 > {
     const cachedAudioBlob = await getCachedSongAudioBlob(song);
@@ -35,7 +38,7 @@ export async function loadOnlineSongAudioSource(
                 replayGain = await getCachedSongReplayGain(song);
                 if (replayGain) console.log(`[Cache] ReplayGain recovered for "${song.name}" from the store, not the provider`);
             }
-            return { kind: 'ok', audioSrc: blobUrl, blobUrl, replayGain };
+            return { kind: 'ok', audioSrc: blobUrl, blobUrl, replayGain, audioQualityInfoReady: readCachedAudioQuality(song, cachedAudioBlob) };
         }
     }
 
@@ -44,6 +47,7 @@ export async function loadOnlineSongAudioSource(
             kind: 'ok',
             audioSrc: prefetched.audioUrl,
             replayGain: song.replayGain ?? prefetched.replayGain,
+            audioQualityInfo: prefetched.audioQualityInfo,
         };
     }
 
@@ -60,16 +64,20 @@ export async function loadOnlineSongAudioSource(
     }
 
     const replayGain = applyOnlineAudioSourceMetadata(song, source?.replayGain).replayGain;
-    updatePrefetchedAudioUrl(song, url, audioQuality, replayGain);
-    return { kind: 'ok', audioSrc: url, replayGain };
+    const audioQualityInfo = normalizeAudioQualityInfo(source?.audioQualityInfo);
+    updatePrefetchedAudioUrl(song, url, audioQuality, replayGain, audioQualityInfo);
+    return { kind: 'ok', audioSrc: url, replayGain, audioQualityInfo };
 }
 
 export const applyOnlineAudioSourceMetadata = (
     song: SongResult,
     replayGain?: ReplayGainInfo,
-): SongResult => replayGain
-    ? { ...song, replayGain: { ...song.replayGain, ...replayGain } }
-    : song;
+    audioQualityInfo?: AudioQualityInfo,
+): SongResult => ({
+    ...song,
+    ...(replayGain ? { replayGain: { ...song.replayGain, ...replayGain } } : {}),
+    audioQualityInfo: normalizeAudioQualityInfo(audioQualityInfo),
+});
 
 export async function loadOnlineSongLyrics(
     song: SongResult,

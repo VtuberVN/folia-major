@@ -8,6 +8,7 @@ import { useThemeQuickEditorStore } from '../../stores/useThemeQuickEditorStore'
 import { useThemeSyncAction } from '../../hooks/useThemeSyncAction';
 import AudioEqualizerDialog from './AudioEqualizerDialog';
 import AppearanceSection from './controls/AppearanceSection';
+import ForkPlayerExtras from './controls/ForkPlayerExtras';
 import SongActionRow from './controls/SongActionRow';
 import VolumeRow from './controls/VolumeRow';
 
@@ -212,6 +213,8 @@ const ControlsTab: React.FC<ControlsTabProps> = ({
                         )}
                     </div>
                 </div>
+
+                <ForkPlayerExtras theme={theme} isDaylight={isDaylight} />
 
             </div>
 

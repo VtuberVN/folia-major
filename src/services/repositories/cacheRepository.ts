@@ -35,6 +35,7 @@ export const getCacheTableName = (key: string): CacheTableName => {
     key.startsWith('lyric_') ||
     key.startsWith('theme_') ||
     key.startsWith('replayGain_') ||
+    key.startsWith('audioQuality_') ||
     key.startsWith('playlist_tracks_') ||
     key.startsWith('playlist_detail_') ||
     (key.startsWith('online_provider_') && (key.includes('_playlist_tracks_') || key.includes('_playlist_detail_')))
@@ -180,7 +181,7 @@ const matchesCategory = (key: string, category: CacheCategory): boolean => {
   // A track's ReplayGain describes the audio and arrives with it, so it is cleared with it. It is
   // counted here but NOT in mediaCount below, which means "songs cached" and would otherwise
   // double for every track that has both.
-  return key.startsWith('audio_') || key.startsWith('replayGain_');
+  return key.startsWith('audio_') || key.startsWith('replayGain_') || key.startsWith('audioQuality_');
 };
 
 export const getBrowserCacheUsage = async (): Promise<number> => {

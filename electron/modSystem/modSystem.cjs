@@ -72,9 +72,31 @@ const INSTALL_LIMITS = {
 };
 
 // Native confirmation dialog copy. The main process cannot reach the renderer's
-// i18n bundle, so the three shipped locales are mirrored here like main.cjs's
+// i18n bundle, so the shipped locales are mirrored here like main.cjs's
 // own dialog strings.
 const TRUST_DIALOG_LOCALE = {
+    vi: {
+        title: 'Bật mod',
+        message: (name, id) => `Bật mod "${name}" (${id})?`,
+        risk: 'Mod là mã của bên thứ ba và chưa được kiểm tra bảo mật. Khi bật, mod chạy với toàn bộ quyền của ứng dụng: có thể đọc và ghi tệp cục bộ, truy cập mạng, đọc hoặc thay đổi mọi cài đặt (kể cả địa chỉ và khóa dịch vụ AI), và chạy mã trong giao diện. Chỉ bật mod từ nguồn bạn tin tưởng.',
+        permissions: 'Quyền đã khai báo: ',
+        noPermissions: 'Quyền đã khai báo: không có',
+        location: 'Vị trí cài đặt: ',
+        fingerprint: 'Dấu vân tay nội dung: ',
+        client: 'Mã giao diện: ',
+        noClient: 'Mã giao diện: không có',
+        experimental: 'API thử nghiệm được sử dụng: ',
+        embedOrigins: 'Trang bên ngoài có thể nhúng: ',
+        internals: 'Sử dụng API nội bộ; chỉ tương thích với phiên bản ứng dụng: ',
+        verifiedRisk: 'Mod này có chữ ký Folium chính thức hợp lệ: nguồn và nội dung đã được xét duyệt, không thay đổi từ khi ký. Khi bật, mod vẫn chạy với toàn bộ quyền của ứng dụng: có thể đọc và ghi tệp cục bộ, truy cập mạng, đọc hoặc thay đổi mọi cài đặt (kể cả địa chỉ và khóa dịch vụ AI), và chạy mã trong giao diện.',
+        signatureVerified: (key) => `Chữ ký: được chứng nhận chính thức (${key})`,
+        signatureUnsigned: 'Chữ ký: không có (mod bên thứ ba chưa được Folium xét duyệt)',
+        signatureInvalid: (reason) => `Chữ ký: không khớp (${reason}). Nội dung mod đã thay đổi sau khi ký hoặc chữ ký không hợp lệ; mod không còn được chứng nhận chính thức.`,
+        rebind: 'Xác nhận này chỉ áp dụng cho các tệp hiện tại; cần xác nhận lại khi mã của mod thay đổi.',
+        devSource: 'Chế độ phát triển: mod nằm trong thư mục mods/ của mã nguồn, nên sửa tệp sau khi xác nhận sẽ không thu hồi xác nhận. Bản đã cài và mod trong thư mục người dùng không được miễn trừ này.',
+        enable: 'Vẫn bật',
+        cancel: 'Hủy',
+    },
     'zh-CN': {
         title: '启用模组',
         message: (name, id) => `确定要启用模组“${name}”（${id}）吗？`,

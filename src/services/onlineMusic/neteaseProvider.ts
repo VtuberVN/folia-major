@@ -15,6 +15,7 @@ import type {
 import { getPersonalFmRequestOptions } from '../../stores/usePersonalFmModeStore';
 import { parseNeteaseChorusRanges, processNeteaseLyrics } from '../../utils/lyrics/neteaseProcessing';
 import { toFiniteNumber } from '../../utils/replayGain';
+import { normalizeAudioQualityInfo } from '../../utils/audioQualityInfo';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import { getNeteaseRemoteApiBase, isSongMarkedUnavailable, neteaseApi } from '../netease';
 import { readProviderSessionValue, writeProviderSessionValue } from './providerStorage';
@@ -339,6 +340,7 @@ export const neteaseProvider: OnlineMusicProvider = {
                 url: String(rawUrl).replace(/^http:/, 'https:'),
                 fetchedAt: Date.now(),
                 quality,
+                audioQualityInfo: normalizeAudioQualityInfo({ bitrate: raw.br, codec: raw.type }),
                 ...(trackGain === undefined ? {} : { replayGain: { trackGain } }),
             };
         },

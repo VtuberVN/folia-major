@@ -1,6 +1,7 @@
 import { getFromCache, removeFromCache, saveToCache } from './db';
 import { isBlob } from '../utils/blobGuards';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import { rememberAudioCacheRevision } from '../utils/audioCacheRevision';
 
 /**
  * The ceiling the desktop cache is pruned back to after each write, in bytes.
@@ -13,6 +14,7 @@ const cacheLimitBytes = () =>
   useAudioSettingsStore.getState().mediaCacheLimitGb * 1024 * 1024 * 1024;
 
 interface ElectronAudioCacheEntry {
+  revision?: string;
   found: boolean;
   data?: Uint8Array | ArrayBuffer | null;
   mimeType?: string | null;
@@ -33,7 +35,9 @@ const toBlob = (entry: ElectronAudioCacheEntry): Blob | null => {
 
   const mimeType = entry.mimeType || 'audio/mpeg';
   const blobData = entry.data instanceof ArrayBuffer ? entry.data : new Uint8Array(entry.data);
-  return new Blob([blobData], { type: mimeType });
+  const blob = new Blob([blobData], { type: mimeType });
+  if (entry.revision) rememberAudioCacheRevision(blob, entry.revision);
+  return blob;
 };
 
 export async function getCachedAudioBlob(cacheKey: string): Promise<Blob | null> {

@@ -3,6 +3,7 @@ import { SETTINGS_ANCHOR_DEFINITIONS } from '../../../src/components/modal/setti
 import { SETTINGS_NAV_GROUP_SPECS, buildSettingsNavGroups, findSettingsNavItem, flattenSettingsNavItems, type SettingsSectionId } from '../../../src/components/modal/settings/navigation/settingsNavModel';
 import en from '../../../src/i18n/locales/en';
 import zhCN from '../../../src/i18n/locales/zh-CN';
+import vietnamese from '../../../src/i18n/locales/vi';
 import id from '../../../src/i18n/locales/in';
 
 // test/unit/settings/settingsNavModel.test.ts
@@ -81,7 +82,7 @@ describe('settingsNavModel', () => {
         expect(anchorsOf(false)).not.toContain('bravaisSettings');
     });
 
-    it.each([['en', en], ['zh-CN', zhCN], ['in', id]] as const)('has every label and description key in %s', (_name, bundle) => {
+    it.each([['en', en], ['zh-CN', zhCN], ['in', id], ['vi', vietnamese]] as const)('has every label and description key in %s', (_name, bundle) => {
         const keys = SETTINGS_NAV_GROUP_SPECS.flatMap(group => [
             group.labelKey,
             ...group.sections.flatMap(section => [section.labelKey, section.descriptionKey]),

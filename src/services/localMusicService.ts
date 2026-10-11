@@ -2,6 +2,7 @@ import { LocalSong, LyricData, LocalLibrarySnapshot, LocalLibrarySnapshotFile, L
 import { saveLocalSong, saveLocalSongs, deleteLocalSong as dbDeleteLocalSong, deleteLocalSongs as dbDeleteLocalSongs, saveDirHandles, getDirHandles, deleteDirHandle, getLocalSongs, getLocalLibrarySnapshot, saveLocalLibrarySnapshot, deleteLocalLibrarySnapshot } from './db';
 import { getLocalPlaylists, saveLocalPlaylists } from './localPlaylistService';
 import { parseEmbeddedMetadataAsync, type EmbeddedMetadataResult } from '../utils/localMetadataWorkerClient';
+import { normalizeAudioQualityInfo } from '../utils/audioQualityInfo';
 import { autoMatchBestLyric } from '../utils/lyrics/autoMatchBestLyric';
 import { normalizeLyricMatchText } from '../utils/lyrics/matchScore';
 import { createSafeObjectUrl } from '../utils/blobGuards';
@@ -905,6 +906,7 @@ async function buildImportedSong(
         fileSignature: buildFileSignature(entry.relativePath, file.size, file.lastModified),
         mimeType: file.type,
         bitrate: embeddedMetadata.bitrate || 0,
+        audioQualityInfo: normalizeAudioQualityInfo(embeddedMetadata),
         addedAt: existingSong?.addedAt || Date.now(),
         title: titleOrigin === 'import' ? importedMetadata.title : existingSong?.title || importedMetadata.title,
         titleOrigin,
@@ -988,6 +990,7 @@ async function hydrateSongMetadata(song: LocalSong): Promise<LocalSong> {
         song.fileLastModified = file.lastModified;
         song.mimeType = file.type;
         song.bitrate = embeddedMetadata.bitrate || song.bitrate || 0;
+        song.audioQualityInfo = normalizeAudioQualityInfo(embeddedMetadata);
         const filenameMetadata = extractMetadataFromFilename(file.name);
         song.importedMetadata = buildImportedMetadataSnapshot({
             fileName: file.name,

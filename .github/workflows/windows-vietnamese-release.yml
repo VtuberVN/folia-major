@@ -1,0 +1,97 @@
+name: Windows Vietnamese release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-vietnamese-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Validate Vietnamese release version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+-vi\.\d+$') { throw 'Expected a Vietnamese prerelease version.' }
+          "RELEASE_TAG=v$version" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check types
+        run: npm run typecheck
+      - name: Verify language and Discord behavior
+        run: npm run test:unit -- test/unit/i18n test/unit/discordPresence.test.ts test/unit/command-palette/commandRegistryContract.test.ts test/unit/settings/settingsNavModel.test.ts test/unit/utils/audioQualityInfo.test.ts test/unit/onlinePlayback.test.ts test/unit/prefetchService.test.ts test/unit/onlineMusic/neteaseProvider.test.ts test/unit/onlineMusic/zingProvider.test.ts test/unit/onlineMusic/nctProvider.test.ts test/unit/utils/localMetadataWorkerClient.test.ts test/unit/services/cachedAudioQuality.test.ts test/unit/services/deferredAudioQuality.test.ts test/unit/cache/audioQualityCategory.test.ts test/unit/electron/updateChannels.test.ts test/unit/electron/mainWindowRenderState.test.ts test/unit/audioHeaderQuality.test.ts test/unit/navidrome/navidromeService.test.ts test/unit/onlineMusic/qqProvider.test.ts test/unit/utils/mainWindowRenderActivity.test.ts test/unit/utils/playbackVisualizerActivity.test.ts test/unit/utils/visualizerRenderActivity.test.ts test/unit/lyrics/activeLineFinder.test.ts
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packaging/windows/wallpaper-helper
+      - name: Build wallpaper helper
+        run: npm run build:wallpaper-helper
+      - name: Build desktop frontend
+        env:
+          ELECTRON: 'true'
+          APP_VERSION_LABEL: Vietnamese
+          APP_RELEASE_CHANNEL: vietnamese
+        run: npm run build
+      - name: Package Windows x64 installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win nsis --x64 --publish never --config.publish.channel=vi
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*.exe | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          } | Set-Content release/SHA256SUMS.txt -Encoding utf8
+      - uses: actions/upload-artifact@v6
+        with:
+          name: folia-windows-vietnamese
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/vi.yml
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $assets = @(Get-ChildItem release/*.exe, release/*.blockmap, release/vi.yml, release/SHA256SUMS.txt | ForEach-Object FullName)
+          gh release create $env:RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Folia $env:RELEASE_TAG — Tiếng Việt" --notes-file .github/vietnamese-release-notes.md --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Release publishing failed.' }
+      - name: Publish Vietnamese update channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $existing = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name == "vietnamese") | .id'
+          if ($existing) {
+            gh api "repos/$env:GITHUB_REPOSITORY/git/refs/tags/vietnamese" --method PATCH --field "sha=$env:GITHUB_SHA" --field force=true
+            $binaries = @(Get-ChildItem release/*.exe, release/*.blockmap, release/SHA256SUMS.txt | ForEach-Object FullName)
+            gh release upload vietnamese @binaries --repo $env:GITHUB_REPOSITORY --clobber
+            # Publish metadata after the binaries it references are available.
+            gh release upload vietnamese release/vi.yml --repo $env:GITHUB_REPOSITORY --clobber
+            gh release edit vietnamese --repo $env:GITHUB_REPOSITORY --title "Folia Tiếng Việt — $env:RELEASE_TAG" --notes-file .github/vietnamese-release-notes.md --prerelease
+          } else {
+            $assets = @(Get-ChildItem release/*.exe, release/*.blockmap, release/vi.yml, release/SHA256SUMS.txt | ForEach-Object FullName)
+            gh release create vietnamese @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Folia Tiếng Việt — $env:RELEASE_TAG" --notes-file .github/vietnamese-release-notes.md --prerelease
+          }

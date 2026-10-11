@@ -25,6 +25,12 @@ const localSong = (patch: Partial<LocalSong> = {}): LocalSong => ({
 });
 
 describe('buildUnifiedLocalSong cover', () => {
+    it('retains audio properties and supports the bitrate stored by older library versions', () => {
+        const convert = (patch: Partial<LocalSong>) => buildUnifiedLocalSong({ localSong: localSong(patch), matchedSong: null, coverUrl: null, preferOnlineMetadata: false });
+        expect(convert({ bitrate: 320000 }).audioQualityInfo).toEqual({ bitrate: 320000 });
+        const info = { bitrate: 4800000, codec: 'FLAC', sampleRate: 96000, bitDepth: 24 };
+        expect(convert({ audioQualityInfo: info }).audioQualityInfo).toEqual(info);
+    });
     it('keeps the cover on a file that has artwork but no album tag', () => {
         const unified = buildUnifiedLocalSong({
             localSong: localSong(),

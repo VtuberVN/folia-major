@@ -26,6 +26,7 @@ import { useVisualizerTunings } from './useVisualizerTunings';
 import { NO_LYRIC_LINES } from '../../utils/lyrics/noLyricLines';
 import { selectLibraryPlayerBackdrop, useLibraryPlayerOcclusionStore } from '../../stores/useLibraryPlayerOcclusionStore';
 import { resolveVisualizerShowText } from '../app/presentation/playerVisualizerBackdrop';
+import { useMainWindowRenderActivity } from '../../hooks/useMainWindowRenderActivity';
 
 // src/components/visualizer/useVisualizerRendererModel.ts
 //
@@ -63,6 +64,7 @@ export const useVisualizerRendererModel = ({
     onLyricLineSeek,
     onBack,
 }: VisualizerRendererModelDeps) => {
+    const { renderEnabled } = useMainWindowRenderActivity();
     const currentView = useAppViewStore(state => state.view);
     const isPanelOpen = useAppViewStore(state => state.isPanelOpen);
     const isPlayerChromeHidden = useAppChromeStore(state => state.isPlayerChromeHidden);
@@ -128,6 +130,7 @@ export const useVisualizerRendererModel = ({
     const mode: VisualizerMode = resolveMainWindowVisualizerMode(visualizerMode, isObsBrowserSourceRendering, obsKeepMainWindowAnimation);
 
     return {
+        renderEnabled,
         mode,
         currentTime: lyricCurrentTime,
         currentLineIndex,

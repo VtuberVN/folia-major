@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearStableUrlSaltCache, navidromeApi, saveNavidromeConfig } from '@/services/navidromeService';
-import type { NavidromeConfig } from '@/types/navidrome';
+import { clearStableUrlSaltCache, getNavidromeAudioQualityInfo, navidromeApi, saveNavidromeConfig } from '@/services/navidromeService';
+import type { NavidromeConfig, SubsonicSong } from '@/types/navidrome';
+import { buildUnifiedNavidromeSong } from '@/services/playbackAdapters';
+import { buildNavidromeSourceRevision } from '@/services/playbackRecovery/sourceRevision';
 
 // test/unit/navidrome/navidromeService.test.ts
 // Covers P0 Navidrome discovery and playback-report API wiring.
@@ -220,5 +222,47 @@ describe('navidromeService P0 endpoints', () => {
         expect(profile.license?.valid).toBe(true);
         expect(profile.openSubsonicExtensions).toEqual([]);
         expect(profile.capabilities.supportsFormPost).toBe(false);
+    });
+
+    it('converts source kbps to bps and keeps OpenSubsonic precision through queue conversion', () => {
+        const song: SubsonicSong = {
+            id: 'song-42', isDir: false, title: 'Source track', album: 'Album', artist: 'Artist',
+            size: 1234, contentType: 'audio/flac', suffix: 'flac', duration: 120,
+            bitRate: 1411, samplingRate: 96000, bitDepth: 24, path: 'Artist/track.flac',
+            created: '2026-10-11', albumId: 'album-1', artistId: 'artist-1', type: 'music', isVideo: false,
+        };
+        const converted = navidromeApi.toNavidromeSong(config, song);
+        expect(converted.audioQualityInfo).toEqual({
+            bitrate: 1411000, sampleRate: 96000, bitDepth: 24, codec: 'flac', provenance: 'source',
+        });
+        expect(converted.navidromeData.bitRate).toBe(1411);
+        expect(new URL(converted.navidromeData.streamUrl).searchParams.has('format')).toBe(false);
+        const unified = buildUnifiedNavidromeSong(converted);
+        expect(unified.audioQualityInfo).toEqual(converted.audioQualityInfo);
+        expect(unified.playbackSourceRevision).toBe(buildNavidromeSourceRevision(unified, converted.navidromeData.streamUrl));
+        expect(unified.sourceRef).toEqual({ kind: 'navidrome', mediaId: song.id });
+    });
+
+    it.each([
+        { transcodedSuffix: 'mp3' },
+        { transcodedContentType: 'audio/mpeg' },
+        { transcodedSuffix: 'flac' },
+    ])('does not label original precision as the quality of an advertised transcoded stream %j', (transcoding) => {
+        const metadata = { bitRate: 1411, samplingRate: 96000, bitDepth: 24, suffix: 'flac', ...transcoding };
+        expect(getNavidromeAudioQualityInfo(metadata, 'https://navidrome.test/rest/stream?id=42')).toBeUndefined();
+        // raw explicitly bypasses the advertised server transcode policy.
+        expect(getNavidromeAudioQualityInfo(metadata, 'https://navidrome.test/rest/stream?id=42&format=raw'))
+            .toEqual({ bitrate: 1411000, sampleRate: 96000, bitDepth: 24, codec: 'flac', provenance: 'stream' });
+    });
+
+    it('drops stale source quality when the selected stream requests a different format or bitrate cap', () => {
+        const metadata = { bitRate: 1411, suffix: 'flac' };
+        expect(getNavidromeAudioQualityInfo(metadata, 'https://navidrome.test/rest/stream?id=42&format=mp3')).toBeUndefined();
+        expect(getNavidromeAudioQualityInfo(metadata, 'https://navidrome.test/rest/stream?id=42&maxBitRate=192')).toBeUndefined();
+    });
+
+    it('does not retain nonpositive or invalid source precision', () => {
+        expect(getNavidromeAudioQualityInfo({ bitRate: -1, samplingRate: NaN, bitDepth: 0, suffix: '' },
+            'https://navidrome.test/rest/stream?id=42')).toBeUndefined();
     });
 });

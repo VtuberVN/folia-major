@@ -13,6 +13,7 @@ import type {
 import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import { toSafePlaybackUrl } from '../../utils/appPlaybackHelpers';
+import { normalizeAudioQualityInfo } from '../../utils/audioQualityInfo';
 import { fetchQQLyrics, searchQQLyrics } from '../../utils/lyrics/providers/qqLyricProvider';
 import { writeProviderSessionValue } from './providerStorage';
 import { normalizeQqCollection, normalizeQqSong, normalizeQqUser } from './qqNormalize';
@@ -275,6 +276,20 @@ export const resolveQqSongCatalogRefs = async (song: UnifiedSong): Promise<Unifi
     };
 };
 
+// QQ music_play returns only url/error. Read the selected file's explicit extension,
+// and never turn the requested quality tier into an invented numeric bitrate.
+const getResolvedQqAudioQualityInfo = (url: string) => {
+    try {
+        const suffix = new URL(url).pathname.split('.').pop()?.toLowerCase();
+        const codec = suffix && ['mp3', 'flac', 'ape', 'ogg', 'opus', 'aac'].includes(suffix)
+            ? suffix
+            : undefined;
+        return normalizeAudioQualityInfo({ codec });
+    } catch {
+        return undefined;
+    }
+};
+
 const getAudioSource = async (song: SongResult, quality: AudioQualityPreference) => {
     const songmid = getQqSongMid(song);
     if (!songmid) return null;
@@ -304,6 +319,7 @@ const getAudioSource = async (song: SongResult, quality: AudioQualityPreference)
                     url,
                     fetchedAt: Date.now(),
                     quality: candidate.resolvedQuality,
+                    audioQualityInfo: getResolvedQqAudioQualityInfo(url),
                 };
             }
             if (entry) {

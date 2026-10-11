@@ -9,6 +9,8 @@ import LyricsTimelineModal from './modal/LyricsTimelineModal';
 import TrackTitleNavigator from './floating-player/TrackTitleNavigator';
 import PlayerControlSlotButton from './floating-player/PlayerControlSlotButton';
 import PlayerBottomBarPositioner from './floating-player/PlayerBottomBarPositioner';
+import AudioQualityBadge from './floating-player/AudioQualityBadge';
+import type { AudioQualityInfo } from '../types/audioQuality';
 import { usePlayerBottomBarBottomPx } from '../hooks/usePlayerBottomBarBottomPx';
 import { playerBottomBarLiveOffset } from '../stores/motionSignals';
 import { usePlayerBottomBarLayoutStore } from '../stores/usePlayerBottomBarLayoutStore';
@@ -55,7 +57,7 @@ export type SlotContextFromApp = Omit<
 >;
 
 interface FloatingPlayerControlsProps {
-    currentSong: { name: string; } | null;
+    currentSong: { name: string; audioQualityInfo?: AudioQualityInfo; } | null;
     playerState: PlayerState;
     currentTime: MotionValue<number>;
     lyricCurrentTime?: MotionValue<number>;
@@ -383,7 +385,7 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                         >
                             {showExpanded ? (
                                 <ExpandedView
-                                    currentSong={currentSong}
+                                    currentSong={audioSrc?.startsWith('folia-transcode:') && currentSong ? { ...currentSong, audioQualityInfo: undefined } : currentSong}
                                     playerState={playerState}
                                     currentTime={currentTime}
                                     lyricCurrentTime={lyricCurrentTime}
@@ -404,6 +406,7 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                                 />
                             ) : (
                                 <CollapsedView
+                                    audioQualityInfo={audioSrc?.startsWith('folia-transcode:') ? undefined : currentSong?.audioQualityInfo}
                                     currentTime={currentTime}
                                     duration={duration}
                                     onSeek={onSeek}
@@ -455,7 +458,7 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
 
 // 展开视图组件
 interface ExpandedViewProps {
-    currentSong: { name: string; } | null;
+    currentSong: { name: string; audioQualityInfo?: AudioQualityInfo; } | null;
     playerState: PlayerState;
     currentTime: MotionValue<number>;
     lyricCurrentTime?: MotionValue<number>;
@@ -522,6 +525,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
                         {currentSong?.name || noTrackText}
                     </div>
                 )}
+                <AudioQualityBadge info={currentSong?.audioQualityInfo} />
             </div>
 
             {/* Row 3: Loop Button, Play Button, Lyrics Button */}
@@ -583,6 +587,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
 
 // 折叠视图组件
 interface CollapsedViewProps {
+    audioQualityInfo?: AudioQualityInfo;
     currentTime: MotionValue<number>;
     duration: number;
     onSeek: (time: number) => void;
@@ -593,6 +598,7 @@ interface CollapsedViewProps {
 }
 
 const CollapsedView: React.FC<CollapsedViewProps> = ({
+    audioQualityInfo,
     currentTime,
     duration,
     onSeek,
@@ -602,7 +608,8 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
     controlsDisabled = false,
 }) => {
     return (
-        <div className="flex items-center w-full justify-center h-8 px-4">
+        <div className="flex flex-col w-full justify-center px-4">
+            <div className="flex items-center w-full h-8">
             <ProgressBar
                 currentTime={currentTime}
                 duration={duration}
@@ -613,6 +620,8 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
                 disabled={controlsDisabled}
                 collapsed
             />
+            </div>
+            <AudioQualityBadge info={audioQualityInfo} />
         </div>
     );
 };

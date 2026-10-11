@@ -33,6 +33,9 @@ interface EmbeddedMetadataResult {
     cover?: Blob;
     coverAssetId?: string;
     bitrate?: number;
+    sampleRate?: number;
+    bitDepth?: number;
+    codec?: string;
     lyrics?: string;
     translationLyrics?: string;
     replayGain?: number;
@@ -248,6 +251,9 @@ async function extractEmbeddedMetadata(file: File, includeCover = false): Promis
         cover,
         coverAssetId,
         bitrate: parsed.format.bitrate,
+        sampleRate: parsed.format.sampleRate,
+        bitDepth: parsed.format.bitsPerSample,
+        codec: parsed.format.codec,
         lyrics: originalLyric,
         translationLyrics: translationLyric,
         replayGain: replayGainTrackDb,

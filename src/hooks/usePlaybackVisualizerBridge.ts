@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { MotionValue } from 'framer-motion';
-import { findLatestActiveLineIndex } from '../utils/appPlaybackHelpers';
+import { createActiveLineFinder } from '../utils/lyrics/activeLineFinder';
 import { PlayerState } from '../types';
 import type { AudioBands, LyricData } from '../types';
 import { setCurrentLineIndex, setPlayerState } from '../stores/usePlaybackStore';
 import { selectDisplayLyrics, usePlaybackStore } from '../stores/usePlaybackStore';
 import { audioBands, audioPower, currentTime, lyricCurrentTime } from '../stores/motionSignals';
+import { useMainWindowRenderActivity } from './useMainWindowRenderActivity';
 
 // src/hooks/usePlaybackVisualizerBridge.ts
+
+// Silence has no changing bins. Keep one empty snapshot instead of allocating per idle frame.
+const IDLE_AUDIO_SPECTRUM = new Uint8Array(0);
 
 type UsePlaybackVisualizerBridgeParams = {
 
@@ -65,12 +69,14 @@ export function usePlaybackVisualizerBridge({
     isTransitionAudible,
     getDisplayElement,
 }: UsePlaybackVisualizerBridgeParams) {
+    const { audioAnalysisEnabled } = useMainWindowRenderActivity();
     // Read here rather than passed in: store fields and the module-level motion signals.
     const activePlaybackContext = usePlaybackStore(state => state.activePlaybackContext);
     const playerState = usePlaybackStore(state => state.playerState);
     const duration = usePlaybackStore(state => state.duration);
     // The lyrics on screen, matching the deck getDisplayElement points at.
     const lyrics = usePlaybackStore(selectDisplayLyrics);
+    const findActiveLineIndex = useMemo(() => createActiveLineFinder(lyrics?.lines), [lyrics?.lines]);
 
     const currentLineIndexRef = useRef(-1);
 
@@ -84,7 +90,9 @@ export function usePlaybackVisualizerBridge({
         // a visible stutter at exactly the moment meant to be seamless.
         const hasAudibleSignal = isActuallyPlaying || isTransitionAudible();
 
-        if (hasAudibleSignal && analyserRef.current) {
+        // Hidden main windows need clocks for transport/remote lyrics, but no FFT or idle
+        // visual signal updates unless OBS or the wallpaper still consumes that signal.
+        if (audioAnalysisEnabled && hasAudibleSignal && analyserRef.current) {
             const bufferLength = analyserRef.current.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyserRef.current.getByteFrequencyData(dataArray);
@@ -118,7 +126,7 @@ export function usePlaybackVisualizerBridge({
             audioBands.mid.set(process(mid, 2));
             audioBands.vocal.set(process(vocal, 1.5));
             audioBands.treble.set(process(treble, 2));
-        } else {
+        } else if (audioAnalysisEnabled) {
             const time = Date.now() / 2000;
             const breath = (Math.sin(time) + 1) * 20;
             audioPower.set(breath);
@@ -127,7 +135,9 @@ export function usePlaybackVisualizerBridge({
             audioBands.mid.set(breath);
             audioBands.vocal.set(breath);
             audioBands.treble.set(breath);
-            audioBands.spectrum?.set(new Uint8Array(0));
+            if (audioBands.spectrum && audioBands.spectrum.get().length > 0) {
+                audioBands.spectrum.set(IDLE_AUDIO_SPECTRUM);
+            }
         }
 
         if (isActuallyPlaying && audioElement) {
@@ -138,7 +148,7 @@ export function usePlaybackVisualizerBridge({
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
-                const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);
+                const foundIndex = findActiveLineIndex(effectiveLyricTime);
                 if (foundIndex !== currentLineIndexRef.current) {
                     currentLineIndexRef.current = foundIndex;
                     setCurrentLineIndex(foundIndex);
@@ -154,7 +164,7 @@ export function usePlaybackVisualizerBridge({
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
-                const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);
+                const foundIndex = findActiveLineIndex(effectiveLyricTime);
                 if (foundIndex !== currentLineIndexRef.current) {
                     currentLineIndexRef.current = foundIndex;
                     setCurrentLineIndex(foundIndex);
@@ -169,7 +179,7 @@ export function usePlaybackVisualizerBridge({
                     syncNowPlayingClock(0, duration, false);
                     currentTime.set(0);
                     if (lyrics) {
-                        const restartedLineIndex = findLatestActiveLineIndex(lyrics.lines, 0);
+                        const restartedLineIndex = findActiveLineIndex(0);
                         if (restartedLineIndex !== currentLineIndexRef.current) {
                             currentLineIndexRef.current = restartedLineIndex;
                             setCurrentLineIndex(restartedLineIndex);
@@ -189,7 +199,7 @@ export function usePlaybackVisualizerBridge({
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
-                const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);
+                const foundIndex = findActiveLineIndex(effectiveLyricTime);
                 if (foundIndex !== currentLineIndexRef.current) {
                     currentLineIndexRef.current = foundIndex;
                     setCurrentLineIndex(foundIndex);
@@ -205,7 +215,7 @@ export function usePlaybackVisualizerBridge({
 
             currentTime.set(nextTime);
 
-            const foundIndex = findLatestActiveLineIndex(lyrics.lines, nextTime);
+            const foundIndex = findActiveLineIndex(nextTime);
             if (foundIndex !== currentLineIndexRef.current) {
                 currentLineIndexRef.current = foundIndex;
                 setCurrentLineIndex(foundIndex);
@@ -215,7 +225,7 @@ export function usePlaybackVisualizerBridge({
                 if (effectiveLoopMode === 'one' || effectiveLoopMode === 'all') {
                     syncStageLyricsClock(clock.startTimeSec, clock.endTimeSec, PlayerState.PLAYING, clock.startTimeSec);
                     currentTime.set(clock.startTimeSec);
-                    const restartedLineIndex = findLatestActiveLineIndex(lyrics.lines, clock.startTimeSec);
+                    const restartedLineIndex = findActiveLineIndex(clock.startTimeSec);
                     if (restartedLineIndex !== currentLineIndexRef.current) {
                         currentLineIndexRef.current = restartedLineIndex;
                         setCurrentLineIndex(restartedLineIndex);
@@ -230,6 +240,8 @@ export function usePlaybackVisualizerBridge({
         animationFrameRef.current = requestAnimationFrame(updateLoop);
     }, [
         activePlaybackContext,
+        findActiveLineIndex,
+        audioAnalysisEnabled,
         analyserRef,
         animationFrameRef,
         audioBands,

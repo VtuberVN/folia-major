@@ -39,9 +39,10 @@ type ElectronSettingsState = {
     USE_SYSTEM_PROXY_FOR_AI: boolean;
     ENABLE_UPDATE_CHECK: boolean;
     ENABLE_AUTO_UPDATE: boolean;
-    UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'internal';
+    UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'vietnamese' | 'internal';
     STAGE_MODE_SOURCE: string;
     DISCORD_RICH_PRESENCE_ENABLED: boolean;
+    DISCORD_RICH_PRESENCE_APPLICATION_ID: string;
 };
 
 export type DesktopSettingsChrome = {
@@ -84,7 +85,7 @@ export type DesktopSettingsModel = {
     onInstallUpdate: () => Promise<void> | void;
     onOpenBaiduDownload: () => Promise<void> | void;
     onOpenChinaDownload: () => Promise<void> | void;
-    onUpdateChannelChange: (channel: 'realeco' | 'limo' | 'cielo') => Promise<void> | void;
+    onUpdateChannelChange: (channel: 'realeco' | 'limo' | 'cielo' | 'vietnamese') => Promise<void> | void;
     onSaveElectronSettings: () => Promise<void> | void;
     onToggleAutoUpdate: () => Promise<void> | void;
     onToggleUpdateCheck: () => Promise<void> | void;
@@ -361,7 +362,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         <div className="w-44 shrink-0">
                             <CustomSelect
                                 value={electronSettings.UPDATE_CHANNEL}
-                                onChange={(value) => void onUpdateChannelChange(value as 'realeco' | 'limo' | 'cielo')}
+                                onChange={(value) => void onUpdateChannelChange(value as 'realeco' | 'limo' | 'cielo' | 'vietnamese')}
                                 disabled={electronSettings.UPDATE_CHANNEL === 'internal'}
                                 isDaylight={isDaylight}
                                 theme={theme}
@@ -369,6 +370,9 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                 options={electronSettings.UPDATE_CHANNEL === 'internal'
                                     ? [{ value: 'internal', label: t('options.updateChannelInternal') }]
                                     : [
+                                        ...(updateStatus?.platform === 'win32' || electronSettings.UPDATE_CHANNEL === 'vietnamese'
+                                            ? [{ value: 'vietnamese', label: t('options.updateChannelVietnamese') }]
+                                            : []),
                                         { value: 'realeco', label: t('options.updateChannelRealeco') },
                                         { value: 'limo', label: t('options.updateChannelLimo') },
                                         { value: 'cielo', label: t('options.updateChannelCielo') },

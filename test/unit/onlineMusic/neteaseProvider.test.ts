@@ -44,6 +44,12 @@ const song: UnifiedSong = {
 describe('neteaseProvider', () => {
     beforeEach(() => vi.clearAllMocks());
 
+    it('reports the returned stream bitrate even when it is lower than the requested quality', async () => {
+        vi.mocked(neteaseApi.getSongUrl).mockResolvedValue({ data: [{ url: 'https://music.test/song.mp3', br: 128000, type: 'mp3' }] } as any);
+        const result = await neteaseProvider.playback!.getAudioSource(song, 'hires');
+        expect(result?.audioQualityInfo).toEqual({ bitrate: 128000, codec: 'mp3' });
+    });
+
     it('maps semantic high quality to the NetEase exhigh value', async () => {
         vi.mocked(neteaseApi.getSongUrl).mockResolvedValue({ data: [{ url: 'http://music.test/song.mp3' }] } as any);
         await expect(neteaseProvider.playback!.getAudioSource(song, 'high')).resolves.toMatchObject({

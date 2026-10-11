@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, screen, dialog, shell, nativeImage, desktopCapturer, Menu, Tray, nativeTheme, powerSaveBlocker, safeStorage, protocol, crashReporter, net: electronNet } = require('electron');
 const fs = require('fs');
+const { readMainWindowRenderState } = require('./mainWindowRenderState.cjs');
 const http = require('http');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -26,7 +27,7 @@ const { createKugouApiBridge } = require('./kugouApiBridge.cjs');
 const { createBodianApiBridge } = require('./bodianApiBridge.cjs');
 const { createBodianMediaPolicy } = require('./bodian/mediaCors.cjs');
 const { createQqAuthSessionRepository } = require('./qqAuthSessionRepository.cjs');
-const { DEFAULT_DISCORD_APPLICATION_ID, createDiscordPresenceController } = require('./discordPresence.cjs');
+const { DEFAULT_DISCORD_APPLICATION_ID, createDiscordPresenceController, normalizeDiscordApplicationId } = require('./discordPresence.cjs');
 const { createVoiceInputPauseMonitor } = require('./voiceInputPause.cjs');
 const { createDisplaySleepBlocker } = require('./displaySleepBlocker.cjs');
 const { createLyricApi } = require('./lyricApi.cjs');
@@ -37,6 +38,7 @@ const {
   getUpdateDiscoveryConfig,
   getUpdateProviderConfig,
   parseUpdateMetadataVersion,
+  migrateVietnameseChannelPreference,
   resolveReleaseChannel,
 } = require('./updateChannels.cjs');
 const { resolveCacheLimit, selectEvictions } = require('./audioCachePrune.cjs');
@@ -1590,6 +1592,28 @@ const mainProcessStartupPromise = prepareMainProcessStartup();
 // --- Electron main process locale map ---
 const APP_LOCALE_KEY = 'APP_LOCALE';
 const mainLocale = {
+  vi: {
+    trayShowWindow: 'Hiện cửa sổ',
+    trayHideWindow: 'Ẩn cửa sổ',
+    trayOpenRemote: 'Cửa sổ điều khiển từ xa',
+    trayUnlockRemote: 'Mở khóa cửa sổ điều khiển',
+    trayTransparentBackground: 'Nền trong suốt',
+    trayToggleClickThrough: 'Cho phép nhấp xuyên',
+    trayAlwaysOnTop: 'Luôn ở trên cùng',
+    trayHideTaskbar: 'Ẩn biểu tượng trên thanh tác vụ',
+    trayDesktopLyricMode: 'Lời bài hát trên màn hình',
+    trayToggleWallpaperMode: 'Chế độ hình nền',
+    trayResetWindow: 'Đặt lại cửa sổ',
+    trayQuit: 'Thoát',
+    dialogImportTitle: 'Không thể nhập thư mục này',
+    dialogImportMessage: 'Không thể nhập trực tiếp thư mục hệ thống hoặc thư mục người dùng thông thường.\nVui lòng chọn thư mục riêng để lưu nhạc.',
+    dialogChooseOther: 'Chọn thư mục khác',
+    dialogCancel: 'Hủy',
+    crashTitle: 'Folia gặp sự cố',
+    crashMessage: 'Ứng dụng đã gặp sự cố và lưu nhật ký. Gửi nhật ký cho nhà phát triển sẽ giúp xác định nguyên nhân.',
+    crashOpenFolder: 'Mở thư mục nhật ký',
+    crashClose: 'Đóng',
+  },
   'zh-CN': {
     trayShowWindow: '显示窗口',
     trayHideWindow: '隐藏窗口',
@@ -1696,6 +1720,9 @@ function normalizeMainLocaleKey(value) {
   }
   if (lowered.startsWith('zh')) {
     return 'zh-CN';
+  }
+  if (lowered.startsWith('vi')) {
+    return 'vi';
   }
   if (lowered.startsWith('en')) {
     return 'en';
@@ -1854,6 +1881,7 @@ const MODELS_DIRECTORY_SETTING_KEY = 'MODELS_DIRECTORY';
 const ENABLE_UPDATE_CHECK_SETTING_KEY = 'ENABLE_UPDATE_CHECK';
 const ENABLE_AUTO_UPDATE_SETTING_KEY = 'ENABLE_AUTO_UPDATE';
 const UPDATE_CHANNEL_SETTING_KEY = 'UPDATE_CHANNEL';
+const UPDATE_CHANNEL_VI_MIGRATION_KEY = 'UPDATE_CHANNEL_VI_MIGRATION_V1';
 const LAST_SEEN_UPDATE_VERSION_SETTING_KEY = 'LAST_SEEN_UPDATE_VERSION';
 const STAGE_MODE_ENABLED_SETTING_KEY = 'STAGE_MODE_ENABLED';
 const STAGE_MODE_SOURCE_SETTING_KEY = 'STAGE_MODE_SOURCE';
@@ -1864,6 +1892,7 @@ const OBS_BROWSER_SOURCE_TOKEN_SETTING_KEY = 'OBS_BROWSER_SOURCE_TOKEN';
 const OBS_BROWSER_SOURCE_PORT_SETTING_KEY = 'OBS_BROWSER_SOURCE_PORT';
 const LYRIC_API_ENABLED_SETTING_KEY = 'LYRIC_API_ENABLED';
 const DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY = 'DISCORD_RICH_PRESENCE_ENABLED';
+const DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY = 'DISCORD_RICH_PRESENCE_APPLICATION_ID';
 const MINIMIZE_TO_TRAY_SETTING_KEY = 'MINIMIZE_TO_TRAY';
 const CLOSE_TO_TRAY_SETTING_KEY = 'CLOSE_TO_TRAY';
 const HIDE_TASKBAR_ICON_SETTING_KEY = 'HIDE_TASKBAR_ICON';
@@ -1881,9 +1910,9 @@ const MOD_SYSTEM_ENABLED_SETTING_KEY = 'MOD_SYSTEM_ENABLED';
 const DEFAULT_STAGE_API_PORT = 32107;
 const DEFAULT_OBS_BROWSER_SOURCE_PORT = 32108;
 const DEFAULT_LYRIC_API_PORT = 32109;
-const FOLIA_RELEASES_URL = 'https://github.com/chthollyphile/folia-major/releases';
+const FOLIA_RELEASES_URL = 'https://github.com/VtuberVN/folia-major/releases';
 const FOLIA_GITHUB_REPOSITORY = {
-  owner: 'chthollyphile',
+  owner: 'VtuberVN',
   repo: 'folia-major',
 };
 const WINDOWS_APP_USER_MODEL_ID = 'top.izuna.foliamajor';
@@ -1982,6 +2011,12 @@ function readStoredBoolean(settingKey, fallback = false) {
   return fallback;
 }
 
+function broadcastMainWindowRenderState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('main-window-render-state-changed', readMainWindowRenderState(mainWindow, isWallpaperModeEnabled()));
+  }
+}
+
 function getPublicSettings() {
   return {
     ...store.store,
@@ -1995,6 +2030,7 @@ function getPublicSettings() {
     [MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY]: readStoredBoolean(MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY, false),
     [TRANSPARENT_PLAYER_BACKGROUND_SETTING_KEY]: readStoredBoolean(TRANSPARENT_PLAYER_BACKGROUND_SETTING_KEY, false),
     [DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY]: readStoredBoolean(DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY, false),
+    [DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY]: normalizeDiscordApplicationId(store.get(DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY)) || DEFAULT_DISCORD_APPLICATION_ID,
     [LYRIC_API_ENABLED_SETTING_KEY]: readStoredBoolean(LYRIC_API_ENABLED_SETTING_KEY, false),
     [VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY]: readStoredBoolean(VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY, false),
     [PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY]: readStoredBoolean(PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY, false),
@@ -2090,7 +2126,7 @@ const lyricApi = createLyricApi({
 });
 
 const discordPresence = createDiscordPresenceController({
-  getApplicationId: () => DEFAULT_DISCORD_APPLICATION_ID,
+  getApplicationId: () => normalizeDiscordApplicationId(store.get(DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY)) || DEFAULT_DISCORD_APPLICATION_ID,
   isEnabled: () => readStoredBoolean(DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY, false),
   onStatusChange: (status) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -3177,15 +3213,29 @@ function getPackagedReleaseChannel() {
 }
 
 function getCurrentReleaseChannel() {
-  return resolveReleaseChannel(
-    app.getVersion(),
-    store.get(UPDATE_CHANNEL_SETTING_KEY) || getPackagedReleaseChannel(),
-  );
+  const version = app.getVersion();
+  const packagedChannel = getPackagedReleaseChannel();
+  let storedChannel = store.get(UPDATE_CHANNEL_SETTING_KEY);
+  if (process.platform === 'win32') {
+    const migrationComplete = store.get(UPDATE_CHANNEL_VI_MIGRATION_KEY) === true;
+    const migration = migrateVietnameseChannelPreference({
+      version, declaredChannel: packagedChannel, storedChannel, migrationComplete,
+    });
+    if (!migrationComplete && migration.migrationComplete) {
+      if (migration.channel !== storedChannel) {
+        storedChannel = migration.channel;
+        store.set(UPDATE_CHANNEL_SETTING_KEY, storedChannel);
+      }
+      store.set(UPDATE_CHANNEL_VI_MIGRATION_KEY, true);
+    }
+  }
+  return resolveReleaseChannel(version, storedChannel || packagedChannel);
 }
 
 function normalizeUpdateChannelSelection(value) {
   const channel = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  return channel === 'realeco' || channel === 'limo' || channel === 'cielo' ? channel : null;
+  return channel === 'realeco' || channel === 'limo' || channel === 'cielo'
+    || (channel === 'vietnamese' && process.platform === 'win32') ? channel : null;
 }
 
 function getUpdateCheckSupportReason() {
@@ -3879,9 +3929,11 @@ async function readAudioCacheEntry(cacheKey) {
     fsp.utimes(dataPath, now, now).catch(() => {});
 
     let mimeType = 'audio/mpeg';
+    let revision;
     if (rawMeta) {
       try {
         const parsedMeta = JSON.parse(rawMeta);
+        revision = typeof parsedMeta.revision === 'string' ? parsedMeta.revision : Number.isFinite(parsedMeta.updatedAt) ? `legacy:${parsedMeta.updatedAt}:${dataBuffer.byteLength}` : undefined;
         if (typeof parsedMeta.mimeType === 'string' && parsedMeta.mimeType.trim()) {
           mimeType = parsedMeta.mimeType;
         }
@@ -3894,6 +3946,7 @@ async function readAudioCacheEntry(cacheKey) {
       found: true,
       data: dataBuffer,
       mimeType,
+      revision,
     };
   } catch {
     return {
@@ -3978,6 +4031,7 @@ async function writeAudioCacheEntry(cacheKey, data, mimeType, limitBytes) {
       cacheKey,
       mimeType: mimeType || 'audio/mpeg',
       size: buffer.byteLength,
+      revision: crypto.randomUUID(),
       updatedAt: Date.now(),
     }), 'utf-8'),
   ]);
@@ -5048,6 +5102,10 @@ function createWindow(options = {}) {
   win.on('hide', refreshTrayMenu);
   win.on('minimize', refreshTrayMenu);
   win.on('restore', refreshTrayMenu);
+  for (const eventName of ['show', 'hide', 'minimize', 'restore']) {
+    win.on(eventName, broadcastMainWindowRenderState);
+  }
+  win.webContents.on('did-finish-load', broadcastMainWindowRenderState);
 
   return win;
 }
@@ -5500,16 +5558,23 @@ ipcMain.handle('set-app-locale', (event, localeKey) => {
 });
 
 ipcMain.handle('save-settings', (event, key, value) => {
-  if (key === 'DISCORD_RICH_PRESENCE_APPLICATION_ID') {
-    return getPublicSettings();
-  }
-
   let nextValue = value;
+  if (key === DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY) {
+    if (!isTrustedMainWindowContents(event.sender)) {
+      throw new Error('Untrusted renderer attempted to change Discord application identity.');
+    }
+    nextValue = normalizeDiscordApplicationId(value);
+    if (!nextValue) {
+      throw new Error('Invalid Discord Application ID.');
+    }
+  }
   if (key === UPDATE_CHANNEL_SETTING_KEY) {
     const channel = normalizeUpdateChannelSelection(value);
     if (!channel) {
       return getPublicSettings();
     }
+    // Run the one-time migration before persisting an intentional channel selection.
+    getCurrentReleaseChannel();
     nextValue = channel;
   }
   if (
@@ -5546,6 +5611,7 @@ ipcMain.handle('save-settings', (event, key, value) => {
   }
 
   if (key === WALLPAPER_MODE_SETTING_KEY) {
+    broadcastMainWindowRenderState();
     // Let the renderer receive its save-settings response before the process relaunches, while
     // coalescing rapid toggles into one handoff/relaunch operation.
     scheduleWallpaperModeRelaunch(Boolean(nextValue));
@@ -5706,7 +5772,7 @@ ipcMain.handle('save-settings', (event, key, value) => {
     });
   }
 
-  if (key === DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY) {
+  if (key === DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY || key === DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY) {
     void discordPresence.refresh();
     broadcastPlaybackSyncBridgeStatus();
   }
@@ -6394,6 +6460,12 @@ ipcMain.handle('discord-presence-publish-snapshot', (event, snapshot) => {
   }
 
   return discordPresence.publishSnapshot(snapshot);
+});
+
+ipcMain.handle('main-window-render-state-get', (event) => {
+  // Remote/OBS hosts keep their own rendering lifecycle and never inherit main-window hiding.
+  if (event.sender !== mainWindow?.webContents) return { visible: true, wallpaper: false };
+  return readMainWindowRenderState(mainWindow, isWallpaperModeEnabled());
 });
 
 ipcMain.handle('playback-sync-bridge-get-status', (event) => {

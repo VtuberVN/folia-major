@@ -10,6 +10,14 @@ const RELEASE_CHANNELS = {
     updateEnabled: true,
     rollingReleaseTag: null,
   },
+  vietnamese: {
+    id: 'vietnamese',
+    label: 'Vietnamese',
+    updaterChannel: 'vi',
+    allowPrerelease: true,
+    updateEnabled: true,
+    rollingReleaseTag: 'vietnamese',
+  },
   limo: {
     id: 'limo',
     label: 'Limo',
@@ -47,6 +55,9 @@ function resolveReleaseChannel(version, declaredChannel) {
   }
 
   const normalizedVersion = typeof version === 'string' ? version.toLowerCase() : '';
+  if (/-vi(?:[.\-]|$)/.test(normalizedVersion)) {
+    return RELEASE_CHANNELS.vietnamese;
+  }
   if (/-alpha(?:[.\-]|$)/.test(normalizedVersion)) {
     return RELEASE_CHANNELS.cielo;
   }
@@ -54,6 +65,21 @@ function resolveReleaseChannel(version, declaredChannel) {
     return RELEASE_CHANNELS.limo;
   }
   return RELEASE_CHANNELS.realeco;
+}
+
+// Older Vietnamese packages accidentally persisted the stable lane. Upgrade it once;
+// a later explicit lane selection must remain authoritative.
+function migrateVietnameseChannelPreference({ version, declaredChannel, storedChannel, migrationComplete }) {
+  const isVietnamesePackage = normalizeReleaseChannel(declaredChannel) === 'vietnamese'
+    || /-vi(?:[.\-]|$)/i.test(typeof version === 'string' ? version : '');
+  if (migrationComplete || !isVietnamesePackage) {
+    return { channel: storedChannel, migrationComplete: Boolean(migrationComplete) };
+  }
+  const legacyChannel = normalizeReleaseChannel(storedChannel);
+  return {
+    channel: !legacyChannel || legacyChannel === 'realeco' ? 'vietnamese' : storedChannel,
+    migrationComplete: true,
+  };
 }
 
 function getReleaseUrl(channel, version, releasesUrl) {
@@ -111,7 +137,7 @@ function normalizeVersion(value) {
   return typeof value === 'string' ? value.trim().replace(/^v/i, '') : '';
 }
 
-// Compares the stable and timestamped prerelease versions used by all three Folia channels.
+// Compares the stable and timestamped prerelease versions used by Folia release channels.
 function compareVersions(leftValue, rightValue) {
   const parse = (value) => {
     const normalized = normalizeVersion(value).split('+', 1)[0];
@@ -167,5 +193,6 @@ module.exports = {
   getUpdateDiscoveryConfig,
   getUpdateProviderConfig,
   parseUpdateMetadataVersion,
+  migrateVietnameseChannelPreference,
   resolveReleaseChannel,
 };
