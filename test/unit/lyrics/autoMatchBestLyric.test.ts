@@ -5,6 +5,8 @@ import { processNeteaseLyrics } from '@/utils/lyrics/neteaseProcessing';
 import { searchQQLyrics, fetchQQLyrics } from '@/utils/lyrics/providers/qqLyricProvider';
 import { searchKugouLyrics, fetchKugouLyrics } from '@/utils/lyrics/providers/kugouLyricProvider';
 import { fetchAmllDbLyrics } from '@/utils/lyrics/providers/amllDbProvider';
+import { searchZingSongs, fetchZingLyrics } from '@/utils/lyrics/providers/zingLyricProvider';
+import { searchNctSongs, fetchNctLyrics } from '@/utils/lyrics/providers/nctLyricProvider';
 import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry';
 
 // test/unit/lyrics/autoMatchBestLyric.test.ts
@@ -34,6 +36,16 @@ vi.mock('@/utils/lyrics/providers/kugouLyricProvider', () => ({
     fetchKugouLyrics: vi.fn()
 }));
 
+vi.mock('@/utils/lyrics/providers/zingLyricProvider', () => ({
+    searchZingSongs: vi.fn(),
+    fetchZingLyrics: vi.fn()
+}));
+
+vi.mock('@/utils/lyrics/providers/nctLyricProvider', () => ({
+    searchNctSongs: vi.fn(),
+    fetchNctLyrics: vi.fn()
+}));
+
 vi.mock('@/utils/lyrics/providers/amllDbProvider', async (importOriginal) => ({
     ...await importOriginal<typeof import('@/utils/lyrics/providers/amllDbProvider')>(),
     fetchAmllDbLyrics: vi.fn()
@@ -57,11 +69,19 @@ describe('autoMatchBestLyric', () => {
     const fetchQQLyricsMock = vi.mocked(fetchQQLyrics);
     const searchKugouLyricsMock = vi.mocked(searchKugouLyrics);
     const fetchKugouLyricsMock = vi.mocked(fetchKugouLyrics);
+    const searchZingSongsMock = vi.mocked(searchZingSongs);
+    const fetchZingLyricsMock = vi.mocked(fetchZingLyrics);
+    const searchNctSongsMock = vi.mocked(searchNctSongs);
+    const fetchNctLyricsMock = vi.mocked(fetchNctLyrics);
     const fetchAmllDbLyricsMock = vi.mocked(fetchAmllDbLyrics);
 
     beforeEach(() => {
         vi.resetAllMocks();
         fetchAmllDbLyricsMock.mockResolvedValue(null);
+        searchZingSongsMock.mockResolvedValue([]);
+        fetchZingLyricsMock.mockResolvedValue(null);
+        searchNctSongsMock.mockResolvedValue([]);
+        fetchNctLyricsMock.mockResolvedValue(null);
     });
 
     it('tries the default QQ preference before a prefetched NetEase word-by-word candidate', async () => {
@@ -751,5 +771,72 @@ describe('autoMatchBestLyric', () => {
 
         const result = await autoMatchBestLyric('Song Title', 'Artist Name', 200000);
         expect(result).toBeNull();
+    });
+
+    it('matches Zing MP3 when preferredSource is zing', async () => {
+        const zingSong = {
+            id: 'ZING_123',
+            name: 'Song Title',
+            artists: [{ id: 1, name: 'Artist Name' }],
+            album: { id: 0, name: 'Zing MP3' },
+            durationMs: 200000,
+            sourceRef: { kind: 'online' as const, providerId: 'zing', mediaId: 'ZING_123' },
+        };
+        searchZingSongsMock.mockResolvedValue([zingSong]);
+        fetchZingLyricsMock.mockResolvedValue(createLyrics(false));
+
+        const result = await autoMatchBestLyric('Song Title', 'Artist Name', 200000, {
+            preferredSource: 'zing',
+        }) as any;
+
+        expect(result).not.toBeNull();
+        expect(result.source).toBe('zing');
+        expect(result.id).toBe('ZING_123');
+        expect(result.lyrics.lines[0].fullText).toBe('Test lyric');
+    });
+
+    it('matches NhacCuaTui when preferredSource is nct', async () => {
+        const nctSong = {
+            id: 'NCT_456',
+            name: 'Song Title',
+            artists: [{ id: 1, name: 'Artist Name' }],
+            album: { id: 0, name: 'NhacCuaTui' },
+            durationMs: 200000,
+            sourceRef: { kind: 'online' as const, providerId: 'nct', mediaId: 'NCT_456' },
+        };
+        searchNctSongsMock.mockResolvedValue([nctSong]);
+        fetchNctLyricsMock.mockResolvedValue(createLyrics(false));
+
+        const result = await autoMatchBestLyric('Song Title', 'Artist Name', 200000, {
+            preferredSource: 'nct',
+        }) as any;
+
+        expect(result).not.toBeNull();
+        expect(result.source).toBe('nct');
+        expect(result.id).toBe('NCT_456');
+        expect(result.lyrics.lines[0].fullText).toBe('Test lyric');
+    });
+
+    it('falls back to Zing MP3 when earlier sources fail', async () => {
+        cloudSearchMock.mockResolvedValue({ result: { songs: [] } });
+        searchQQLyricsMock.mockResolvedValue([]);
+        searchKugouLyricsMock.mockResolvedValue([]);
+
+        const zingSong = {
+            id: 'ZING_FALLBACK',
+            name: 'Song Title',
+            artists: [{ id: 1, name: 'Artist Name' }],
+            album: { id: 0, name: 'Zing MP3' },
+            durationMs: 200000,
+            sourceRef: { kind: 'online' as const, providerId: 'zing', mediaId: 'ZING_FALLBACK' },
+        };
+        searchZingSongsMock.mockResolvedValue([zingSong]);
+        fetchZingLyricsMock.mockResolvedValue(createLyrics(false));
+
+        const result = await autoMatchBestLyric('Song Title', 'Artist Name', 200000) as any;
+
+        expect(result).not.toBeNull();
+        expect(result.source).toBe('zing');
+        expect(result.id).toBe('ZING_FALLBACK');
     });
 });

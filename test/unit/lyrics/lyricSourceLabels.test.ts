@@ -11,6 +11,12 @@ describe('getSongNativeLyricProviderSource', () => {
         expect(getSongNativeLyricProviderSource({
             sourceRef: { kind: 'online', providerId: 'netease', mediaId: '1' },
         })).toBe('netease');
+        expect(getSongNativeLyricProviderSource({
+            sourceRef: { kind: 'online', providerId: 'zing', mediaId: 'ZZZBIW69' },
+        })).toBe('zing');
+        expect(getSongNativeLyricProviderSource({
+            sourceRef: { kind: 'online', providerId: 'nct', mediaId: 'FacSqbcPGZAl' },
+        })).toBe('nct');
     });
 
     it('does not invent a lyric source for unrelated playback providers', () => {

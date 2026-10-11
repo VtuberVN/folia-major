@@ -9,21 +9,45 @@ const normalizeArtistIdentity = (value: string): string => (
     normalizeLyricMatchText(value).replace(/\s+/gu, '')
 );
 
+// Strips karaoke, beat, official video tags and common noise from video/song titles.
+export const cleanNoiseKeywordsForLyricSearch = (title: string): string => {
+    let result = title;
+    // 1. Remove bracketed noise: [Official MV], [Karaoke], [Beat], (Karaoke Beat), etc.
+    result = result.replace(/\[(?:official|mv|karaoke|beat|instrumental|audio|video|hd|4k|remix|cover)[^\]]*\]/gi, ' ');
+    result = result.replace(/\((?:official|mv|karaoke|beat|instrumental|audio|video|tone\s*(?:nam|nữ|chuẩn)|bản chuẩn|không lời|remix|cover)[^)]*\)/gi, ' ');
+    // 2. Remove leading "Karaoke -", "Beat -", "Instrumental -", "Nhạc sống -"
+    result = result.replace(/^(?:karaoke|beat|instrumental|nhạc sống)\s*[-–—:]\s*/gi, '');
+    // 3. Remove trailing "- Karaoke", "- Beat", "- Tone Nam", etc.
+    result = result.replace(/\s*[-–—:]\s*(?:karaoke|beat|instrumental|nhạc sống|tone\s*(?:nam|nữ)).*$/gi, '');
+    // 4. Remove common standalone phrases
+    result = result.replace(/\b(?:official\s*(?:music\s*video|mv|audio|video)|music\s*video|lyrics?\s*video)\b/gi, ' ');
+    return result.replace(/\s+/g, ' ').trim();
+};
+
 // Removes a duplicated "artist - title" prefix when the provider already supplies artists separately.
 export const normalizeSongTitleForLyricSearch = (
     title?: string | null,
     artist?: string | null,
 ): string => {
-    const trimmedTitle = title?.trim() || '';
+    const rawTitle = title?.trim() || '';
+    if (!rawTitle) return '';
+    const cleaned = cleanNoiseKeywordsForLyricSearch(rawTitle);
+    const candidateTitle = cleaned || rawTitle;
+
     const trimmedArtist = artist?.trim() || '';
-    if (!trimmedTitle || !trimmedArtist) return trimmedTitle;
+    if (!trimmedArtist) return candidateTitle;
 
-    const separator = trimmedTitle.match(/^(.+?)\s+-\s+(.+)$/u);
-    if (!separator) return trimmedTitle;
+    const separator = candidateTitle.match(/^(.+?)\s+-\s+(.+)$/u);
+    if (!separator) return candidateTitle;
 
-    return normalizeArtistIdentity(separator[1]) === normalizeArtistIdentity(trimmedArtist)
-        ? separator[2].trim()
-        : trimmedTitle;
+    const prefixNorm = normalizeArtistIdentity(separator[1]);
+    const artistNorm = normalizeArtistIdentity(trimmedArtist);
+
+    if (prefixNorm === artistNorm || (prefixNorm && artistNorm && (prefixNorm.includes(artistNorm) || artistNorm.includes(prefixNorm)))) {
+        return separator[2].trim();
+    }
+
+    return candidateTitle;
 };
 
 // Keeps long anime/single album names useful for provider search by dropping catalog notes and credits first.

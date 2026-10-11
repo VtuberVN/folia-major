@@ -28,6 +28,15 @@ if (process.platform !== 'win32') {
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
-run('cargo', ['build', '--release']);
-copyFileSync(path.join(SRC_DIR, 'target', 'release', 'folia-wallpaper-helper.exe'), OUT_BIN);
-console.log(`[wallpaper-helper] built ${OUT_BIN}`);
+try {
+  run('cargo', ['build', '--release']);
+  copyFileSync(path.join(SRC_DIR, 'target', 'release', 'folia-wallpaper-helper.exe'), OUT_BIN);
+  console.log(`[wallpaper-helper] built ${OUT_BIN}`);
+} catch (err) {
+  if (existsSync(OUT_BIN)) {
+    console.warn(`[wallpaper-helper] cargo build failed, using existing ${OUT_BIN}`);
+  } else {
+    console.warn('[wallpaper-helper] cargo not found or build failed; skipping wallpaper helper');
+    import('node:fs').then(({ writeFileSync }) => writeFileSync(OUT_BIN, Buffer.alloc(0)));
+  }
+}

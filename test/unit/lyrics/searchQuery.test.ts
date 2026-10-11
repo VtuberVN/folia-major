@@ -31,6 +31,15 @@ describe('buildLyricSearchQuery', () => {
     it('does not remove a title prefix that is not the supplied artist', () => {
         expect(normalizeSongTitleForLyricSearch('Part I - Nod-Krai', 'HOYO-MiX')).toBe('Part I - Nod-Krai');
     });
+
+    it('cleans karaoke, beat, and official video noise from Vietnamese titles', () => {
+        expect(normalizeSongTitleForLyricSearch('Karaoke - Tia x Lê Thiện Hiếu - Ai Đưa Em Về', 'TIA'))
+            .toBe('Ai Đưa Em Về');
+        expect(normalizeSongTitleForLyricSearch('Ai Đưa Em Về (Beat Chuẩn Tone Nữ) [Official MV]', 'TIA'))
+            .toBe('Ai Đưa Em Về');
+        expect(buildLyricSearchQuery('See Tình (Official Music Video) [Karaoke Beat]', 'Hoàng Thùy Linh'))
+            .toBe('See Tình - Hoàng Thùy Linh');
+    });
 });
 
 describe('buildKugouLyricSearchQuery', () => {

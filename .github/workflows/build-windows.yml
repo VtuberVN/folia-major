@@ -1,0 +1,72 @@
+name: Build Windows Desktop (Setup & Portable Zip)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feat/vietnamese-language-support
+    tags:
+      - 'v*'
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x64 (NSIS Setup & Portable Zip)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify TypeScript types
+        run: npm run typecheck
+
+      - name: Run unit test suite
+        run: npm test
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Build Windows installer & portable zip
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Folia-Windows-x64-Builds
+          path: |
+            release/*.exe
+            release/*.zip
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

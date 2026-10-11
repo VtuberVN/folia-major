@@ -6,6 +6,8 @@ import type { AmllDbPlatform, LyricProviderSource, SongResult } from '../../type
 export const getBaseLyricProviderLabel = (source: Exclude<LyricProviderSource, 'amll'>): string => {
     if (source === 'qq') return i18n.t('lyricProvider.qq');
     if (source === 'kugou') return i18n.t('lyricProvider.kugou');
+    if (source === 'zing') return 'Zing MP3';
+    if (source === 'nct') return 'NhacCuaTui';
     return i18n.t('lyricProvider.netease');
 };
 
@@ -35,5 +37,7 @@ export const getSongNativeLyricProviderSource = (
     if (providerId === 'netease') return 'netease';
     if (providerId === 'qq') return 'qq';
     if (providerId === 'kugou') return 'kugou';
+    if (providerId === 'zing') return 'zing';
+    if (providerId === 'nct') return 'nct';
     return undefined;
 };

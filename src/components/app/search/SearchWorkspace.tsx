@@ -77,11 +77,19 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         return resolveTrackDisplay ? raw.map(resolveTrackDisplay) : raw;
     }, [resolveTrackDisplay, searchResults]);
     const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
-    const sources = useMemo<SearchSource[]>(() => [activeOnlineProviderId, 'local', 'navidrome'], [activeOnlineProviderId]);
+    const sources = useMemo<SearchSource[]>(() => [
+        activeOnlineProviderId,
+        'zing',
+        'nct',
+        'local',
+        'navidrome',
+    ], [activeOnlineProviderId]);
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'local') return t('search.sourceLocal');
         if (source === 'navidrome') return t('search.sourceNavidrome');
+        if (source === 'zing') return 'Zing MP3';
+        if (source === 'nct') return 'NhacCuaTui';
         if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
         if (source === 'qq') return t('qqSource', { defaultValue: 'QQ Music' });
         if (source === 'kugou') return t('kugouSource', { defaultValue: 'KuGou Music' });

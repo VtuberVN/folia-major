@@ -7,6 +7,9 @@ import { buildAmllDbSearchQueries, toAmllDbSongResults } from './amllDbCandidate
 import { applyNeteaseChorusByTime } from './chorusEffects';
 import { hasRenderableLyrics } from './validity';
 
+import { searchZingSongs, fetchZingLyrics } from './providers/zingLyricProvider';
+import { searchNctSongs, fetchNctLyrics } from './providers/nctLyricProvider';
+
 // src/utils/lyrics/lyricMatchSources.ts
 
 const AMLL_DB_SEARCH_PAGE_SIZE = 50;
@@ -25,7 +28,7 @@ export type LyricMatchFetchResult = {
     matchedLyricsProviderPlatform?: AmllDbPlatform;
 };
 
-export const LYRIC_MATCH_SOURCES: readonly LyricProviderSource[] = ['netease', 'amll', 'qq', 'kugou'];
+export const LYRIC_MATCH_SOURCES: readonly LyricProviderSource[] = ['netease', 'amll', 'qq', 'kugou', 'zing', 'nct'];
 
 const sortByMatchScore = (songs: SongResult[], target: LyricMatchSearchTarget) => (
     [...songs].sort((a, b) => calculateMatchScore(target, b) - calculateMatchScore(target, a))
@@ -70,6 +73,14 @@ export async function searchLyricsByMatchSource(
         const page = await getOnlineMusicProvider('kugou')?.search?.searchSongs(query, 50, 0);
         return sortByMatchScore(page?.items || [], target);
     }
+    if (source === 'zing') {
+        const songs = await searchZingSongs(query, 50);
+        return sortByMatchScore(songs, target);
+    }
+    if (source === 'nct') {
+        const songs = await searchNctSongs(query, 50);
+        return sortByMatchScore(songs, target);
+    }
     return searchAmllDbLyricCandidates(query, target);
 }
 
@@ -98,6 +109,20 @@ export async function fetchLyricsForMatchSource(
         return {
             lyrics: hasRenderableLyrics(result.lyrics) ? result.lyrics : null,
             isPureMusic: result.isPureMusic,
+        };
+    }
+    if (source === 'zing') {
+        const lyrics = await fetchZingLyrics(selectedResult);
+        return {
+            lyrics: hasRenderableLyrics(lyrics) ? lyrics : null,
+            isPureMusic: false,
+        };
+    }
+    if (source === 'nct') {
+        const lyrics = await fetchNctLyrics(selectedResult);
+        return {
+            lyrics: hasRenderableLyrics(lyrics) ? lyrics : null,
+            isPureMusic: false,
         };
     }
 

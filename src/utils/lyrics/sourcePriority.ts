@@ -4,10 +4,10 @@ import type { LyricProviderSource } from '../../types';
 
 export const DEFAULT_PREFERRED_LYRIC_SOURCE: LyricProviderSource = 'qq';
 
-const BASE_LYRIC_SOURCE_ORDER: readonly LyricProviderSource[] = ['netease', 'amll', 'qq', 'kugou'];
+const BASE_LYRIC_SOURCE_ORDER: readonly LyricProviderSource[] = ['netease', 'amll', 'qq', 'kugou', 'zing', 'nct'];
 
 export const isLyricProviderSource = (value: unknown): value is LyricProviderSource => (
-    value === 'netease' || value === 'amll' || value === 'qq' || value === 'kugou'
+    value === 'netease' || value === 'amll' || value === 'qq' || value === 'kugou' || value === 'zing' || value === 'nct'
 );
 
 // Places the user preference first while retaining every fallback source exactly once.
@@ -25,6 +25,6 @@ export const migratePreferredLyricSource = (
     if (versionedValue !== null && versionedValue !== undefined) {
         return isLyricProviderSource(versionedValue) ? versionedValue : DEFAULT_PREFERRED_LYRIC_SOURCE;
     }
-    if (legacyValue === 'amll' || legacyValue === 'qq' || legacyValue === 'kugou') return legacyValue;
+    if (legacyValue === 'amll' || legacyValue === 'qq' || legacyValue === 'kugou' || legacyValue === 'zing' || legacyValue === 'nct') return legacyValue;
     return DEFAULT_PREFERRED_LYRIC_SOURCE;
 };

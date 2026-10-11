@@ -9,6 +9,8 @@ import {
 } from '../services/playbackAdapters';
 import { omni } from '../services/onlineMusic/omni';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
+import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
+import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
 const DEFAULT_SEARCH_LIMIT = 30;
@@ -161,6 +163,18 @@ const executeSearch = async (
 
     if (sourceTab === 'navidrome') {
         return searchNavidromeSongs(query);
+    }
+
+    if (sourceTab === 'zing') {
+        const songs = await searchZingSongs(query, limit);
+        const results = songs.map(song => song as UnifiedSong);
+        return { results, hasMore: false, nextOffset: results.length };
+    }
+
+    if (sourceTab === 'nct') {
+        const songs = await searchNctSongs(query, limit);
+        const results = songs.map(song => song as UnifiedSong);
+        return { results, hasMore: false, nextOffset: results.length };
     }
 
     return searchOnlineProviderSongs(sourceTab, query, limit, offset);

@@ -12,6 +12,9 @@ import { buildLyricSourceOrder } from './sourcePriority';
 import { resolveProviderLyricsChorus } from './chorusResolver';
 import { hasRenderableLyrics } from './validity';
 
+import { searchZingSongs, fetchZingLyrics } from './providers/zingLyricProvider';
+import { searchNctSongs, fetchNctLyrics } from './providers/nctLyricProvider';
+
 // src/utils/lyrics/autoMatchBestLyric.ts
 // Utility module for preferring word-by-word lyrics while retaining a usable line-by-line fallback.
 
@@ -39,7 +42,7 @@ export interface AutoMatchBestLyricOptions {
     album?: string;
     preferredSource?: LyricProviderSource;
     metadataCandidate?: {
-        source: 'netease' | 'qq' | 'kugou';
+        source: 'netease' | 'qq' | 'kugou' | 'zing' | 'nct';
         songId: number | string;
     };
     exactMatchOnly?: boolean;
@@ -78,7 +81,7 @@ const getNumericNeteaseId = (id: number | string): number | null => {
 };
 
 const isSelectedMetadataCandidate = (
-    source: 'netease' | 'qq' | 'kugou',
+    source: 'netease' | 'qq' | 'kugou' | 'zing' | 'nct',
     song: SongResult,
     candidate?: AutoMatchBestLyricOptions['metadataCandidate'],
 ): boolean => {
@@ -194,6 +197,8 @@ export async function autoMatchBestLyric(
     let neteaseCandidateSongs: SongResult[] | null = null;
     let qqBestCandidate: SongResult | null | undefined;
     let kugouBestCandidate: SongResult | null | undefined;
+    let zingBestCandidate: SongResult | null | undefined;
+    let nctBestCandidate: SongResult | null | undefined;
     let lineByLineFallback: AutoMatchBestLyricMatch | null = null;
 
     const searchOrder = options.exactMatchOnly && options.metadataCandidate
@@ -282,6 +287,44 @@ export async function autoMatchBestLyric(
         }
         kugouBestCandidate = selectBestCandidate('kugou', page.items, targetSong);
         return kugouBestCandidate;
+    };
+
+    const getZingBestCandidate = async (): Promise<SongResult | null> => {
+        if (zingBestCandidate !== undefined) return zingBestCandidate;
+        const zingSongs = (await withTimeout(
+            searchZingSongs(searchQuery, AUTO_MATCH_SEARCH_LIMIT),
+            PROVIDER_SEARCH_TIMEOUT_MS,
+            'Zing search',
+            []
+        )) ?? [];
+        if (options.metadataCandidate?.source === 'zing') {
+            const exactCandidate = zingSongs.find(song => isSelectedMetadataCandidate('zing', song, options.metadataCandidate));
+            if (exactCandidate || options.exactMatchOnly) {
+                zingBestCandidate = exactCandidate ?? null;
+                return zingBestCandidate;
+            }
+        }
+        zingBestCandidate = selectBestCandidate('zing', zingSongs, targetSong);
+        return zingBestCandidate;
+    };
+
+    const getNctBestCandidate = async (): Promise<SongResult | null> => {
+        if (nctBestCandidate !== undefined) return nctBestCandidate;
+        const nctSongs = (await withTimeout(
+            searchNctSongs(searchQuery, AUTO_MATCH_SEARCH_LIMIT),
+            PROVIDER_SEARCH_TIMEOUT_MS,
+            'NCT search',
+            []
+        )) ?? [];
+        if (options.metadataCandidate?.source === 'nct') {
+            const exactCandidate = nctSongs.find(song => isSelectedMetadataCandidate('nct', song, options.metadataCandidate));
+            if (exactCandidate || options.exactMatchOnly) {
+                nctBestCandidate = exactCandidate ?? null;
+                return nctBestCandidate;
+            }
+        }
+        nctBestCandidate = selectBestCandidate('nct', nctSongs, targetSong);
+        return nctBestCandidate;
     };
 
     const getNeteaseProcessed = async (song: SongResult) => {
@@ -541,6 +584,76 @@ export async function autoMatchBestLyric(
                 }
             } catch (error) {
                 console.error(`[autoMatchBestLyric] Kugou search/fetch failed:`, error);
+            }
+        } else if (searchSource === 'zing') {
+            // 4. Zing MP3
+            try {
+                const bestCandidate = await getZingBestCandidate();
+                const candidateSongs = bestCandidate ? [bestCandidate] : [];
+
+                for (const song of candidateSongs) {
+                    console.log(`[autoMatchBestLyric] Checking Zing candidate: "${song.name}" by "${song.artists?.map((a: any) => a.name).join(', ')}"`);
+                    const lyrics = await withTimeout(
+                        fetchZingLyrics(song),
+                        PROVIDER_LYRIC_TIMEOUT_MS,
+                        `Zing lyric fetch for ${song.id}`,
+                        null
+                    );
+                    const acceptsExact = options.exactMatchOnly
+                        && isSelectedMetadataCandidate('zing', song, options.metadataCandidate);
+
+                    if (hasRenderableLyrics(lyrics)) {
+                        const match: AutoMatchBestLyricMatch = {
+                            lyrics,
+                            source: 'zing',
+                            id: song.id,
+                            song,
+                        };
+                        if (lyrics.isWordByWord || acceptsExact) {
+                            console.log(`[autoMatchBestLyric] Found accepted Zing lyric match!`);
+                            return match;
+                        }
+                        lineByLineFallback ??= match;
+                        console.log(`[autoMatchBestLyric] Keeping Zing line-by-line lyrics as fallback while checking for alternatives.`);
+                    }
+                }
+            } catch (error) {
+                console.error(`[autoMatchBestLyric] Zing search/fetch failed:`, error);
+            }
+        } else if (searchSource === 'nct') {
+            // 5. NhacCuaTui
+            try {
+                const bestCandidate = await getNctBestCandidate();
+                const candidateSongs = bestCandidate ? [bestCandidate] : [];
+
+                for (const song of candidateSongs) {
+                    console.log(`[autoMatchBestLyric] Checking NCT candidate: "${song.name}" by "${song.artists?.map((a: any) => a.name).join(', ')}"`);
+                    const lyrics = await withTimeout(
+                        fetchNctLyrics(song),
+                        PROVIDER_LYRIC_TIMEOUT_MS,
+                        `NCT lyric fetch for ${song.id}`,
+                        null
+                    );
+                    const acceptsExact = options.exactMatchOnly
+                        && isSelectedMetadataCandidate('nct', song, options.metadataCandidate);
+
+                    if (hasRenderableLyrics(lyrics)) {
+                        const match: AutoMatchBestLyricMatch = {
+                            lyrics,
+                            source: 'nct',
+                            id: song.id,
+                            song,
+                        };
+                        if (lyrics.isWordByWord || acceptsExact) {
+                            console.log(`[autoMatchBestLyric] Found accepted NCT lyric match!`);
+                            return match;
+                        }
+                        lineByLineFallback ??= match;
+                        console.log(`[autoMatchBestLyric] Keeping NCT line-by-line lyrics as fallback while checking for alternatives.`);
+                    }
+                }
+            } catch (error) {
+                console.error(`[autoMatchBestLyric] NCT search/fetch failed:`, error);
             }
         }
     }
