@@ -353,6 +353,7 @@ export default {
     "syncFailed": "Sinkronisasi gagal",
     "loginExpired": "Login kedaluwarsa. Silakan login lagi",
     "songPreviewOnly": "Hanya pratinjau tersedia. Masuk dengan akun yang dapat memutar lagu lengkap.",
+    "songVipOnly": "Lagu ini khusus akun VIP. Silakan masuk dengan akun VIP untuk memutar.",
     "songRegionRestricted": "Pemutaran hanya tersedia di Tiongkok daratan. Periksa koneksi jaringan Anda.",
     "loggedOut": "Berhasil logout",
     "clickToPlay": "Klik putar untuk mulai",

@@ -43,7 +43,7 @@ describe('zingProvider', () => {
         expect(result?.quality).toBe('standard');
     });
 
-    it('throws auth-required error when song is VIP only', async () => {
+    it('throws vip-only error when song is VIP only', async () => {
         vi.spyOn(zingApi, 'getZingAudioSource').mockResolvedValue({
             url: '',
             quality: 'standard',

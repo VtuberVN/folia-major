@@ -373,7 +373,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                 try {
                     const res = await window.electron.openSpotifyLogin(authUrl);
                     if (res?.success && res.accessToken) {
-                        setSpotifyUserToken(res.accessToken, res.expiresIn || 3600);
+                        setSpotifyUserToken(res.accessToken, res.expiresIn || 3600, res.refreshToken || '');
                         await providerAccounts.refresh('spotify');
                         accounts.setActiveProviderId('spotify');
                     }

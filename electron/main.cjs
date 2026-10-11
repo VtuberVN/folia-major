@@ -5887,58 +5887,207 @@ ipcMain.handle('auth-open-zing-login', async () => {
   });
 });
 
-ipcMain.handle('auth-open-spotify-login', async (event, authUrl) => {
+ipcMain.handle('auth-open-spotify-login', async (event, customAuthUrl) => {
   return new Promise((resolve) => {
     let settled = false;
-    const authWin = new BrowserWindow({
-      width: 500,
-      height: 700,
-      title: 'Đăng nhập Spotify',
-      autoHideMenuBar: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
+
+    function base64Url(buf) {
+      return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    const verifier = base64Url(crypto.randomBytes(32));
+    const challenge = base64Url(crypto.createHash('sha256').update(verifier).digest());
+
+    let clientId = '27a71e3b692040e3a6113b28b6d817de';
+    if (customAuthUrl) {
+      try {
+        const u = new URL(customAuthUrl);
+        const cid = u.searchParams.get('client_id');
+        if (cid) clientId = cid;
+      } catch {}
+    }
+
+    const scopes = [
+      'user-read-private',
+      'user-read-email',
+      'playlist-read-private',
+      'playlist-read-collaborative',
+      'user-library-read',
+      'user-top-read',
+      'streaming',
+    ].join(' ');
+
+    const redirectUri = 'http://localhost:8888/callback';
+    const authUrl = new URL('https://accounts.spotify.com/authorize');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('code_challenge', challenge);
+    authUrl.searchParams.set('scope', scopes);
+    authUrl.searchParams.set('show_dialog', 'true');
+
+    const server = http.createServer(async (req, res) => {
+      try {
+        const reqUrl = new URL(req.url, 'http://localhost:8888');
+        if (reqUrl.pathname === '/callback') {
+          const code = reqUrl.searchParams.get('code');
+          const error = reqUrl.searchParams.get('error');
+
+          const htmlSuccess = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Folia - Đăng nhập Spotify</title><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#121212;color:#fff;text-align:center}.box{background:#181818;padding:48px 40px;border-radius:20px;box-shadow:0 12px 32px rgba(0,0,0,0.6);max-width:440px}svg{width:56px;height:56px;fill:#1DB954;margin:0 auto 16px}h1{font-size:22px;margin:0 0 8px}p{color:#b3b3b3;font-size:14px;margin:0;line-height:1.6}</style></head><body><div class="box"><svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.215.353-.674.466-1.026.251-2.812-1.718-6.353-2.107-10.523-1.154-.403.092-.803-.16-.895-.563-.092-.403.16-.803.563-.895 4.568-1.044 8.49-.606 11.63 1.335.353.215.466.674.251 1.026zm1.468-3.262c-.27.441-.849.582-1.29.312-3.218-1.978-8.125-2.55-11.932-1.393-.497.151-1.027-.133-1.178-.63-.151-.497.133-1.027.63-1.178 4.353-1.322 9.774-.683 13.458 1.599.441.27.582.849.312 1.29zm.126-3.41c-3.859-2.292-10.228-2.503-13.906-1.386-.593.18-1.223-.154-1.403-.747-.18-.593.154-1.223.747-1.403 4.232-1.285 11.274-1.04 15.698 1.587.533.317.708 1.009.392 1.542-.317.533-1.009.708-1.542.392z"/></svg><h1>Đăng nhập Spotify thành công!</h1><p>Tài khoản đã được kết nối với Folia. Bạn có thể đóng tab trình duyệt này và quay lại trải nghiệm ứng dụng.</p></div></body></html>`;
+
+          const htmlError = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Folia - Lỗi đăng nhập Spotify</title><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#121212;color:#fff;text-align:center}.box{background:#181818;padding:48px 40px;border-radius:20px;box-shadow:0 12px 32px rgba(0,0,0,0.6);max-width:440px}h1{color:#e11d48;font-size:22px;margin:0 0 8px}p{color:#b3b3b3;font-size:14px;margin:0}</style></head><body><div class="box"><h1>Đăng nhập không thành công</h1><p>${error || 'Không nhận được mã xác thực từ Spotify.'}</p></div></body></html>`;
+
+          if (code) {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(htmlSuccess);
+          } else {
+            res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(htmlError);
+          }
+
+          server.close();
+
+          if (!settled) {
+            settled = true;
+            if (code) {
+              try {
+                const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: clientId,
+                    code,
+                    redirect_uri: redirectUri,
+                    code_verifier: verifier,
+                  }),
+                });
+                const tokenData = await tokenRes.json();
+                if (tokenData.access_token) {
+                  const focusedWin = BrowserWindow.getAllWindows()[0];
+                  if (focusedWin) {
+                    if (focusedWin.isMinimized()) focusedWin.restore();
+                    focusedWin.focus();
+                  }
+                  resolve({
+                    success: true,
+                    accessToken: tokenData.access_token,
+                    expiresIn: tokenData.expires_in || 3600,
+                    refreshToken: tokenData.refresh_token,
+                  });
+                  return;
+                } else {
+                  resolve({ success: false, error: tokenData.error_description || tokenData.error || 'Token exchange failed' });
+                  return;
+                }
+              } catch (tokenErr) {
+                resolve({ success: false, error: String(tokenErr) });
+                return;
+              }
+            } else {
+              resolve({ success: false, error: error || 'cancelled' });
+              return;
+            }
+          }
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
+      } catch (err) {
+        console.error('[SpotifyOAuth] Request handling error:', err);
+      }
+    });
+
+    server.on('error', (err) => {
+      console.warn('[SpotifyOAuth] Callback server error:', err);
+      if (!settled) {
+        settled = true;
+        resolve({ success: false, error: err.message });
+      }
+    });
+
+    server.listen(8888, '127.0.0.1', () => {
+      shell.openExternal(authUrl.toString());
+    });
+
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try { server.close(); } catch {}
+        resolve({ success: false, error: 'timeout' });
+      }
+    }, 180000);
+  });
+});
+
+ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie) => {
+  try {
+    const ZING_API_KEY = '88265e23d4284f25963e6eedac8fbfa3';
+    const ZING_SECRET_KEY = '2aa2d1c561e809b267f3638c4a307aab';
+    const ZING_VERSION = '1.6.34';
+    const ZING_BASE_URL = 'https://zingmp3.vn';
+
+    let cookie = customCookie;
+    if (!cookie) {
+      try {
+        const homeRes = await fetch(ZING_BASE_URL, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
+        });
+        const getSetCookie = homeRes.headers.getSetCookie;
+        if (typeof getSetCookie === 'function') {
+          cookie = getSetCookie.call(homeRes.headers).map(c => c.split(';')[0]).join('; ');
+        } else {
+          cookie = homeRes.headers.get('set-cookie') || '';
+        }
+      } catch (err) {
+        console.warn('[ZingMain] Cookie fetch failed:', err);
+      }
+    }
+
+    const path = '/api/v2/song/get/streaming';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const hashParams = `ctime=${ctime}id=${songId}version=${ZING_VERSION}`;
+    const sha256 = crypto.createHash('sha256').update(hashParams).digest('hex');
+    const sig = crypto.createHmac('sha512', ZING_SECRET_KEY).update(`${path}${sha256}`).digest('hex');
+
+    const streamUrl = new URL(`${ZING_BASE_URL}${path}`);
+    streamUrl.searchParams.set('id', songId);
+    streamUrl.searchParams.set('ctime', ctime);
+    streamUrl.searchParams.set('version', ZING_VERSION);
+    streamUrl.searchParams.set('apiKey', ZING_API_KEY);
+    streamUrl.searchParams.set('sig', sig);
+
+    const streamRes = await fetch(streamUrl.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': 'https://zingmp3.vn/',
+        ...(cookie ? { 'Cookie': cookie } : {}),
       },
     });
 
-    const handleUrl = (url) => {
-      if (!url) return false;
-      if (url.includes('access_token=')) {
-        try {
-          const hashIndex = url.indexOf('#');
-          const fragment = hashIndex >= 0 ? url.slice(hashIndex + 1) : url.slice(url.indexOf('?') + 1);
-          const params = new URLSearchParams(fragment);
-          const accessToken = params.get('access_token');
-          const expiresIn = Number(params.get('expires_in')) || 3600;
-          if (accessToken) {
-            settled = true;
-            authWin.close();
-            resolve({ success: true, accessToken, expiresIn });
-            return true;
-          }
-        } catch {
-          // parse error
-        }
-      }
-      return false;
-    };
-
-    authWin.webContents.on('will-redirect', (e, newUrl) => {
-      if (handleUrl(newUrl)) e.preventDefault();
-    });
-    authWin.webContents.on('will-navigate', (e, newUrl) => {
-      if (handleUrl(newUrl)) e.preventDefault();
-    });
-
-    authWin.on('closed', () => {
-      if (!settled) {
-        settled = true;
-        resolve({ success: false, error: 'cancelled' });
-      }
-    });
-
-    authWin.loadURL(authUrl);
-  });
+    if (!streamRes.ok) return null;
+    const json = await streamRes.json();
+    if (json.err === -1150) {
+      return { url: '', quality: 'standard', isVipOnly: true };
+    }
+    if (json.err !== 0 || !json.data) {
+      return null;
+    }
+    const data = json.data;
+    if (data['320'] && data['320'] !== 'VIP') {
+      return { url: data['320'], quality: 'high' };
+    }
+    if (data['128']) {
+      return { url: data['128'], quality: 'standard' };
+    }
+    return null;
+  } catch (err) {
+    console.error('[ZingMain] Stream error:', err);
+    return null;
+  }
 });
 
 ipcMain.handle('updates-download', () => {

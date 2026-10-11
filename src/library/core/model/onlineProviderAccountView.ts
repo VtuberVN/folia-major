@@ -27,7 +27,7 @@ export const resolveOnlineProviderAccountView = ({
     return 'guest';
 };
 
-/** Whether picking the provider switches to it now (signed in, or nothing to sign in to, or guest-friendly like Zing MP3) rather than starting a login. */
+/** Whether picking the provider switches to it now (signed in, or nothing to sign in to) rather than starting a login. */
 export const canSwitchToProviderDirectly = (provider: ProviderAccountSummary): boolean => (
-    provider.providerId === 'zing' || provider.status === 'authenticated' || isAccountless(provider)
+    provider.status === 'authenticated' || isAccountless(provider)
 );

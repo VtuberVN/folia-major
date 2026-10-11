@@ -233,7 +233,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 const res = await window.electron.openSpotifyLogin(authUrl);
                 if (res.success && res.accessToken) {
                     setSpotifyTokenInput(res.accessToken);
-                    setSpotifyUserToken(res.accessToken, res.expiresIn || 3600);
+                    setSpotifyUserToken(res.accessToken, res.expiresIn || 3600, res.refreshToken || '');
                     setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
                 } else if (res.error !== 'cancelled') {
                     setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });

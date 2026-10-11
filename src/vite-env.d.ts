@@ -853,7 +853,8 @@ declare global {
       openUpdateReleasePage: (version?: string | null) => Promise<boolean>;
       openExternalUrl: (url: string) => Promise<boolean>;
       openZingLogin: () => Promise<{ success: boolean; cookie?: string; error?: string }>;
-      openSpotifyLogin: (authUrl: string) => Promise<{ success: boolean; accessToken?: string; expiresIn?: number; error?: string }>;
+      openSpotifyLogin: (authUrl: string) => Promise<{ success: boolean; accessToken?: string; expiresIn?: number; refreshToken?: string; error?: string }>;
+      getZingAudioSource: (songId: string, cookie?: string) => Promise<{ url: string; quality: 'standard' | 'high' | 'lossless'; isVipOnly?: boolean } | null>;
       downloadUpdate: () => Promise<ElectronUpdateStatus>;
       quitAndInstallUpdate: () => Promise<boolean>;
       onUpdateStatusChanged: (callback: (status: ElectronUpdateStatus) => void) => () => void;

@@ -355,6 +355,7 @@ export default {
     "syncFailed": "同步失败",
     "loginExpired": "登录状态已失效，请重新登录",
     "songPreviewOnly": "当前账号仅可试听此歌曲，请登录具有完整播放权限的账号",
+    "songVipOnly": "该歌曲仅限 VIP 账号播放。请登录 VIP 账号。",
     "songRegionRestricted": "仅限中国大陆地区播放，请检查网络环境",
     "loggedOut": "已退出登录",
     "clickToPlay": "点击播放开始",

@@ -104,6 +104,7 @@ contextBridge.exposeInMainWorld('electron', {
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
     openZingLogin: () => ipcRenderer.invoke('auth-open-zing-login'),
     openSpotifyLogin: (authUrl) => ipcRenderer.invoke('auth-open-spotify-login', authUrl),
+    getZingAudioSource: (songId, cookie) => ipcRenderer.invoke('zing-get-audio-source', songId, cookie),
     downloadUpdate: () => ipcRenderer.invoke('updates-download'),
     quitAndInstallUpdate: () => ipcRenderer.invoke('updates-quit-and-install'),
     onUpdateStatusChanged: (callback) => {

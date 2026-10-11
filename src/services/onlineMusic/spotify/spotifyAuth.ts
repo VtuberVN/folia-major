@@ -147,7 +147,7 @@ export function getSpotifyAuthUrl(redirectUri: string = 'http://localhost:8888/c
 
     const params = new URLSearchParams({
         client_id: clientId,
-        response_type: 'token',
+        response_type: 'code',
         redirect_uri: redirectUri,
         scope: scopes,
         show_dialog: 'true',

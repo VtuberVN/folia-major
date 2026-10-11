@@ -121,6 +121,15 @@ export interface ZingStreamResult {
  * Fetches the direct audio streaming URL for a song from Zing MP3.
  */
 export async function getZingAudioSource(songId: string): Promise<ZingStreamResult | null> {
+    if (typeof window !== 'undefined' && window.electron?.getZingAudioSource) {
+        try {
+            const stream = await window.electron.getZingAudioSource(songId, getStoredZingCookie());
+            if (stream) return stream;
+        } catch (err) {
+            console.warn('[ZingApi] Electron IPC stream fetch failed, falling back to fetch:', err);
+        }
+    }
+
     const path = '/api/v2/song/get/streaming';
     const ctime = String(Math.floor(Date.now() / 1000));
     const sig = await getZingSignature(path, songId, ctime);
@@ -294,25 +303,32 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
         const items = data?.data?.items || [];
         const results: UnifiedSong[] = [];
 
+        // Format 1: ac-suggestions with items[].suggestions
         for (const group of items) {
             const suggestions = group?.suggestions || [];
             for (const s of suggestions) {
-                if ((s.type === 1 || !s.type) && s.id && s.title) {
+                if ((s.type === 1 || !s.type) && s.id && (s.title || s.name)) {
                     const artists = (s.artists || []).map((a: any, idx: number) => ({
                         id: a.id || idx,
                         name: a.name || 'Various Artists',
                     }));
 
+                    const coverUrl = s.thumb
+                        ? (s.thumb.startsWith('http')
+                            ? s.thumb.replace(/w\d+_r\d+x\d+_jpeg/, 'w600_r1x1_jpeg')
+                            : `https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/${s.thumb}`)
+                        : undefined;
+
                     results.push({
                         id: s.id,
-                        name: s.title,
+                        name: s.title || s.name,
                         artists: artists.length > 0 ? artists : [{ id: 0, name: s.artist || 'Zing MP3' }],
                         album: {
                             id: 0,
                             name: 'Zing MP3',
-                            coverUrl: s.thumb ? s.thumb.replace(/w\d+_r\d+x\d+_jpeg/, 'w600_r1x1_jpeg') : undefined,
+                            coverUrl,
                         },
-                        durationMs: (s.duration || 0) * 1000,
+                        durationMs: (Number(s.duration) || 0) * 1000,
                         sourceRef: { kind: 'online', providerId: 'zing', mediaId: s.id },
                     });
 
@@ -320,6 +336,38 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                 }
             }
             if (results.length >= limit) break;
+        }
+
+        // Format 2: complete fallback with data[].song
+        if (results.length === 0 && Array.isArray(data?.data)) {
+            for (const group of data.data) {
+                const songs = group?.song || [];
+                for (const s of songs) {
+                    if (s.id && (s.name || s.title)) {
+                        const coverUrl = s.thumb
+                            ? (s.thumb.startsWith('http')
+                                ? s.thumb.replace(/w\d+_r\d+x\d+_jpeg/, 'w600_r1x1_jpeg')
+                                : `https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/${s.thumb}`)
+                            : undefined;
+
+                        results.push({
+                            id: s.id,
+                            name: s.name || s.title,
+                            artists: [{ id: 0, name: s.artist || 'Zing MP3' }],
+                            album: {
+                                id: 0,
+                                name: 'Zing MP3',
+                                coverUrl,
+                            },
+                            durationMs: (Number(s.duration) || 0) * 1000,
+                            sourceRef: { kind: 'online', providerId: 'zing', mediaId: s.id },
+                        });
+
+                        if (results.length >= limit) break;
+                    }
+                }
+                if (results.length >= limit) break;
+            }
         }
 
         return results;

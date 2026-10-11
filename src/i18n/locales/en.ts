@@ -355,6 +355,7 @@ export default {
     "syncFailed": "Sync failed",
     "loginExpired": "Login expired. Please sign in again",
     "songPreviewOnly": "Only a preview is available. Sign in with an account that can play the full track.",
+    "songVipOnly": "This song is VIP only. Please sign in with a VIP account to play.",
     "songRegionRestricted": "Playback is limited to mainland China. Please check your network connection.",
     "loggedOut": "Logged out",
     "clickToPlay": "Click play to start",

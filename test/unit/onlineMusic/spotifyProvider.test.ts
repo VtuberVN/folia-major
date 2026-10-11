@@ -72,7 +72,7 @@ describe('spotifyProvider', () => {
     it('generates valid OAuth authorization URL', () => {
         const authUrl = spotifyAuth.getSpotifyAuthUrl('http://localhost:8888/callback');
         expect(authUrl).toContain('https://accounts.spotify.com/authorize');
-        expect(authUrl).toContain('response_type=token');
+        expect(authUrl).toContain('response_type=code');
         expect(authUrl).toContain('user-read-private');
     });
 

@@ -79,31 +79,35 @@ export const zingProvider: OnlineMusicProvider = {
         async getSongDetail(id) {
             return getZingSongDetail(String(id));
         },
-        async getAudioSource(song, quality): Promise<ProviderAudioSource | null> {
+        async getAudioSource(song, _quality): Promise<ProviderAudioSource | null> {
             const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
-            const stream = await getZingAudioSource(mediaId);
-
-            if (!stream) {
-                return null;
+            let stream: any = null;
+            try {
+                stream = await getZingAudioSource(mediaId);
+                if (stream && stream.url && !stream.isVipOnly) {
+                    return {
+                        url: stream.url,
+                        fetchedAt: Date.now(),
+                        quality: stream.quality,
+                    };
+                }
+            } catch (err) {
+                console.warn('[ZingProvider] Stream retrieval failed:', err);
             }
 
-            if (stream.isVipOnly) {
+            if (stream?.isVipOnly) {
                 throw new OnlineProviderError(
-                    'auth-required',
-                    'Bài hát này chỉ dành cho tài khoản VIP Zing MP3. Vui lòng cấu hình Cookie VIP trong Cài đặt.',
+                    'vip-only',
+                    'VIP Zing MP3: song is VIP only',
                     'zing'
                 );
             }
 
-            if (!stream.url) {
-                return null;
-            }
-
-            return {
-                url: stream.url,
-                fetchedAt: Date.now(),
-                quality: stream.quality,
-            };
+            throw new OnlineProviderError(
+                'unavailable',
+                'Song unavailable on Zing MP3',
+                'zing'
+            );
         },
         getAvailability(_song): ProviderSongAvailability {
             return { state: 'playable' };
