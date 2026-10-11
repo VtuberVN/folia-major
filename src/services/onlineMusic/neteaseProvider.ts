@@ -327,6 +327,13 @@ export const neteaseProvider: OnlineMusicProvider = {
             const raw = response?.data?.[0];
             const rawUrl = raw?.url;
             if (!rawUrl) return null;
+            if (raw?.freeTrialInfo) {
+                throw new OnlineProviderError(
+                    'preview-only',
+                    'NetEase song is preview only; sign in with a VIP account to play full track',
+                    'netease'
+                );
+            }
             const trackGain = toFiniteNumber(raw?.gain);
             return {
                 url: String(rawUrl).replace(/^http:/, 'https:'),

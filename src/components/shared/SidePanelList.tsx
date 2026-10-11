@@ -203,6 +203,16 @@ export const TrackListItem = React.memo<{
                 <div className="flex flex-col min-w-0 flex-1 justify-center">
                     <div className="flex min-w-0 items-baseline gap-1.5 leading-tight">
                         <span className="text-sm font-semibold truncate">{track.name}</span>
+                        {!isUnavailable && (track.fee === 1 || track.privilege?.fee === 1) && (
+                            <span className="shrink-0 rounded px-1 py-0.2 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                VIP
+                            </span>
+                        )}
+                        {!isUnavailable && track.fee === 4 && (
+                            <span className="shrink-0 rounded px-1 py-0.2 text-[9px] font-bold bg-purple-500/15 text-purple-500 border border-purple-500/30">
+                                ALBUM
+                            </span>
+                        )}
                         {albumTrackLabel && (
                             <span className="shrink-0 text-[10px] font-medium tabular-nums opacity-45">
                                 {albumTrackLabel}
