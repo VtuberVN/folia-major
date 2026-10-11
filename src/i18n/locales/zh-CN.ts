@@ -31,20 +31,7 @@ export default {
     "crumbPlayer": "播放页",
     "tools": "墙面工具",
     "toolsLocate": "定位正在播放",
-    "toolsLocateShort": "定位",
-    "toolsShuffle": "打乱播放队列",
-    "toolsShuffleShort": "洗牌",
-    "toolsShuffleUnavailable": "队列里至少要有两首（私人 FM 中不可用）",
-    "toolsTheme": "为当前歌曲生成主题",
-    "toolsThemeShort": "主题",
-    "toolsThemeBusy": "正在生成主题…",
-    "toolsThemeBusyShort": "生成中",
-    "toolsThemeUnavailable": "需要一首正在播放、带歌词（或纯音乐）的歌",
     "toolsLattice": "前往 Lattice",
-    "toolsLatticeShort": "Lattice",
-    "toolsMute": "静音",
-    "toolsUnmute": "取消静音",
-    "toolsMuted": "已静音",
     "toolsAppearance": "墙面外观",
     "helpMove": "移动焦点（墙上 / 信息条里）",
     "helpOpen": "展开歌曲 / 打开集合",
@@ -61,6 +48,36 @@ export default {
     "helpSearch": "搜索在线平台（首页）",
     "filterPlaceholder": "过滤当前页",
     "kind": {"track": "歌曲", "playlist": "歌单", "album": "专辑", "artist": "歌手", "folder": "文件夹", "feed": "电台"}
+  },
+  "wallTools": {
+    "shuffle": "打乱播放队列",
+    "shuffleUnavailable": "队列里至少要有两首（私人 FM 中不可用）",
+    "shuffleUnavailableInStage": "外部舞台正在播放：不能打乱队列",
+    "theme": "为当前歌曲生成主题",
+    "themeBusy": "正在生成主题…",
+    "themeUnavailable": "需要一首正在播放、带歌词（或纯音乐）的歌",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "muted": "已静音",
+    "queue": "播放队列",
+    "queueShow": "显示播放队列",
+    "queueHide": "收起播放队列",
+    "queueUnavailableInFm": "私人 FM 没有可编辑的队列",
+    "queueStageReadOnly": "外部舞台正在播放：可以点歌，不能编辑队列",
+    "queueIsland": "播放队列",
+    "queueCount_one": "播放队列 · {{count}} 首",
+    "queueCount_other": "播放队列 · {{count}} 首",
+    "queueClear": "清空队列",
+    "queueClearConfirm": "再点一次清空",
+    "queueSave": "存为本地歌单",
+    "queueSaved": "已存为本地歌单「{{name}}」",
+    "queueSaveFailed": "歌单没能保存",
+    "queueDragHandle": "拖动排序",
+    "queueMoved": "已移到第 {{position}} 首",
+    "openPlayer": "前往播放页",
+    "openPlayerUnavailable": "还没有在播放的歌",
+    "goHome": "回到主页",
+    "wallSection": "墙面"
   },
   "libraryBravaisHome": {
     "hide": "隐藏",
@@ -1251,7 +1268,6 @@ export default {
     "latticeLightsOn": "开灯",
     "latticeLightsOff": "关灯",
     "latticeTools": "Lattice 工具",
-    "latticeOpenQueueCommand": "打开队列命令",
     "latticeHelp": "操作提示",
     "latticeHelpPoster": "Enter 展开选中歌曲，再次 Enter 播放",
     "latticeHelpReturn": "返回",
@@ -2598,6 +2614,9 @@ export default {
     "useSystemProxyAIDesc": "仅将AI相关的网络请求通过系统代理路由。",
     "geminiApiKey": "Gemini 密钥",
     "openaiApiKey": "密钥",
+    "aiApiKeySavedPlaceholder": "已保存（留空则保持不变）",
+    "aiApiKeySavedDesc": "密钥已加密保存在本机，不会再显示。输入新密钥并保存可替换。",
+    "aiApiKeyClear": "清除",
     "openaiApiUrl": "OpenAI 接口链接",
     "openaiApiModel": "模型",
     "openaiApiModelDesc": "例如 gpt-5.6-luna、gpt-4.1-mini、deepseek-v4-flash。",
@@ -2607,7 +2626,7 @@ export default {
     "openaiApiStreamDesc": "仅当提供商要求流式时开启；结果仍在完整接收后解析。",
     "aiTestConnection": "测试连接",
     "aiTestRunning": "测试中...",
-    "aiTestConnectionDesc": "用当前表单中的值（无需先保存）向终结点发送一条 hello。",
+    "aiTestConnectionDesc": "用当前表单中的值（无需先保存）向终结点发送一条 hello；密钥留空时使用已保存的密钥。",
     "aiTestSuccess": "连接成功",
     "aiTestFailed": "连接失败",
     "aiTestDuration": "耗时",
@@ -3083,6 +3102,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "QQ 音乐不公开歌单",
         "description": "登录后，自己创建的不公开歌单也能读取歌曲，并支持真正的分页加载。自建后端需要升级到 qq-music-api 3.1.2 或更新版本；旧后端会自动回退，读不到时会明确提示「不是公开歌单」，不再静默显示为空。"
+      }
+    },
+    "v0_7_18": {
+      "intro": "0.7.18 给 Bravais 与 Lattice 的墙面工具加上可以直接操作的播放队列，工具面板也统一成同一套布局；多个歌词可视化模式更省资源，本地歌曲连续播放切歌更顺，QQ 扫码遇到登录设备超限会直接告诉你怎么处理，桌面版的 AI 密钥改为加密保存。",
+      "queueIsland": {
+        "title": "墙面上直接管理播放队列",
+        "description": "在 Bravais 或 Lattice 右下角的「墙面工具」里点「播放队列」，面板上方会展开队列：点歌直接播放、不跳页，拖动手柄排序，悬停可下一首播放、移到末尾或移除，还能存为本地歌单或两步确认清空。键盘可用 ↑↓ 移动、Alt+↑↓ 挪动、Delete 移除。私人 FM 下不可用，外部舞台播放时只能点歌。"
+      },
+      "wallTools": {
+        "title": "两面墙共用一套工具面板",
+        "description": "Bravais 与 Lattice 的墙面工具统一为同一套布局：顶上一排六个快捷格（定位正在播放、打乱队列、生成主题、播放队列、前往 Lattice 或回到主页、前往播放页），下面是音量、墙面外观、海报叠色与灯光。面板更紧凑，Lattice 原来的「队列命令」由队列浮岛取代。"
+      },
+      "visualizerPerf": {
+        "title": "歌词可视化更省资源",
+        "description": "商籁、凝彩、绘光、心象、回环、莫奈、时计与 Latent 背景等模式减少了每帧的重复计算；时计的齿轮装饰改用 WebGL2 绘制，调商籁的设置不再重建画布。反复切换模式时会及时释放图形上下文，不再挤掉其它可视化。"
+      },
+      "localPlayback": {
+        "title": "本地歌曲切歌更顺",
+        "description": "连续播放本地歌曲时，切到下一首不再卡一下：预先准备好的封面与在线匹配结果会直接用上，不再在切歌时重新提取封面、重新联网匹配；曲库较大时切歌也更快。"
+      },
+      "qqDeviceLimit": {
+        "title": "QQ 扫码提示清理登录设备",
+        "description": "QQ 音乐账号登录设备已满导致扫码失败时，登录面板会直接说明原因，并给出清理设备的步骤（QQ 音乐「设置 → 设备管理」移除旧设备后重新扫码），不再误报为网络问题。网页版目前只能识别微信扫码的这种情况。"
+      },
+      "aiKeySecure": {
+        "title": "桌面版 AI 密钥加密保存",
+        "description": "桌面版的 Gemini / OpenAI 密钥改用系统的安全存储加密保存，旧版本留下的明文会在启动时自动迁移。保存后不再回显，留空即保持不变，替换需输入新密钥，清除是单独的按钮；测试连接时留空会使用已保存的密钥。"
       }
     },
     "v0_7_17": {
@@ -4592,7 +4638,7 @@ export default {
         "filterType": "想在这面墙里找东西，直接在墙上打字：信息条里冒出一道过滤输入位，墙收成以信息条为中心、只剩匹配项的一小片。",
         "filterKeys": "过滤不联网，只收窄眼前这面墙。Esc 有词先清空，再按一次结束输入；↓ 或 Enter 把焦点交给墙上第一张。",
         "filterSearch": "放大镜才是搜索在线平台（首页上也可以按 /）：整条信息条换成带框的搜索框，提交之后去搜索页看结果。",
-        "toolsQuick": "右下角那颗是墙面工具。顶上一排是一次性动作：定位正在播放、打乱队列、为当前歌曲生成主题、前往 Lattice。",
+        "toolsQuick": "右下角那颗是墙面工具。顶上一排图标是一次性动作：定位正在播放、打乱队列、为当前歌曲生成主题、播放队列、前往 Lattice、前往播放页；指针停在图标上能看到名字和快捷键。",
         "toolsVolume": "中间是音量，和播放条上的是同一份；点左边的图标静音。",
         "toolsAppearance": "最下面是墙面外观：透光在三档之间轮换，还有海报叠色和开灯 / 关灯。向左滑这颗按钮，直接打开命令面板。"
       },
@@ -4763,7 +4809,7 @@ export default {
         "latticeFocusKeys": "方向键从视口中央选择最近海报，再按空间方向移动焦点，并自动平移相机让目标可见。",
         "latticePosterOpen": "点击或按 Enter 展开海报。当前歌曲展开后显示同步歌词；其他歌曲展开后显示标题与播放入口，队列本身不会被重排。",
         "latticeChrome": "展开海报显示播放、额外槽位、时间、进度和返回 Player；触屏点海报，键盘按 Space 显示或隐藏控制条。",
-        "latticeTools": "右下角工具依次提供：聚焦当前歌曲、切歌时自动跟随、打开队列命令、灯光开关与快捷键说明；向左滑这个按钮会打开命令面板。",
+        "latticeTools": "右下角工具和资料库墙是同一套：顶上一排图标是聚焦当前歌曲、打乱队列、生成主题、播放队列、回到主页和前往播放页，下面是音量、切歌时自动跟随、灯光开关与快捷键说明；向左滑这个按钮会打开命令面板。",
         "latticeLights": "灯光关闭后海报退暗，只保留必要层次；这是显示设置，不会暂停播放或修改队列。",
         "latticePosterKeys": "收起时 Enter/Space 展开；展开后 Enter 播放/暂停，Space 显示控制，Esc 收起。",
         "latticePageKeys": ": + C 当前歌曲；{{mod}} + P 队列；{{mod}} + B 返回；{{mod}} + K 命令；方向键移动。",

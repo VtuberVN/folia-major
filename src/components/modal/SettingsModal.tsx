@@ -502,10 +502,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         DISCORD_RICH_PRESENCE_APPLICATION_ID: '',
     });
     const [electronSettingsLoaded, setElectronSettingsLoaded] = useState(false);
+    // Keys stay in the main process; the renderer only knows which ones are saved. The
+    // GEMINI_API_KEY / OPENAI_API_KEY fields in electronSettings are drafts of a replacement key.
     const [savedElectronAiCredentials, setSavedElectronAiCredentials] = useState({
         AI_PROVIDER: 'gemini',
-        GEMINI_API_KEY: '',
-        OPENAI_API_KEY: '',
+        GEMINI_API_KEY: false,
+        OPENAI_API_KEY: false,
     });
     const [electronSaveStatus, setElectronSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [updateStatus, setUpdateStatus] = useState<ElectronUpdateStatus | null>(null);
@@ -524,7 +526,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         ? 'configured'
         : !electronSettingsLoaded
             ? 'loading'
-            : savedAiApiKey.trim()
+            : savedAiApiKey
                 ? 'configured'
                 : 'missing';
     const showQuarkDownload = electronSettings.UPDATE_CHANNEL === 'realeco';
@@ -540,15 +542,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             setIsElectron(true);
             (window as any).electron.getSettings().then((settings: any) => {
                 if (settings) {
+                    const { AI_API_KEYS_CONFIGURED: configuredKeys, ...rest } = settings;
                     setElectronSettings(prev => ({
                         ...prev,
-                        ...settings,
-                        OPENAI_API_TEMPERATURE: String(settings.OPENAI_API_TEMPERATURE ?? '').trim() || DEFAULT_OPENAI_TEMPERATURE,
+                        ...rest,
+                        OPENAI_API_TEMPERATURE: String(rest.OPENAI_API_TEMPERATURE ?? '').trim() || DEFAULT_OPENAI_TEMPERATURE,
                     }));
                     setSavedElectronAiCredentials({
                         AI_PROVIDER: settings.AI_PROVIDER === 'openai' ? 'openai' : 'gemini',
-                        GEMINI_API_KEY: String(settings.GEMINI_API_KEY ?? ''),
-                        OPENAI_API_KEY: String(settings.OPENAI_API_KEY ?? ''),
+                        GEMINI_API_KEY: configuredKeys?.GEMINI_API_KEY === true,
+                        OPENAI_API_KEY: configuredKeys?.OPENAI_API_KEY === true,
                     });
                 }
             }).finally(() => setElectronSettingsLoaded(true));
@@ -633,8 +636,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 : DEFAULT_OPENAI_TEMPERATURE;
             setElectronSaveStatus('saving');
             setElectronSettings(prev => ({ ...prev, OPENAI_API_TEMPERATURE: temperature }));
-            await (window as any).electron.saveSettings('GEMINI_API_KEY', electronSettings.GEMINI_API_KEY);
-            await (window as any).electron.saveSettings('OPENAI_API_KEY', electronSettings.OPENAI_API_KEY);
+            // Only a newly typed key is sent; an empty field keeps the saved one (clearing is its own action).
+            const geminiKeyDraft = electronSettings.GEMINI_API_KEY.trim();
+            const openaiKeyDraft = electronSettings.OPENAI_API_KEY.trim();
+            if (geminiKeyDraft) {
+                await (window as any).electron.saveSettings('GEMINI_API_KEY', geminiKeyDraft);
+            }
+            if (openaiKeyDraft) {
+                await (window as any).electron.saveSettings('OPENAI_API_KEY', openaiKeyDraft);
+            }
             await (window as any).electron.saveSettings('OPENAI_API_URL', electronSettings.OPENAI_API_URL);
             await (window as any).electron.saveSettings('OPENAI_API_MODEL', electronSettings.OPENAI_API_MODEL);
             await (window as any).electron.saveSettings('OPENAI_API_TEMPERATURE', temperature);
@@ -644,12 +654,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             await (window as any).electron.saveSettings('ENABLE_UPDATE_CHECK', electronSettings.ENABLE_UPDATE_CHECK);
             await (window as any).electron.saveSettings('ENABLE_AUTO_UPDATE', electronSettings.ENABLE_AUTO_UPDATE);
             await (window as any).electron.saveSettings('UPDATE_CHANNEL', electronSettings.UPDATE_CHANNEL);
-            await (window as any).electron.saveSettings('DISCORD_RICH_PRESENCE_ENABLED', electronSettings.DISCORD_RICH_PRESENCE_ENABLED);
+            const savedSettings = await (window as any).electron.saveSettings('DISCORD_RICH_PRESENCE_ENABLED', electronSettings.DISCORD_RICH_PRESENCE_ENABLED);
+            const configuredKeys = savedSettings?.AI_API_KEYS_CONFIGURED;
             setSavedElectronAiCredentials({
                 AI_PROVIDER: electronSettings.AI_PROVIDER === 'openai' ? 'openai' : 'gemini',
-                GEMINI_API_KEY: electronSettings.GEMINI_API_KEY,
-                OPENAI_API_KEY: electronSettings.OPENAI_API_KEY,
+                GEMINI_API_KEY: configuredKeys?.GEMINI_API_KEY === true,
+                OPENAI_API_KEY: configuredKeys?.OPENAI_API_KEY === true,
             });
+            // Drop the saved drafts so the field goes back to the "saved" placeholder; keep anything typed meanwhile.
+            setElectronSettings(prev => ({
+                ...prev,
+                GEMINI_API_KEY: prev.GEMINI_API_KEY.trim() === geminiKeyDraft ? '' : prev.GEMINI_API_KEY,
+                OPENAI_API_KEY: prev.OPENAI_API_KEY.trim() === openaiKeyDraft ? '' : prev.OPENAI_API_KEY,
+            }));
             setElectronSaveStatus('saved');
             setTimeout(() => setElectronSaveStatus('idle'), 2000);
         }
@@ -660,6 +677,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         setElectronSettings(previous => ({ ...previous, DISCORD_RICH_PRESENCE_APPLICATION_ID: applicationId }));
         const status = await window.electron?.getDiscordPresenceStatus?.();
         if (status) setDiscordPresenceStatus(status);
+    };
+
+    const handleClearAiApiKey = async (key: 'GEMINI_API_KEY' | 'OPENAI_API_KEY') => {
+        if (!window.electron?.saveSettings) {
+            return;
+        }
+        const settings = await window.electron.saveSettings(key, '');
+        setSavedElectronAiCredentials(prev => ({ ...prev, [key]: settings?.AI_API_KEYS_CONFIGURED?.[key] === true }));
+        setElectronSettings(prev => ({ ...prev, [key]: '' }));
     };
 
     const handleToggleDiscordPresence = async (enabled: boolean) => {
@@ -1902,6 +1928,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     onOpenChinaDownload: handleOpenChinaDownload,
                                                     onUpdateChannelChange: handleUpdateChannelChange,
                                                     onSaveElectronSettings: saveElectronSettings,
+                                                    onClearAiApiKey: handleClearAiApiKey,
+                                                    savedAiApiKeys: {
+                                                        GEMINI_API_KEY: savedElectronAiCredentials.GEMINI_API_KEY,
+                                                        OPENAI_API_KEY: savedElectronAiCredentials.OPENAI_API_KEY,
+                                                    },
                                                     onToggleAutoUpdate: handleToggleAutoUpdate,
                                                     onToggleUpdateCheck: handleToggleUpdateCheck,
                                                     setElectronSettings,

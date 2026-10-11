@@ -31,20 +31,7 @@ export default {
     "crumbPlayer": "Sedang Diputar",
     "tools": "Alat dinding",
     "toolsLocate": "Temukan lagu yang diputar",
-    "toolsLocateShort": "Temukan",
-    "toolsShuffle": "Acak antrean",
-    "toolsShuffleShort": "Acak",
-    "toolsShuffleUnavailable": "Perlu dua lagu atau lebih di antrean (tidak di FM Pribadi)",
-    "toolsTheme": "Buat tema untuk lagu ini",
-    "toolsThemeShort": "Tema",
-    "toolsThemeBusy": "Membuat tema…",
-    "toolsThemeBusyShort": "Membuat…",
-    "toolsThemeUnavailable": "Perlu lagu yang diputar dengan lirik (atau musik instrumental)",
     "toolsLattice": "Buka Lattice",
-    "toolsLatticeShort": "Lattice",
-    "toolsMute": "Bisukan",
-    "toolsUnmute": "Bunyikan",
-    "toolsMuted": "Dibisukan",
     "toolsAppearance": "Tampilan dinding",
     "helpMove": "Pindahkan fokus (dinding atau strip info)",
     "helpOpen": "Buka kartu lagu atau koleksi",
@@ -61,6 +48,36 @@ export default {
     "helpSearch": "Cari di platform online (beranda)",
     "filterPlaceholder": "Saring halaman ini",
     "kind": {"track": "Lagu", "playlist": "Playlist", "album": "Album", "artist": "Artis", "folder": "Folder", "feed": "Radio"}
+  },
+  "wallTools": {
+    "shuffle": "Acak antrean",
+    "shuffleUnavailable": "Perlu dua lagu atau lebih di antrean (tidak di FM Pribadi)",
+    "shuffleUnavailableInStage": "Stage eksternal sedang memutar: antrean tidak bisa diacak",
+    "theme": "Buat tema untuk lagu ini",
+    "themeBusy": "Membuat tema…",
+    "themeUnavailable": "Perlu lagu yang diputar dengan lirik (atau musik instrumental)",
+    "mute": "Bisukan",
+    "unmute": "Bunyikan",
+    "muted": "Dibisukan",
+    "queue": "Antrean putar",
+    "queueShow": "Tampilkan antrean putar",
+    "queueHide": "Sembunyikan antrean putar",
+    "queueUnavailableInFm": "FM Pribadi tidak punya antrean yang bisa diubah",
+    "queueStageReadOnly": "Stage eksternal sedang memutar: Anda bisa memilih lagu, tetapi tidak mengubah antrean",
+    "queueIsland": "Antrean putar",
+    "queueCount_one": "Antrean putar · {{count}} lagu",
+    "queueCount_other": "Antrean putar · {{count}} lagu",
+    "queueClear": "Kosongkan antrean",
+    "queueClearConfirm": "Klik sekali lagi untuk mengosongkan",
+    "queueSave": "Simpan sebagai playlist lokal",
+    "queueSaved": "Disimpan sebagai playlist lokal “{{name}}”",
+    "queueSaveFailed": "Playlist tidak bisa disimpan",
+    "queueDragHandle": "Seret untuk mengurutkan",
+    "queueMoved": "Dipindah ke posisi {{position}}",
+    "openPlayer": "Buka pemutar",
+    "openPlayerUnavailable": "Belum ada lagu yang diputar",
+    "goHome": "Ke Beranda",
+    "wallSection": "Dinding"
   },
   "libraryBravaisHome": {
     "hide": "Sembunyikan",
@@ -1245,7 +1262,6 @@ export default {
     "latticeLightsOn": "Lampu nyala",
     "latticeLightsOff": "Lampu mati",
     "latticeTools": "Alat Lattice",
-    "latticeOpenQueueCommand": "Buka perintah antrean",
     "latticeHelp": "Panduan pengoperasian",
     "latticeHelpPoster": "Tekan Enter untuk membuka lagu terpilih, lalu Enter lagi untuk memutarnya",
     "latticeHelpReturn": "Kembali",
@@ -2461,6 +2477,9 @@ export default {
     "useSystemProxyAIDesc": "Rutekan permintaan AI secara ketat melalui proxy sistem.",
     "geminiApiKey": "Kunci API Gemini",
     "openaiApiKey": "Kunci API OpenAI",
+    "aiApiKeySavedPlaceholder": "Tersimpan (kosongkan untuk mempertahankan)",
+    "aiApiKeySavedDesc": "Kunci disimpan terenkripsi di perangkat ini dan tidak ditampilkan lagi. Masukkan kunci baru lalu simpan untuk menggantinya.",
+    "aiApiKeyClear": "Hapus",
     "openaiApiUrl": "URL API OpenAI",
     "openaiApiModel": "Model OpenAI",
     "openaiApiModelDesc": "Diperlukan oleh banyak penyedia kompatibel OpenAI. Contoh: gpt-5.6-luna, gpt-4.1-mini, deepseek-v4-flash.",
@@ -2470,7 +2489,7 @@ export default {
     "openaiApiStreamDesc": "Aktifkan hanya jika penyedia mewajibkan streaming; hasil tetap diurai setelah diterima sepenuhnya.",
     "aiTestConnection": "Uji koneksi",
     "aiTestRunning": "Menguji...",
-    "aiTestConnectionDesc": "Mengirim \"hello\" ke endpoint dengan nilai yang ada di formulir saat ini (tidak perlu disimpan dulu).",
+    "aiTestConnectionDesc": "Mengirim \"hello\" ke endpoint dengan nilai yang ada di formulir saat ini (tidak perlu disimpan dulu). Jika kolom kunci kosong, kunci yang tersimpan akan dipakai.",
     "aiTestSuccess": "Terhubung",
     "aiTestFailed": "Koneksi gagal",
     "aiTestDuration": "Waktu",
@@ -2969,6 +2988,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "Playlist Pribadi QQ Music",
         "description": "Setelah masuk, playlist pribadi buatan Anda kini dapat memuat lagu dengan paging sungguhan. Backend yang di-host sendiri harus memakai qq-music-api 3.1.2 atau lebih baru; backend lama beralih otomatis, dan playlist yang tidak dapat dibaca kini menjelaskan bahwa playlist itu tidak publik, alih-alih tampil kosong tanpa keterangan."
+      }
+    },
+    "v0_7_18": {
+      "intro": "0.7.18 menambahkan antrean putar yang bisa langsung diatur dari alat dinding di Bravais dan Lattice, dan kedua dinding kini memakai panel alat yang sama. Beberapa visualizer lirik lebih hemat sumber daya, perpindahan antar lagu lokal lebih mulus, login QR QQ Music menjelaskan langkahnya saat batas perangkat tercapai, dan aplikasi desktop kini menyimpan kunci AI secara terenkripsi.",
+      "queueIsland": {
+        "title": "Atur Antrean dari Dinding",
+        "description": "Buka Alat dinding di pojok kanan bawah Bravais atau Lattice lalu pilih Antrean putar untuk menampilkan antrean di atas panel. Klik lagu untuk memutarnya tanpa pindah halaman, seret pegangan untuk mengurutkan, arahkan kursor untuk putar berikutnya, pindah ke akhir, atau hapus, simpan antrean sebagai playlist lokal, atau kosongkan dengan konfirmasi dua langkah. Keyboard: ↑↓ untuk berpindah, Alt+↑↓ untuk menggeser, Delete untuk menghapus. Tidak tersedia di FM Pribadi; saat Stage eksternal sedang memutar, Anda hanya bisa memilih lagu."
+      },
+      "wallTools": {
+        "title": "Satu Panel Alat untuk Kedua Dinding",
+        "description": "Alat dinding di Bravais dan Lattice kini memakai tata letak yang sama: satu baris enam tombol cepat (temukan lagu yang diputar, acak antrean, buat tema, antrean putar, buka Lattice atau Beranda, buka pemutar), lalu volume, tampilan dinding, warna poster, dan pencahayaan. Panelnya lebih ringkas, dan baris perintah antrean lama di Lattice digantikan oleh antrean."
+      },
+      "visualizerPerf": {
+        "title": "Visualizer Lirik Lebih Ringan",
+        "description": "Sonnet, Tempera, Lumiere, Mindscape, Claddagh, Monet, Pendolo, dan latar Latent kini jauh lebih sedikit mengulang perhitungan di tiap frame. Mesin jam Pendolo digambar dengan WebGL2, dan mengubah pengaturan Sonnet tidak lagi membangun ulang kanvasnya. Konteks grafis dilepas saat berganti mode, sehingga bolak-balik berganti mode tidak lagi menyingkirkan visualizer lain."
+      },
+      "localPlayback": {
+        "title": "Ganti Lagu Lokal Lebih Mulus",
+        "description": "Berpindah ke lagu lokal berikutnya tidak lagi tersendat: sampul dan hasil pencocokan online yang sudah disiapkan langsung dipakai, tanpa diekstrak dan dicocokkan ulang saat lagu berganti, dan pergantian lagu lebih cepat di pustaka besar."
+      },
+      "qqDeviceLimit": {
+        "title": "Login QQ Menjelaskan Batas Perangkat",
+        "description": "Saat login QR QQ Music gagal karena akun sudah mencapai batas perangkat, panel login kini menyebutkannya dan memandu Anda menghapus perangkat lama (Pengaturan → Manajemen Perangkat di aplikasi QQ Music, lalu pindai lagi), tidak lagi mengarah ke masalah jaringan. Di versi web, hal ini untuk sementara hanya terdeteksi pada login QR WeChat."
+      },
+      "aiKeySecure": {
+        "title": "Kunci AI Terenkripsi di Desktop",
+        "description": "Aplikasi desktop kini menyimpan kunci Gemini / OpenAI secara terenkripsi dengan penyimpanan aman sistem, dan kunci teks biasa dari versi lama dipindahkan saat aplikasi dimulai. Kunci yang tersimpan tidak ditampilkan lagi: kosongkan kolom untuk mempertahankannya, ketik kunci baru untuk menggantinya, atau gunakan tombol Hapus tersendiri. Uji koneksi dengan kolom kosong memakai kunci yang tersimpan."
       }
     },
     "v0_7_17": {
@@ -4476,7 +4522,7 @@ export default {
         "filterType": "Untuk menemukan sesuatu di dinding ini, cukup ketik di dinding: kolom saring muncul di strip, dan dinding menyusut hanya ke yang cocok, tertata di sekitar strip.",
         "filterKeys": "Menyaring tidak pernah online; ia hanya mempersempit dinding di depanmu. Esc mengosongkan teks dulu, lalu mengakhiri pengetikan; ↓ atau Enter memberi fokus ke ubin pertama di dinding.",
         "filterSearch": "Kaca pembesar itulah pencarian online (di beranda bisa juga tekan /): seluruh strip berubah jadi kotak pencarian berbingkai, dan mengirimnya membawamu ke halaman pencarian.",
-        "toolsQuick": "Tombol di pojok kanan bawah adalah alat dinding. Baris atasnya berisi aksi sekali jalan: temukan lagu yang diputar, acak antrean, buat tema untuk lagu ini, buka Lattice.",
+        "toolsQuick": "Tombol di pojok kanan bawah adalah alat dinding. Deretan ikon di atas berisi aksi sekali jalan: temukan lagu yang diputar, acak antrean, buat tema untuk lagu ini, antrean putar, buka Lattice, buka pemutar. Arahkan penunjuk ke ikon untuk melihat nama dan pintasannya.",
         "toolsVolume": "Di tengah ada volume, sama dengan yang di bilah pemutar; klik ikon di kirinya untuk membisukan.",
         "toolsAppearance": "Paling bawah adalah tampilan dinding: transparansi bergiliran di tiga tingkat, ditambah warna poster dan lampu nyala / mati. Geser tombol ini ke kiri untuk langsung membuka palet perintah."
       },
@@ -4647,7 +4693,7 @@ export default {
         "latticeFocusKeys": "Tombol panah mula-mula memilih poster terdekat dari pusat viewport, lalu bergerak secara spasial sambil menjaga target terlihat.",
         "latticePosterOpen": "Klik atau tekan Enter untuk memperluas poster. Lagu aktif menampilkan lirik sinkron; lagu lain menampilkan judul dan tombol putar tanpa mengubah antrean.",
         "latticeChrome": "Poster terbuka berisi putar/jeda, slot ekstra, waktu, geser progres, dan Buka Player. Ketuk lagi atau tekan Spasi untuk menampilkan atau menyembunyikannya.",
-        "latticeTools": "Alat kanan bawah memfokuskan lagu aktif, mengikuti pergantian lagu, membuka antrean, mengatur lampu, dan menampilkan bantuan tombol. Geser ke kiri membuka perintah.",
+        "latticeTools": "Alat kanan bawah sama dengan dinding pustaka: deretan ikon memfokuskan lagu aktif, mengacak antrean, membuat tema, menampilkan antrean putar, kembali ke Beranda, dan membuka pemutar; di bawahnya ada volume, ikuti pergantian lagu, lampu, dan bantuan tombol. Geser ke kiri membuka perintah.",
         "latticeLights": "Lampu mati meredupkan dinding namun mempertahankan strukturnya. Ini hanya tampilan; pemutaran dan urutan antrean tidak berubah.",
         "latticePosterKeys": "Enter atau Spasi memperluas poster tertutup. Setelah terbuka, Enter memutar atau menjeda, Spasi mengubah kontrol, dan Escape menutup serta membersihkan fokus.",
         "latticePageKeys": ": + C memfokuskan lagu aktif, {{mod}} + P membuka antrean, {{mod}} + B kembali, {{mod}} + K membuka jendela perintah; tombol panah memindahkan fokus poster.",

@@ -31,20 +31,7 @@ export default {
     "crumbPlayer": "Now Playing",
     "tools": "Wall tools",
     "toolsLocate": "Locate the playing song",
-    "toolsLocateShort": "Locate",
-    "toolsShuffle": "Shuffle the queue",
-    "toolsShuffleShort": "Shuffle",
-    "toolsShuffleUnavailable": "Needs two or more songs in the queue (not in Personal FM)",
-    "toolsTheme": "Generate a theme for this song",
-    "toolsThemeShort": "Theme",
-    "toolsThemeBusy": "Generating a theme…",
-    "toolsThemeBusyShort": "Working…",
-    "toolsThemeUnavailable": "Needs a playing song with lyrics (or pure music)",
     "toolsLattice": "Go to Lattice",
-    "toolsLatticeShort": "Lattice",
-    "toolsMute": "Mute",
-    "toolsUnmute": "Unmute",
-    "toolsMuted": "Muted",
     "toolsAppearance": "Wall appearance",
     "helpMove": "Move the focus (wall or info strip)",
     "helpOpen": "Open a song card or a collection",
@@ -61,6 +48,36 @@ export default {
     "helpSearch": "Search online platforms (home)",
     "filterPlaceholder": "Filter this page",
     "kind": {"track": "Song", "playlist": "Playlist", "album": "Album", "artist": "Artist", "folder": "Folder", "feed": "Radio"}
+  },
+  "wallTools": {
+    "shuffle": "Shuffle the queue",
+    "shuffleUnavailable": "Needs two or more songs in the queue (not in Personal FM)",
+    "shuffleUnavailableInStage": "An external Stage is playing: the queue can't be shuffled",
+    "theme": "Generate a theme for this song",
+    "themeBusy": "Generating a theme…",
+    "themeUnavailable": "Needs a playing song with lyrics (or pure music)",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "muted": "Muted",
+    "queue": "Play queue",
+    "queueShow": "Show the play queue",
+    "queueHide": "Hide the play queue",
+    "queueUnavailableInFm": "Personal FM has no queue to edit",
+    "queueStageReadOnly": "An external Stage is playing: you can pick a song, but not edit the queue",
+    "queueIsland": "Play queue",
+    "queueCount_one": "Play queue · {{count}} song",
+    "queueCount_other": "Play queue · {{count}} songs",
+    "queueClear": "Clear the queue",
+    "queueClearConfirm": "Click again to clear the queue",
+    "queueSave": "Save as local playlist",
+    "queueSaved": "Saved as the local playlist “{{name}}”",
+    "queueSaveFailed": "Couldn’t save the playlist",
+    "queueDragHandle": "Drag to reorder",
+    "queueMoved": "Moved to position {{position}}",
+    "openPlayer": "Open the player",
+    "openPlayerUnavailable": "Nothing is playing yet",
+    "goHome": "Go to Home",
+    "wallSection": "Wall"
   },
   "libraryBravaisHome": {
     "hide": "Hide",
@@ -1252,7 +1269,6 @@ export default {
     "latticeLightsOn": "Lights on",
     "latticeLightsOff": "Lights off",
     "latticeTools": "Lattice tools",
-    "latticeOpenQueueCommand": "Open queue command",
     "latticeHelp": "Operation guide",
     "latticeHelpPoster": "Press Enter to expand the selected song, then Enter again to play",
     "latticeHelpReturn": "Back",
@@ -2597,6 +2613,9 @@ export default {
     "useSystemProxyAIDesc": "Route strictly AI requests through system proxy.",
     "geminiApiKey": "Gemini API Key",
     "openaiApiKey": "OpenAI API Key",
+    "aiApiKeySavedPlaceholder": "Saved (leave blank to keep it)",
+    "aiApiKeySavedDesc": "The key is stored encrypted on this device and is not shown again. Enter a new key and save to replace it.",
+    "aiApiKeyClear": "Clear",
     "openaiApiUrl": "OpenAI API URL",
     "openaiApiModel": "OpenAI Model",
     "openaiApiModelDesc": "Required by many OpenAI-compatible providers. Examples: gpt-5.6-luna, gpt-4.1-mini, deepseek-v4-flash.",
@@ -2606,7 +2625,7 @@ export default {
     "openaiApiStreamDesc": "Turn on only if your provider requires streaming; the result is still parsed after it has been fully received.",
     "aiTestConnection": "Test connection",
     "aiTestRunning": "Testing...",
-    "aiTestConnectionDesc": "Sends a \"hello\" to the endpoint using the values currently in the form (no need to save first).",
+    "aiTestConnectionDesc": "Sends a \"hello\" to the endpoint using the values currently in the form (no need to save first). A blank key field uses the saved key.",
     "aiTestSuccess": "Connected",
     "aiTestFailed": "Connection failed",
     "aiTestDuration": "Time",
@@ -3084,6 +3103,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "Private QQ Music Playlists",
         "description": "When signed in, your own private playlists now load their songs, with real paging. Self-hosted backends must run qq-music-api 3.1.2 or later; older backends fall back automatically, and a playlist that cannot be read now says it is not public instead of silently showing as empty."
+      }
+    },
+    "v0_7_18": {
+      "intro": "0.7.18 adds a play queue you can work with right from the wall tools in Bravais and Lattice, and both walls now share one tools panel. Several lyric visualizers use fewer resources, switching between local songs is smoother, QQ Music QR sign-in tells you what to do when your device limit is reached, and the desktop app now stores AI keys encrypted.",
+      "queueIsland": {
+        "title": "Manage the Queue on the Wall",
+        "description": "Open Wall tools in the bottom-right corner of Bravais or Lattice and choose Play queue to show the queue above the panel. Click a song to play it without leaving the page, drag the handle to reorder, hover to play next, move to the end or remove, save the queue as a local playlist, or clear it with a two-step confirm. Keyboard: ↑↓ to move, Alt+↑↓ to reorder, Delete to remove. Not available in Personal FM; while an external Stage is playing you can only pick songs."
+      },
+      "wallTools": {
+        "title": "One Tools Panel for Both Walls",
+        "description": "Wall tools in Bravais and Lattice now share one layout: a row of six quick buttons (locate the playing song, shuffle the queue, generate a theme, play queue, go to Lattice or Home, open the player), then volume, wall appearance, poster tint and lighting. The panel is more compact, and Lattice's old queue commands row is replaced by the queue."
+      },
+      "visualizerPerf": {
+        "title": "Lighter Lyric Visualizers",
+        "description": "Sonnet, Tempera, Lumiere, Mindscape, Claddagh, Monet, Pendolo and the Latent background now redo far less work each frame. Pendolo's clockwork is drawn with WebGL2, and changing Sonnet's settings no longer rebuilds its canvas. Graphics contexts are released when you switch modes, so switching back and forth no longer pushes out other visualizers."
+      },
+      "localPlayback": {
+        "title": "Smoother Local Song Changes",
+        "description": "Moving to the next local song no longer stutters: covers and online matches prepared in advance are used right away instead of being extracted and matched again when the song changes, and song changes are faster in large libraries."
+      },
+      "qqDeviceLimit": {
+        "title": "QQ Sign-in Explains the Device Limit",
+        "description": "When a QQ Music QR sign-in fails because the account has reached its device limit, the sign-in panel now says so and walks you through removing old devices (Settings → Device Management in the QQ Music app, then scan again) instead of pointing to your network. On the web version this is only detected for WeChat QR sign-in for now."
+      },
+      "aiKeySecure": {
+        "title": "Encrypted AI Keys on Desktop",
+        "description": "The desktop app now stores Gemini / OpenAI keys encrypted with the system's secure storage, and plain-text keys from older versions are migrated at startup. Saved keys are never shown again: leave the field blank to keep a key, type a new one to replace it, or use the separate Clear button. Testing the connection with a blank field uses the saved key."
       }
     },
     "v0_7_17": {
@@ -4593,7 +4639,7 @@ export default {
         "filterType": "To find something on this wall, just type on the wall: a filter field appears in the strip, and the wall shrinks to only the matches, laid out around the strip.",
         "filterKeys": "Filtering never goes online; it only narrows the wall in front of you. Esc clears the text first, then ends typing; ↓ or Enter hands focus to the first tile on the wall.",
         "filterSearch": "The magnifier is the online search (on the home page you can also press /): the whole strip turns into a boxed search field, and submitting takes you to the search page.",
-        "toolsQuick": "The button in the bottom-right corner is the wall tools. The top row holds one-shot actions: locate the playing song, shuffle the queue, generate a theme for this song, go to Lattice.",
+        "toolsQuick": "The button in the bottom-right corner is the wall tools. The row of icons on top holds one-shot actions: locate the playing song, shuffle the queue, generate a theme for this song, the play queue, go to Lattice, open the player. Hover an icon to see its name and shortcut.",
         "toolsVolume": "In the middle is the volume, the same one as on the player bar; click the icon on its left to mute.",
         "toolsAppearance": "At the bottom is the wall appearance: transparency cycles through three levels, plus poster tint and lights on / off. Swipe the button left to open the command palette directly."
       },
@@ -4764,7 +4810,7 @@ export default {
         "latticeFocusKeys": "Arrow keys first adopt the nearest poster to the viewport center, then move spatially and pan the camera to keep the next target visible.",
         "latticePosterOpen": "Click or press Enter to expand a poster. The current song shows synchronized lyrics; another song shows its title and play entry without reordering the queue.",
         "latticeChrome": "The expanded poster contains play/pause, extra slots, time, scrubbing, and Open Player. Tap the expanded poster again, or press Space, to reveal or hide it.",
-        "latticeTools": "The bottom-right tools focus the current song, follow track changes, open the queue command, switch lights, and show key help. Sliding the button left opens commands.",
+        "latticeTools": "The bottom-right tools match the library wall: the icon row focuses the current song, shuffles the queue, generates a theme, shows the play queue, goes home and opens the player; below are volume, follow track changes, lights and key help. Sliding the button left opens commands.",
         "latticeLights": "Lights Off dims the wall while retaining its structure. It is only a display setting: playback and queue order are unchanged.",
         "latticePosterKeys": "Enter or Space expands a closed poster. Once open, Enter plays or pauses, Space toggles controls, and Escape collapses and clears focus first.",
         "latticePageKeys": ": + C focuses the current song, {{mod}} + P opens the queue, {{mod}} + B goes back, {{mod}} + K opens the command window; arrow keys move poster focus.",

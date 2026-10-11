@@ -7,7 +7,8 @@ import { getSongReplacement, isSongUnavailable } from '../services/onlineMusic/s
 import { getSongResourceCacheKey } from '../services/onlineMusic/resourceKeys';
 import { omni } from '../services/onlineMusic/omni';
 import { getCachedSongCoverUrl, hasCachedSongAudio } from '../services/onlineMusic/resourceCache';
-import { getPrefetchedData, invalidateAndRefetch, prefetchNearbySongs } from '../services/prefetchService';
+import { getPrefetchedData, invalidateAndRefetch, prefetchNearbySongs, refreshPrefetchAfterQueueEdit } from '../services/prefetchService';
+import { getLocalSong } from '../services/db';
 import { retireBlobUrl } from '../services/playbackBlobUrls';
 import type { ThemeCacheSongKey } from '../services/themeCache';
 import { loadOnlineLyricsState } from '../utils/onlineLyricsState';
@@ -25,6 +26,7 @@ import {
     resolveNavidromePlaybackCarrier,
 } from '../utils/appPlaybackGuards';
 import { applyQueueAddBehavior } from '../utils/queueAddBehavior';
+import { moveQueueItem } from '../utils/queueReorder';
 import { buildStagePlayerSnapshot, resolveStagePlayerQueueItemIndex } from '../utils/stagePlayerSnapshot';
 import type { LocalLibraryDisplayCatalog } from '../services/playbackAdapters';
 import type { SearchReturnView, SearchSource } from '../stores/useSearchNavigationStore';
@@ -505,7 +507,12 @@ export function usePlaybackQueueController({
         }
 
         if (isLocal) {
-            const localData = localSongs.find(ls => ls.id === song.localRef.songId) ?? null;
+            // 从库里按 id 取这一首的最新记录，而不是只信 localSongs 状态：邻近预热、匹配写回都先落库，
+            // 状态里的对象可能还是旧快照，拿旧快照会在出声前重新提取封面、出声后重新联网匹配。读不到时退回状态里的记录。
+            const localData = (await getLocalSong(song.localRef.songId))
+                ?? localSongs.find(ls => ls.id === song.localRef.songId)
+                ?? null;
+            if (!isLatestPlaybackRequest()) return;
 
             if (!localData) {
                 setStatusMsg({ type: 'error', text: t('status.localFilePlaybackError') });
@@ -1226,12 +1233,10 @@ export function usePlaybackQueueController({
                 if (fromIndex < 0 || toIndex < 0 || toIndex >= baseQueue.length) {
                     throw new Error('Queue move requires valid from and to indexes.');
                 }
-                nextQueue = [...baseQueue];
-                const [movedSong] = nextQueue.splice(fromIndex, 1);
-                if (!movedSong) {
+                if (!baseQueue[fromIndex]) {
                     throw new Error('Queue item was not found.');
                 }
-                nextQueue.splice(toIndex, 0, movedSong);
+                nextQueue = moveQueueItem(baseQueue, fromIndex, toIndex);
                 diffDraft = fromIndex === toIndex ? { ops: [] } : { ops: [{ op: 'move', from: fromIndex, to: toIndex }] };
             } else if (request.action === 'select') {
                 const selectIndex = resolveStageQueueIndex(baseQueue, request);
@@ -1259,6 +1264,11 @@ export function usePlaybackQueueController({
 
             setPlayQueue(nextQueue);
             void persistLastPlaybackCache(currentSong, nextQueue);
+            // 舞台的就地编辑（move / remove）与应用里的就地编辑（createQueueMutations.updateQueueOrder）一样：
+            // 正在播放那首前后的预取窗口变了就重新预取。
+            if (request.action === 'move' || request.action === 'remove') {
+                refreshPrefetchAfterQueueEdit(currentSong, baseQueue, nextQueue, audioQuality, userId);
+            }
             await complete(
                 true,
                 null,
@@ -1272,7 +1282,7 @@ export function usePlaybackQueueController({
             console.warn('[Stage] Failed to handle player queue request', error);
             await complete(false, error);
         }
-    }, [activePlaybackContext, buildStageQueueOperationSnapshot, currentSong, isFmMode, isNowPlayingStageActive, loadStageQueueSongs, persistLastPlaybackCache, playQueue, playSong, resolveStageQueueIndex, setPlayQueue, setStatusMsg, t]);
+    }, [activePlaybackContext, audioQuality, buildStageQueueOperationSnapshot, currentSong, isFmMode, isNowPlayingStageActive, loadStageQueueSongs, persistLastPlaybackCache, playQueue, playSong, resolveStageQueueIndex, setPlayQueue, setStatusMsg, t, userId]);
 
     useEffect(() => {
         if (!window.electron?.onStagePlayerQueueRequest) {

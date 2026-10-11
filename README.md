@@ -196,7 +196,7 @@ npm run build:win
 
 Folium là nền tảng Mod của Folia. Mod có thể bổ sung các chế độ diễn hoạt lời bài hát mới, loại hình nền, các lớp phủ trên trang phát nhạc, nút bấm trên thanh tiến trình, đăng ký lệnh điều khiển và gọi các công cụ cục bộ như ffmpeg thông qua Node. Mod chạy với quyền mã nguồn tin cậy; mỗi mod trước khi bật đều phải được xác nhận trong cửa sổ gốc.
 
-- **Chợ Mod**: [folium-compound.vercel.app](https://folium-compound.vercel.app) cung cấp các mod chính thức và mod cộng đồng đã qua kiểm duyệt. Sau khi tải tệp zip, kéo thả vào bảng Mod để cài đặt.
+- **Chợ Mod**: [folium-compound.cielaniska.top](https://folium-compound.cielaniska.top) cung cấp các mod chính thức và mod cộng đồng đã qua kiểm duyệt. Sau khi tải tệp zip, kéo thả vào bảng Mod để cài đặt.
 - **Xác nhận chính thức**: Mod trên chợ có chữ ký của Folium, hiển thị "Chứng nhận chính thức"; mod bên thứ ba không có chữ ký sẽ hiển thị "Chưa xác minh", nhưng vẫn sử dụng bình thường.
 - **Phát triển & Đóng góp**: [Hướng dẫn phát triển và đóng góp Mod](docs/folium/contributing.md).
 - **Tham khảo API**: [Tài liệu API Folium](docs/folium/api.md).

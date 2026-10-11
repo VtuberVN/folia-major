@@ -117,6 +117,7 @@
 - `dev/probes/themePark.probe.tsx`
 - `dev/probes/trackTitleNavigator.probe.tsx`
 - `dev/probes/visualizerMemory.probe.tsx`
+- `dev/probes/wallToolsIsland.probe.tsx`
 - `dev/probes/wallpaperEntryConfirm.probe.tsx`
 
 ### `src/components/ponder/ponderRegistry.ts`

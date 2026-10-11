@@ -582,6 +582,53 @@ export const clearPrefetchRuntime = (): void => {
 };
 
 /**
+ * 正在播放那首的预取窗口（前 PREFETCH_COUNT_PREV 首、它自己、后 PREFETCH_COUNT_NEXT 首）的身份串；
+ * 当前歌不在队列里时是空串。队列被编辑（拖拽排序、下一首播放、移到末尾、移除）前后这个串变了，才需要重新预取。
+ */
+export const getPrefetchWindowKey = (currentSong: SongResult, queue: readonly SongResult[]): string => {
+    const currentSongKey = getPrefetchSongKey(currentSong);
+    const currentIndex = queue.findIndex(song => getPrefetchSongKey(song) === currentSongKey);
+    if (currentIndex < 0) return '';
+    return queue
+        .slice(Math.max(0, currentIndex - PREFETCH_COUNT_PREV), currentIndex + PREFETCH_COUNT_NEXT + 1)
+        .map(getPrefetchSongKey)
+        .join('|');
+};
+
+/**
+ * 队列被就地编辑（拖拽排序、下一首播放、移到末尾、移除、批量操作、Electron 舞台的 move / remove）之后要不要重新预取：
+ * 正在播放那首前后的预取窗口变了才要。编辑后当前歌不在队列里（窗口键为空）时不要——prefetchNearbySongs 表达不了
+ * 「当前歌不在队列里」：invalidateAndRefetch 会先按新队列清缓存（把当前歌自己的预取删掉）、中止进行中的邻近预取，
+ * 然后因为找不到当前歌直接返回、不再重启，setAnalysisScope 还会把原来的下一首踢出分析范围。保留旧窗口的预取更正确：
+ * 下一次切歌（handleNextTrack 在当前歌不在队列里时回到队首）会照常按新队列预取。
+ */
+export const shouldRefreshPrefetchAfterQueueEdit = (
+    currentSong: SongResult | null,
+    previousQueue: readonly SongResult[],
+    nextQueue: SongResult[],
+): currentSong is SongResult => {
+    if (!currentSong || nextQueue === previousQueue || nextQueue.length <= 1) return false;
+    const nextWindowKey = getPrefetchWindowKey(currentSong, nextQueue);
+    return nextWindowKey !== '' && nextWindowKey !== getPrefetchWindowKey(currentSong, previousQueue);
+};
+
+/**
+ * 队列就地编辑之后：预取窗口变了就与洗牌一样重新预取。automix 与「下一首」提示每次都读 store 里最新的队列，能感知顺序
+ * 变化；但下一首的地址与歌词只在切歌与洗牌时预取，不补这一步的话，刚挪到下一首的那首到交叉淡入时还没有预取数据
+ * （混音只能盲排、不能预热）。所有就地编辑都经这里（createQueueMutations.updateQueueOrder 与舞台的队列请求）。
+ */
+export const refreshPrefetchAfterQueueEdit = (
+    currentSong: SongResult | null,
+    previousQueue: readonly SongResult[],
+    nextQueue: SongResult[],
+    audioQuality: AudioQualityPreference,
+    userId?: MediaId | null,
+): void => {
+    if (!shouldRefreshPrefetchAfterQueueEdit(currentSong, previousQueue, nextQueue)) return;
+    void invalidateAndRefetch(currentSong, nextQueue, audioQuality, userId);
+};
+
+/**
  * Force re-prefetch (e.g., after queue shuffle)
  */
 export const invalidateAndRefetch = async (
