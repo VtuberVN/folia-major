@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertCircle, Check, Loader2, RotateCcw, Server, Trash2 } from 'lucide-react';
+import { Activity, AlertCircle, Check, ExternalLink, Key, Loader2, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getStoredZingCookie, setStoredZingCookie } from '../../../services/onlineMusic/zingApi';
+import {
+    clearSpotifyAuth,
+    getSpotifyAuthUrl,
+    getSpotifyClientId,
+    getSpotifyClientSecret,
+    getStoredSpotifyAccessToken,
+    setSpotifyCredentials,
+    setSpotifyUserToken,
+} from '../../../services/onlineMusic/spotify/spotifyAuth';
 import { useShallow } from 'zustand/react/shallow';
 import type { NowPlayingConnectionStatus, StageSource, StageStatus, Theme } from '../../../types';
 import type { NavidromeServerProfile } from '../../../types/navidrome';
@@ -174,6 +184,16 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const [obsAddressCopied, setObsAddressCopied] = useState(false);
     const [lyricApiAddressCopied, setLyricApiAddressCopied] = useState(false);
     const [obsUrlCopied, setObsUrlCopied] = useState(false);
+
+    // Zing MP3 Cookie
+    const [zingCookie, setZingCookie] = useState(() => getStoredZingCookie());
+    const [zingSaved, setZingSaved] = useState(false);
+
+    // Spotify Credentials & Token
+    const [spotifyClientId, setSpotifyClientId] = useState(() => getSpotifyClientId());
+    const [spotifyClientSecret, setSpotifyClientSecret] = useState(() => getSpotifyClientSecret());
+    const [spotifyTokenInput, setSpotifyTokenInput] = useState(() => getStoredSpotifyAccessToken());
+    const [spotifySaved, setSpotifySaved] = useState(false);
     // PlayerCap config: the subview reads the store directly (fewer layers); connection state/players are passed in by the stage model.
     const {
         playerCapHost,
@@ -921,6 +941,150 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                             {t('navidrome.restoreServerPresetFailed') || 'Could not reach the server preset. Try again later.'}
                         </p>
                     )}
+                </div>
+            </SettingsAnchor>
+
+            {/* Zing MP3 VIP Cookie Settings */}
+            <SettingsAnchor anchorId="zing-cookie" label="Zing MP3">
+                <SettingsSectionHeading
+                    icon={Music}
+                    label="Zing MP3 (Tài khoản & Cookie VIP)"
+                />
+                <div className={`${settingsCardClass} p-5 space-y-4`}>
+                    <div>
+                        <label className="block text-xs font-semibold mb-1.5 opacity-80">
+                            Cookie Zing MP3 (zpsid, _zlang, ...)
+                        </label>
+                        <input
+                            type="text"
+                            value={zingCookie}
+                            onChange={e => setZingCookie(e.target.value)}
+                            placeholder="Dán chuỗi Cookie từ trình duyệt zingmp3.vn (ví dụ: zpsid=...; _zlang=...)"
+                            className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-xs"
+                        />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                setStoredZingCookie(zingCookie);
+                                setZingSaved(true);
+                                setStatusMessage({ type: 'success', text: 'Đã lưu cấu hình Cookie Zing MP3!' });
+                                setTimeout(() => setZingSaved(false), 2000);
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                        >
+                            {zingSaved ? <Check size={16} /> : <Music size={16} />}
+                            {zingSaved ? 'Đã lưu!' : 'Lưu Cookie'}
+                        </button>
+                        {zingCookie && (
+                            <button
+                                onClick={() => {
+                                    setZingCookie('');
+                                    setStoredZingCookie('');
+                                    setStatusMessage({ type: 'info', text: 'Đã xóa Cookie Zing MP3.' });
+                                }}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                            >
+                                <Trash2 size={16} />
+                                Xóa
+                            </button>
+                        )}
+                        <span className="text-xs opacity-60">
+                            {zingCookie ? '✓ Đang kích hoạt Cookie người dùng' : '• Đang dùng chế độ mặc định (128kbps không cần đăng nhập)'}
+                        </span>
+                    </div>
+                </div>
+            </SettingsAnchor>
+
+            {/* Spotify Integration Settings */}
+            <SettingsAnchor anchorId="spotify-integration" label="Spotify">
+                <SettingsSectionHeading
+                    icon={Key}
+                    label="Spotify (Web API & Tài khoản)"
+                />
+                <div className={`${settingsCardClass} p-5 space-y-4`}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold mb-1 opacity-80">
+                                Spotify Client ID
+                            </label>
+                            <input
+                                type="text"
+                                value={spotifyClientId}
+                                onChange={e => setSpotifyClientId(e.target.value)}
+                                placeholder="Client ID từ Spotify Developer Dashboard"
+                                className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold mb-1 opacity-80">
+                                Spotify Client Secret (Tùy chọn)
+                            </label>
+                            <input
+                                type="password"
+                                value={spotifyClientSecret}
+                                onChange={e => setSpotifyClientSecret(e.target.value)}
+                                placeholder="Client Secret (để tự động cấp token)"
+                                className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold mb-1 opacity-80">
+                            Access Token người dùng (Dán trực tiếp hoặc bấm Đăng nhập)
+                        </label>
+                        <input
+                            type="text"
+                            value={spotifyTokenInput}
+                            onChange={e => setSpotifyTokenInput(e.target.value)}
+                            placeholder="Bearer Token người dùng Spotify"
+                            className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                        />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={() => {
+                                setSpotifyCredentials(spotifyClientId, spotifyClientSecret);
+                                if (spotifyTokenInput) {
+                                    setSpotifyUserToken(spotifyTokenInput);
+                                }
+                                setSpotifySaved(true);
+                                setStatusMessage({ type: 'success', text: 'Đã lưu cấu hình Spotify!' });
+                                setTimeout(() => setSpotifySaved(false), 2000);
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+                        >
+                            {spotifySaved ? <Check size={16} /> : <Key size={16} />}
+                            {spotifySaved ? 'Đã lưu!' : 'Lưu cấu hình'}
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                const url = getSpotifyAuthUrl();
+                                if (typeof window !== 'undefined' && window.open) {
+                                    window.open(url, '_blank', 'width=600,height=700');
+                                }
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-white/10 hover:bg-white/15 text-white flex items-center gap-2"
+                        >
+                            <ExternalLink size={16} />
+                            Đăng nhập Spotify (OAuth)
+                        </button>
+
+                        {spotifyTokenInput && (
+                            <button
+                                onClick={() => {
+                                    setSpotifyTokenInput('');
+                                    clearSpotifyAuth();
+                                    setStatusMessage({ type: 'info', text: 'Đã xóa phiên đăng nhập Spotify.' });
+                                }}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                            >
+                                <Trash2 size={16} />
+                                Đăng xuất
+                            </button>
+                        )}
+                    </div>
                 </div>
             </SettingsAnchor>
         </>

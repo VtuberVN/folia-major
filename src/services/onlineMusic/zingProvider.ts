@@ -1,0 +1,140 @@
+// src/services/onlineMusic/zingProvider.ts
+// Zing MP3 provider for Folia - provides search, playback streaming, and lyrics.
+
+import type { SongResult, UnifiedSong } from '../../types';
+import type {
+    OnlineMusicProvider,
+    ProviderAudioSource,
+    ProviderLyricsResult,
+    ProviderSongAvailability,
+    ProviderUser,
+} from '../../types/onlineMusic';
+import { OnlineProviderError } from '../../types/onlineMusic';
+import { createProviderSongMetadata } from '../../utils/songMetadata';
+import {
+    getStoredZingCookie,
+    getZingAudioSource,
+    getZingLyric,
+    getZingSongDetail,
+    searchZingSongs,
+    setStoredZingCookie,
+} from './zingApi';
+
+export const zingProvider: OnlineMusicProvider = {
+    id: 'zing',
+    displayName: 'Zing MP3',
+    shortName: 'Zing MP3',
+    getAvailability: () => ({ configured: true }),
+    capabilities: {
+        search: true,
+        playback: true,
+        lyrics: true,
+        auth: true,
+        wordByWordLyrics: true,
+        userLibrary: false,
+        playlists: false,
+        albums: false,
+        artists: false,
+        recommendations: false,
+        mutations: false,
+    },
+    normalizeSong(raw: unknown): UnifiedSong {
+        const item = raw as any;
+        return {
+            id: item.id || '',
+            name: item.name || item.title || '',
+            artists: item.artists || [{ id: 0, name: item.artist || 'Zing MP3' }],
+            album: item.album || { id: 0, name: 'Zing MP3' },
+            durationMs: item.durationMs || 0,
+            sourceRef: item.sourceRef || { kind: 'online', providerId: 'zing', mediaId: String(item.id || '') },
+        };
+    },
+    normalizeUser(raw: unknown): ProviderUser {
+        const item = raw as any;
+        return {
+            id: item?.id || 'zing_user',
+            nickname: item?.nickname || 'Zing MP3 User',
+            avatarUrl: item?.avatarUrl,
+            vipType: item?.vipType,
+        };
+    },
+    songMetadata: {
+        getSongMetadata: createProviderSongMetadata,
+    },
+    getSongPageUrl(song: SongResult): string | null {
+        return song.id ? `https://zingmp3.vn/bai-hat/${encodeURIComponent(String(song.id))}.html` : null;
+    },
+    search: {
+        async searchSongs(query: string, limit: number, offset: number) {
+            const items = await searchZingSongs(query, limit);
+            return {
+                items,
+                total: items.length,
+                hasMore: false,
+                nextOffset: offset + items.length,
+            };
+        },
+    },
+    playback: {
+        async getSongDetail(id) {
+            return getZingSongDetail(String(id));
+        },
+        async getAudioSource(song, quality): Promise<ProviderAudioSource | null> {
+            const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
+            const stream = await getZingAudioSource(mediaId);
+
+            if (!stream) {
+                return null;
+            }
+
+            if (stream.isVipOnly) {
+                throw new OnlineProviderError(
+                    'auth-required',
+                    'Bài hát này chỉ dành cho tài khoản VIP Zing MP3. Vui lòng cấu hình Cookie VIP trong Cài đặt.',
+                    'zing'
+                );
+            }
+
+            if (!stream.url) {
+                return null;
+            }
+
+            return {
+                url: stream.url,
+                fetchedAt: Date.now(),
+                quality: stream.quality,
+            };
+        },
+        getAvailability(_song): ProviderSongAvailability {
+            return { state: 'playable' };
+        },
+    },
+    lyrics: {
+        async getLyrics(song): Promise<ProviderLyricsResult> {
+            const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
+            const lyrics = await getZingLyric(mediaId);
+            return {
+                lyrics,
+                mainText: null,
+                wordByWordText: null,
+                translationText: null,
+                romanizationText: null,
+                isPureMusic: false,
+            };
+        },
+    },
+    auth: {
+        async getLoginStatus(): Promise<ProviderUser | null> {
+            const cookie = getStoredZingCookie();
+            if (!cookie) return null;
+            return {
+                id: 'zing_user',
+                nickname: 'Zing VIP User',
+                vipType: 1,
+            };
+        },
+        async logout(): Promise<void> {
+            setStoredZingCookie('');
+        },
+    },
+};

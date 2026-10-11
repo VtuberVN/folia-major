@@ -79,6 +79,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
     const sources = useMemo<SearchSource[]>(() => [
         activeOnlineProviderId,
+        'spotify',
         'zing',
         'nct',
         'local',
@@ -88,6 +89,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'local') return t('search.sourceLocal');
         if (source === 'navidrome') return t('search.sourceNavidrome');
+        if (source === 'spotify') return 'Spotify';
         if (source === 'zing') return 'Zing MP3';
         if (source === 'nct') return 'NhacCuaTui';
         if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
