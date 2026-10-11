@@ -63,7 +63,7 @@ const getWebApiBase = (): string => {
     const processValue = typeof process !== 'undefined'
         ? String(process.env?.VITE_KUGOU_API_BASE || '')
         : '';
-    const value = viteValue || processValue;
+    const value = viteValue || processValue || (typeof window !== 'undefined' && !(window as any).electron ? '/kugou' : '');
     return value.trim().replace(/\/$/, '');
 };
 

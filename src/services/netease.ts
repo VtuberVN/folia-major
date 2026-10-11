@@ -33,6 +33,11 @@ const getConfiguredApiBase = () => {
     return process.env.VITE_NETEASE_API_BASE;
   }
 
+  // Fallback for Web deployment under gateway proxy
+  if (typeof window !== 'undefined' && !isElectronRuntime()) {
+    return '/netease';
+  }
+
   return null;
 };
 
