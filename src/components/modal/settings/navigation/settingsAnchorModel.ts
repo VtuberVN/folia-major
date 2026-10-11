@@ -51,6 +51,8 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     lyricApi: { section: 'integration', labelKey: 'options.lyricApi', electronOnly: true },
     stageMode: { section: 'integration', labelKey: 'options.stageMode' },
     navidrome: { section: 'integration', labelKey: 'navidrome.settings' },
+    zingCookie: { section: 'integration', labelKey: 'zing.title' },
+    spotifyIntegration: { section: 'integration', labelKey: 'spotify.title' },
 
     // StorageSettingsSection (LocalLibraryWatchSection renders inside it)
     cacheDetails: { section: 'storage', labelKey: 'options.cacheDetails' },

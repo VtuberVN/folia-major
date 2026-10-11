@@ -5838,6 +5838,109 @@ ipcMain.handle('open-external-url', (event, url) => {
   return openExternalUrl(url);
 });
 
+ipcMain.handle('auth-open-zing-login', async () => {
+  return new Promise((resolve) => {
+    let settled = false;
+    const loginWin = new BrowserWindow({
+      width: 500,
+      height: 650,
+      title: 'Đăng nhập Zing MP3',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const checkCookies = async () => {
+      try {
+        if (!loginWin || loginWin.isDestroyed()) return;
+        const cookies = await loginWin.webContents.session.cookies.get({ domain: 'zingmp3.vn' });
+        const zpsid = cookies.find(c => c.name === 'zpsid');
+        if (zpsid && zpsid.value) {
+          if (!settled) {
+            settled = true;
+            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            loginWin.close();
+            resolve({ success: true, cookie: cookieStr });
+          }
+        }
+      } catch {
+        // window closing
+      }
+    };
+
+    const interval = setInterval(checkCookies, 1200);
+
+    loginWin.webContents.on('did-navigate', checkCookies);
+    loginWin.webContents.on('did-navigate-in-page', checkCookies);
+
+    loginWin.on('closed', () => {
+      clearInterval(interval);
+      if (!settled) {
+        settled = true;
+        resolve({ success: false, error: 'cancelled' });
+      }
+    });
+
+    loginWin.loadURL('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F');
+  });
+});
+
+ipcMain.handle('auth-open-spotify-login', async (event, authUrl) => {
+  return new Promise((resolve) => {
+    let settled = false;
+    const authWin = new BrowserWindow({
+      width: 500,
+      height: 700,
+      title: 'Đăng nhập Spotify',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const handleUrl = (url) => {
+      if (!url) return false;
+      if (url.includes('access_token=')) {
+        try {
+          const hashIndex = url.indexOf('#');
+          const fragment = hashIndex >= 0 ? url.slice(hashIndex + 1) : url.slice(url.indexOf('?') + 1);
+          const params = new URLSearchParams(fragment);
+          const accessToken = params.get('access_token');
+          const expiresIn = Number(params.get('expires_in')) || 3600;
+          if (accessToken) {
+            settled = true;
+            authWin.close();
+            resolve({ success: true, accessToken, expiresIn });
+            return true;
+          }
+        } catch {
+          // parse error
+        }
+      }
+      return false;
+    };
+
+    authWin.webContents.on('will-redirect', (e, newUrl) => {
+      if (handleUrl(newUrl)) e.preventDefault();
+    });
+    authWin.webContents.on('will-navigate', (e, newUrl) => {
+      if (handleUrl(newUrl)) e.preventDefault();
+    });
+
+    authWin.on('closed', () => {
+      if (!settled) {
+        settled = true;
+        resolve({ success: false, error: 'cancelled' });
+      }
+    });
+
+    authWin.loadURL(authUrl);
+  });
+});
+
 ipcMain.handle('updates-download', () => {
   return downloadAvailableUpdate();
 });

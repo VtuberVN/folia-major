@@ -852,6 +852,8 @@ declare global {
       markUpdateSeen: (version?: string | null) => Promise<ElectronUpdateStatus>;
       openUpdateReleasePage: (version?: string | null) => Promise<boolean>;
       openExternalUrl: (url: string) => Promise<boolean>;
+      openZingLogin: () => Promise<{ success: boolean; cookie?: string; error?: string }>;
+      openSpotifyLogin: (authUrl: string) => Promise<{ success: boolean; accessToken?: string; expiresIn?: number; error?: string }>;
       downloadUpdate: () => Promise<ElectronUpdateStatus>;
       quitAndInstallUpdate: () => Promise<boolean>;
       onUpdateStatusChanged: (callback: (status: ElectronUpdateStatus) => void) => () => void;

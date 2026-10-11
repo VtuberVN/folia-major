@@ -102,6 +102,8 @@ contextBridge.exposeInMainWorld('electron', {
     markUpdateSeen: (version) => ipcRenderer.invoke('updates-mark-seen', version),
     openUpdateReleasePage: (version) => ipcRenderer.invoke('updates-open-release-page', version),
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
+    openZingLogin: () => ipcRenderer.invoke('auth-open-zing-login'),
+    openSpotifyLogin: (authUrl) => ipcRenderer.invoke('auth-open-spotify-login', authUrl),
     downloadUpdate: () => ipcRenderer.invoke('updates-download'),
     quitAndInstallUpdate: () => ipcRenderer.invoke('updates-quit-and-install'),
     onUpdateStatusChanged: (callback) => {

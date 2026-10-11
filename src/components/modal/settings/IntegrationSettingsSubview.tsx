@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertCircle, Check, ExternalLink, Key, Loader2, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
+import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getStoredZingCookie, setStoredZingCookie } from '../../../services/onlineMusic/zingApi';
 import {
@@ -185,15 +185,74 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const [lyricApiAddressCopied, setLyricApiAddressCopied] = useState(false);
     const [obsUrlCopied, setObsUrlCopied] = useState(false);
 
-    // Zing MP3 Cookie
+    // Zing MP3
     const [zingCookie, setZingCookie] = useState(() => getStoredZingCookie());
     const [zingSaved, setZingSaved] = useState(false);
+    const [isZingLoggingIn, setIsZingLoggingIn] = useState(false);
 
     // Spotify Credentials & Token
     const [spotifyClientId, setSpotifyClientId] = useState(() => getSpotifyClientId());
     const [spotifyClientSecret, setSpotifyClientSecret] = useState(() => getSpotifyClientSecret());
     const [spotifyTokenInput, setSpotifyTokenInput] = useState(() => getStoredSpotifyAccessToken());
     const [spotifySaved, setSpotifySaved] = useState(false);
+    const [isSpotifyLoggingIn, setIsSpotifyLoggingIn] = useState(false);
+
+    const handleZingWebLogin = async () => {
+        if (isElectron && window.electron?.openZingLogin) {
+            setIsZingLoggingIn(true);
+            try {
+                const res = await window.electron.openZingLogin();
+                if (res.success && res.cookie) {
+                    setZingCookie(res.cookie);
+                    setStoredZingCookie(res.cookie);
+                    setStatusMessage({ type: 'success', text: t('zing.loginSuccess') });
+                } else if (res.error !== 'cancelled') {
+                    setStatusMessage({ type: 'error', text: t('zing.loginFailed') });
+                }
+            } catch {
+                setStatusMessage({ type: 'error', text: t('zing.loginFailed') });
+            } finally {
+                setIsZingLoggingIn(false);
+            }
+        } else {
+            window.open('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F', '_blank', 'width=500,height=650');
+        }
+    };
+
+    const handleZingLogout = () => {
+        setZingCookie('');
+        setStoredZingCookie('');
+        setStatusMessage({ type: 'info', text: t('zing.clearSuccess') });
+    };
+
+    const handleSpotifyOAuthLogin = async () => {
+        const authUrl = getSpotifyAuthUrl();
+        if (isElectron && window.electron?.openSpotifyLogin) {
+            setIsSpotifyLoggingIn(true);
+            try {
+                const res = await window.electron.openSpotifyLogin(authUrl);
+                if (res.success && res.accessToken) {
+                    setSpotifyTokenInput(res.accessToken);
+                    setSpotifyUserToken(res.accessToken, res.expiresIn || 3600);
+                    setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
+                } else if (res.error !== 'cancelled') {
+                    setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });
+                }
+            } catch {
+                setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });
+            } finally {
+                setIsSpotifyLoggingIn(false);
+            }
+        } else {
+            window.open(authUrl, '_blank', 'width=520,height=700');
+        }
+    };
+
+    const handleSpotifyLogout = () => {
+        setSpotifyTokenInput('');
+        clearSpotifyAuth();
+        setStatusMessage({ type: 'info', text: t('spotify.clearSuccess') });
+    };
     // PlayerCap config: the subview reads the store directly (fewer layers); connection state/players are passed in by the stage model.
     const {
         playerCapHost,
@@ -944,147 +1003,216 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            {/* Zing MP3 VIP Cookie Settings */}
-            <SettingsAnchor anchorId="zing-cookie" label="Zing MP3">
+            {/* Zing MP3 Settings */}
+            <SettingsAnchor anchorId="zingCookie" label={t('zing.title')}>
                 <SettingsSectionHeading
                     icon={Music}
-                    label="Zing MP3 (Tài khoản & Cookie VIP)"
+                    label={t('zing.heading')}
                 />
                 <div className={`${settingsCardClass} p-5 space-y-4`}>
-                    <div>
-                        <label className="block text-xs font-semibold mb-1.5 opacity-80">
-                            Cookie Zing MP3 (zpsid, _zlang, ...)
-                        </label>
-                        <input
-                            type="text"
-                            value={zingCookie}
-                            onChange={e => setZingCookie(e.target.value)}
-                            placeholder="Dán chuỗi Cookie từ trình duyệt zingmp3.vn (ví dụ: zpsid=...; _zlang=...)"
-                            className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-xs"
-                        />
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => {
-                                setStoredZingCookie(zingCookie);
-                                setZingSaved(true);
-                                setStatusMessage({ type: 'success', text: 'Đã lưu cấu hình Cookie Zing MP3!' });
-                                setTimeout(() => setZingSaved(false), 2000);
-                            }}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-                        >
-                            {zingSaved ? <Check size={16} /> : <Music size={16} />}
-                            {zingSaved ? 'Đã lưu!' : 'Lưu Cookie'}
-                        </button>
-                        {zingCookie && (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs">
+                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
+                                zingCookie ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
+                            }`}>
+                                {zingCookie ? t('zing.activeCookie') : t('zing.guestMode')}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
                             <button
-                                onClick={() => {
-                                    setZingCookie('');
-                                    setStoredZingCookie('');
-                                    setStatusMessage({ type: 'info', text: 'Đã xóa Cookie Zing MP3.' });
-                                }}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                                type="button"
+                                onClick={handleZingWebLogin}
+                                disabled={isZingLoggingIn}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 disabled:opacity-50"
                             >
-                                <Trash2 size={16} />
-                                Xóa
+                                {isZingLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+                                {isZingLoggingIn ? t('zing.loggingIn') : t('zing.loginButton')}
                             </button>
-                        )}
-                        <span className="text-xs opacity-60">
-                            {zingCookie ? '✓ Đang kích hoạt Cookie người dùng' : '• Đang dùng chế độ mặc định (128kbps không cần đăng nhập)'}
-                        </span>
+
+                            {zingCookie && (
+                                <button
+                                    type="button"
+                                    onClick={handleZingLogout}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                                >
+                                    <Trash2 size={16} />
+                                    {t('zing.logoutButton')}
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    <p className="text-xs opacity-60">
+                        {t('zing.cookieHint')}
+                    </p>
+
+                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
+                            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                            {t('zing.advancedTitle')}
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold mb-1 opacity-80">
+                                    {t('zing.cookieLabel')}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={zingCookie}
+                                    onChange={e => setZingCookie(e.target.value)}
+                                    placeholder={t('zing.cookiePlaceholder')}
+                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-xs"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStoredZingCookie(zingCookie);
+                                        setZingSaved(true);
+                                        setStatusMessage({ type: 'success', text: t('zing.saveSuccess') });
+                                        setTimeout(() => setZingSaved(false), 2000);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1.5"
+                                >
+                                    {zingSaved ? <Check size={14} /> : <Music size={14} />}
+                                    {zingSaved ? t('zing.saved') : t('zing.saveCookie')}
+                                </button>
+                                {zingCookie && (
+                                    <button
+                                        type="button"
+                                        onClick={handleZingLogout}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
+                                    >
+                                        <Trash2 size={14} />
+                                        {t('zing.clear')}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </SettingsAnchor>
 
-            {/* Spotify Integration Settings */}
-            <SettingsAnchor anchorId="spotify-integration" label="Spotify">
+            {/* Spotify Settings */}
+            <SettingsAnchor anchorId="spotifyIntegration" label={t('spotify.title')}>
                 <SettingsSectionHeading
                     icon={Key}
-                    label="Spotify (Web API & Tài khoản)"
+                    label={t('spotify.heading')}
                 />
                 <div className={`${settingsCardClass} p-5 space-y-4`}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-semibold mb-1 opacity-80">
-                                Spotify Client ID
-                            </label>
-                            <input
-                                type="text"
-                                value={spotifyClientId}
-                                onChange={e => setSpotifyClientId(e.target.value)}
-                                placeholder="Client ID từ Spotify Developer Dashboard"
-                                className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                            />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs">
+                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
+                                spotifyTokenInput ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
+                            }`}>
+                                {spotifyTokenInput ? t('spotify.connected') : t('spotify.notConnected')}
+                            </span>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold mb-1 opacity-80">
-                                Spotify Client Secret (Tùy chọn)
-                            </label>
-                            <input
-                                type="password"
-                                value={spotifyClientSecret}
-                                onChange={e => setSpotifyClientSecret(e.target.value)}
-                                placeholder="Client Secret (để tự động cấp token)"
-                                className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold mb-1 opacity-80">
-                            Access Token người dùng (Dán trực tiếp hoặc bấm Đăng nhập)
-                        </label>
-                        <input
-                            type="text"
-                            value={spotifyTokenInput}
-                            onChange={e => setSpotifyTokenInput(e.target.value)}
-                            placeholder="Bearer Token người dùng Spotify"
-                            className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                        />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => {
-                                setSpotifyCredentials(spotifyClientId, spotifyClientSecret);
-                                if (spotifyTokenInput) {
-                                    setSpotifyUserToken(spotifyTokenInput);
-                                }
-                                setSpotifySaved(true);
-                                setStatusMessage({ type: 'success', text: 'Đã lưu cấu hình Spotify!' });
-                                setTimeout(() => setSpotifySaved(false), 2000);
-                            }}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
-                        >
-                            {spotifySaved ? <Check size={16} /> : <Key size={16} />}
-                            {spotifySaved ? 'Đã lưu!' : 'Lưu cấu hình'}
-                        </button>
 
-                        <button
-                            onClick={() => {
-                                const url = getSpotifyAuthUrl();
-                                if (typeof window !== 'undefined' && window.open) {
-                                    window.open(url, '_blank', 'width=600,height=700');
-                                }
-                            }}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-white/10 hover:bg-white/15 text-white flex items-center gap-2"
-                        >
-                            <ExternalLink size={16} />
-                            Đăng nhập Spotify (OAuth)
-                        </button>
-
-                        {spotifyTokenInput && (
+                        <div className="flex items-center gap-2">
                             <button
-                                onClick={() => {
-                                    setSpotifyTokenInput('');
-                                    clearSpotifyAuth();
-                                    setStatusMessage({ type: 'info', text: 'Đã xóa phiên đăng nhập Spotify.' });
-                                }}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                                type="button"
+                                onClick={handleSpotifyOAuthLogin}
+                                disabled={isSpotifyLoggingIn}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 disabled:opacity-50"
                             >
-                                <Trash2 size={16} />
-                                Đăng xuất
+                                {isSpotifyLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
+                                {isSpotifyLoggingIn ? t('spotify.loggingIn') : t('spotify.loginButton')}
                             </button>
-                        )}
+
+                            {spotifyTokenInput && (
+                                <button
+                                    type="button"
+                                    onClick={handleSpotifyLogout}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                                >
+                                    <Trash2 size={16} />
+                                    {t('spotify.logoutButton')}
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    <p className="text-xs opacity-60">
+                        {t('spotify.oauthHint')}
+                    </p>
+
+                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
+                            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                            {t('spotify.advancedTitle')}
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold mb-1 opacity-80">
+                                        {t('spotify.clientId')}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={spotifyClientId}
+                                        onChange={e => setSpotifyClientId(e.target.value)}
+                                        placeholder={t('spotify.clientIdPlaceholder')}
+                                        className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold mb-1 opacity-80">
+                                        {t('spotify.clientSecret')}
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={spotifyClientSecret}
+                                        onChange={e => setSpotifyClientSecret(e.target.value)}
+                                        placeholder={t('spotify.clientSecretPlaceholder')}
+                                        className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold mb-1 opacity-80">
+                                    {t('spotify.token')}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={spotifyTokenInput}
+                                    onChange={e => setSpotifyTokenInput(e.target.value)}
+                                    placeholder={t('spotify.tokenPlaceholder')}
+                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSpotifyCredentials(spotifyClientId, spotifyClientSecret);
+                                        if (spotifyTokenInput) {
+                                            setSpotifyUserToken(spotifyTokenInput);
+                                        }
+                                        setSpotifySaved(true);
+                                        setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
+                                        setTimeout(() => setSpotifySaved(false), 2000);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
+                                >
+                                    {spotifySaved ? <Check size={14} /> : <Key size={14} />}
+                                    {spotifySaved ? t('spotify.saved') : t('spotify.saveSettings')}
+                                </button>
+                                {spotifyTokenInput && (
+                                    <button
+                                        type="button"
+                                        onClick={handleSpotifyLogout}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
+                                    >
+                                        <Trash2 size={14} />
+                                        {t('spotify.clear')}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </SettingsAnchor>
         </>
