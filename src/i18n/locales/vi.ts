@@ -2853,9 +2853,9 @@ export default {
       "Để cài đặt hiệu ứng của hệ điều hành giảm chuyển động toàn bộ, như các phiên bản trước.",
     reduceMotionForcedBySystem:
       "Hiện đang bị giảm bởi cài đặt hệ thống phía trên.",
-    reduceMotionLattice: "Lattice (hàng đợi poster)",
+    reduceMotionLattice: "Queue collage",
     reduceMotionLatticeDesc:
-      "Mở rộng poster, góc máy lướt, sóng mở màn, quán tính kéo và hiệu ứng mờ lời trên hàng đợi Lattice.",
+      "Mở rộng poster, góc máy lướt, sóng mở màn, quán tính kéo và hiệu ứng mờ lời trên Queue collage.",
     reduceMotionTransitionOverlay: "Chuyển tiếp hòa âm",
     reduceMotionTransitionOverlayDesc:
       "Vòng tiến trình automix và viền tiến trình hiển thị quanh thẻ đang phát.",
