@@ -1512,7 +1512,7 @@ export default {
         description: "Duyệt bố cục nền và nhấp để chuyển",
       },
       "visualizer-still": {
-        title: "Hiệu ứng thị giác: Tĩnh",
+        title: "Hiệu ứng thị giác: Still",
         description: "Chuyển sang hiệu ứng tĩnh tiết kiệm tài nguyên",
       },
       "visualizer-classic": {
@@ -4920,7 +4920,7 @@ export default {
         "Chế độ xem lời bài hát đơn có thể tùy biến, kết hợp nhiều hoạt ảnh lời và hình nền.",
     },
     lattice: {
-      title: "Lattice (hàng đợi poster)",
+      title: "Không gian Poster",
       description:
         "Toàn bộ hàng đợi phát xếp thành không gian poster 3D, bài đang phát được phóng to nổi bật.",
     },
