@@ -176,6 +176,14 @@ if (process.platform === 'win32' || process.platform === 'darwin') {
   appendChromiumFeature('ReleaseVideoSourceProviderIfNotInUse');
 }
 
+// Windows: GPU 加速与 D3D11 光栅化优化，大幅降低背景模糊 (blur 24px) 与 3D/Canvas 渲染的 CPU 占用
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-zero-copy');
+  app.commandLine.appendSwitch('use-angle', 'd3d11');
+}
+
 // macOS: GPU 加速优化，解决 Intel Mac + AMD 独显在 Retina 屏幕下的渲染卡顿
 if (process.platform === 'darwin' && process.arch === 'x64') {
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
@@ -5870,9 +5878,27 @@ ipcMain.handle('auth-open-zing-login', async () => {
         if ((zpsid && zpsid.value) || (isBackOnZing && uniqueCookies.length >= 2)) {
           if (!settled) {
             settled = true;
+            clearInterval(interval);
+            let userProfile = null;
+            try {
+              userProfile = await loginWin.webContents.executeJavaScript(`
+                (async () => {
+                  try {
+                    const res = await fetch('/api/v2/user/profile/get/info', { credentials: 'include' });
+                    if (res.ok) {
+                      const json = await res.json();
+                      if (json.err === 0 && json.data) return json.data;
+                    }
+                  } catch (e) {}
+                  return null;
+                })()
+              `);
+            } catch (e) {
+              // ignore
+            }
             const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
             loginWin.close();
-            resolve({ success: true, cookie: cookieStr });
+            resolve({ success: true, cookie: cookieStr, profile: userProfile });
           }
         }
       } catch {
@@ -5908,13 +5934,18 @@ ipcMain.handle('auth-open-spotify-login', async (event, customAuthUrl) => {
     const verifier = base64Url(crypto.randomBytes(32));
     const challenge = base64Url(crypto.createHash('sha256').update(verifier).digest());
 
-    let clientId = '27a71e3b692040e3a6113b28b6d817de';
+    let clientId = '';
     if (customAuthUrl) {
       try {
         const u = new URL(customAuthUrl);
         const cid = u.searchParams.get('client_id');
         if (cid) clientId = cid;
       } catch {}
+    }
+
+    if (!clientId) {
+      resolve({ success: false, error: 'missing_client_id' });
+      return;
     }
 
     const scopes = [
@@ -5927,7 +5958,7 @@ ipcMain.handle('auth-open-spotify-login', async (event, customAuthUrl) => {
       'streaming',
     ].join(' ');
 
-    const redirectUri = 'http://localhost:8888/callback';
+    const redirectUri = 'http://127.0.0.1:8888/callback';
     const authUrl = new URL('https://accounts.spotify.com/authorize');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
@@ -5939,7 +5970,7 @@ ipcMain.handle('auth-open-spotify-login', async (event, customAuthUrl) => {
 
     const server = http.createServer(async (req, res) => {
       try {
-        const reqUrl = new URL(req.url, 'http://localhost:8888');
+        const reqUrl = new URL(req.url, 'http://127.0.0.1:8888');
         if (reqUrl.pathname === '/callback') {
           const code = reqUrl.searchParams.get('code');
           const error = reqUrl.searchParams.get('error');
@@ -6031,15 +6062,18 @@ ipcMain.handle('auth-open-spotify-login', async (event, customAuthUrl) => {
   });
 });
 
-ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie) => {
+let cachedZingSessionCookie = '';
+let cachedZingSessionExpiry = 0;
+
+ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, quality) => {
   try {
     const ZING_API_KEY = '88265e23d4284f25963e6eedac8fbfa3';
     const ZING_SECRET_KEY = '2aa2d1c561e809b267f3638c4a307aab';
     const ZING_VERSION = '1.6.34';
     const ZING_BASE_URL = 'https://zingmp3.vn';
 
-    let cookie = customCookie;
-    if (!cookie) {
+    const now = Date.now();
+    if (!cachedZingSessionCookie || now >= cachedZingSessionExpiry) {
       try {
         const homeRes = await fetch(ZING_BASE_URL, {
           headers: {
@@ -6048,14 +6082,17 @@ ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie) => {
         });
         const getSetCookie = homeRes.headers.getSetCookie;
         if (typeof getSetCookie === 'function') {
-          cookie = getSetCookie.call(homeRes.headers).map(c => c.split(';')[0]).join('; ');
+          cachedZingSessionCookie = getSetCookie.call(homeRes.headers).map(c => c.split(';')[0]).join('; ');
         } else {
-          cookie = homeRes.headers.get('set-cookie') || '';
+          cachedZingSessionCookie = homeRes.headers.get('set-cookie') || '';
         }
+        cachedZingSessionExpiry = now + 3600 * 1000;
       } catch (err) {
         console.warn('[ZingMain] Cookie fetch failed:', err);
       }
     }
+
+    const cookie = [cachedZingSessionCookie, customCookie].filter(Boolean).join('; ');
 
     const path = '/api/v2/song/get/streaming';
     const ctime = String(Math.floor(Date.now() / 1000));
@@ -6084,15 +6121,24 @@ ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie) => {
       return { url: '', quality: 'standard', isVipOnly: true };
     }
     if (json.err !== 0 || !json.data) {
+      console.warn('[ZingMain] Streaming API error code:', json.err, 'msg:', json.msg);
       return null;
     }
     const data = json.data;
+    const isStandard = quality === 'standard';
+
+    if (isStandard && data['128']) {
+      return { url: data['128'], quality: 'standard' };
+    }
+
     if (data['320'] && data['320'] !== 'VIP') {
       return { url: data['320'], quality: 'high' };
     }
+
     if (data['128']) {
       return { url: data['128'], quality: 'standard' };
     }
+
     return null;
   } catch (err) {
     console.error('[ZingMain] Stream error:', err);

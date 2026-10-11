@@ -3339,6 +3339,8 @@ export default {
     "saveSuccess": "Pengaturan Zing MP3 tersimpan!",
     "clearSuccess": "Cookie Zing MP3 dihapus.",
     "advancedTitle": "Opsi Lanjutan (Cookie Manual)",
+    "accountUser": "Akun Zing MP3",
+    "vipUser": "Zing MP3 VIP",
     "cookieHint": "Masuk dengan akun mendukung pemutaran VIP 320kbps / Lossless. Mode tamu default tetap memutar 128kbps."
   },
   "spotify": {
@@ -3360,7 +3362,10 @@ export default {
     "notConnected": "• Belum terhubung ke akun (Menggunakan klien publik)",
     "clear": "Hapus",
     "advancedTitle": "Pengaturan Pengembang & Token Manual",
-    "oauthHint": "Klik Masuk dengan Spotify untuk menghubungkan daftar putar dan perpustakaan Anda."
+    "oauthHint": "Klik Masuk với Spotify untuk menghubungkan daftar putar dan perpustakaan Anda.",
+    "needClientId": "Harap konfigurasikan Spotify Client ID di Pengaturan terlebih dahulu",
+    "loginFailed": "Gagal masuk ke Spotify.",
+    "loginRequired": "Diperlukan Spotify Client ID atau masuk untuk mencari lagu."
   },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing dikendalikan oleh pemutar eksternal. Folia hanya bertanggung jawab menampilkan lirik dan efek visual.",

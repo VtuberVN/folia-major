@@ -14,8 +14,11 @@ import { createProviderSongMetadata } from '../../utils/songMetadata';
 import {
     getStoredZingCookie,
     getZingAudioSource,
+    getZingHomePlaylists,
     getZingLyric,
+    getZingPlaylistTracks,
     getZingSongDetail,
+    getZingUserProfile,
     searchZingSongs,
     setStoredZingCookie,
 } from './zingApi';
@@ -31,11 +34,11 @@ export const zingProvider: OnlineMusicProvider = {
         lyrics: true,
         auth: true,
         wordByWordLyrics: true,
-        userLibrary: false,
-        playlists: false,
+        userLibrary: true,
+        playlists: true,
         albums: false,
         artists: false,
-        recommendations: false,
+        recommendations: true,
         mutations: false,
     },
     normalizeSong(raw: unknown): UnifiedSong {
@@ -53,9 +56,9 @@ export const zingProvider: OnlineMusicProvider = {
         const item = raw as any;
         return {
             id: item?.id || 'zing_user',
-            nickname: item?.nickname || 'Zing MP3 User',
+            nickname: item?.nickname || 'Tài khoản Zing MP3',
             avatarUrl: item?.avatarUrl,
-            vipType: item?.vipType,
+            vipType: item?.vipType ?? 0,
         };
     },
     songMetadata: {
@@ -79,11 +82,11 @@ export const zingProvider: OnlineMusicProvider = {
         async getSongDetail(id) {
             return getZingSongDetail(String(id));
         },
-        async getAudioSource(song, _quality): Promise<ProviderAudioSource | null> {
+        async getAudioSource(song, quality): Promise<ProviderAudioSource | null> {
             const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
             let stream: any = null;
             try {
-                stream = await getZingAudioSource(mediaId);
+                stream = await getZingAudioSource(mediaId, quality);
                 if (stream && stream.url && !stream.isVipOnly) {
                     return {
                         url: stream.url,
@@ -113,6 +116,26 @@ export const zingProvider: OnlineMusicProvider = {
             return { state: 'playable' };
         },
     },
+    library: {
+        async getUserPlaylists(_userId, limit, offset) {
+            const items = await getZingHomePlaylists();
+            const paged = items.slice(offset, offset + limit);
+            return {
+                items: paged,
+                total: items.length,
+                hasMore: offset + limit < items.length,
+                nextOffset: offset + limit,
+            };
+        },
+        async getLikedSongs(_userId) {
+            return [];
+        },
+    },
+    catalog: {
+        async getPlaylistTracks(id, limit, offset) {
+            return getZingPlaylistTracks(String(id), limit, offset);
+        },
+    },
     lyrics: {
         async getLyrics(song): Promise<ProviderLyricsResult> {
             const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
@@ -131,11 +154,7 @@ export const zingProvider: OnlineMusicProvider = {
         async getLoginStatus(): Promise<ProviderUser | null> {
             const cookie = getStoredZingCookie();
             if (!cookie) return null;
-            return {
-                id: 'zing_user',
-                nickname: 'Zing VIP User',
-                vipType: 1,
-            };
+            return getZingUserProfile();
         },
         async logout(): Promise<void> {
             setStoredZingCookie('');

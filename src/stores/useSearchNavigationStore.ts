@@ -12,11 +12,11 @@ import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlayba
 import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
 import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
 import { searchSpotifyTracks } from '../services/onlineMusic/spotify/spotifyApi';
-import { searchYouTubeMusic } from '../services/onlineMusic/youtube/youtubeApi';
+import { getSpotifyClientId, getStoredSpotifyAccessToken } from '../services/onlineMusic/spotify/spotifyAuth';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
 const DEFAULT_SEARCH_LIMIT = 30;
-export type SearchSource = OnlineProviderId | 'local' | 'navidrome' | 'youtube';
+export type SearchSource = OnlineProviderId | 'local' | 'navidrome';
 export type SearchReturnView = 'home' | 'player';
 
 type SearchExecutorDeps = {
@@ -168,7 +168,15 @@ const executeSearch = async (
     }
 
     if (sourceTab === 'spotify') {
+        const storedToken = getStoredSpotifyAccessToken();
+        const clientId = getSpotifyClientId();
+        if (!storedToken && !clientId) {
+            throw new Error(deps.t('spotify.needClientId', 'Vui lòng cấu hình Spotify Client ID trong Cài đặt'));
+        }
         const page = await searchSpotifyTracks(query, limit, offset);
+        if (page.items.length === 0 && !storedToken) {
+            throw new Error(deps.t('spotify.loginRequired', 'Cần đăng nhập Spotify để tìm kiếm bài hát'));
+        }
         return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
     }
 
@@ -182,11 +190,6 @@ const executeSearch = async (
         const songs = await searchNctSongs(query, limit);
         const results = songs.map(song => song as UnifiedSong);
         return { results, hasMore: false, nextOffset: results.length };
-    }
-
-    if (sourceTab === 'youtube') {
-        const page = await searchYouTubeMusic(query, limit, offset);
-        return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
     }
 
     return searchOnlineProviderSongs(sourceTab, query, limit, offset);

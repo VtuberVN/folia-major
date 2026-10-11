@@ -52,7 +52,7 @@ export async function searchNctSongs(
     if (!query || !query.trim()) return [];
 
     try {
-        const targetUrl = `https://www.nhaccuatui.com/ajax/search?q=${encodeURIComponent(query.trim())}`;
+        const targetUrl = `https://graph.nhaccuatui.com/api/v1/search/all?keyword=${encodeURIComponent(query.trim())}&pageSize=${Math.max(10, limit)}`;
         const url = resolveFetchUrl(targetUrl);
 
         const res = await fetch(url, {
@@ -68,22 +68,32 @@ export async function searchNctSongs(
         }
 
         const data = await res.json();
-        const rawSongs: NctRawSong[] = data?.data?.song || [];
+        const rawSongs: any[] = data?.data?.songs || data?.data?.song || [];
 
-        return rawSongs.slice(0, limit).map((s): SongResult => {
-            const songKey = extractNctSongKey(s);
-            const artists = (s.singer || []).map((singer, idx) => ({
-                id: idx,
+        return rawSongs.slice(0, limit).map((s: any): SongResult => {
+            const songKey = s.key || extractNctSongKey(s);
+            const rawArtists = s.artist || s.singer || [];
+            const artists = rawArtists.map((singer: any, idx: number) => ({
+                id: singer.key || idx,
                 name: singer.name || 'Various Artists',
             }));
+            const stream = (s.streamURL || []).find((st: any) => st?.stream)?.stream;
 
             return {
                 id: songKey,
                 name: s.name || 'Unknown Song',
-                artists: artists.length > 0 ? artists : [{ id: 0, name: 'NhacCuaTui' }],
-                album: { id: 0, name: 'NhacCuaTui' },
+                artists: artists.length > 0 ? artists : [{ id: 0, name: s.artistName || 'NhacCuaTui' }],
+                album: { id: 0, name: s.album?.name || 'NhacCuaTui', coverUrl: s.image },
                 durationMs: (s.duration || 0) * 1000,
-                sourceRef: { kind: 'online', providerId: 'nct', mediaId: songKey },
+                sourceRef: {
+                    kind: 'online',
+                    providerId: 'nct',
+                    mediaId: songKey,
+                    providerData: {
+                        coverUrl: s.image,
+                        streamUrl: stream,
+                    },
+                },
             };
         });
     } catch (err) {

@@ -352,17 +352,24 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                 try {
                     const res = await window.electron.openZingLogin();
                     if (res?.success && res.cookie) {
-                        const { setStoredZingCookie } = await import('../../../services/onlineMusic/zingApi');
+                        const { setStoredZingCookie, setStoredZingProfile } = await import('../../../services/onlineMusic/zingApi');
                         setStoredZingCookie(res.cookie);
+                        if (res.profile) {
+                            const p = res.profile;
+                            const hasVip = (
+                                Array.isArray(p.packages) && p.packages.some((x: any) =>
+                                    typeof x === 'string' && (x.toUpperCase().includes('VIP') || x.toUpperCase().includes('PREMIUM'))
+                                )
+                            ) || Boolean(p.isVip);
+                            setStoredZingProfile({
+                                id: String(p.userid || 'zing_user'),
+                                nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
+                                avatarUrl: p.avatar || undefined,
+                                vipType: hasVip ? 1 : 0,
+                            });
+                        }
                         await providerAccounts.refresh('zing');
                         accounts.setActiveProviderId('zing');
-                        const { setStatusMessage } = await import('../../../stores/useStatusMessageStore');
-                        const { default: i18n } = await import('../../../i18n/config');
-                        setStatusMessage({ type: 'success', text: i18n.t('zing.loginSuccess') });
-                    } else if (res?.error && res.error !== 'cancelled') {
-                        const { setStatusMessage } = await import('../../../stores/useStatusMessageStore');
-                        const { default: i18n } = await import('../../../i18n/config');
-                        setStatusMessage({ type: 'error', text: i18n.t('zing.loginFailed') });
                     }
                 } catch (e) {
                     log('warn', 'login:zing-error', { error: describeError(e) });
@@ -374,7 +381,11 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         }
 
         if (providerId === 'spotify') {
-            const { getSpotifyAuthUrl, setSpotifyUserToken } = await import('../../../services/onlineMusic/spotify/spotifyAuth');
+            const { getSpotifyAuthUrl, setSpotifyUserToken, getSpotifyClientId } = await import('../../../services/onlineMusic/spotify/spotifyAuth');
+            const clientId = getSpotifyClientId();
+            if (!clientId) {
+                return { status: 'superseded', providerId };
+            }
             const authUrl = getSpotifyAuthUrl();
             if (typeof window !== 'undefined' && window.electron?.openSpotifyLogin) {
                 try {

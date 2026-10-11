@@ -1129,7 +1129,9 @@ export default {
     "qualityExhigh": "极高",
     "qualityLossless": "无损",
     "qualityHires": "Hi-Res",
-    "vipOnly": "VIP 专属"
+    "vipOnly": "VIP 专属",
+    "showId": "显示 ID",
+    "hideId": "隐藏 ID"
   },
   "playlist": {
     "play": "播放",
@@ -3453,6 +3455,8 @@ export default {
     "saveSuccess": "已保存 Zing MP3 配置！",
     "clearSuccess": "已清除 Zing MP3 Cookie。",
     "advancedTitle": "高级选项（手动 Cookie）",
+    "accountUser": "Zing MP3 账户",
+    "vipUser": "Zing MP3 VIP 账户",
     "cookieHint": "登录账户可畅享 VIP 320kbps / 无损音质。访客模式默认支持 128kbps 播放。"
   },
   "spotify": {
@@ -3474,7 +3478,13 @@ export default {
     "notConnected": "• 未连接个人账户（使用公开客户端）",
     "clear": "清除",
     "advancedTitle": "开发者设置与手动 Token",
-    "oauthHint": "点击通过 Spotify 登录以连接您的歌单和音乐库。"
+    "oauthHint": "点击通过 Spotify 登录以连接您的歌单和音乐库。",
+    "needClientId": "请先在设置中配置 Spotify Client ID",
+    "loginRequired": "需要配置 Client ID 或登录 Spotify 才能搜索歌曲。",
+    "needCredentials": "未配置 Spotify Client ID",
+    "needCredentialsHint": "请在设置中输入 Client ID（重定向 URI: http://127.0.0.1:8888/callback）或切换到 Zing MP3 / NhacCuaTui 搜索歌曲。",
+    "redirectUriLabel": "重定向 URI（在 Spotify 控制台）:",
+    "copiedRedirectUri": "已复制重定向 URI！"
   },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing 正由外部播放器控制，Folia 只负责展示歌词和视觉效果。",

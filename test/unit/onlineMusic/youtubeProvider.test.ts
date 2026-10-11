@@ -4,15 +4,9 @@ import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry'
 import { searchYouTubeMusic } from '@/services/onlineMusic/youtube/youtubeApi';
 
 describe('youtubeProvider', () => {
-    it('is properly registered and has correct capabilities', () => {
+    it('is not registered in providerRegistry by default', () => {
         const registered = getOnlineMusicProvider('youtube');
-        expect(registered).toBeDefined();
-        expect(registered?.id).toBe('youtube');
-        expect(registered?.displayName).toBe('YouTube Music');
-        expect(registered?.shortName).toBe('YouTube');
-        expect(registered?.capabilities.search).toBe(true);
-        expect(registered?.capabilities.playback).toBe(true);
-        expect(registered?.capabilities.auth).toBe(false);
+        expect(registered).toBeNull();
     });
 
     it('generates correct song page url', () => {

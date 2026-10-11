@@ -51,11 +51,49 @@ describe('NCT Lyric Provider', () => {
         expect(songs[0].name).toBe('See Tình');
         expect(songs[0].id).toBe('FacSqbcPGZAl');
         expect(songs[0].artists[0].name).toBe('Hoàng Thùy Linh');
-        expect(songs[0].sourceRef).toEqual({
-            kind: 'online',
-            providerId: 'nct',
-            mediaId: 'FacSqbcPGZAl',
-        });
+        const ref1 = songs[0].sourceRef;
+        expect(ref1?.kind).toBe('online');
+        if (ref1?.kind === 'online') {
+            expect(ref1.mediaId).toBe('FacSqbcPGZAl');
+            expect(ref1.providerId).toBe('nct');
+        }
+    });
+
+    it('searches songs on NhacCuaTui using new Graph API format', async () => {
+        const mockGraphRes = {
+            code: 0,
+            data: {
+                songs: [
+                    {
+                        name: 'Lạc Trôi',
+                        key: 'kM9SkAzMbTKV',
+                        artist: [{ name: 'Sơn Tùng M-TP', key: '63207' }],
+                        image: 'https://image-cdn.nct.vn/cover.jpg',
+                        duration: 233,
+                        streamURL: [
+                            { stream: 'https://stream.nct.vn/128.mp3', type: '128' },
+                        ],
+                    },
+                ],
+            },
+        };
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(mockGraphRes)));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const songs = await searchNctSongs('Lạc Trôi', 5);
+
+        expect(songs).toHaveLength(1);
+        expect(songs[0].name).toBe('Lạc Trôi');
+        expect(songs[0].id).toBe('kM9SkAzMbTKV');
+        expect(songs[0].artists[0].name).toBe('Sơn Tùng M-TP');
+        expect(songs[0].album.coverUrl).toBe('https://image-cdn.nct.vn/cover.jpg');
+        const ref2 = songs[0].sourceRef;
+        expect(ref2?.kind).toBe('online');
+        if (ref2?.kind === 'online') {
+            expect(ref2.mediaId).toBe('kM9SkAzMbTKV');
+            expect(ref2.providerData?.streamUrl).toBe('https://stream.nct.vn/128.mp3');
+        }
     });
 
     it('fetches and decrypts NCT lyrics', async () => {

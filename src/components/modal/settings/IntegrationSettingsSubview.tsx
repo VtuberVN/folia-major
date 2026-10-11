@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getStoredZingCookie, setStoredZingCookie } from '../../../services/onlineMusic/zingApi';
+import { getStoredZingCookie, setStoredZingCookie, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
 import {
     clearSpotifyAuth,
     getSpotifyAuthUrl,
@@ -205,6 +205,20 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 if (res.success && res.cookie) {
                     setZingCookie(res.cookie);
                     setStoredZingCookie(res.cookie);
+                    if (res.profile) {
+                        const p = res.profile;
+                        const hasVip = (
+                            Array.isArray(p.packages) && p.packages.some((x: any) =>
+                                typeof x === 'string' && (x.toUpperCase().includes('VIP') || x.toUpperCase().includes('PREMIUM'))
+                            )
+                        ) || Boolean(p.isVip);
+                        setStoredZingProfile({
+                            id: String(p.userid || 'zing_user'),
+                            nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
+                            avatarUrl: p.avatar || undefined,
+                            vipType: hasVip ? 1 : 0,
+                        });
+                    }
                     setStatusMessage({ type: 'success', text: t('zing.loginSuccess') });
                 } else if (res.error !== 'cancelled') {
                     setStatusMessage({ type: 'error', text: t('zing.loginFailed') });
@@ -226,6 +240,14 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     };
 
     const handleSpotifyOAuthLogin = async () => {
+        const effectiveClientId = spotifyClientId.trim() || getSpotifyClientId();
+        if (!effectiveClientId) {
+            setStatusMessage({ type: 'error', text: t('spotify.needClientId', { defaultValue: 'Vui lòng cấu hình Spotify Client ID trước khi đăng nhập' }) });
+            return;
+        }
+        if (spotifyClientId.trim()) {
+            setSpotifyCredentials(spotifyClientId.trim(), spotifyClientSecret.trim());
+        }
         const authUrl = getSpotifyAuthUrl();
         if (isElectron && window.electron?.openSpotifyLogin) {
             setIsSpotifyLoggingIn(true);
@@ -235,8 +257,10 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     setSpotifyTokenInput(res.accessToken);
                     setSpotifyUserToken(res.accessToken, res.expiresIn || 3600, res.refreshToken || '');
                     setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
+                } else if (res.error === 'missing_client_id') {
+                    setStatusMessage({ type: 'error', text: t('spotify.needClientId') });
                 } else if (res.error !== 'cancelled') {
-                    setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });
+                    setStatusMessage({ type: 'error', text: t('spotify.loginFailed') });
                 }
             } catch {
                 setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });
@@ -1138,6 +1162,23 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     <p className="text-xs opacity-60">
                         {t('spotify.oauthHint')}
                     </p>
+
+                    <div className="p-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="font-semibold opacity-75">{t('spotify.redirectUriLabel')}</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    navigator.clipboard.writeText('http://127.0.0.1:8888/callback');
+                                    setStatusMessage({ type: 'success', text: t('spotify.copiedRedirectUri') });
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-colors font-mono"
+                            >
+                                {t('common.copy', { defaultValue: 'Sao chép' })}
+                            </button>
+                        </div>
+                        <code className="block text-[11px] font-mono opacity-60 select-all">http://127.0.0.1:8888/callback</code>
+                    </div>
 
                     <details className="group border-t border-black/10 dark:border-white/10 pt-3">
                         <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">

@@ -1130,7 +1130,9 @@ export default {
     "qualityExhigh": "Very High",
     "qualityLossless": "Lossless",
     "qualityHires": "Hi-Res",
-    "vipOnly": "VIP Only"
+    "vipOnly": "VIP Only",
+    "showId": "Show ID",
+    "hideId": "Hide ID"
   },
   "playlist": {
     "play": "Play",
@@ -3454,6 +3456,8 @@ export default {
     "saveSuccess": "Zing MP3 settings saved!",
     "clearSuccess": "Zing MP3 cookie cleared.",
     "advancedTitle": "Advanced Options (Manual Cookie)",
+    "accountUser": "Zing MP3 Account",
+    "vipUser": "Zing MP3 VIP",
     "cookieHint": "Signing in enables VIP 320kbps / Lossless playback. Default guest mode plays 128kbps without an account."
   },
   "spotify": {
@@ -3475,7 +3479,13 @@ export default {
     "notConnected": "• Not connected to user account (Using public client)",
     "clear": "Clear",
     "advancedTitle": "Developer Settings & Manual Token",
-    "oauthHint": "Click Sign In with Spotify to connect your playlists and library."
+    "oauthHint": "Click Sign In with Spotify to connect your playlists and library.",
+    "needClientId": "Please configure a Spotify Client ID in Settings first",
+    "loginRequired": "Spotify Client ID or sign-in required to search tracks.",
+    "needCredentials": "Spotify Client ID not configured",
+    "needCredentialsHint": "Please enter your Client ID in Settings (Redirect URI: http://127.0.0.1:8888/callback) or switch to Zing MP3 / NhacCuaTui to search songs.",
+    "redirectUriLabel": "Redirect URI (in Spotify Dashboard):",
+    "copiedRedirectUri": "Redirect URI copied!"
   },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing is being controlled by an external player. Folia is only responsible for displaying lyrics and visual effects.",

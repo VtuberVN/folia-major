@@ -7,8 +7,8 @@ export const SPOTIFY_ACCESS_TOKEN_KEY = 'folia_spotify_access_token';
 export const SPOTIFY_REFRESH_TOKEN_KEY = 'folia_spotify_refresh_token';
 export const SPOTIFY_TOKEN_EXPIRY_KEY = 'folia_spotify_token_expiry';
 
-// Default public developer credentials for demo/fallback (user can override in Settings)
-export const DEFAULT_SPOTIFY_CLIENT_ID = '27a71e3b692040e3a6113b28b6d817de';
+// Default developer credentials (user can configure in Settings)
+export const DEFAULT_SPOTIFY_CLIENT_ID = '';
 export const DEFAULT_SPOTIFY_CLIENT_SECRET = '';
 
 let inMemoryToken = '';
@@ -32,6 +32,10 @@ function setStorageItem(key: string, value: string): void {
 
 export function getSpotifyClientId(): string {
     return inMemoryClientId || getStorageItem(SPOTIFY_CLIENT_ID_KEY) || DEFAULT_SPOTIFY_CLIENT_ID;
+}
+
+export function hasSpotifyClientId(): boolean {
+    return Boolean(getSpotifyClientId());
 }
 
 export function getSpotifyClientSecret(): string {
@@ -133,7 +137,7 @@ export async function getValidSpotifyAccessToken(): Promise<string> {
 /**
  * Generates Spotify OAuth 2.0 Authorization URL for user login.
  */
-export function getSpotifyAuthUrl(redirectUri: string = 'http://localhost:8888/callback'): string {
+export function getSpotifyAuthUrl(redirectUri: string = 'http://127.0.0.1:8888/callback'): string {
     const clientId = getSpotifyClientId();
     const scopes = [
         'user-read-private',

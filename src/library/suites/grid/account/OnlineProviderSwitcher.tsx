@@ -34,8 +34,24 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
         </svg>
     ),
     zing: (
+        <svg viewBox="0 0 24 24" className="h-4/5 w-4/5" fill="none">
+            <circle cx="12" cy="12" r="11" fill="#FFFFFF" />
+            <circle cx="12" cy="12" r="10" fill="#18181b" />
+            <path d="M12 12 L9.54 2.82 A9.5 9.5 0 0 1 21.35 10.35 Z" fill="#43B03C" />
+            <path d="M12 12 L21.35 10.35 A9.5 9.5 0 0 1 14.46 21.18 Z" fill="#F37321" />
+            <path d="M12 12 L14.46 21.18 A9.5 9.5 0 0 1 2.82 14.46 Z" fill="#E51D73" />
+            <path d="M12 12 L2.82 14.46 A9.5 9.5 0 0 1 9.54 2.82 Z" fill="#00A4E4" />
+            <path d="M6.2 14.2 A6.5 6.5 0 0 1 8.2 8.5" stroke="#FFFFFF" strokeWidth="0.8" strokeLinecap="round" opacity="0.9" />
+            <path d="M7.4 13.8 A5.2 5.2 0 0 1 9.2 9.2" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" opacity="0.9" />
+            <path d="M17.8 9.8 A6.5 6.5 0 0 1 15.8 15.5" stroke="#FFFFFF" strokeWidth="0.8" strokeLinecap="round" opacity="0.9" />
+            <path d="M16.6 10.2 A5.2 5.2 0 0 1 14.8 14.8" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" opacity="0.9" />
+            <circle cx="12" cy="12" r="2.8" fill="#FFFFFF" />
+            <circle cx="12" cy="12" r="1.3" fill="#6A35FF" />
+        </svg>
+    ),
+    nct: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="h-3/5 w-3/5">
-            <path d="M4 17.5h6.8v-1.8l-3.8-4.4h3.6V9.5H4v1.8l3.8 4.4H4v1.8zm11.5-6a2.5 2.5 0 0 0-2.5 2.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5v-6.5h2.5V6H15.5v5.5z" />
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5.5 13c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm3 2c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm2.5 1.5c-.55 0-1-.45-1-1V5.5c0-.55.45-1 1-1s1 .45 1 1v13c0 .55-.45 1-1 1zm3-1.5c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm3-2c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1z" />
         </svg>
     ),
 };
@@ -48,7 +64,7 @@ const AVATAR_BADGE_BY_PROVIDER: Record<string, { label: string; iconUrl?: string
     bodian: { label: '波', className: 'bg-teal-600' },
     zing: { label: 'Z', className: 'bg-[#6A35FF]' },
     spotify: { label: 'S', className: 'bg-[#1DB954]' },
-    youtube: { label: 'Y', className: 'bg-[#FF0000]' },
+    nct: { label: 'N', className: 'bg-[#00D3E5]' },
 };
 
 // Providers without a builtin badge (Folium mod sources) get their name's first letter, like the

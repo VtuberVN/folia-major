@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, SlidersHorizontal, HardDrive, Trash2, RefreshCw, Crown } from 'lucide-react';
+import { LogOut, SlidersHorizontal, HardDrive, Trash2, RefreshCw, Crown, User, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AudioQualityPreference, ProviderUser } from '../../types/onlineMusic';
 import type { LibraryAccountController } from '../../library/core/contracts/account';
@@ -47,10 +47,17 @@ const AccountTab: React.FC<AccountTabProps> = ({
     onNavigateHome,
 }) => {
     const { t } = useTranslation();
+    const [showId, setShowId] = React.useState(false);
+    const [avatarError, setAvatarError] = React.useState(false);
     // 当前平台取 controller 快照里回落过的那个，与登出的判定（只有当前且已登录的平台能登出）一致。
     const { providers, activeProviderId } = useLibraryAccountProviders(accountController);
     const providerAccount = useOnlineProviderAccountStore(state => state.accounts[activeProviderId]);
     const activeUser = providerAccount?.user || (activeProviderId === 'netease' ? user : null);
+
+    React.useEffect(() => {
+        setAvatarError(false);
+    }, [activeUser?.id, activeUser?.avatarUrl]);
+
     // 登出按钮只在 controller 会接受时可用：网易启动 / 首次刷新的窗口里 App 的 user 已经显示，账户 store 却还没写成
     // authenticated，controller 会以 not-authenticated 拒绝——按钮这时不可用，而不是点了没反应；登出进行中同样不可用。
     // 不放宽 controller 的判定：unknown 状态的平台还没有可登出的登录态（切换器的登出入口用的是同一条规则）。
@@ -73,12 +80,19 @@ const AccountTab: React.FC<AccountTabProps> = ({
                 /* User Info with Logout in Header */
                 <div className="flex items-center justify-between bg-white/5 p-3 rounded-xl">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden">
-                            <img
-                                src={activeUser.avatarUrl?.replace('http:', 'https:')}
-                                className="w-full h-full object-cover"
-                                alt={activeUser.nickname}
-                            />
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
+                            {activeUser.avatarUrl && !avatarError ? (
+                                <img
+                                    src={activeUser.avatarUrl.replace('http:', 'https:')}
+                                    className="w-full h-full object-cover"
+                                    alt={activeUser.nickname}
+                                    onError={() => setAvatarError(true)}
+                                />
+                            ) : (
+                                <span className="font-bold text-sm text-white/80 select-none">
+                                    {activeUser.nickname ? activeUser.nickname.charAt(0).toUpperCase() : <User size={18} />}
+                                </span>
+                            )}
                         </div>
                         <div>
                             <div className="flex items-center gap-1.5">
@@ -88,7 +102,25 @@ const AccountTab: React.FC<AccountTabProps> = ({
                                 )}
                             </div>
                             <span className="block text-[10px] opacity-50">{omni.getProviderLabel(activeProviderId)}</span>
-                            <span className="text-[10px] font-mono opacity-40">ID: {String(activeUser.id)}</span>
+                            {activeUser.id && activeUser.id !== 'zing_user' && (
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[10px] font-mono opacity-40">
+                                        ID: {showId ? String(activeUser.id) : (
+                                            String(activeUser.id).length > 4
+                                                ? `${String(activeUser.id).slice(0, 2)}••••${String(activeUser.id).slice(-2)}`
+                                                : '••••••'
+                                        )}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowId(prev => !prev)}
+                                        className="opacity-40 hover:opacity-90 transition-opacity p-0.5"
+                                        title={showId ? t('account.hideId') : t('account.showId')}
+                                    >
+                                        {showId ? <EyeOff size={11} /> : <Eye size={11} />}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <button

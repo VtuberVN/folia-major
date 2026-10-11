@@ -84,12 +84,23 @@ describe('zingProvider', () => {
         expect(lyrics?.lyrics).toEqual(mockLyricData);
     });
 
-    it('manages cookie in auth correctly', async () => {
+    it('manages cookie in auth correctly and defaults to non-VIP', async () => {
         expect(await zingProvider.auth?.getLoginStatus()).toBeNull();
 
         zingApi.setStoredZingCookie('zpsid=test12345');
         const status = await zingProvider.auth?.getLoginStatus();
-        expect(status?.nickname).toBe('Zing VIP User');
+        expect(status?.nickname).toBe('Tài khoản Zing MP3');
+        expect(status?.vipType).toBe(0);
+
+        // When verified VIP profile is stored
+        zingApi.setStoredZingProfile({
+            id: '12345',
+            nickname: 'Nguyễn Văn A',
+            vipType: 1,
+        });
+        const vipStatus = await zingProvider.auth?.getLoginStatus();
+        expect(vipStatus?.nickname).toBe('Nguyễn Văn A');
+        expect(vipStatus?.vipType).toBe(1);
 
         await zingProvider.auth?.logout();
         expect(await zingProvider.auth?.getLoginStatus()).toBeNull();
