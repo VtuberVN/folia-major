@@ -12,10 +12,11 @@ import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlayba
 import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
 import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
 import { searchSpotifyTracks } from '../services/onlineMusic/spotify/spotifyApi';
+import { searchYouTubeMusic } from '../services/onlineMusic/youtube/youtubeApi';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
 const DEFAULT_SEARCH_LIMIT = 30;
-export type SearchSource = OnlineProviderId | 'local' | 'navidrome';
+export type SearchSource = OnlineProviderId | 'local' | 'navidrome' | 'youtube';
 export type SearchReturnView = 'home' | 'player';
 
 type SearchExecutorDeps = {
@@ -183,6 +184,11 @@ const executeSearch = async (
         return { results, hasMore: false, nextOffset: results.length };
     }
 
+    if (sourceTab === 'youtube') {
+        const page = await searchYouTubeMusic(query, limit, offset);
+        return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
+    }
+
     return searchOnlineProviderSongs(sourceTab, query, limit, offset);
 };
 
@@ -268,7 +274,13 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
     // away), so this keeps it in step. Local and Navidrome are left alone, and the results stay: clearing
     // them is the switch's job.
     followOnlineProvider: (providerId) => set(state => (
-        state.searchSourceTab === 'local' || state.searchSourceTab === 'navidrome' || state.searchSourceTab === providerId
+        state.searchSourceTab === 'local'
+        || state.searchSourceTab === 'navidrome'
+        || state.searchSourceTab === 'youtube'
+        || state.searchSourceTab === 'zing'
+        || state.searchSourceTab === 'spotify'
+        || state.searchSourceTab === 'nct'
+        || state.searchSourceTab === providerId
             ? state
             : { searchSourceTab: providerId }
     )),

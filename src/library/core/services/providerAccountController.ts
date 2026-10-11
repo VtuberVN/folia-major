@@ -346,6 +346,46 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         if (disposed) return { status: 'superseded', providerId };
         const selection = resolveProviderSelection(findProvider(providerId));
         if (selection.kind === 'unavailable') return { status: 'unavailable', providerId, reason: selection.reason };
+
+        if (providerId === 'zing') {
+            if (typeof window !== 'undefined' && window.electron?.openZingLogin) {
+                try {
+                    const res = await window.electron.openZingLogin();
+                    if (res?.success && res.cookie) {
+                        const { setStoredZingCookie } = await import('../../../services/onlineMusic/zingApi');
+                        setStoredZingCookie(res.cookie);
+                        await providerAccounts.refresh('zing');
+                        accounts.setActiveProviderId('zing');
+                    }
+                } catch (e) {
+                    log('warn', 'login:zing-error', { error: describeError(e) });
+                }
+            } else if (typeof window !== 'undefined') {
+                window.open('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F', '_blank', 'width=500,height=650');
+            }
+            return { status: 'superseded', providerId };
+        }
+
+        if (providerId === 'spotify') {
+            const { getSpotifyAuthUrl, setSpotifyUserToken } = await import('../../../services/onlineMusic/spotify/spotifyAuth');
+            const authUrl = getSpotifyAuthUrl();
+            if (typeof window !== 'undefined' && window.electron?.openSpotifyLogin) {
+                try {
+                    const res = await window.electron.openSpotifyLogin(authUrl);
+                    if (res?.success && res.accessToken) {
+                        setSpotifyUserToken(res.accessToken, res.expiresIn || 3600);
+                        await providerAccounts.refresh('spotify');
+                        accounts.setActiveProviderId('spotify');
+                    }
+                } catch (e) {
+                    log('warn', 'login:spotify-error', { error: describeError(e) });
+                }
+            } else if (typeof window !== 'undefined') {
+                window.open(authUrl, '_blank', 'width=500,height=700');
+            }
+            return { status: 'superseded', providerId };
+        }
+
         const attempt = ++loginSeq;
         batch(() => {
             // 单一在途登录：先停旧会话（keyed 取消），旧会话不会再在后台替旧平台确认（A0 记下的潜在 bug）。

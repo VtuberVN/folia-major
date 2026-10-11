@@ -1160,6 +1160,7 @@ export default {
     "sourceZing": "Zing MP3",
     "sourceSpotify": "Spotify",
     "sourceNct": "NhacCuaTui",
+    "sourceYoutube": "YouTube",
     "playTrack": "Play track",
     "error": "Search failed. Please try again.",
     "retry": "Retry",

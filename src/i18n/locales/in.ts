@@ -1155,6 +1155,7 @@ export default {
     "sourceZing": "Zing MP3",
     "sourceSpotify": "Spotify",
     "sourceNct": "NhacCuaTui",
+    "sourceYoutube": "YouTube",
     "playTrack": "Putar trek",
     "error": "Pencarian gagal. Silakan coba lagi.",
     "retry": "Coba Lagi",

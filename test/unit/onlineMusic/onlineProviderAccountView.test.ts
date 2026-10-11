@@ -67,4 +67,9 @@ describe('picking a provider', () => {
         expect(canSwitchToProviderDirectly(provider('anonymous'))).toBe(false);
         expect(canSwitchToProviderDirectly({ ...provider('anonymous'), requiresAccount: true })).toBe(false);
     });
+
+    it('allows Zing MP3 to be switched directly in guest mode', () => {
+        expect(canSwitchToProviderDirectly({ ...provider('unknown'), providerId: 'zing' })).toBe(true);
+        expect(canSwitchToProviderDirectly({ ...provider('anonymous'), providerId: 'zing' })).toBe(true);
+    });
 });

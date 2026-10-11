@@ -1917,6 +1917,7 @@ export default {
     "sourceZing": "Zing MP3",
     "sourceSpotify": "Spotify",
     "sourceNct": "NhacCuaTui",
+    "sourceYoutube": "YouTube",
     "playTrack": "Phát bài hát",
     "error": "Tìm kiếm thất bại. Thử lại sau.",
     "retry": "Thử lại",

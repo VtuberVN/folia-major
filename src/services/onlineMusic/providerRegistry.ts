@@ -8,6 +8,7 @@ import { qqProvider } from './qqProvider';
 import { bodianProvider } from './bodianProvider';
 import { zingProvider } from './zingProvider';
 import { spotifyProvider } from './spotifyProvider';
+import { youtubeProvider } from './youtubeProvider';
 
 // src/services/onlineMusic/providerRegistry.ts
 
@@ -86,3 +87,4 @@ registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
 registerOnlineMusicProvider(zingProvider);
 registerOnlineMusicProvider(spotifyProvider);
+registerOnlineMusicProvider(youtubeProvider);

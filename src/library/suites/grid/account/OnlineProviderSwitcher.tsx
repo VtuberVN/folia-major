@@ -30,6 +30,7 @@ const AVATAR_BADGE_BY_PROVIDER: Record<string, { label: string; iconUrl?: string
     bodian: { label: '波', className: 'bg-teal-600' },
     zing: { label: 'Z', className: 'bg-purple-600' },
     spotify: { label: 'S', className: 'bg-emerald-600' },
+    youtube: { label: 'Y', className: 'bg-red-600' },
 };
 
 // Providers without a builtin badge (Folium mod sources) get their name's first letter, like the

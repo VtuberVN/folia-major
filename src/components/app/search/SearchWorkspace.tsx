@@ -77,14 +77,21 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         return resolveTrackDisplay ? raw.map(resolveTrackDisplay) : raw;
     }, [resolveTrackDisplay, searchResults]);
     const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
-    const sources = useMemo<SearchSource[]>(() => [
-        activeOnlineProviderId,
-        'spotify',
-        'zing',
-        'nct',
-        'local',
-        'navidrome',
-    ], [activeOnlineProviderId]);
+    const sources = useMemo<SearchSource[]>(() => {
+        const base: SearchSource[] = [
+            'netease',
+            'zing',
+            'spotify',
+            'nct',
+            'youtube',
+            'local',
+            'navidrome',
+        ];
+        if (!base.includes(activeOnlineProviderId)) {
+            base.splice(1, 0, activeOnlineProviderId);
+        }
+        return base;
+    }, [activeOnlineProviderId]);
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'local') return t('search.sourceLocal');
@@ -92,6 +99,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         if (source === 'spotify') return t('search.sourceSpotify', { defaultValue: 'Spotify' });
         if (source === 'zing') return t('search.sourceZing', { defaultValue: 'Zing MP3' });
         if (source === 'nct') return t('search.sourceNct', { defaultValue: 'NhacCuaTui' });
+        if (source === 'youtube') return t('search.sourceYoutube', { defaultValue: 'YouTube' });
         if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
         if (source === 'qq') return t('qqSource', { defaultValue: 'QQ Music' });
         if (source === 'kugou') return t('kugouSource', { defaultValue: 'KuGou Music' });
