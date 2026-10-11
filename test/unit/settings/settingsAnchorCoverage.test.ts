@@ -52,6 +52,7 @@ describe('settings section anchors', () => {
             ['transitionSettings', '<TransitionSettingsSection'],
             ['replayGainSettings', 'anchorId="replayGainSettings"'],
             ['lyrics', 'anchorId="lyrics"'],
+            ['songUnlock', 'anchorId="songUnlock"'],
             ['audioOutputSettings', 'anchorId="audioOutputSettings"'],
         ]
             .map(([id, marker]) => {
