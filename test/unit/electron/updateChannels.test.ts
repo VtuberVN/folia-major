@@ -124,19 +124,19 @@ describe('release update channels', () => {
     });
 
     it('isolates Vietnamese metadata and downloads from stable and beta releases', () => {
-        const github = { owner: 'Lynx-1ST', repo: 'folia-major' };
+        const github = { owner: 'VtuberVN', repo: 'folia-major' };
         const lane = resolveReleaseChannel('0.7.16-vi.2', 'vietnamese');
-        expect(getReleaseUrl(lane.id, '0.7.16-vi.2', 'https://github.com/Lynx-1ST/folia-major/releases'))
-            .toBe('https://github.com/Lynx-1ST/folia-major/releases/tag/vietnamese');
+        expect(getReleaseUrl(lane.id, '0.7.16-vi.2', 'https://github.com/VtuberVN/folia-major/releases'))
+            .toBe('https://github.com/VtuberVN/folia-major/releases/tag/vietnamese');
         expect(getUpdateProviderConfig(lane, github)).toEqual({
             provider: 'generic',
-            url: 'https://github.com/Lynx-1ST/folia-major/releases/download/vietnamese/',
+            url: 'https://github.com/VtuberVN/folia-major/releases/download/vietnamese/',
             channel: 'vi',
             useMultipleRangeRequest: false,
         });
         expect(getUpdateDiscoveryConfig(lane, github)).toEqual({
             format: 'yaml',
-            url: 'https://github.com/Lynx-1ST/folia-major/releases/download/vietnamese/vi.yml',
+            url: 'https://github.com/VtuberVN/folia-major/releases/download/vietnamese/vi.yml',
         });
     });
 

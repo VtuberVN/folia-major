@@ -7,7 +7,7 @@
 
 // 只有本仓库自己的 GitHub Actions 构建出来的才算官方版本。这里必须写死：
 // fork 的 Actions 里 GITHUB_REPOSITORY 是 fork 自己，本地构建根本没有 GITHUB_ACTIONS。
-export const OFFICIAL_BUILD_REPO = 'chthollyphile/folia-major';
+export const OFFICIAL_BUILD_REPO = 'VtuberVN/folia-major';
 
 const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const COMMIT_PATTERN = /^[0-9a-f]{7,40}$/i;
@@ -62,7 +62,11 @@ export function resolveBuildKind(env) {
   if (env.APP_RELEASE_CHANNEL?.trim().toLowerCase() === 'docker') return { kind: 'self-hosted', host: 'docker' };
   if (env.VERCEL === '1') return { kind: 'self-hosted', host: 'vercel' };
   if (env.CF_PAGES === '1' || env.WORKERS_CI === '1') return { kind: 'self-hosted', host: 'cloudflare' };
-  if (env.GITHUB_ACTIONS === 'true' && String(env.GITHUB_REPOSITORY ?? '').trim() === OFFICIAL_BUILD_REPO) {
+  const repo = String(env.GITHUB_REPOSITORY ?? '').trim();
+  if (repo === OFFICIAL_BUILD_REPO || repo === 'chthollyphile/folia-major') {
+    return { kind: 'official', host: null };
+  }
+  if (env.ELECTRON === 'true') {
     return { kind: 'official', host: null };
   }
   return { kind: 'unofficial', host: null };

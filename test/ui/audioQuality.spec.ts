@@ -45,7 +45,7 @@ test('shows current source quality in the mini player and discards it on song ch
         const { useSettingsModalStore } = await import(modulePath);
         useSettingsModalStore.getState().openSettings('help');
     });
-    await expect(page.getByRole('link', { name: 'Lynx-1ST/folia-major', exact: true })).toHaveAttribute('href', 'https://github.com/Lynx-1ST/folia-major');
+    await expect(page.getByRole('link', { name: 'VtuberVN/folia-major', exact: true })).toHaveAttribute('href', 'https://github.com/VtuberVN/folia-major');
     await page.evaluate(async () => {
         const settingsPath = '/src/stores/useSettingsModalStore.ts';
         const viewPath = '/src/stores/useAppViewStore.ts';

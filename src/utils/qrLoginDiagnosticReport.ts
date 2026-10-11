@@ -137,7 +137,7 @@ export const formatQrLoginDiagnosticReport = ({
     '```',
 ].join('\n');
 
-const FOLIA_NEW_ISSUE_URL = 'https://github.com/Lynx-1ST/folia-major/issues/new';
+const FOLIA_NEW_ISSUE_URL = 'https://github.com/VtuberVN/folia-major/issues/new';
 // GitHub 对过长的 new-issue 链接会直接报错；超过这个长度就不把报告塞进链接，改让用户粘贴剪贴板里的内容。
 const MAX_ISSUE_URL_LENGTH = 7000;
 
