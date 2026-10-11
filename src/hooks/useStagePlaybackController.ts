@@ -18,6 +18,10 @@ import {
     shouldApplyNowPlayingProgressCorrection,
 } from '../utils/nowPlayingClock';
 import { buildNowPlayingLyricSource } from '../utils/lyrics/nowPlayingSource';
+import { SpotifyProvider } from '../services/spotifyProvider';
+import { autoMatchBestLyric, hasSynchronizedLyricTimeline } from '../utils/lyrics/autoMatchBestLyric';
+import { isExternalStageSource, isSpotifyStageSource } from '../utils/stageSources';
+import type { ExternalStageSource } from '../utils/stageSources';
 import {
     LyricData,
     NowPlayingConnectionStatus,
@@ -117,6 +121,7 @@ export function useStagePlaybackController({
 
     const [stageStatus, setStageStatus] = useState<StageStatus | null>(null);
     const [nowPlayingConnectionStatus, setNowPlayingConnectionStatus] = useState<NowPlayingConnectionStatus>('disabled');
+    const [nowPlayingConnectionError, setNowPlayingConnectionError] = useState<string | null>(null);
     const [nowPlayingTrack, setNowPlayingTrack] = useState<NowPlayingTrackSnapshot | null>(null);
     const [nowPlayingLyricPayload, setNowPlayingLyricPayload] = useState<NowPlayingLyricPayload | null>(null);
     const [nowPlayingProgressMs, setNowPlayingProgressMs] = useState(0);
@@ -149,14 +154,17 @@ export function useStagePlaybackController({
         startedAtMs: null,
         durationSec: 0,
     });
-    const nowPlayingProviderRef = useRef<NowPlayingProvider | null>(null);
+    const nowPlayingProviderRef = useRef<NowPlayingProvider | SpotifyProvider | null>(null);
     const nowPlayingContentLoadKeyRef = useRef<string | null>(null);
     const nowPlayingContentLoadRequestIdRef = useRef(0);
     const nowPlayingPreciseQueryRequestIdRef = useRef(0);
+    const isExternalStageActiveRef = useRef(false);
     const nowPlayingTrackRef = useRef<NowPlayingTrackSnapshot | null>(null);
     const nowPlayingLyricPayloadRef = useRef<NowPlayingLyricPayload | null>(null);
     const nowPlayingProgressMsRef = useRef(0);
     const nowPlayingProgressQualityRef = useRef<'precise' | 'coarse'>('coarse');
+    // Provider callbacks own this ref even while Stage is inactive; mirroring unpublished React
+    // state here would overwrite the live Spotify pause state before the Stage view opens.
     const nowPlayingPausedRef = useRef(nowPlayingPaused);
     const applyNowPlayingPreciseAnchorRef = useRef<((
         progressMs: number,
@@ -167,7 +175,6 @@ export function useStagePlaybackController({
     const lastNowPlayingPauseStateRef = useRef(nowPlayingPaused);
     const currentLineIndexRef = useRef(currentLineIndex);
 
-    nowPlayingPausedRef.current = nowPlayingPaused;
     currentLineIndexRef.current = currentLineIndex;
 
     const stageActiveEntryKind = stageStatus?.activeEntryKind ?? null;
@@ -176,7 +183,10 @@ export function useStagePlaybackController({
     const stageSource: StageSource | null = isElectronWindow
         ? (stageStatus?.modeEnabled ? (stageStatus?.source ?? 'stage-api') : null)
         : (enablePlayerCapStage ? 'playercap' : (enableNowPlayingStage ? 'now-playing' : null));
-    const isNowPlayingStageActive = activePlaybackContext === 'stage' && stageSource === 'now-playing';
+    const isExternalPlaybackSource = Boolean(stageSource && (stageSource === 'now-playing' || isSpotifyStageSource(stageSource)));
+    const isNowPlayingStageActive = activePlaybackContext === 'stage' && isExternalPlaybackSource;
+    const isSpotifyStageActive = activePlaybackContext === 'stage' && isSpotifyStageSource(stageSource);
+    isExternalStageActiveRef.current = isNowPlayingStageActive;
     const shouldPublishNowPlayingState = isDev || isNowPlayingStageActive;
     shouldPublishNowPlayingStateRef.current = shouldPublishNowPlayingState;
 
@@ -667,6 +677,7 @@ export function useStagePlaybackController({
         track: NowPlayingTrackSnapshot | null,
         lyricPayload: NowPlayingLyricPayload | null,
         requestId: number,
+        source: ExternalStageSource,
     ) => {
         const durationSec = Math.max(0, (track?.durationMs ?? lyricPayload?.durationMs ?? 0) / 1000);
         if (isDev) {
@@ -691,16 +702,59 @@ export function useStagePlaybackController({
             }
         }
 
+        if (!parsedLyrics && isSpotifyStageSource(source) && track) {
+            setIsLyricsLoading(true);
+            try {
+                const matched = await autoMatchBestLyric(
+                    track.title,
+                    track.artist,
+                    track.durationMs ?? 0,
+                    {
+                        album: track.album || undefined,
+                        allowLineSyncedFallback: true,
+                    },
+                );
+                if (matched && 'lyrics' in matched) {
+                    parsedLyrics = matched.lyrics;
+                }
+            } catch (error) {
+                console.warn('[Spotify] Failed to auto-match lyrics', error);
+            }
+        }
+
         if (nowPlayingContentLoadRequestIdRef.current !== requestId) {
             return;
         }
 
-        const renderableLyrics = hasRenderableLyrics(parsedLyrics) ? parsedLyrics : null;
+        const renderableLyrics = isSpotifyStageSource(source)
+            ? (hasSynchronizedLyricTimeline(parsedLyrics) ? parsedLyrics : null)
+            : (hasRenderableLyrics(parsedLyrics) ? parsedLyrics : null);
         const fallbackTitle = track?.title || lyricPayload?.title || 'Now Playing';
         const fallbackArtist = track?.artist || lyricPayload?.artist || 'Now Playing';
         const fallbackAlbum = track?.album || '';
         const fallbackCoverUrl = track?.coverUrl || null;
         const resolvedDurationSec = durationSec || (renderableLyrics ? getStageLyricsTimelineBounds(renderableLyrics).endTimeSec : 0);
+
+        if (isSpotifyStageSource(source) && track && !renderableLyrics) {
+            shouldAutoPlayRef.current = false;
+            pendingResumeTimeRef.current = null;
+            currentSongRef.current = null;
+            setCurrentSong(null);
+            setCachedCoverUrl(track.coverUrl);
+            setAudioSrc(null);
+            setPlayQueue([]);
+            setIsFmMode(false);
+            setIsLyricsLoading(false);
+            setLyrics(null);
+            setDuration(Math.max(0, durationSec));
+            setCurrentLineIndex(-1);
+            setStatusMsg({
+                type: 'error',
+                text: t('status.spotifyNoSynchronizedLyrics', { title: track.title }),
+            });
+            return;
+        }
+
         const fallbackSong: SongResult | null = (track || lyricPayload) ? ({
             id: -Math.max(1, Math.floor(Date.now())),
             name: fallbackTitle,
@@ -1029,9 +1083,12 @@ export function useStagePlaybackController({
     }, []);
 
     useEffect(() => {
-        if (stageSource !== 'now-playing') {
-            nowPlayingProviderRef.current?.stop();
-            nowPlayingProviderRef.current = null;
+        if (!stageSource || !isExternalPlaybackSource) {
+            if (nowPlayingProviderRef.current) {
+                nowPlayingProviderRef.current.stop();
+                nowPlayingProviderRef.current = null;
+            }
+
             nowPlayingContentLoadKeyRef.current = null;
             nowPlayingContentLoadRequestIdRef.current = 0;
             nowPlayingPreciseQueryRequestIdRef.current = 0;
@@ -1039,6 +1096,7 @@ export function useStagePlaybackController({
             nowPlayingLyricPayloadRef.current = null;
             nowPlayingPausedRef.current = true;
             setNowPlayingConnectionStatus('disabled');
+            setNowPlayingConnectionError(null);
             setNowPlayingTrack(null);
             setNowPlayingLyricPayload(null);
             setNowPlayingProgressMs(0);
@@ -1058,33 +1116,34 @@ export function useStagePlaybackController({
             return;
         }
 
-        const provider = new NowPlayingProvider({
-            debug: isDev,
+        const providerCallbacks = {
             onConnectionStatusChange: setNowPlayingConnectionStatus,
-            onTrack: (track) => {
+            onConnectionError: setNowPlayingConnectionError,
+            onTrack: (track: NowPlayingTrackSnapshot | null) => {
                 nowPlayingTrackRef.current = track;
                 if (shouldPublishNowPlayingStateRef.current) {
                     setNowPlayingTrack(track);
                 }
             },
-            onLyric: (lyric) => {
-                nowPlayingLyricPayloadRef.current = lyric;
-                if (shouldPublishNowPlayingStateRef.current) {
-                    setNowPlayingLyricPayload(lyric);
-                }
-            },
-            onPauseState: (isPaused) => {
+            onPauseState: (isPaused: boolean) => {
                 nowPlayingPausedRef.current = isPaused;
                 if (shouldPublishNowPlayingStateRef.current) {
                     setNowPlayingPaused(isPaused);
                 }
             },
-            onProgress: ({ progressMs, quality }) => {
+            onProgress: ({ progressMs, quality, rttMs = 0 }: {
+                progressMs: number;
+                quality: 'precise' | 'coarse';
+                rttMs?: number;
+            }) => {
                 nowPlayingProgressMsRef.current = progressMs;
                 nowPlayingProgressQualityRef.current = quality;
 
-                if (quality === 'precise' && stageSource === 'now-playing') {
+                if (quality === 'precise' && isExternalPlaybackSource) {
                     void applyNowPlayingPreciseAnchorRef.current?.(progressMs, nowPlayingPausedRef.current, {
+                        rttMs,
+                        // Preserve the continuous local clock between polls; snapping every Spotify response
+                        // into the MotionValue makes word highlighting visibly stutter once per second.
                         onlyIfDrifted: true,
                         source: 'progress',
                     });
@@ -1095,9 +1154,27 @@ export function useStagePlaybackController({
                     setNowPlayingProgressQuality(quality);
                 }
             },
-        });
+        };
+
+        const provider = isSpotifyStageSource(stageSource)
+            ? new SpotifyProvider(providerCallbacks, {
+                mode: stageSource === 'spotify-local' ? 'local' : 'web-api',
+            })
+            : new NowPlayingProvider({
+                ...providerCallbacks,
+                debug: isDev,
+                onLyric: (lyric) => {
+                    nowPlayingLyricPayloadRef.current = lyric;
+                    if (shouldPublishNowPlayingStateRef.current) {
+                        setNowPlayingLyricPayload(lyric);
+                    }
+                },
+            });
 
         nowPlayingProviderRef.current = provider;
+        if (provider instanceof SpotifyProvider) {
+            provider.setActive(isExternalStageActiveRef.current);
+        }
         provider.start();
 
         return () => {
@@ -1106,10 +1183,17 @@ export function useStagePlaybackController({
                 nowPlayingProviderRef.current = null;
             }
         };
-    }, [isDev, resetNowPlayingClock, stageSource, updateNowPlayingDebugInfo]);
+    }, [isDev, isExternalPlaybackSource, resetNowPlayingClock, stageSource, updateNowPlayingDebugInfo]);
 
     useEffect(() => {
-        if (stageSource !== 'now-playing' || !shouldPublishNowPlayingState) {
+        const provider = nowPlayingProviderRef.current;
+        if (provider instanceof SpotifyProvider) {
+            provider.setActive(isNowPlayingStageActive);
+        }
+    }, [isNowPlayingStageActive, stageSource]);
+
+    useEffect(() => {
+        if (!isExternalPlaybackSource || !shouldPublishNowPlayingState) {
             return;
         }
 
@@ -1121,7 +1205,7 @@ export function useStagePlaybackController({
             setNowPlayingProgressMs(nowPlayingProgressMsRef.current);
             setNowPlayingProgressQuality(nowPlayingProgressQualityRef.current);
         }
-    }, [isDev, shouldPublishNowPlayingState, stageSource]);
+    }, [isDev, isExternalPlaybackSource, shouldPublishNowPlayingState]);
 
     useEffect(() => {
         if (activePlaybackContext === 'main') {
@@ -1134,7 +1218,7 @@ export function useStagePlaybackController({
     }, [activePlaybackContext, buildPlaybackSnapshot, currentSong, playQueue]);
 
     useEffect(() => {
-        if (stageSource === 'now-playing') {
+        if (isExternalPlaybackSource) {
             lastLoadedStageEntryKeyRef.current = null;
             stagePlaybackSnapshotRef.current = null;
             return;
@@ -1171,6 +1255,7 @@ export function useStagePlaybackController({
         stagePlaybackSnapshotRef.current = null;
     }, [
         activePlaybackContext,
+        isExternalPlaybackSource,
         loadStageLyricsIntoPlayback,
         loadStageSessionIntoPlayback,
         stageActiveEntryKind,
@@ -1180,22 +1265,33 @@ export function useStagePlaybackController({
     ]);
 
     useEffect(() => {
-        if (stageSource !== 'now-playing' || activePlaybackContext !== 'stage') {
+        if (!isExternalPlaybackSource || activePlaybackContext !== 'stage') {
             return;
         }
 
+        const externalSource = stageSource as ExternalStageSource;
         const nextContentLoadKey = buildNowPlayingContentLoadKey(nowPlayingTrack, nowPlayingLyricPayload);
-        if (!nextContentLoadKey || nowPlayingContentLoadKeyRef.current === nextContentLoadKey) {
+        if (!nextContentLoadKey) {
+            if (nowPlayingContentLoadKeyRef.current) {
+                nowPlayingContentLoadKeyRef.current = null;
+                const requestId = nowPlayingContentLoadRequestIdRef.current + 1;
+                nowPlayingContentLoadRequestIdRef.current = requestId;
+                void loadNowPlayingIntoPlayback(null, null, requestId, externalSource);
+            }
+            return;
+        }
+        if (nowPlayingContentLoadKeyRef.current === nextContentLoadKey) {
             return;
         }
 
         nowPlayingContentLoadKeyRef.current = nextContentLoadKey;
         const requestId = nowPlayingContentLoadRequestIdRef.current + 1;
         nowPlayingContentLoadRequestIdRef.current = requestId;
-        void loadNowPlayingIntoPlayback(nowPlayingTrack, nowPlayingLyricPayload, requestId);
+        void loadNowPlayingIntoPlayback(nowPlayingTrack, nowPlayingLyricPayload, requestId, externalSource);
     }, [
         activePlaybackContext,
         buildNowPlayingContentLoadKey,
+        isExternalPlaybackSource,
         loadNowPlayingIntoPlayback,
         nowPlayingLyricPayload,
         nowPlayingTrack,
@@ -1203,7 +1299,7 @@ export function useStagePlaybackController({
     ]);
 
     useEffect(() => {
-        if (stageSource !== 'now-playing') {
+        if (!isExternalPlaybackSource) {
             return;
         }
 
@@ -1226,6 +1322,7 @@ export function useStagePlaybackController({
         getNowPlayingDisplayTime,
         getNowPlayingDurationSec,
         isDev,
+        isExternalPlaybackSource,
         isNowPlayingStageActive,
         nowPlayingLyricPayload,
         nowPlayingPaused,
@@ -1263,7 +1360,7 @@ export function useStagePlaybackController({
     ]);
 
     useEffect(() => {
-        if (!isNowPlayingStageActive || nowPlayingPaused) {
+        if (!isNowPlayingStageActive || stageSource !== 'now-playing' || nowPlayingPaused) {
             return;
         }
 
@@ -1274,16 +1371,16 @@ export function useStagePlaybackController({
         return () => {
             window.clearInterval(intervalId);
         };
-    }, [isNowPlayingStageActive, nowPlayingPaused, queryNowPlayingPreciseProgress]);
+    }, [isNowPlayingStageActive, nowPlayingPaused, queryNowPlayingPreciseProgress, stageSource]);
 
     useEffect(() => {
-        if (activePlaybackContext === 'stage' && stageSource === 'now-playing') {
+        if (activePlaybackContext === 'stage' && isExternalPlaybackSource) {
             return;
         }
 
         nowPlayingContentLoadRequestIdRef.current += 1;
         nowPlayingPreciseQueryRequestIdRef.current += 1;
-    }, [activePlaybackContext, stageSource]);
+    }, [activePlaybackContext, isExternalPlaybackSource]);
 
     useEffect(() => {
         if (!isNowPlayingStageActive) {
@@ -1384,6 +1481,7 @@ export function useStagePlaybackController({
         stageLyricsSession,
         stageMediaSession,
         nowPlayingConnectionStatus,
+        nowPlayingConnectionError,
         nowPlayingTrack,
         nowPlayingLyricPayload,
         nowPlayingProgressMs,
@@ -1391,6 +1489,7 @@ export function useStagePlaybackController({
         nowPlayingPaused,
         nowPlayingDebugInfo,
         isNowPlayingStageActive,
+        isSpotifyStageActive,
         isPlayerCapStageActive,
         getPlayerCapDisplayTime,
         playerCapConnectionStatus,

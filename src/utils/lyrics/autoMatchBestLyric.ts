@@ -41,6 +41,8 @@ export interface AutoMatchProviderCandidate {
 export interface AutoMatchBestLyricOptions {
     album?: string;
     preferredSource?: LyricProviderSource;
+    /** Spotify Stage: prefer a line-synced fallback with a real timeline over an untimed one. */
+    allowLineSyncedFallback?: boolean;
     metadataCandidate?: {
         source: 'netease' | 'qq' | 'kugou' | 'zing' | 'nct';
         songId: number | string;
@@ -74,6 +76,41 @@ export type AutoMatchBestLyricPureMusic = {
 };
 
 export type AutoMatchBestLyricResult = AutoMatchBestLyricMatch | AutoMatchBestLyricPureMusic | null;
+
+// True when the lyrics carry a usable timeline (timed words spanning >=0.5s or timed lines spanning >=1s).
+export const hasSynchronizedLyricTimeline = (lyrics: LyricData | null): lyrics is LyricData => {
+    if (!lyrics || lyrics.lines.length === 0) {
+        return false;
+    }
+
+    const timedLines = lyrics.lines.filter(line => (
+        Number.isFinite(line.startTime)
+        && Number.isFinite(line.endTime)
+        && line.startTime >= 0
+        && line.endTime > line.startTime
+        && line.fullText.trim().length > 0
+    ));
+    const timedWords = timedLines.flatMap(line => line.words).filter(word => (
+        Number.isFinite(word.startTime)
+        && Number.isFinite(word.endTime)
+        && word.endTime > word.startTime
+    ));
+    if (timedWords.length >= 2) {
+        const firstWordStart = Math.min(...timedWords.map(word => word.startTime));
+        const lastWordEnd = Math.max(...timedWords.map(word => word.endTime));
+        if (lastWordEnd - firstWordStart >= 0.5) {
+            return true;
+        }
+    }
+
+    if (timedLines.length < 2) {
+        return false;
+    }
+
+    const firstLineStart = Math.min(...timedLines.map(line => line.startTime));
+    const lastLineEnd = Math.max(...timedLines.map(line => line.endTime));
+    return lastLineEnd - firstLineStart >= 1;
+};
 
 const getNumericNeteaseId = (id: number | string): number | null => {
     const numericId = typeof id === 'number' ? id : Number(id);
@@ -200,6 +237,21 @@ export async function autoMatchBestLyric(
     let zingBestCandidate: SongResult | null | undefined;
     let nctBestCandidate: SongResult | null | undefined;
     let lineByLineFallback: AutoMatchBestLyricMatch | null = null;
+
+    // Keeps the first line-by-line fallback; with allowLineSyncedFallback, a later timed candidate replaces an untimed one.
+    const rememberFallback = (candidate: AutoMatchBestLyricMatch) => {
+        if (!lineByLineFallback) {
+            lineByLineFallback = candidate;
+            return;
+        }
+        if (
+            options.allowLineSyncedFallback
+            && !hasSynchronizedLyricTimeline(lineByLineFallback.lyrics)
+            && hasSynchronizedLyricTimeline(candidate.lyrics)
+        ) {
+            lineByLineFallback = candidate;
+        }
+    };
 
     const searchOrder = options.exactMatchOnly && options.metadataCandidate
         ? [options.metadataCandidate.source]
@@ -477,7 +529,7 @@ export async function autoMatchBestLyric(
                             console.log(`[autoMatchBestLyric] Found accepted NetEase lyric match!`);
                             return match;
                         }
-                        lineByLineFallback ??= match;
+                        rememberFallback(match);
                         console.log(`[autoMatchBestLyric] Keeping NetEase line-by-line lyrics as fallback while checking for word-by-word lyrics.`);
                     }
                 }
@@ -494,7 +546,7 @@ export async function autoMatchBestLyric(
                             if (result.lyrics.isWordByWord) {
                                 return result;
                             }
-                            lineByLineFallback ??= result;
+                            rememberFallback(result);
                         }
                     }
                 }
@@ -511,7 +563,7 @@ export async function autoMatchBestLyric(
                         if (result.lyrics.isWordByWord) {
                             return result;
                         }
-                        lineByLineFallback ??= result;
+                        rememberFallback(result);
                     }
                 }
                 console.log('[autoMatchBestLyric] AMLLDB auto probe finished after NCM miss; QQ AMLLDB probing is reserved for manual matching.');
@@ -545,7 +597,7 @@ export async function autoMatchBestLyric(
                             console.log(`[autoMatchBestLyric] Found accepted QQ lyric match!`);
                             return match;
                         }
-                        lineByLineFallback ??= match;
+                        rememberFallback(match);
                         console.log(`[autoMatchBestLyric] Keeping QQ line-by-line lyrics as fallback while checking for word-by-word lyrics.`);
                     }
                 }
@@ -578,7 +630,7 @@ export async function autoMatchBestLyric(
                             console.log(`[autoMatchBestLyric] Found accepted Kugou lyric match!`);
                             return match;
                         }
-                        lineByLineFallback ??= match;
+                        rememberFallback(match);
                         console.log(`[autoMatchBestLyric] Keeping Kugou line-by-line lyrics as fallback while checking for word-by-word lyrics.`);
                     }
                 }
@@ -613,7 +665,7 @@ export async function autoMatchBestLyric(
                             console.log(`[autoMatchBestLyric] Found accepted Zing lyric match!`);
                             return match;
                         }
-                        lineByLineFallback ??= match;
+                        rememberFallback(match);
                         console.log(`[autoMatchBestLyric] Keeping Zing line-by-line lyrics as fallback while checking for alternatives.`);
                     }
                 }
@@ -648,7 +700,7 @@ export async function autoMatchBestLyric(
                             console.log(`[autoMatchBestLyric] Found accepted NCT lyric match!`);
                             return match;
                         }
-                        lineByLineFallback ??= match;
+                        rememberFallback(match);
                         console.log(`[autoMatchBestLyric] Keeping NCT line-by-line lyrics as fallback while checking for alternatives.`);
                     }
                 }

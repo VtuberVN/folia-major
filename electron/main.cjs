@@ -5582,7 +5582,15 @@ ipcMain.handle('set-app-locale', (event, localeKey) => {
   return localeKey;
 });
 
-ipcMain.handle('save-settings', (event, key, value) => {
+ipcMain.handle('save-settings', async (event, key, value) => {
+  if (key === STAGE_MODE_SOURCE_SETTING_KEY) {
+    if (!isTrustedMainWindowContents(event.sender)) {
+      throw new Error('Untrusted renderer attempted to change the Stage source.');
+    }
+    await stageApi.setStageSource(value);
+    return getPublicSettings();
+  }
+
   let nextValue = value;
   if (key === DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY) {
     if (!isTrustedMainWindowContents(event.sender)) {

@@ -47,6 +47,7 @@ export type SettingsDialogDeps = {
     clearPersistedStagePlaybackCache: () => Promise<void>;
     loadStageSessionIntoPlayback: (session: any) => Promise<void>;
     nowPlayingConnectionStatus?: NowPlayingConnectionStatus;
+    nowPlayingConnectionError?: string | null;
     playerCapConnectionStatus?: PlayerCapConnectionStatus;
     playerCapPlayers?: string[];
     onAudioOutputDeviceChange: (deviceId: string) => Promise<boolean> | boolean;
@@ -80,6 +81,7 @@ export const buildSettingsDialogModel = ({
     clearPersistedStagePlaybackCache,
     loadStageSessionIntoPlayback,
     nowPlayingConnectionStatus,
+    nowPlayingConnectionError,
     playerCapConnectionStatus,
     playerCapPlayers,
     onAudioOutputDeviceChange,
@@ -121,6 +123,7 @@ export const buildSettingsDialogModel = ({
         stageStatus,
         stageSource,
         nowPlayingConnectionStatus,
+        nowPlayingConnectionError,
         playerCapConnectionStatus,
         playerCapPlayers,
         obsBrowserSourceStatus,
@@ -169,7 +172,15 @@ export const buildSettingsDialogModel = ({
             }
         },
         onStageSourceChange: async (source) => {
-            await window.electron?.saveSettings?.('STAGE_MODE_SOURCE', source);
+            if (!window.electron?.setStageSource) {
+                return;
+            }
+            try {
+                const nextStatus = await window.electron.setStageSource(source);
+                setStageStatus(nextStatus);
+            } catch (error) {
+                console.error('[buildSettingsDialogModel] Failed to change stage source:', error);
+            }
         },
         onRegenerateStageToken: async () => {
             const nextStatus = await window.electron?.regenerateStageToken();
