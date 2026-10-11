@@ -13,6 +13,8 @@ import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import {
     getStoredZingCookie,
+    getZingAlbumDetail,
+    getZingAlbums,
     getZingAudioSource,
     getZingHomePlaylists,
     getZingLyric,
@@ -36,7 +38,8 @@ export const zingProvider: OnlineMusicProvider = {
         wordByWordLyrics: true,
         userLibrary: true,
         playlists: true,
-        albums: false,
+        albums: true,
+        userAlbums: true,
         artists: false,
         recommendations: true,
         mutations: false,
@@ -130,10 +133,20 @@ export const zingProvider: OnlineMusicProvider = {
         async getLikedSongs(_userId) {
             return [];
         },
+        async getUserAlbums(_userId, limit, offset) {
+            return getZingAlbums(limit, offset);
+        },
     },
     catalog: {
         async getPlaylistTracks(id, limit, offset) {
             return getZingPlaylistTracks(String(id), limit, offset);
+        },
+        async getAlbumTracks(id, limit, offset) {
+            return getZingPlaylistTracks(String(id), limit, offset);
+        },
+        async getAlbumDetail(id, existingCollection) {
+            const detail = await getZingAlbumDetail(String(id));
+            return detail || existingCollection || null;
         },
     },
     lyrics: {

@@ -860,6 +860,13 @@ export default {
     },
   },
   ui: {
+    modVisualizer: {
+      mod: {
+        "sample-aurora-visualizer": {
+          "aurora-text": "Cực quang",
+        },
+      },
+    },
     audioQualityInfo: "Chất lượng tệp / luồng âm thanh",
     audioQualitySource: "Nguồn",
     noTrack: "Không có bài hát",
@@ -2264,7 +2271,7 @@ export default {
     visualizerBackgroundModeLatent: "Latent",
     visualizerBackgroundModeUrl: "Embed",
     visualizerBackgroundModeSora: "Sora",
-    visualizerBackgroundModeTide: "Thủy triều",
+    visualizerBackgroundModeTide: "Tide",
     urlBackgroundSettings: "Embedded Background",
     urlBackgroundSettingsDesc: "Hiển thị trang web làm nền trình phát. Lưu ý: một số trang web chặn nhúng vào iframe và có thể không hiển thị.",
     urlBackgroundNotePlaceholder: "Ghi chú (dễ nhận biết)",

@@ -6028,9 +6028,9 @@ let cachedZingSessionExpiry = 0;
 
 ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, quality) => {
   try {
-    const ZING_API_KEY = '88265e23d4284f25963e6eedac8fbfa3';
-    const ZING_SECRET_KEY = '2aa2d1c561e809b267f3638c4a307aab';
-    const ZING_VERSION = '1.6.34';
+    const ZING_API_KEY = 'X5BM3w8N7MKozC0B85o4KMlzLZKhV00y';
+    const ZING_SECRET_KEY = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
+    const ZING_VERSION = '1.22.2';
     const ZING_BASE_URL = 'https://zingmp3.vn';
 
     const now = Date.now();
@@ -6038,7 +6038,7 @@ ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, qual
       try {
         const homeRes = await fetch(ZING_BASE_URL, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
           },
         });
         const getSetCookie = homeRes.headers.getSetCookie;
@@ -6053,12 +6053,30 @@ ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, qual
       }
     }
 
-    const cookie = [cachedZingSessionCookie, customCookie].filter(Boolean).join('; ');
+    const cookieList = [cachedZingSessionCookie, customCookie].filter(Boolean);
+    if (!cookieList.some(c => c.includes('zmp3_rqid'))) {
+      const syntheticRaw = `0|127.0.0.1|v${ZING_VERSION}|${Date.now()}`;
+      const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
+      cookieList.push('zmp3_app_version.1=1222', `zmp3_rqid=${syntheticRqid}`);
+    }
+    const cookie = cookieList.join('; ');
 
     const path = '/api/v2/song/get/streaming';
     const ctime = String(Math.floor(Date.now() / 1000));
-    const hashParams = `ctime=${ctime}id=${songId}version=${ZING_VERSION}`;
-    const sha256 = crypto.createHash('sha256').update(hashParams).digest('hex');
+    const signKeys = ['ctime', 'id', 'type', 'page', 'count', 'version'];
+    const params = { id: songId, ctime, version: ZING_VERSION };
+    const sortedKeys = Object.keys(params).sort();
+    const filtered = {};
+    for (const k of sortedKeys) {
+      if (signKeys.includes(k) && params[k] !== null && params[k] !== undefined && params[k] !== '') {
+        filtered[k] = String(params[k]);
+      }
+    }
+    const n = Object.keys(filtered).map(k => {
+      const val = encodeURIComponent(filtered[k]);
+      return val.length > 5000 ? '' : `${encodeURIComponent(k)}=${val}`;
+    }).filter(Boolean).join('');
+    const sha256 = crypto.createHash('sha256').update(n).digest('hex');
     const sig = crypto.createHmac('sha512', ZING_SECRET_KEY).update(`${path}${sha256}`).digest('hex');
 
     const streamUrl = new URL(`${ZING_BASE_URL}${path}`);

@@ -30,8 +30,10 @@ export interface StoredFoliumVisualizer {
 
 export const foliumVisualizerMode = (id: string): VisualizerMode => `mod:${id}` as VisualizerMode;
 
-const resolveLabelFallback = (label: Record<string, string | undefined>, id: string): string =>
-    label['zh-CN'] ?? label.en ?? label[document?.documentElement?.lang] ?? id;
+const resolveLabelFallback = (label: Record<string, string | undefined>, id: string): string => {
+    const docLang = typeof document !== 'undefined' ? document.documentElement?.lang : undefined;
+    return (docLang && label[docLang]) ?? label.vi ?? label.en ?? label['zh-CN'] ?? id;
+};
 
 const buildRegistryEntry = (id: string, modId: string, stored: StoredFoliumVisualizer): VisualizerRegistryEntry => {
     const labelFallback = resolveLabelFallback(stored.def.label, id);

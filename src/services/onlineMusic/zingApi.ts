@@ -5,11 +5,13 @@ import type { LyricData, UnifiedSong } from '../../types';
 import type { AudioQualityPreference, ProviderCollection, ProviderPage, ProviderUser } from '../../types/onlineMusic';
 import { parseLRC } from '../../utils/lyrics/parserCore';
 
-const ZING_API_KEY = '88265e23d4284f25963e6eedac8fbfa3';
-const ZING_SECRET_KEY = '2aa2d1c561e809b267f3638c4a307aab';
-const ZING_VERSION = '1.6.34';
+const ZING_API_KEY = 'X5BM3w8N7MKozC0B85o4KMlzLZKhV00y';
+const ZING_SECRET_KEY = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
+const ZING_VERSION = '1.22.2';
 const ZING_BASE_URL = 'https://zingmp3.vn';
 const ZING_SUGGEST_URL = 'https://ac.zingmp3.vn/v1/web/ac-suggestions';
+
+const SIGN_KEYS = ['ctime', 'id', 'type', 'page', 'count', 'version'];
 
 export const ZING_COOKIE_STORAGE_KEY = 'folia_zing_cookie';
 export const ZING_PROFILE_STORAGE_KEY = 'folia_zing_profile';
@@ -51,9 +53,25 @@ async function getHmac512(str: string, key: string): Promise<string> {
 /**
  * Generates HMAC-SHA512 signature for Zing MP3 API path and parameters.
  */
-export async function getZingSignature(path: string, id: string, ctime: string): Promise<string> {
-    const hashParams = id ? `ctime=${ctime}id=${id}version=${ZING_VERSION}` : `ctime=${ctime}version=${ZING_VERSION}`;
-    const sha256 = await getHash256(hashParams);
+export async function getZingSignature(path: string, idOrParams: string | Record<string, any>, ctime?: string): Promise<string> {
+    const params: Record<string, any> = typeof idOrParams === 'string'
+        ? { id: idOrParams, ctime: ctime || String(Math.floor(Date.now() / 1000)), version: ZING_VERSION }
+        : { ...idOrParams, ctime: idOrParams.ctime || ctime || String(Math.floor(Date.now() / 1000)), version: idOrParams.version || ZING_VERSION };
+
+    const sortedKeys = Object.keys(params).sort();
+    const filtered: Record<string, string> = {};
+    for (const k of sortedKeys) {
+        if (SIGN_KEYS.includes(k) && params[k] !== null && params[k] !== undefined && params[k] !== '') {
+            filtered[k] = String(params[k]);
+        }
+    }
+    const parts = Object.keys(filtered).map(k => {
+        const val = encodeURIComponent(filtered[k]);
+        return val.length > 5000 ? '' : `${encodeURIComponent(k)}=${val}`;
+    }).filter(Boolean);
+
+    const n = parts.join('');
+    const sha256 = await getHash256(n);
     return getHmac512(`${path}${sha256}`, ZING_SECRET_KEY);
 }
 
@@ -135,7 +153,19 @@ async function resolveCookie(): Promise<string> {
         }
     }
 
-    return [cachedSessionCookie, userCookie].filter(Boolean).join('; ');
+    const cookies: string[] = [];
+    if (cachedSessionCookie) cookies.push(cachedSessionCookie);
+    if (userCookie) cookies.push(userCookie);
+    if (!cookies.some(c => c.includes('zmp3_rqid'))) {
+        const syntheticRaw = `0|127.0.0.1|v${ZING_VERSION}|${Date.now()}`;
+        const syntheticRqid = typeof Buffer !== 'undefined'
+            ? Buffer.from(syntheticRaw).toString('base64')
+            : (typeof btoa === 'function' ? btoa(syntheticRaw) : '');
+        cookies.push(`zmp3_app_version.1=1222`);
+        if (syntheticRqid) cookies.push(`zmp3_rqid=${syntheticRqid}`);
+    }
+
+    return cookies.filter(Boolean).join('; ');
 }
 
 export interface ZingStreamResult {
@@ -632,4 +662,118 @@ export async function getZingPlaylistTracks(
         return { items: [], total: 0, hasMore: false, nextOffset: offset };
     }
 }
+
+/**
+ * Fetches details for a Zing MP3 Album.
+ */
+export async function getZingAlbumDetail(albumId: string): Promise<ProviderCollection | null> {
+    const path = '/api/v2/page/get/playlist';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { id: albumId, ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('id', albumId);
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(url.toString(), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (json.err !== 0 || !json.data) return null;
+
+        const data = json.data;
+        const coverUrl = data.thumbnailM || data.thumbnail;
+        return {
+            providerId: 'zing',
+            id: String(data.encodeId || albumId),
+            name: String(data.title || 'Zing MP3 Album'),
+            type: 'album',
+            coverUrl: coverUrl ? String(coverUrl).replace('http:', 'https:') : undefined,
+            description: data.description || data.sortDescription || data.artistsNames || undefined,
+            trackCount: Number(data.song?.total || data.song?.items?.length || 0),
+            isOwned: false,
+        };
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch album detail:', err);
+        return null;
+    }
+}
+
+/**
+ * Fetches real albums from Zing MP3 (new release chart & trending albums).
+ */
+export async function getZingAlbums(
+    limit: number = 30,
+    offset: number = 0,
+): Promise<ProviderPage<ProviderCollection>> {
+    const path = '/api/v2/page/get/newrelease-chart';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(url.toString(), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+        });
+
+        if (!res.ok) return { items: [], total: 0, hasMore: false, nextOffset: offset };
+        const json = await res.json();
+        if (json.err !== 0 || !Array.isArray(json.data?.items)) {
+            return { items: [], total: 0, hasMore: false, nextOffset: offset };
+        }
+
+        const albumMap = new Map<string, ProviderCollection>();
+        for (const item of json.data.items) {
+            const album = item.album;
+            const albumId = album?.encodeId || (item.isAlbum ? (item.encodeId || item.id) : null);
+            const title = album?.title || (item.isAlbum ? item.title : null);
+            if (albumId && title && !albumMap.has(String(albumId))) {
+                const cover = album?.thumbnailM || album?.thumbnail || item.thumbnailM || item.thumbnail;
+                albumMap.set(String(albumId), {
+                    providerId: 'zing',
+                    id: String(albumId),
+                    name: String(title),
+                    type: 'album',
+                    coverUrl: cover ? String(cover).replace('http:', 'https:') : undefined,
+                    description: album?.artistsNames || item.artistsNames || undefined,
+                    trackCount: Number(album?.song?.total || item.duration ? 1 : 10),
+                    isOwned: false,
+                });
+            }
+        }
+
+        const allAlbums = Array.from(albumMap.values());
+        const paged = allAlbums.slice(offset, offset + limit);
+        return {
+            items: paged,
+            total: allAlbums.length,
+            hasMore: offset + limit < allAlbums.length,
+            nextOffset: offset + limit,
+        };
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch albums:', err);
+        return { items: [], total: 0, hasMore: false, nextOffset: offset };
+    }
+}
+
 

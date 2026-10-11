@@ -18,10 +18,46 @@ type Props = {
     onSelect: (provider: ProviderAccountSummary) => void;
 };
 
+const PROVIDER_ICONS: Record<string, React.ReactNode> = {
+    youtube: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3/5 w-3/5">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+        </svg>
+    ),
+    zing: (
+        <svg viewBox="0 0 24 24" className="h-4/5 w-4/5" fill="none">
+            <circle cx="12" cy="12" r="11" fill="#FFFFFF" />
+            <circle cx="12" cy="12" r="10" fill="#18181b" />
+            <path d="M12 12 L9.54 2.82 A9.5 9.5 0 0 1 21.35 10.35 Z" fill="#43B03C" />
+            <path d="M12 12 L21.35 10.35 A9.5 9.5 0 0 1 14.46 21.18 Z" fill="#F37321" />
+            <path d="M12 12 L14.46 21.18 A9.5 9.5 0 0 1 2.82 14.46 Z" fill="#E51D73" />
+            <path d="M12 12 L2.82 14.46 A9.5 9.5 0 0 1 9.54 2.82 Z" fill="#00A4E4" />
+            <path d="M6.2 14.2 A6.5 6.5 0 0 1 8.2 8.5" stroke="#FFFFFF" strokeWidth="0.8" strokeLinecap="round" opacity="0.9" />
+            <path d="M7.4 13.8 A5.2 5.2 0 0 1 9.2 9.2" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" opacity="0.9" />
+            <path d="M17.8 9.8 A6.5 6.5 0 0 1 15.8 15.5" stroke="#FFFFFF" strokeWidth="0.8" strokeLinecap="round" opacity="0.9" />
+            <path d="M16.6 10.2 A5.2 5.2 0 0 1 14.8 14.8" stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" opacity="0.9" />
+            <circle cx="12" cy="12" r="2.8" fill="#FFFFFF" />
+            <circle cx="12" cy="12" r="1.3" fill="#6A35FF" />
+        </svg>
+    ),
+    nct: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3/5 w-3/5">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5.5 13c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm3 2c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm2.5 1.5c-.55 0-1-.45-1-1V5.5c0-.55.45-1 1-1s1 .45 1 1v13c0 .55-.45 1-1 1zm3-1.5c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm3-2c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1z" />
+        </svg>
+    ),
+};
+PROVIDER_ICONS['folium.youtube-provider.youtube'] = PROVIDER_ICONS.youtube;
+
 // 在线平台使用统一的纯色圆形文字徽章；Mod 音源取名称首字。
 const badges: Record<string, [string, string]> = {
-    netease: ['云', 'bg-red-500'], kugou: ['K', 'bg-blue-500'],
-    qq: ['Q', 'bg-emerald-500'], bodian: ['波', 'bg-teal-500'],
+    netease: ['云', 'bg-red-500'],
+    kugou: ['K', 'bg-blue-500'],
+    qq: ['Q', 'bg-emerald-500'],
+    bodian: ['波', 'bg-teal-500'],
+    zing: ['Z', 'bg-[#6A35FF]'],
+    nct: ['N', 'bg-[#00D3E5]'],
+    youtube: ['Y', 'bg-red-600'],
+    'folium.youtube-provider.youtube': ['Y', 'bg-red-600'],
 };
 
 const SPRING = { type: 'spring', stiffness: 460, damping: 36, mass: 0.9 } as const;
@@ -85,12 +121,19 @@ export default function ProviderConnectButton({ providers, isDaylight, getAction
                                 className={`absolute inset-0 rounded-full ${chrome.activePill}`}
                             />
                         )}
-                        <span
-                            aria-hidden="true"
-                            className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold leading-none text-white transition-opacity ${color} ${
-                                !configured ? 'opacity-35 grayscale' : active ? '' : 'opacity-75'
-                            }`}
-                        >{badge}</span>
+                        {(() => {
+                            const customIcon = PROVIDER_ICONS[provider.providerId];
+                            return (
+                                <span
+                                    aria-hidden="true"
+                                    className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold leading-none text-white transition-opacity ${color} ${
+                                        !configured ? 'opacity-35 grayscale' : active ? '' : 'opacity-75'
+                                    }`}
+                                >
+                                    {customIcon || badge}
+                                </span>
+                            );
+                        })()}
                         {active && (
                             <motion.span
                                 key={provider.providerId}

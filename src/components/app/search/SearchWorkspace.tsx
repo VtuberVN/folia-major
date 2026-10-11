@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Loader2, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import SearchResultsList from './SearchResultsList';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { omni } from '../../../services/onlineMusic/omni';
+import { listOnlineMusicProviders } from '../../../services/onlineMusic/providerRegistry';
 
 // src/components/app/search/SearchWorkspace.tsx
 
@@ -77,19 +78,30 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         return resolveTrackDisplay ? raw.map(resolveTrackDisplay) : raw;
     }, [resolveTrackDisplay, searchResults]);
     const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
+    const providerRegistryVersion = useSyncExternalStore(
+        omni.subscribeProviders,
+        omni.getProviderRegistryVersion,
+        omni.getProviderRegistryVersion,
+    );
     const sources = useMemo<SearchSource[]>(() => {
         const base: SearchSource[] = [
             'netease',
             'zing',
             'nct',
-            'local',
-            'navidrome',
         ];
+        const onlineProviders = listOnlineMusicProviders();
+        for (const provider of onlineProviders) {
+            if (provider.capabilities.search && !base.includes(provider.id)) {
+                base.push(provider.id);
+            }
+        }
+        base.push('local', 'navidrome');
+
         if (!base.includes(activeOnlineProviderId)) {
             base.splice(1, 0, activeOnlineProviderId);
         }
         return base;
-    }, [activeOnlineProviderId]);
+    }, [activeOnlineProviderId, providerRegistryVersion]);
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const getSourceIcon = (source: SearchSource) => {
         switch (source) {
@@ -118,8 +130,22 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                         云
                     </span>
                 );
-            default:
-                return null;
+            case 'youtube':
+            case 'folium.youtube-provider.youtube':
+                return (
+                    <svg viewBox="0 0 24 24" fill="#dc2626" className="h-3.5 w-3.5 shrink-0">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                );
+            default: {
+                const p = omni.getProviderSummaries().find(item => item.providerId === source);
+                const firstChar = p?.shortName?.[0] || source[0]?.toUpperCase() || 'M';
+                return (
+                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-[8px] font-bold text-white leading-none">
+                        {firstChar}
+                    </span>
+                );
+            }
         }
     };
 
@@ -131,6 +157,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
         if (source === 'qq') return t('qqSource', { defaultValue: 'QQ Music' });
         if (source === 'kugou') return t('kugouSource', { defaultValue: 'KuGou Music' });
+        if (source === 'youtube' || source === 'folium.youtube-provider.youtube') return 'YouTube';
         return omni.getProviderLabel(source);
     };
 

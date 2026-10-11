@@ -105,4 +105,68 @@ describe('zingProvider', () => {
         await zingProvider.auth?.logout();
         expect(await zingProvider.auth?.getLoginStatus()).toBeNull();
     });
+
+    it('has album capabilities enabled', () => {
+        expect(zingProvider.capabilities.albums).toBe(true);
+        expect(zingProvider.capabilities.userAlbums).toBe(true);
+    });
+
+    it('fetches album detail and tracks via catalog', async () => {
+        const mockAlbum: any = {
+            providerId: 'zing',
+            id: 'DeIuKsXvwKHA',
+            name: 'Album Nhạc Bất Hủ 8X, 9X',
+            type: 'album',
+            trackCount: 8,
+            isOwned: false,
+        };
+        vi.spyOn(zingApi, 'getZingAlbumDetail').mockResolvedValue(mockAlbum);
+        vi.spyOn(zingApi, 'getZingPlaylistTracks').mockResolvedValue({
+            items: [
+                {
+                    id: 'cZbKGpQ3YPob',
+                    name: 'Dấu Chấm Hết (Remake)',
+                    artists: [{ id: 1, name: 'Địa Hải' }],
+                    album: { id: 'DeIuKsXvwKHA', name: 'Album Nhạc Bất Hủ 8X, 9X' },
+                    durationMs: 275000,
+                    sourceRef: { kind: 'online', providerId: 'zing', mediaId: 'cZbKGpQ3YPob' },
+                },
+            ],
+            total: 1,
+            hasMore: false,
+            nextOffset: 1,
+        });
+
+        const detail = await zingProvider.catalog?.getAlbumDetail?.('DeIuKsXvwKHA');
+        expect(detail).toEqual(mockAlbum);
+        expect(detail?.type).toBe('album');
+
+        const tracks = await zingProvider.catalog?.getAlbumTracks?.('DeIuKsXvwKHA', 20, 0);
+        expect(tracks?.items).toHaveLength(1);
+        expect(tracks?.items[0].name).toBe('Dấu Chấm Hết (Remake)');
+    });
+
+    it('fetches user albums via library.getUserAlbums', async () => {
+        const mockAlbumPage = {
+            items: [
+                {
+                    providerId: 'zing' as const,
+                    id: 'YnsBe9dlQfNB',
+                    name: 'CHUNG KẾT (Anh Trai Vượt Ngàn Chông Gai 2026)',
+                    type: 'album' as const,
+                    trackCount: 6,
+                    isOwned: false,
+                },
+            ],
+            total: 1,
+            hasMore: false,
+            nextOffset: 1,
+        };
+        vi.spyOn(zingApi, 'getZingAlbums').mockResolvedValue(mockAlbumPage);
+
+        const result = await zingProvider.library?.getUserAlbums?.('zing_user', 30, 0);
+        expect(result?.items).toHaveLength(1);
+        expect(result?.items[0].type).toBe('album');
+        expect(result?.items[0].name).toBe('CHUNG KẾT (Anh Trai Vượt Ngàn Chông Gai 2026)');
+    });
 });

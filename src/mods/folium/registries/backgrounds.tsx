@@ -33,8 +33,10 @@ export interface StoredFoliumBackground {
 
 const EMPTY_SETTINGS: FoliumParamValues = Object.freeze({});
 
-const resolveLabelFallback = (label: Record<string, string | undefined>, id: string): string =>
-    label['zh-CN'] ?? label.en ?? id;
+const resolveLabelFallback = (label: Record<string, string | undefined>, id: string): string => {
+    const docLang = typeof document !== 'undefined' ? document.documentElement?.lang : undefined;
+    return (docLang && label[docLang]) ?? label.vi ?? label.en ?? label['zh-CN'] ?? id;
+};
 
 /*
  * Background context: fixed per mount on staticMode only; theme, cover, pause

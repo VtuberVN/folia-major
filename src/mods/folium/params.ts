@@ -161,5 +161,5 @@ export const resolveFoliumLabel = (
     fallback: string,
 ): string => {
     if (!label) return fallback;
-    return label[language] ?? label['zh-CN'] ?? label.en ?? fallback;
+    return label[language] ?? label.vi ?? label.en ?? label['zh-CN'] ?? fallback;
 };
