@@ -261,6 +261,9 @@ Danh sách chi tiết xem tại [Danh sách Người đóng góp](CONTRIBUTORS.m
 - [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [paper-design/shaders](https://github.com/paper-design/shaders)
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api)
+- [Lynx-1ST/folia-major](https://github.com/Lynx-1ST/folia-major): Tham khảo ý tưởng tích hợp Discord RPC và tối ưu tạm dừng nền.
+- [VTB-LINK/folia-major-fork](https://github.com/VTB-LINK/folia-major-fork): Tham khảo tích hợp tài nguyên và kiểu dáng OBS.
+- [yigexuanmu/folia-major](https://github.com/yigexuanmu/folia-major): Tham khảo cơ chế mở khóa bài hát VIP (Song Unlock).
 
 Dự án đã tích hợp [Kho lời bài hát từng từ TTML phong cách Apple Music](https://github.com/amll-dev/amll-ttml-db) để mang lại các tệp lời chất lượng cao, trân trọng cảm ơn các tác giả và người đóng góp cho kho dữ liệu này.
 

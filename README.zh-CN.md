@@ -225,6 +225,9 @@ Folia 会读取音频文件元数据、同目录歌词和封面，并可通过�
 - [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [paper-design/shaders](https://github.com/paper-design/shaders)
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api)
+- [Lynx-1ST/folia-major](https://github.com/Lynx-1ST/folia-major)：参考 Discord RPC 集成及后台挂起暂停优化。
+- [VTB-LINK/folia-major-fork](https://github.com/VTB-LINK/folia-major-fork)：参考 OBS 资源与样式集成。
+- [yigexuanmu/folia-major](https://github.com/yigexuanmu/folia-major)：参考 VIP 歌曲解锁机制 (Song Unlock)。
 
 本项目接入了 [Apple Music-like Lyrics TTML 逐词歌词库](https://github.com/amll-dev/amll-ttml-db) 以提供高质量的歌词文件，感谢此歌词库的作者和贡献者们。
 
