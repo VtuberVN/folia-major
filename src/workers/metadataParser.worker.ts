@@ -1,6 +1,6 @@
 import { parseBlob } from 'music-metadata';
 import { repairFlacMetadata } from '../utils/flacMetadataRepair';
-import { hasLegacyId3Tags, repairLatin1DecodedGbkText } from '../utils/legacyTagTextRepair';
+import { hasLegacyId3Tags, repairMojibakeText, repairTagText } from '../utils/legacyTagTextRepair';
 
 interface ParsedLyricLine {
     text?: string;
@@ -237,15 +237,15 @@ async function extractEmbeddedMetadata(file: File, includeCover = false): Promis
         : undefined;
     const coverAssetId = picture ? await hashCoverBytes(Uint8Array.from(picture.data)) : undefined;
 
-    const repairTagText = hasLegacyId3Tags(parsed.format.tagTypes)
-        ? (text: string | undefined) => (text ? repairLatin1DecodedGbkText(text) : text)
-        : (text: string | undefined) => text;
+    const repair = hasLegacyId3Tags(parsed.format.tagTypes)
+        ? (text: string | undefined) => (text ? repairTagText(text) : text)
+        : (text: string | undefined) => (text ? repairMojibakeText(text) : text);
 
     return {
-        title: repairTagText(parsed.common.title),
-        artist: repairTagText(parsed.common.artist),
-        artists: parsed.common.artists?.map(artist => repairTagText(artist) ?? artist),
-        album: repairTagText(parsed.common.album),
+        title: repair(parsed.common.title),
+        artist: repair(parsed.common.artist),
+        artists: parsed.common.artists?.map(artist => repair(artist) ?? artist),
+        album: repair(parsed.common.album),
         trackNumber: parsed.common.track.no ?? undefined,
         discNumber: parsed.common.disk.no ?? undefined,
         cover,

@@ -158,6 +158,12 @@ contextBridge.exposeInMainWorld('electron', {
     closeWindow: () => ipcRenderer.invoke('window-close'),
     quitApp: () => ipcRenderer.invoke('app-quit'),
     isWindowMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+    getMainWindowState: () => ipcRenderer.invoke('window-get-state'),
+    onMainWindowStateChanged: (callback) => {
+        const listener = (_event, state) => callback(state);
+        ipcRenderer.on('main-window-state-changed', listener);
+        return () => ipcRenderer.removeListener('main-window-state-changed', listener);
+    },
     isWindowFullscreen: () => ipcRenderer.invoke('window-is-fullscreen'),
     onWindowFullscreenChanged: (callback) => {
         const listener = (_event, fullscreen) => callback(fullscreen);
@@ -201,6 +207,17 @@ contextBridge.exposeInMainWorld('electron', {
     getDiscordPresenceStatus: () => ipcRenderer.invoke('discord-presence-get-status'),
     publishDiscordPresenceSnapshot: (snapshot) => ipcRenderer.invoke('discord-presence-publish-snapshot', snapshot),
     getPlaybackSyncBridgeStatus: () => ipcRenderer.invoke('playback-sync-bridge-get-status'),
+    getSpotifyStatus: () => ipcRenderer.invoke('spotify-get-status'),
+    connectSpotify: (clientId) => ipcRenderer.invoke('spotify-connect', clientId),
+    disconnectSpotify: () => ipcRenderer.invoke('spotify-disconnect'),
+    getSpotifyPlayback: () => ipcRenderer.invoke('spotify-get-playback'),
+    getSpotifyLocalPlayback: () => ipcRenderer.invoke('spotify-local-get-playback'),
+    controlSpotifyPlayback: (command) => ipcRenderer.invoke('spotify-control-playback', command),
+    onSpotifyStatusChanged: (callback) => {
+        const listener = (_event, status) => callback(status);
+        ipcRenderer.on('spotify-status-changed', listener);
+        return () => ipcRenderer.removeListener('spotify-status-changed', listener);
+    },
     getMainWindowRenderState: () => ipcRenderer.invoke('main-window-render-state-get'),
     onMainWindowRenderStateChanged: (callback) => {
         const listener = (_event, state) => callback(state);
@@ -266,6 +283,7 @@ contextBridge.exposeInMainWorld('electron', {
     writeVideoExportFile: (filePath, data) => ipcRenderer.invoke('video-export-write-file', filePath, data),
     getStageStatus: () => ipcRenderer.invoke('stage-get-status'),
     setStageEnabled: (enabled) => ipcRenderer.invoke('stage-set-enabled', enabled),
+    setStageSource: (source) => ipcRenderer.invoke('stage-set-source', source),
     regenerateStageToken: () => ipcRenderer.invoke('stage-regenerate-token'),
     clearStageState: () => ipcRenderer.invoke('stage-clear-state'),
     completeStageExternalPlayRequest: (result) => ipcRenderer.invoke('stage-complete-external-play', result),

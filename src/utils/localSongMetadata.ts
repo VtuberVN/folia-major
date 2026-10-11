@@ -31,7 +31,7 @@ export const buildImportedMetadataSnapshot = ({
   const normalizedEmbeddedTitle = cleanLocalLibraryName(embeddedTitle);
   const title = normalizedEmbeddedTitle
     || cleanLocalLibraryName(fallbackTitle)
-    || stripLocalAudioExtension(fileName)
+    || cleanLocalLibraryName(stripLocalAudioExtension(fileName))
     || fileName;
   const embeddedArtistNames = (embeddedArtists || []).flatMap(splitLocalLibraryArtistNames);
   return {

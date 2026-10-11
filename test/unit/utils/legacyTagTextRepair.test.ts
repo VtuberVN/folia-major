@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasLegacyId3Tags, repairLatin1DecodedGbkText } from '../../../src/utils/legacyTagTextRepair';
+import { hasLegacyId3Tags, repairLatin1DecodedGbkText, repairMojibakeText, repairTagText } from '../../../src/utils/legacyTagTextRepair';
 
 // What music-metadata hands back for GBK bytes inside an ISO-8859-1 ID3 frame.
 const latin1 = (...bytes: number[]) => String.fromCharCode(...bytes);
@@ -40,5 +40,30 @@ describe('hasLegacyId3Tags', () => {
         expect(hasLegacyId3Tags(['vorbis'])).toBe(false);
         expect(hasLegacyId3Tags(['iTunes'])).toBe(false);
         expect(hasLegacyId3Tags(undefined)).toBe(false);
+    });
+});
+
+describe('repairMojibakeText', () => {
+    it('recovers Vietnamese text decoded as Windows-1252 / Latin-1', () => {
+        expect(repairMojibakeText('Sá»± Nghiá»‡p ChÆ°á»›ng (PhÃ¡o) â€“ Kagami Toki Cover | Báº£n Loli'))
+            .toBe('Sự Nghiệp Chướng (Pháo) – Kagami Toki Cover | Bản Loli');
+        expect(repairMojibakeText('Ã‚m Nháº¡c')).toBe('Âm Nhạc');
+    });
+
+    it('keeps normal ASCII, genuine Latin-1 and already-correct Unicode intact', () => {
+        expect(repairMojibakeText('Hello World')).toBe('Hello World');
+        expect(repairMojibakeText('Björk')).toBe('Björk');
+        expect(repairMojibakeText('Café')).toBe('Café');
+        expect(repairMojibakeText('Sự Nghiệp Chướng')).toBe('Sự Nghiệp Chướng');
+        expect(repairMojibakeText('该死的温柔')).toBe('该死的温柔');
+    });
+});
+
+describe('repairTagText', () => {
+    it('handles both UTF-8 mojibake and legacy GBK', () => {
+        expect(repairTagText('Sá»± Nghiá»‡p ChÆ°á»›ng (PhÃ¡o) â€“ Kagami Toki Cover | Báº£n Loli'))
+            .toBe('Sự Nghiệp Chướng (Pháo) – Kagami Toki Cover | Bản Loli');
+        expect(repairTagText(latin1(0xb8, 0xc3, 0xcb, 0xc0, 0xb5, 0xc4, 0xce, 0xc2, 0xc8, 0xe1)))
+            .toBe('该死的温柔');
     });
 });

@@ -12,6 +12,7 @@ import { applyMatchedMetadata } from './localLibraryCatalogService';
 import { buildLyricSearchQuery } from '../utils/lyrics/searchQuery';
 import { buildLocalSongLyricMatchContext, shouldRefreshLocalSongLyricsFromMetadata } from '../utils/lyrics/localSongMatchContext';
 import { buildImportedMetadataSnapshot } from '../utils/localSongMetadata';
+import { repairMojibakeText } from '../utils/legacyTagTextRepair';
 import { getLocalLibraryCatalogSnapshot } from './localLibraryEntityRepository';
 import { resolveLocalSongMetadata } from './playbackAdapters';
 import { removeCachedCover } from './coverCache';
@@ -213,8 +214,9 @@ function generateId(): string {
 // Extract basic metadata from filename.
 // Expected format: "Artist - Title.mp3", "Artist-Title.mp3", or "Title.mp3".
 export function extractMetadataFromFilename(fileName: string): { title?: string; artist?: string; } {
+    const cleanFileName = repairMojibakeText(fileName);
     // 去掉扩展名
-    let nameWithoutExt = fileName.replace(KNOWN_AUDIO_EXTENSIONS, '');
+    let nameWithoutExt = cleanFileName.replace(KNOWN_AUDIO_EXTENSIONS, '');
 
     // 去掉开头的cue切分产生的序号 "01. ", "01 - ", or "1-01 " 
     nameWithoutExt = nameWithoutExt.replace(/^\d{1,3}(?:[-.]\d{1,3})?(?:\s*[-.]\s*|\s+)/, '');

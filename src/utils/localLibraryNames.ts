@@ -1,4 +1,5 @@
 import type { LocalSong } from '../types';
+import { repairMojibakeText } from './legacyTagTextRepair';
 
 // src/utils/localLibraryNames.ts
 // Normalizes local-library names and recognizes explicit semicolon/slash-separated artist credits.
@@ -8,7 +9,9 @@ export const normalizeLocalLibraryName = (value: string): string => (
 );
 
 export const cleanLocalLibraryName = (value?: string): string | undefined => {
-  const cleaned = value?.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+  if (!value) return undefined;
+  const repaired = repairMojibakeText(value);
+  const cleaned = repaired.normalize('NFKC').trim().replace(/\s+/gu, ' ');
   return cleaned || undefined;
 };
 

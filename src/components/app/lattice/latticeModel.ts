@@ -1,6 +1,7 @@
 import type { SongResult } from '../../../types';
 import { getSongArtistLabel, getSongCoverUrl } from '../../../services/onlineMusic/songMetadata';
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
+import { repairMojibakeText } from '../../../utils/legacyTagTextRepair';
 
 // Projects the play queue onto the wall; queue order is the only source of truth.
 
@@ -39,8 +40,8 @@ export const buildLatticeTiles = ({
             id: getPlaybackSongKey(song),
             queueIndex: index,
             song,
-            title: song.name,
-            artist: getSongArtistLabel(song) || song.album?.name || 'Unknown artist',
+            title: repairMojibakeText(song.name),
+            artist: repairMojibakeText(getSongArtistLabel(song) || song.album?.name || 'Unknown artist'),
             coverUrl: getSongCoverUrl(song) || song.album?.coverUrl,
             section,
         };

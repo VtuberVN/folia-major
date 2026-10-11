@@ -5,6 +5,7 @@ import type { LocalLibraryAssignment, LocalLibraryEntity } from '../types/localL
 import { buildLocalLibraryIndex, followEntityRedirect, type LocalLibraryIndex } from '../utils/localLibraryIndex';
 import { getLocalCoverAssetUrl } from './localCoverAssetUrl';
 import { buildLocalSourceRevision, buildNavidromeSourceRevision } from './playbackRecovery/sourceRevision';
+import { repairMojibakeText } from '../utils/legacyTagTextRepair';
 
 export type LocalLibraryDisplayCatalog = {
     entities: LocalLibraryEntity[];
@@ -152,14 +153,15 @@ export function buildUnifiedLocalSong({
     const useMatchedLyrics =
         localSong.lyricsSource === 'online'
         || (!localSong.lyricsSource && (Boolean(localSong.markedPureMusic) || (!localSong.hasLocalLyrics && !localSong.hasEmbeddedLyrics)));
-    const displayTitle = localSong.title;
-    const displayArtists = (localSong.titleOrigin === 'import'
+    const displayTitle = repairMojibakeText(localSong.title);
+    const rawArtists = (localSong.titleOrigin === 'import'
         ? localSong.importedMetadata.artistNames
-        : localSong.onlineMetadata?.artists.map(artist => artist.name) || localSong.importedMetadata.artistNames)
-        .map(name => ({ id: 0, name }));
-    const displayAlbum = localSong.titleOrigin === 'import'
+        : localSong.onlineMetadata?.artists.map(artist => artist.name) || localSong.importedMetadata.artistNames);
+    const displayArtists = rawArtists.map(name => ({ id: 0, name: repairMojibakeText(name) }));
+    const rawAlbum = localSong.titleOrigin === 'import'
         ? localSong.importedMetadata.albumName
         : localSong.onlineMetadata?.album?.name || localSong.importedMetadata.albumName;
+    const displayAlbum = rawAlbum ? repairMojibakeText(rawAlbum) : undefined;
 
     const unifiedSong: UnifiedSong = {
         id: getLocalSongId(localSong),

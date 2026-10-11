@@ -2,6 +2,7 @@ import type { LocalSong } from '../../types';
 import { isBlob } from '../../utils/blobGuards';
 import { migrateLocalSongsRenderHints, migrateMatchedLyricsCarrierRenderHints } from '../../utils/lyrics/storageMigration';
 import { appDatabase } from '../appDatabase';
+import { repairMojibakeText } from '../../utils/legacyTagTextRepair';
 
 // src/services/repositories/localSongRepository.ts
 // Stores sanitized local-song records while retaining the existing read-time lyric migrations.
@@ -16,10 +17,31 @@ export const sanitizeLocalSongForStorage = (song: LocalSong): LocalSong => {
 
 const normalizeLocalSongFromStorage = (song: LocalSong): { value: LocalSong; changed: boolean } => {
   const legacySong = song as LocalSong & { embeddedCover?: unknown };
-  if (legacySong.embeddedCover === undefined) return { value: song, changed: false };
-  const { embeddedCover, ...normalizedSong } = legacySong;
-  // A valid legacy Blob remains in IndexedDB until the background migrator commits external storage.
-  return { value: normalizedSong, changed: !isBlob(embeddedCover) };
+  let changed = false;
+  let normalizedSong: LocalSong = song;
+
+  if (legacySong.embeddedCover !== undefined) {
+    const { embeddedCover, ...rest } = legacySong;
+    normalizedSong = rest;
+    if (!isBlob(embeddedCover)) changed = true;
+  }
+
+  const repairedTitle = repairMojibakeText(normalizedSong.title);
+  if (repairedTitle !== normalizedSong.title) {
+    normalizedSong = {
+      ...normalizedSong,
+      title: repairedTitle,
+      importedMetadata: {
+        ...normalizedSong.importedMetadata,
+        title: repairMojibakeText(normalizedSong.importedMetadata.title),
+        artistNames: normalizedSong.importedMetadata.artistNames.map(repairMojibakeText),
+        albumName: normalizedSong.importedMetadata.albumName ? repairMojibakeText(normalizedSong.importedMetadata.albumName) : undefined,
+      },
+    };
+    changed = true;
+  }
+
+  return { value: normalizedSong, changed };
 };
 
 export const putLocalSong = async (song: LocalSong): Promise<void> => {
