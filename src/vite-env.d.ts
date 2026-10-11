@@ -370,6 +370,12 @@ declare global {
     unlockHoverActive?: boolean;
   }
 
+  interface ElectronMainWindowState {
+    expandMode: 'fullscreen' | 'maximize';
+    isFullScreen: boolean;
+    isMaximized: boolean;
+  }
+
   type ElectronObsBrowserSourceStatus = import('./types/obsBrowserSource').ObsBrowserSourceStatus;
   type ElectronObsBrowserSourceConfig = import('./types/obsBrowserSource').ObsBrowserSourceConfig;
   type ElectronObsBrowserSourceClock = import('./types/obsBrowserSource').ObsBrowserSourceClock;
@@ -420,7 +426,62 @@ declare global {
   }
 
   type StageActiveEntryKind = 'lyrics' | 'media';
-  type StageSource = 'stage-api' | 'now-playing';
+  type StageSource = 'stage-api' | 'now-playing' | 'playercap' | 'spotify' | 'spotify-local';
+
+  interface ElectronSpotifyStatus {
+    configured: boolean;
+    authenticated: boolean;
+    controlsAuthorized: boolean;
+    requiresReauthorization: boolean;
+    authorizationPending: boolean;
+    clientId: string;
+    redirectUri: string;
+    expiresAt: number | null;
+    rateLimitedUntil: number | null;
+    scopes: string[];
+    error: string | null;
+  }
+
+  interface ElectronSpotifyPlayback {
+    id: string | null;
+    uri: string | null;
+    type: string;
+    title: string;
+    artist: string;
+    album: string;
+    coverUrl: string | null;
+    durationMs: number;
+    progressMs: number;
+    isPlaying: boolean;
+    sampledAtMs: number;
+    device: {
+      id: string | null;
+      name: string;
+      type: string;
+      isRestricted: boolean;
+    } | null;
+  }
+
+  interface ElectronSpotifyPlaybackResponse {
+    playback: ElectronSpotifyPlayback | null;
+    retryAfterMs: number | null;
+    error?: string;
+  }
+
+  type ElectronSpotifyPlaybackControlCommand =
+    | { action: 'resume' }
+    | { action: 'pause' }
+    | { action: 'next' }
+    | { action: 'previous' }
+    | { action: 'seek'; positionMs: number }
+    | { action: 'repeat'; state: 'off' | 'context' | 'track' }
+    | { action: 'shuffle'; state: boolean };
+
+  interface ElectronSpotifyPlaybackControlResponse {
+    ok: boolean;
+    retryAfterMs: number | null;
+    error?: string;
+  }
 
   interface StageEmbeddedUsltTag {
     language?: string;
@@ -915,6 +976,8 @@ declare global {
       closeWindow: () => Promise<boolean>;
       quitApp: () => Promise<boolean>;
       isWindowMaximized: () => Promise<boolean>;
+      getMainWindowState: () => Promise<ElectronMainWindowState>;
+      onMainWindowStateChanged: (callback: (state: ElectronMainWindowState) => void) => () => void;
       isWindowFullscreen: () => Promise<boolean>;
       onWindowFullscreenChanged: (callback: (fullscreen: boolean) => void) => () => void;
       getWindowTransparentMode: () => Promise<boolean>;
@@ -952,6 +1015,13 @@ declare global {
       getPlaybackSyncBridgeStatus: () => Promise<ElectronPlaybackSyncBridgeStatus>;
       getMainWindowRenderState: () => Promise<{ visible: boolean; wallpaper: boolean }>;
       onMainWindowRenderStateChanged: (callback: (state: { visible: boolean; wallpaper: boolean }) => void) => () => void;
+      getSpotifyStatus: () => Promise<ElectronSpotifyStatus>;
+      connectSpotify: (clientId: string) => Promise<ElectronSpotifyStatus>;
+      disconnectSpotify: () => Promise<ElectronSpotifyStatus>;
+      getSpotifyPlayback: () => Promise<ElectronSpotifyPlaybackResponse>;
+      getSpotifyLocalPlayback: () => Promise<ElectronSpotifyPlaybackResponse>;
+      controlSpotifyPlayback: (command: ElectronSpotifyPlaybackControlCommand) => Promise<ElectronSpotifyPlaybackControlResponse>;
+      onSpotifyStatusChanged: (callback: (status: ElectronSpotifyStatus) => void) => () => void;
       getVoiceInputPauseStatus: () => Promise<ElectronVoiceInputPauseStatus>;
       onVoiceInputStateChanged: (callback: (state: ElectronVoiceInputPauseStatus) => void) => () => void;
       onPlaybackSyncBridgeStatusChanged: (callback: (status: ElectronPlaybackSyncBridgeStatus) => void) => () => void;
@@ -984,6 +1054,7 @@ declare global {
       writeVideoExportFile: (filePath: string, data: ArrayBuffer) => Promise<boolean>;
       getStageStatus: () => Promise<StageStatus>;
       setStageEnabled: (enabled: boolean) => Promise<StageStatus>;
+      setStageSource: (source: StageSource) => Promise<StageStatus>;
       regenerateStageToken: () => Promise<StageStatus>;
       clearStageState: () => Promise<StageStatus>;
       completeStageExternalPlayRequest: (result: StageExternalPlayResult) => Promise<boolean>;

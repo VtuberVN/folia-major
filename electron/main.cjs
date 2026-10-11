@@ -2174,6 +2174,14 @@ function broadcastPlaybackSyncBridgeStatus() {
   }
 }
 
+function broadcastMainWindowState(targetWindow = mainWindow) {
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    return;
+  }
+
+  targetWindow.webContents.send('main-window-state-changed', getWindowState(targetWindow));
+}
+
 function getStoredWindowState() {
   const storedBounds = store.get('WINDOW_BOUNDS');
   const storedMaximized = store.get('WINDOW_IS_MAXIMIZED');
@@ -5072,18 +5080,22 @@ function createWindow(options = {}) {
       win.__transparentFullscreen = true;
     }
     win.webContents.send('window-fullscreen-changed', true);
+    broadcastMainWindowState(win);
   });
   win.on('leave-full-screen', () => {
     if (process.platform === 'win32' && useTransparentWindow) {
       win.__transparentFullscreen = false;
     }
     win.webContents.send('window-fullscreen-changed', false);
+    broadcastMainWindowState(win);
   });
   win.on('maximize', () => {
     saveWindowState(win);
+    broadcastMainWindowState(win);
   });
   win.on('unmaximize', () => {
     saveWindowState(win);
+    broadcastMainWindowState(win);
   });
   win.on('close', () => {
     saveWindowState(win);
@@ -5493,6 +5505,7 @@ app.on('before-quit', () => {
       console.error('[Mods] Failed to dispose the mod system', error);
     }
   }
+  spotify.stop();
   voiceInputPauseMonitor.stop();
   displaySleepBlocker.stop();
   // Detach (graceful) instead of killing: the helper un-parents the window from the WorkerW
@@ -6290,6 +6303,14 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow.isMaximized();
 });
 
+ipcMain.handle('window-get-state', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    return getWindowState(null);
+  }
+
+  return getWindowState(mainWindow);
+});
+
 ipcMain.handle('window-is-fullscreen', (event) => {
   if (!isTrustedMainWindowContents(event.sender) || !mainWindow || mainWindow.isDestroyed()) {
     return false;
@@ -6488,6 +6509,48 @@ ipcMain.handle('playback-sync-bridge-get-status', (event) => {
   return buildPlaybackSyncBridgeStatus();
 });
 
+ipcMain.handle('spotify-get-status', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read Spotify status.');
+  }
+  return spotify.buildStatus();
+});
+
+ipcMain.handle('spotify-connect', (event, clientId) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to start Spotify authorization.');
+  }
+  return spotify.connect(clientId);
+});
+
+ipcMain.handle('spotify-disconnect', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to disconnect Spotify.');
+  }
+  return spotify.disconnect();
+});
+
+ipcMain.handle('spotify-get-playback', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read Spotify playback.');
+  }
+  return spotify.getPlayback();
+});
+
+ipcMain.handle('spotify-local-get-playback', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read local Spotify playback.');
+  }
+  return spotifyLocal.getPlayback();
+});
+
+ipcMain.handle('spotify-control-playback', (event, command) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to control Spotify playback.');
+  }
+  return spotify.controlPlayback(command);
+});
+
 ipcMain.handle('voice-input-pause-get-status', (event) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     throw new Error('Untrusted renderer attempted to read voice input pause status.');
@@ -6502,6 +6565,14 @@ ipcMain.handle('stage-get-status', () => {
 
 ipcMain.handle('stage-set-enabled', async (_event, enabled) => {
   return stageApi.setStageEnabled(enabled);
+});
+
+ipcMain.handle('stage-set-source', async (event, source) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to change the Stage source.');
+  }
+
+  return stageApi.setStageSource(source);
 });
 
 ipcMain.handle('stage-regenerate-token', async () => {
