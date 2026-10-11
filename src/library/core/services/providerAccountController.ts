@@ -356,6 +356,13 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                         setStoredZingCookie(res.cookie);
                         await providerAccounts.refresh('zing');
                         accounts.setActiveProviderId('zing');
+                        const { setStatusMessage } = await import('../../../stores/useStatusMessageStore');
+                        const { default: i18n } = await import('../../../i18n/config');
+                        setStatusMessage({ type: 'success', text: i18n.t('zing.loginSuccess') });
+                    } else if (res?.error && res.error !== 'cancelled') {
+                        const { setStatusMessage } = await import('../../../stores/useStatusMessageStore');
+                        const { default: i18n } = await import('../../../i18n/config');
+                        setStatusMessage({ type: 'error', text: i18n.t('zing.loginFailed') });
                     }
                 } catch (e) {
                     log('warn', 'login:zing-error', { error: describeError(e) });

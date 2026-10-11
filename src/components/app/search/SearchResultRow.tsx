@@ -93,7 +93,17 @@ const SearchResultRow: React.FC<SearchResultRowProps> = ({
                         </button>
                         {isUnavailable && (
                             <span className="shrink-0 rounded-full border border-current/10 px-2 py-0.5 text-[10px] opacity-60">
-                    {unavailableLabel}
+                                {unavailableLabel}
+                            </span>
+                        )}
+                        {!isUnavailable && (track.fee === 1 || track.privilege?.fee === 1) && (
+                            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                VIP
+                            </span>
+                        )}
+                        {!isUnavailable && track.fee === 4 && (
+                            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-purple-500/15 text-purple-500 border border-purple-500/30">
+                                ALBUM
                             </span>
                         )}
                     </div>

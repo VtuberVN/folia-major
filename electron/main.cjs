@@ -5842,9 +5842,9 @@ ipcMain.handle('auth-open-zing-login', async () => {
   return new Promise((resolve) => {
     let settled = false;
     const loginWin = new BrowserWindow({
-      width: 500,
-      height: 650,
-      title: 'Đăng nhập Zing MP3',
+      width: 520,
+      height: 680,
+      title: 'Đăng nhập Zing MP3 bằng Zalo',
       autoHideMenuBar: true,
       webPreferences: {
         nodeIntegration: false,
@@ -5855,12 +5855,22 @@ ipcMain.handle('auth-open-zing-login', async () => {
     const checkCookies = async () => {
       try {
         if (!loginWin || loginWin.isDestroyed()) return;
-        const cookies = await loginWin.webContents.session.cookies.get({ domain: 'zingmp3.vn' });
-        const zpsid = cookies.find(c => c.name === 'zpsid');
-        if (zpsid && zpsid.value) {
+        const zingCookies = await loginWin.webContents.session.cookies.get({ url: 'https://zingmp3.vn' });
+        const allCookies = await loginWin.webContents.session.cookies.get({});
+        const targetCookies = [...zingCookies, ...allCookies.filter(c => c.domain && (c.domain.includes('zingmp3.vn') || c.domain.includes('zalo.me')))];
+        const uniqueMap = new Map();
+        for (const c of targetCookies) {
+          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
+        }
+        const uniqueCookies = Array.from(uniqueMap.values());
+        const zpsid = uniqueCookies.find(c => c.name === 'zpsid');
+        const currentUrl = loginWin.webContents.getURL() || '';
+        const isBackOnZing = currentUrl.includes('zingmp3.vn') && !currentUrl.includes('id.zalo.me');
+
+        if ((zpsid && zpsid.value) || (isBackOnZing && uniqueCookies.length >= 2)) {
           if (!settled) {
             settled = true;
-            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
             loginWin.close();
             resolve({ success: true, cookie: cookieStr });
           }
@@ -5870,7 +5880,7 @@ ipcMain.handle('auth-open-zing-login', async () => {
       }
     };
 
-    const interval = setInterval(checkCookies, 1200);
+    const interval = setInterval(checkCookies, 1000);
 
     loginWin.webContents.on('did-navigate', checkCookies);
     loginWin.webContents.on('did-navigate-in-page', checkCookies);
