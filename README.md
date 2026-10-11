@@ -7,7 +7,7 @@
 
 # Folia
 
-Lyrics Reimagined // 辞曲新境
+Lyrics Reimagined // Trải nghiệm Lời bài hát Tinh tế
 
 [![GitHub release](https://img.shields.io/github/v/release/chthollyphile/folia-major?label=release)](https://github.com/chthollyphile/folia-major/releases)
 [![License](https://img.shields.io/github/license/chthollyphile/folia-major)](https://github.com/chthollyphile/folia-major/blob/main/LICENSE)
@@ -19,31 +19,33 @@ Lyrics Reimagined // 辞曲新境
 [![All Contributors](https://img.shields.io/badge/all_contributors-35-orange.svg?style=flat-square)](CONTRIBUTORS.md)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-[获取方式](https://github.com/chthollyphile/folia-major#%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F)
+[Cách tải về](#cách-tải-về--cài-đặt)
 ·
-[Vercel 部署](https://vercel.com/new/clone?repository-url=https://github.com/chthollyphile/folia-major)
+[Triển khai Vercel](https://vercel.com/new/clone?repository-url=https://github.com/chthollyphile/folia-major)
 ·
-[使用指南](https://folia-site.cielaniska.top/guide/)
+[Hướng dẫn sử dụng](https://folia-site.cielaniska.top/guide/)
 ·
-[Tiếng Việt](README.vi.md)
+[Bản tiếng Trung (简体中文)](README.zh-CN.md)
 ·
-[技术说明](docs/technical.md)
+[Tài liệu kỹ thuật](docs/technical.md)
 
 </div>
 
-## 项目简介
+## Giới thiệu dự án
 
-Folia是一个以全屏沉浸式歌词播放为核心的在线音乐播放器，支持网易云、酷狗、Navidrome 和本地音乐库，通过智能歌词匹配，AI生成配色主题，以及多种全屏歌词动画为用户提供独特的听歌体验。
+Folia là một trình phát nhạc trực tuyến lấy trải nghiệm **lời bài hát toàn màn hình (Full-screen Immersive Lyrics)** làm trọng tâm cốt lõi. Ứng dụng hỗ trợ các nền tảng âm nhạc phong phú (Zing MP3, NhacCuaTui, NetEase Cloud Music, QQ Music, KuGou, Navidrome và Thư viện nhạc cục bộ). Thông qua thuật toán khớp lời thông minh, AI tạo chủ đề màu sắc theo tâm trạng bài hát, và nhiều phong cách diễn hoạt lời bài hát toàn màn hình, Folia mang lại trải nghiệm nghe nhìn độc đáo như những video ca nhạc (MV / PV) thực thụ.
 
-提供基于Electron的 windows/ macOS/ Linux 桌面端版本与基于 Node.js 的 Web 版本，支持多平台部署。
+Cung cấp phiên bản Desktop cho Windows / macOS / Linux dựa trên **Electron** cùng phiên bản Web xây dựng trên **Node.js**, hỗ trợ triển khai linh hoạt trên nhiều nền tảng.
 
-如果希望能够在移动设备上使用，或在浏览器上体验，可以选择[一键部署到 Vercel](https://folia-site.cielaniska.top/guide/deploy-vercel) 的 Web 版本，或自行部署到其他支持 Node.js 的平台。
+Nếu bạn muốn sử dụng trên thiết bị di động hoặc trải nghiệm trên trình duyệt, có thể lựa chọn [Triển khai một chạm lên Vercel](https://folia-site.cielaniska.top/guide/deploy-vercel) của bản Web, hoặc tự triển khai trên các nền tảng hỗ trợ Node.js khác.
 
-## 展示
+---
+
+## Trình diễn
 
 ![visualizer](./img/visualizer.png)
 
-### 演示视频
+### Video minh họa
 
 https://github.com/user-attachments/assets/af806cf1-f67f-4b88-b2e7-57db507e9e81
 
@@ -51,173 +53,207 @@ https://github.com/user-attachments/assets/fd27f4f0-64b9-4c57-8c3b-10df767f934b
 
 https://github.com/user-attachments/assets/704f195a-2194-434b-86e8-8f36290e5cc4
 
-### 部分主题预览
+### Một số chủ đề thị giác
 
 <table>
   <tr>
     <td width="50%">
-      <img src="./img/preview-fume.png" alt="Fume 主题预览" />
+      <img src="./img/preview-fume.png" alt="Xem trước chủ đề Fume" />
     </td>
     <td width="50%">
-      <img src="./img/preview-lumi.png" alt="Lumi 主题预览" />
+      <img src="./img/preview-lumi.png" alt="Xem trước chủ đề Lumi" />
     </td>
   </tr>
   <tr>
-    <td align="center"><strong>浮名</strong></td>
-    <td align="center"><strong>流光</strong></td>
+    <td align="center"><strong>Fume (Phù Danh)</strong></td>
+    <td align="center"><strong>Lumi (Lưu Quang)</strong></td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="./img/preview-cad.png" alt="Cad 主题预览" />
+      <img src="./img/preview-cad.png" alt="Xem trước chủ đề Cad" />
     </td>
     <td width="50%">
-      <img src="./img/preview-pat.png" alt="Pat 主题预览" />
+      <img src="./img/preview-pat.png" alt="Xem trước chủ đề Pat" />
     </td>
   </tr>
   <tr>
-    <td align="center"><strong>心象</strong></td>
-    <td align="center"><strong>云阶</strong></td>
+    <td align="center"><strong>Cad (Tâm Tượng)</strong></td>
+    <td align="center"><strong>Pat (Vân Giai)</strong></td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="./img/preview-cappella.jpg" alt="群唱 主题预览" />
+      <img src="./img/preview-cappella.jpg" alt="Xem trước chủ đề Cappella" />
     </td>
     <td width="50%">
-      <img src="./img/preview-tilt.png" alt="Tilt 主题预览" />
+      <img src="./img/preview-tilt.png" alt="Xem trước chủ đề Tilt" />
     </td>
   </tr>
   <tr>
-    <td align="center"><strong>群唱</strong></td>
-    <td align="center"><strong>倾诉</strong></td>
+    <td align="center"><strong>Cappella (Quần Xướng)</strong></td>
+    <td align="center"><strong>Tilt (Khuynh Tố)</strong></td>
   </tr>
     <tr>
     <td width="50%">
-      <img src="./img/preview-diorama.png" alt="镜台 主题预览" />
+      <img src="./img/preview-diorama.png" alt="Xem trước chủ đề Diorama" />
     </td>
     <td width="50%">
-      <img src="./img/preview-pendolo.png" alt="时计 主题预览" />
+      <img src="./img/preview-pendolo.png" alt="Xem trước chủ đề Pendolo" />
     </td>
   </tr>
   <tr>
-    <td align="center"><strong>镜台</strong></td>
-    <td align="center"><strong>时计</strong></td>
+    <td align="center"><strong>Diorama (Kính Đài)</strong></td>
+    <td align="center"><strong>Pendolo (Thời Kế)</strong></td>
   </tr>
 </table>
 
-不同的歌词动画具有不同的排版氛围和可调参数，让全屏歌词拥有如同文字PV般的丰富视觉效果，同时又能兼顾响应式布局，自动适配不同窗口尺寸。
+Các hiệu ứng diễn hoạt lời bài hát khác nhau mang bố cục, không gian thị giác và thông số tinh chỉnh riêng biệt, giúp toàn màn hình lời bài hát sở hữu hiệu ứng trực quan phong phú như một video chữ (Lyric Video), đồng thời vẫn đảm bảo tính phản hồi (responsive) co giãn tự động theo kích thước cửa sổ.
 
-## 核心能力
+---
 
-| 模块 | 说明 |
-| --- | --- |
-| 在线搜索与播放 | 搜索歌曲、歌手或专辑后即可播放，并自动加载相关封面与歌词。 |
-| 本地音乐支持 | 可导入本地音频文件，在本地安全保存索引信息，不上传文件内容。详细用法见 [本地音乐库管理](docs/local-library-management.md)。 |
-| 智能歌词匹配 | 本地歌曲可自动匹配在线歌词与封面，也支持手动修正匹配结果。 |
-| 本地歌词文件识别 | 自动加载同目录同名 `.lrc`、`.vtt`、`.ttml`、`.qrc`、`.yrc`、`.krc` 歌词文件，或歌词文件内嵌 LRC 歌词。适配 LDDC 生成的增强型逐字歌词格式。 |
-| Now Playing 接入 | 支持通过本机 [Now Playing](https://github.com/Widdit/now-playing-service/) 服务接入外部播放器的歌曲、时间轴与歌词信息，并驱动 Folia 的舞台视图与全屏歌词渲染。 |
-| AI 主题生成 | 基于歌曲情绪与歌词内容生成沉浸式背景与视觉参数。 |
-| 多端体验 | 提供 Web 部署方式，同时支持桌面端打包分发。 |
-| 模组系统（实验性） | 桌面版可通过 Folium 模组添加歌词动画、背景、播放页图层、命令等，并从 [模组市场](https://folium-compound.vercel.app) 安装官方认证的模组。详见 [模组系统](#模组系统folium-v1x)。 |
+## Khả năng cốt lõi
 
-## 获取方式
+| Phân hệ | Mô tả |
+| :--- | :--- |
+| **Tìm kiếm & Phát trực tuyến** | Tìm kiếm bài hát, ca sĩ hoặc album và phát ngay lập tức, tự động tải ảnh bìa và lời bài hát đồng bộ. |
+| **Hỗ trợ Nền tảng Việt Nam** | Tích hợp **Zing MP3** (phát trực tiếp 128kbps / 320kbps VIP, bảng xếp hạng #zingchart, đăng nhập Cookie an toàn) và **NhacCuaTui** (kho lyric Việt Nam phong phú). |
+| **Hỗ trợ Nhạc Cục Bộ (Offline)** | Nhập tệp âm thanh từ máy tính, lưu trữ chỉ mục bảo mật tại máy cá nhân, không tải nội dung tệp lên máy chủ. Chi tiết xem tại [Quản lý Thư viện Nhạc Cục Bộ](docs/local-library-management.md). |
+| **Khớp lời bài hát thông minh** | Bài hát cục bộ tự động ghép nối với lời bài hát và ảnh bìa trực tuyến, hỗ trợ chỉnh sửa kết quả ghép nối thủ công. |
+| **Nhận diện tệp lời bài hát cục bộ** | Tự động đọc các tệp lời cùng tên trong cùng thư mục: `.lrc`, `.vtt`, `.ttml`, `.qrc`, `.yrc`, `.krc` hoặc lời LRC nhúng sẵn trong tệp âm thanh. Tương thích định dạng lời từng từ nâng cao tạo bởi LDDC. |
+| **Tích hợp Now Playing** | Hỗ trợ kết nối với dịch vụ [Now Playing](https://github.com/Widdit/now-playing-service/) để tiếp nhận thông tin bài hát, dòng thời gian và lời bài hát từ các trình phát ngoài, điều khiển giao diện Sân khấu (Stage) và lời bài hát toàn màn hình của Folia. |
+| **Tạo chủ đề bằng AI** | Dựa trên cảm xúc bài hát và nội dung lời ca để tạo nền chuyển màu cùng các thông số thị giác chìm đắm. |
+| **Trải nghiệm đa nền tảng** | Cung cấp phương thức triển khai Web, đồng thời hỗ trợ đóng gói phân phối ứng dụng Desktop (Windows, macOS, Linux). |
+| **Tăng tốc phần cứng GPU (Windows)** | Bật cờ Direct3D 11 tăng tốc đồ họa, giải phóng tài nguyên CPU khi trình diễn các hiệu ứng 3D và Visualizer. |
+| **Hệ thống Mod (Folium v1.x)** | Phiên bản Desktop có thể cài đặt mod Folium để thêm các chế độ diễn hoạt lời bài hát mới, hình nền, lớp phủ, lệnh điều khiển từ [Chợ Mod Folium](https://folium-compound.vercel.app). Chi tiết xem tại [Hệ thống Mod](#hệ-thống-mod-folium-v1x). |
 
-桌面版内置前后端运行环境，适合希望即装即用的用户。
+---
 
-### 一键部署
+## Cách tải về & Cài đặt
 
-如果你希望快速上线 Web 版本，请阅读 [Vercel 一键部署指南](https://folia-site.cielaniska.top/guide/deploy-vercel) 来创建项目
+Phiên bản Desktop tích hợp sẵn môi trường chạy hoàn chỉnh, sẵn sàng sử dụng ngay sau khi cài đặt.
+
+### Tải trực tiếp bản Desktop
+
+- **Windows x64**: 
+  - Tải bản cài đặt `.exe` (Setup) hoặc bản giải nén di động `.zip` (Portable) từ [GitHub Actions Runs](https://github.com/VtuberVN/folia-major/actions) (chọn run mới nhất của workflow *Build Windows Desktop* và tải file artifact `Folia-Windows-x64-Builds.zip`).
+  - Hoặc tải các bản phát hành chính thức tại [Trang Releases](https://github.com/chthollyphile/folia-major/releases/latest).
+- **macOS / Linux**: Tải gói cài đặt phù hợp từ [Trang Releases](https://github.com/chthollyphile/folia-major/releases/latest).
+- **Arch Linux**: Cài đặt thông qua AUR: [folia-major-bin](https://aur.archlinux.org/packages/folia-major-bin).
+- **Flatpak**: Xem gói Flatpak do cộng đồng cung cấp tại [Flatpark](https://flatpark.org/apps/top.izuna.foliamajor/).
+
+> [!IMPORTANT]
+> Nếu kết nối mạng tải từ GitHub Releases gặp khó khăn, người dùng tại một số khu vực có thể tải qua liên kết phụ trợ [Quark Drive](https://pan.quark.cn/s/6e4c6fa3bc6f) hoặc [Baidu Netdisk](https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia) (cung cấp bản Windows và Apple silicon chính thức).
+
+Chi tiết về các gói Linux, cửa sổ điều khiển từ xa Wayland / Hyprland xem tại [Tài liệu Kỹ thuật & Phát triển](docs/technical.md).
+
+### Triển khai một chạm (Web / Server)
+
+Nếu muốn đưa phiên bản Web lên mạng internet nhanh chóng, vui lòng tham khảo [Hướng dẫn triển khai Vercel](https://folia-site.cielaniska.top/guide/deploy-vercel):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/chthollyphile/folia-major) 
 
-项目也支持一键部署到 Cloudflare，请参考 Vercel 的部署教程进行相应调整。
+Dự án cũng hỗ trợ triển khai một chạm lên Cloudflare:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chthollyphile/folia-major)
 
-Vercel 与 Cloudflare 上的 QQ 音乐不再需要额外部署一个常驻 API 实例：把 `VITE_QQ_API_BASE` 填成 `/api/qq`，再配一个 `QQ_SESSION_SECRET`（服务端密钥，**不加 `VITE_` 前缀**）即可。这种形态默认只支持微信扫码登录，且播放前必须先登录；Cloudflare 上可以再绑定一个 Durable Object，增加 QQ 扫码登录方式。完整步骤、平台差异和排错方法见 [QQ 音乐部署指南](docs/qq-music-deployment.md)。
+Trên Vercel và Cloudflare, QQ Music không cần triển khai một API riêng: điền `VITE_QQ_API_BASE` thành `/api/qq`, cấu hình thêm `QQ_SESSION_SECRET` (khóa máy chủ, **không có tiền tố `VITE_`**). Chi tiết xem tại [Hướng dẫn triển khai QQ Music](docs/qq-music-deployment.md).
 
-自托管用户可以使用 [Docker Compose 全栈部署](deploy/docker/README.md)。本地音乐目录访问依赖可信 HTTPS 安全上下文，部署文档包含 NAS 反向代理和证书要求。
+Người dùng tự host máy chủ có thể sử dụng [Docker Compose toàn diện](deploy/docker/README.md).
 
-关于移动端：
+#### Thiết bị di động:
+Hiện khuyến nghị người dùng di động sau khi triển khai bản Web / Self-host, sử dụng Chrome trên Android hoặc Safari trên iOS để tạo ứng dụng **PWA** (thêm trang web vào màn hình chính). Folia bản Web hỗ trợ cài đặt PWA hoàn chỉnh.
 
-目前推荐移动端用户部署 Web 版本/自托管版本之后，通过chrome for android / iOS Safari 创建 PWA应用（也就是将网页应用添加到桌面，Folia web版本支持安装为PWA应用）来使用。
+Người dùng có kinh nghiệm kỹ thuật có thể sử dụng Capacitor để đóng gói bản Web thành ứng dụng Android APK, tham khảo kho mẫu: [chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet).
 
-有一定技术的用户可以使用 capacitor 将本项目的web版本打包成为可安装的安卓apk，具体方法可参考示范仓库：[chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet)
+---
 
-### 直接下载
+## Tài liệu & Phát triển
 
-- **Windows / macOS / Linux**: 最新版本的安装包请前往 [Releases 页面](https://github.com/chthollyphile/folia-major/releases/latest) 下载。
-- **Arch Linux**: 可通过 AUR 获取 [folia-major-bin](https://aur.archlinux.org/packages/folia-major-bin)。
-- **Flatpak**: 社区提供的第三方 flatpak，详情见 [Flatpark](https://flatpark.org/apps/top.izuna.foliamajor/)。
+Hướng dẫn sử dụng toàn diện vui lòng truy cập [Folia Guide](https://folia-site.cielaniska.top/guide/).
 
-> [!IMPORTANT]
-> 如果国内网络从 GitHub Releases 下载较慢，可以使用 [夸克网盘](https://pan.quark.cn/s/6e4c6fa3bc6f) 或 [百度云](https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia) 下载。网盘链接仅提供 Windows 与 Apple silicon 的正式版安装包.
+Thông tin về triển khai, biến môi trường, phát triển cục bộ, Stage API và ngăn xếp công nghệ xem tại [Tài liệu Kỹ thuật & Phát triển](docs/technical.md).
 
-Linux 包、Wayland / Hyprland 遥控窗和桌面端细节见 [技术与开发说明](docs/technical.md)。
+### Biên dịch từ mã nguồn (Development):
+```bash
+# Cài đặt thư viện
+npm ci
 
-## 文档与开发
+# Chạy bản kiểm thử Desktop
+npm run dev:electron
 
-更完整的使用说明请访问 [Folia Guide](https://folia-site.cielaniska.top/guide/)。
+# Đóng gói Windows ra thư mục giải nén
+npm run build:win:dir
 
-部署、环境变量、本地开发、Stage API、常用脚本和技术栈见 [技术与开发说明](docs/technical.md)。
+# Đóng gói bộ cài đặt Windows Setup .exe và .zip
+npm run build:win
+```
 
-## 模组系统（Folium v1.x）
+---
+
+## Hệ thống Mod (Folium v1.x)
 
 > [!NOTE]
-> 模组系统是实验性功能，仅桌面版可用，默认关闭，需要在「设置 → 实验室 → 模组系统」中开启。
+> Hệ thống Mod là tính năng thử nghiệm, chỉ khả dụng trên bản Desktop, mặc định tắt. Cần bật tại "Cài đặt → Phòng thí nghiệm → Hệ thống Mod".
 
-Folium 是 Folia 的模组平台。模组可以添加新的歌词动画模式和背景类型、在播放页上叠加内容、给进度条加按钮和标记、注册命令与设置分区、在歌词显示前改写歌词，也可以通过 Node 入口调用 ffmpeg 等本地能力。模组以可信代码运行，每个模组在启用前都要在原生窗口中确认，文件变化后需要重新确认。
+Folium là nền tảng Mod của Folia. Mod có thể bổ sung các chế độ diễn hoạt lời bài hát mới, loại hình nền, các lớp phủ trên trang phát nhạc, nút bấm trên thanh tiến trình, đăng ký lệnh điều khiển và gọi các công cụ cục bộ như ffmpeg thông qua Node. Mod chạy với quyền mã nguồn tin cậy; mỗi mod trước khi bật đều phải được xác nhận trong cửa sổ gốc.
 
-- **模组市场**：[folium-compound.vercel.app](https://folium-compound.vercel.app) 提供官方模组和经过审查的社区模组，下载 zip 后拖进模组面板即可安装。
-- **官方认证**：市场里的模组都带有 Folium 签名，安装后显示「官方认证」；没有签名的第三方模组显示「未验证」，同样可以使用。
-- **开发与贡献**：[模组开发与贡献指南](docs/folium/contributing.md)，从写第一个模组、本地调试，到提交到模组市场、审查与签名、发布更新。
-- **API 参考**：[Folium API 参考](docs/folium/api.md)，由契约文件生成的完整接口文档，按注册表、上下文、事件、服务等分类查询。
-- **平台规范**：[Folium 规范](mods/README.md)，包括清单字段、权限、注册表语义、事件、安全模型与版本策略。
-- **示范模组**：仓库的 [`mods/`](mods/) 目录，覆盖歌词动画、调参、进度条、播放页图层与透明视频导出。
+- **Chợ Mod**: [folium-compound.vercel.app](https://folium-compound.vercel.app) cung cấp các mod chính thức và mod cộng đồng đã qua kiểm duyệt. Sau khi tải tệp zip, kéo thả vào bảng Mod để cài đặt.
+- **Xác nhận chính thức**: Mod trên chợ có chữ ký của Folium, hiển thị "Chứng nhận chính thức"; mod bên thứ ba không có chữ ký sẽ hiển thị "Chưa xác minh", nhưng vẫn sử dụng bình thường.
+- **Phát triển & Đóng góp**: [Hướng dẫn phát triển và đóng góp Mod](docs/folium/contributing.md).
+- **Tham khảo API**: [Tài liệu API Folium](docs/folium/api.md).
+- **Quy chuẩn nền tảng**: [Quy chuẩn Folium](mods/README.md).
+- **Mod mẫu**: Thư mục [`mods/`](mods/) của kho lưu trữ.
 
-## Sync Server
+---
 
-Folia 提供了可选的官方同步服务端 `sync-server`，用于在多个设备之间同步外观设置与 AI 主题库。服务端由用户自行托管，适合希望跨设备同步配色主题的用户。
+## Máy chủ Đồng bộ (Sync Server)
 
-支持以下部署方式：
+Folia cung cấp máy chủ đồng bộ chính thức tùy chọn `sync-server`, dùng để đồng bộ cài đặt giao diện và kho chủ đề AI giữa nhiều thiết bị:
 
-- **Cloudflare Workers / D1**：免服务器运维的 Serverless 部署，推荐使用。
+- **Cloudflare Workers / D1**: Triển khai Serverless miễn phí vận hành máy chủ (Khuyên dùng).
   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chthollyphile/folia-major/tree/main/sync-server)
-- **Docker**：镜像与 Compose 入口见 [Docker 部署目录](deploy/docker/README.md)。
-- **Node.js 自托管**：使用 SQLite，适合本地或不方便使用 Docker 的环境。
+- **Docker**: Xem [Thư mục triển khai Docker](deploy/docker/README.md).
+- **Node.js Tự host**: Sử dụng SQLite, phù hợp chạy cục bộ.
 
-详细的环境变量、Token 配置与部署步骤请参阅 [Sync-Server 部署指南](https://folia-site.cielaniska.top/guide/deploy-sync)。部署完成后，在 Folia 的“存储设置”中填写服务端地址和 `SYNC_TOKEN` 即可启用同步。
+Xem các bước chi tiết tại [Hướng dẫn triển khai Sync-Server](https://folia-site.cielaniska.top/guide/deploy-sync). Sau khi triển khai, điền địa chỉ máy chủ và `SYNC_TOKEN` trong phần "Cài đặt lưu trữ" của Folia để kích hoạt.
 
-## 本地音乐与匹配说明
+---
 
-Folia 会读取音频文件元数据、同目录歌词和封面，并可通过网易云、QQ 音乐或酷狗音乐补全歌曲信息。自动匹配按网易云、QQ、酷狗依次回退；匹配不准确时，可以手动选择候选、恢复首次导入的本地信息，或进一步合并、拆分艺术家与专辑实体。
+## Nhạc Cục Bộ & Cơ chế Khớp Lời
 
-完整的导入、重扫、匹配、实体编辑、歌单、缓存和故障排查说明见 [本地音乐库管理](docs/local-library-management.md)。
+Folia tự động đọc siêu dữ liệu tệp âm thanh, lời bài hát cùng thư mục và ảnh bìa, đồng thời có thể bổ sung thông tin bài hát thông qua Zing MP3, NhacCuaTui, NetEase, QQ Music hoặc KuGou. Khi ghép nối tự động chưa chuẩn xác, bạn có thể chọn ứng viên thủ công, khôi phục thông tin cục bộ ban đầu hoặc hợp nhất/tách biệt thực thể nghệ sĩ và album.
 
-## Community
+Chi tiết xem tại [Quản lý Thư viện Nhạc Cục Bộ](docs/local-library-management.md).
 
-加入discord社群，共同交流，获得帮助
+---
+
+## Cộng đồng
+
+Tham gia cộng đồng Discord để giao lưu, trao đổi và nhận hỗ trợ:
 
 [![Discord](https://img.shields.io/discord/1541051241822687232?logo=discord&logoColor=white&label=Join%20our%20Discord)](https://discord.gg/dMDBTHxeKd)
 
-## 贡献者
+---
 
-感谢所有为本项目进行 Issue 提交、Bug 报告、想法建议、测试与代码编写的贡献者，均依据 all-contributors 规范进行统计
+## Người đóng góp
 
-由于列表过长，贡献记录请见 [贡献者名单](CONTRIBUTORS.md)。
+Chân thành cảm ơn tất cả các thành viên đã gửi Issue, báo lỗi, đề xuất ý tưởng, kiểm thử và viết mã cho dự án, được thống kê theo quy chuẩn all-contributors.
 
-## 法律与免责声明
+Danh sách chi tiết xem tại [Danh sách Người đóng góp](CONTRIBUTORS.md).
 
-本项目在 AI 的广泛协助下开发，因此仍可能存在细微或不易察觉的问题。若给你带来不便，敬请理解。
+---
 
-本项目主要用于展示播放动效、界面设计与相关工程实现。应用中涉及的在线音乐流媒体、歌词、专辑封面及其他内容，其版权均归对应权利人所有。
+## Pháp lý & Miễn trừ trách nhiệm
 
-本仓库及其源代码仅供个人学习、技术交流与非营利测试使用。请勿将其用于商业盈利用途。若因对在线资源的传播、加工或再分发而引发版权纠纷或其他责任，均由使用者自行承担，项目开发者不承担相关责任。
+* Dự án này được phát triển với sự hỗ trợ rộng rãi từ AI, do đó có thể vẫn tồn tại những vấn đề nhỏ hoặc khó nhận thấy. Kính mong bạn thông cảm nếu gặp bất tiện.
+* Dự án chủ yếu dùng để trình diễn hiệu ứng phát nhạc, thiết kế giao diện và các triển khai kỹ thuật liên quan. Bản quyền của mọi luồng âm thanh trực tuyến, lời bài hát, bìa album và nội dung khác trong ứng dụng đều thuộc về chủ sở hữu quyền tương ứng.
+* Kho lưu trữ này và mã nguồn của nó chỉ phục vụ cho việc học tập cá nhân, trao đổi kỹ thuật và thử nghiệm phi lợi nhuận. Vui lòng không sử dụng cho mục đích thương mại sinh lời. Mọi tranh chấp bản quyền hoặc trách nhiệm phát sinh do truyền bá, gia công hoặc phân phối lại tài nguyên trực tuyến đều do người dùng tự chịu trách nhiệm; nhà phát triển dự án không chịu trách nhiệm liên đới.
+* Hãy luôn tôn trọng bản quyền kỹ thuật số và ủng hộ âm nhạc có bản quyền thông qua các nền tảng chính thức khi có điều kiện.
 
-请始终尊重数字版权，并在条件允许时通过官方平台支持正版音乐。
+---
 
-## 致谢
+## Lời cảm ơn & Ghi nhận
 
-特别感谢以下项目和资源：
+Đặc biệt cảm ơn các dự án và tài nguyên sau:
 
 - [chenmozhijin/LDDC](https://github.com/chenmozhijin/LDDC)
 - [NeteaseCloudMusicApiEnhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
@@ -226,8 +262,10 @@ Folia 会读取音频文件元数据、同目录歌词和封面，并可通过�
 - [paper-design/shaders](https://github.com/paper-design/shaders)
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api)
 
-本项目接入了 [Apple Music-like Lyrics TTML 逐词歌词库](https://github.com/amll-dev/amll-ttml-db) 以提供高质量的歌词文件，感谢此歌词库的作者和贡献者们。
+Dự án đã tích hợp [Kho lời bài hát từng từ TTML phong cách Apple Music](https://github.com/amll-dev/amll-ttml-db) để mang lại các tệp lời chất lượng cao, trân trọng cảm ơn các tác giả và người đóng góp cho kho dữ liệu này.
 
-## 许可证
+---
 
-本项目基于 `AGPL-3.0` 许可证开源。
+## Giấy phép
+
+Dự án được phân phối theo giấy phép mã nguồn mở **`AGPL-3.0`**.
