@@ -20,9 +20,9 @@
 | utils | 128+ |
 | backend/electron | 64+ |
 | hooks | 64+ |
+| 其他 | 64+ |
 | src (其他) | 32+ |
 | stores | 32+ |
-| 其他 | 32+ |
 | types | 16+ |
 | i18n | 8+ |
 | workers | 4+ |
@@ -38,6 +38,7 @@
 | 64+ | `src/components/command-palette/types.ts` |
 | 64+ | `src/components/visualizer/colorMix.ts` |
 | 64+ | `src/library/core/contracts/suite.ts` |
+| 64+ | `src/stores/usePlaybackStore.ts` |
 | 64+ | `src/types/ponder.ts` |
 | 64+ | `src/utils/appPlaybackGuards.ts` |
 | 32+ | `dev/probes/definition.ts` |
@@ -51,12 +52,12 @@
 | 32+ | `src/library/core/contracts/homeModel.ts` |
 | 32+ | `src/library/suites/bravais/bravaisLayer.ts` |
 | 32+ | `src/mods/folium/contract.ts` |
+| 32+ | `src/services/baseThemes.ts` |
 | 32+ | `src/services/db.ts` |
 | 32+ | `src/services/onlineMusic/omni.ts` |
 | 32+ | `src/services/onlineMusic/songMetadata.ts` |
 | 32+ | `src/stores/useAppViewStore.ts` |
 | 32+ | `src/stores/useAudioSettingsStore.ts` |
-| 32+ | `src/stores/usePlaybackStore.ts` |
 | 32+ | `src/stores/useStatusMessageStore.ts` |
 | 32+ | `src/stores/useThemeSettingsStore.ts` |
 | 32+ | `src/types/localLibrary.ts` |
