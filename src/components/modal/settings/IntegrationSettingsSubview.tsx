@@ -2,15 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getStoredZingCookie, setStoredZingCookie, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
-import {
-    clearSpotifyAuth,
-    getSpotifyAuthUrl,
-    getSpotifyClientId,
-    getSpotifyClientSecret,
-    getStoredSpotifyAccessToken,
-    setSpotifyCredentials,
-    setSpotifyUserToken,
-} from '../../../services/onlineMusic/spotify/spotifyAuth';
 import { useShallow } from 'zustand/react/shallow';
 import type { NowPlayingConnectionStatus, StageSource, StageStatus, Theme } from '../../../types';
 import type { NavidromeServerProfile } from '../../../types/navidrome';
@@ -190,13 +181,6 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const [zingSaved, setZingSaved] = useState(false);
     const [isZingLoggingIn, setIsZingLoggingIn] = useState(false);
 
-    // Spotify Credentials & Token
-    const [spotifyClientId, setSpotifyClientId] = useState(() => getSpotifyClientId());
-    const [spotifyClientSecret, setSpotifyClientSecret] = useState(() => getSpotifyClientSecret());
-    const [spotifyTokenInput, setSpotifyTokenInput] = useState(() => getStoredSpotifyAccessToken());
-    const [spotifySaved, setSpotifySaved] = useState(false);
-    const [isSpotifyLoggingIn, setIsSpotifyLoggingIn] = useState(false);
-
     const handleZingWebLogin = async () => {
         if (isElectron && window.electron?.openZingLogin) {
             setIsZingLoggingIn(true);
@@ -237,45 +221,6 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         setZingCookie('');
         setStoredZingCookie('');
         setStatusMessage({ type: 'info', text: t('zing.clearSuccess') });
-    };
-
-    const handleSpotifyOAuthLogin = async () => {
-        const effectiveClientId = spotifyClientId.trim() || getSpotifyClientId();
-        if (!effectiveClientId) {
-            setStatusMessage({ type: 'error', text: t('spotify.needClientId', { defaultValue: 'Vui lòng cấu hình Spotify Client ID trước khi đăng nhập' }) });
-            return;
-        }
-        if (spotifyClientId.trim()) {
-            setSpotifyCredentials(spotifyClientId.trim(), spotifyClientSecret.trim());
-        }
-        const authUrl = getSpotifyAuthUrl();
-        if (isElectron && window.electron?.openSpotifyLogin) {
-            setIsSpotifyLoggingIn(true);
-            try {
-                const res = await window.electron.openSpotifyLogin(authUrl);
-                if (res.success && res.accessToken) {
-                    setSpotifyTokenInput(res.accessToken);
-                    setSpotifyUserToken(res.accessToken, res.expiresIn || 3600, res.refreshToken || '');
-                    setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
-                } else if (res.error === 'missing_client_id') {
-                    setStatusMessage({ type: 'error', text: t('spotify.needClientId') });
-                } else if (res.error !== 'cancelled') {
-                    setStatusMessage({ type: 'error', text: t('spotify.loginFailed') });
-                }
-            } catch {
-                setStatusMessage({ type: 'error', text: t('spotify.clearSuccess') });
-            } finally {
-                setIsSpotifyLoggingIn(false);
-            }
-        } else {
-            window.open(authUrl, '_blank', 'width=520,height=700');
-        }
-    };
-
-    const handleSpotifyLogout = () => {
-        setSpotifyTokenInput('');
-        clearSpotifyAuth();
-        setStatusMessage({ type: 'info', text: t('spotify.clearSuccess') });
     };
     // PlayerCap config: the subview reads the store directly (fewer layers); connection state/players are passed in by the stage model.
     const {
@@ -1111,144 +1056,6 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     >
                                         <Trash2 size={14} />
                                         {t('zing.clear')}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </details>
-                </div>
-            </SettingsAnchor>
-
-            {/* Spotify Settings */}
-            <SettingsAnchor anchorId="spotifyIntegration" label={t('spotify.title')}>
-                <SettingsSectionHeading
-                    icon={Key}
-                    label={t('spotify.heading')}
-                />
-                <div className={`${settingsCardClass} p-5 space-y-4`}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-xs">
-                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
-                                spotifyTokenInput ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
-                            }`}>
-                                {spotifyTokenInput ? t('spotify.connected') : t('spotify.notConnected')}
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={handleSpotifyOAuthLogin}
-                                disabled={isSpotifyLoggingIn}
-                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 disabled:opacity-50"
-                            >
-                                {isSpotifyLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
-                                {isSpotifyLoggingIn ? t('spotify.loggingIn') : t('spotify.loginButton')}
-                            </button>
-
-                            {spotifyTokenInput && (
-                                <button
-                                    type="button"
-                                    onClick={handleSpotifyLogout}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
-                                >
-                                    <Trash2 size={16} />
-                                    {t('spotify.logoutButton')}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    <p className="text-xs opacity-60">
-                        {t('spotify.oauthHint')}
-                    </p>
-
-                    <div className="p-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold opacity-75">{t('spotify.redirectUriLabel')}</span>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    navigator.clipboard.writeText('http://127.0.0.1:8888/callback');
-                                    setStatusMessage({ type: 'success', text: t('spotify.copiedRedirectUri') });
-                                }}
-                                className="text-[10px] px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-colors font-mono"
-                            >
-                                {t('common.copy', { defaultValue: 'Sao chép' })}
-                            </button>
-                        </div>
-                        <code className="block text-[11px] font-mono opacity-60 select-all">http://127.0.0.1:8888/callback</code>
-                    </div>
-
-                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
-                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
-                            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
-                            {t('spotify.advancedTitle')}
-                        </summary>
-                        <div className="mt-3 space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold mb-1 opacity-80">
-                                        {t('spotify.clientId')}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={spotifyClientId}
-                                        onChange={e => setSpotifyClientId(e.target.value)}
-                                        placeholder={t('spotify.clientIdPlaceholder')}
-                                        className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold mb-1 opacity-80">
-                                        {t('spotify.clientSecret')}
-                                    </label>
-                                    <input
-                                        type="password"
-                                        value={spotifyClientSecret}
-                                        onChange={e => setSpotifyClientSecret(e.target.value)}
-                                        placeholder={t('spotify.clientSecretPlaceholder')}
-                                        className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold mb-1 opacity-80">
-                                    {t('spotify.token')}
-                                </label>
-                                <input
-                                    type="text"
-                                    value={spotifyTokenInput}
-                                    onChange={e => setSpotifyTokenInput(e.target.value)}
-                                    placeholder={t('spotify.tokenPlaceholder')}
-                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-xs"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSpotifyCredentials(spotifyClientId, spotifyClientSecret);
-                                        if (spotifyTokenInput) {
-                                            setSpotifyUserToken(spotifyTokenInput);
-                                        }
-                                        setSpotifySaved(true);
-                                        setStatusMessage({ type: 'success', text: t('spotify.saveSuccess') });
-                                        setTimeout(() => setSpotifySaved(false), 2000);
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
-                                >
-                                    {spotifySaved ? <Check size={14} /> : <Key size={14} />}
-                                    {spotifySaved ? t('spotify.saved') : t('spotify.saveSettings')}
-                                </button>
-                                {spotifyTokenInput && (
-                                    <button
-                                        type="button"
-                                        onClick={handleSpotifyLogout}
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
-                                    >
-                                        <Trash2 size={14} />
-                                        {t('spotify.clear')}
                                     </button>
                                 )}
                             </div>

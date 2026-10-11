@@ -74,7 +74,6 @@ import { useKugouLibrary } from './hooks/useKugouLibrary';
 import { useQqLibrary } from './hooks/useQqLibrary';
 import { useBodianLibrary } from './hooks/useBodianLibrary';
 import { zingProvider } from './services/onlineMusic/zingProvider';
-import { spotifyProvider } from './services/onlineMusic/spotifyProvider';
 import { useLibraryAccountController } from './library/app/useLibraryAccountController';
 import { createLibraryAccountSwitchCleanupPort } from './library/app/createLibraryAccountPort';
 import { useLibraryStageToolsPort } from './library/app/useLibraryStageToolsPort';
@@ -755,15 +754,6 @@ export default function App() {
             });
             return status;
         },
-        spotify: async () => {
-            const status = await spotifyProvider.auth?.getLoginStatus();
-            useOnlineProviderAccountStore.getState().updateAccount('spotify', {
-                status: status ? 'authenticated' : 'unknown',
-                user: status,
-                hydration: 'ready',
-            });
-            return status;
-        },
     }), [refreshKugouLibrary, refreshQqLibrary, refreshBodianLibrary, refreshUserData]);
     const onlineProviderLogouts = useMemo<Partial<Record<OnlineProviderId, () => Promise<void>>>>(() => ({
         netease: handleLogout,
@@ -773,15 +763,6 @@ export default function App() {
         zing: async () => {
             await zingProvider.auth?.logout();
             useOnlineProviderAccountStore.getState().updateAccount('zing', {
-                status: 'unknown',
-                user: null,
-                collections: [],
-                likedSongIds: [],
-            });
-        },
-        spotify: async () => {
-            await spotifyProvider.auth?.logout();
-            useOnlineProviderAccountStore.getState().updateAccount('spotify', {
                 status: 'unknown',
                 user: null,
                 collections: [],

@@ -13,7 +13,6 @@ import SearchResultsList from './SearchResultsList';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { omni } from '../../../services/onlineMusic/omni';
-import { hasSpotifyClientId } from '../../../services/onlineMusic/spotify/spotifyAuth';
 
 // src/components/app/search/SearchWorkspace.tsx
 
@@ -82,7 +81,6 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         const base: SearchSource[] = [
             'netease',
             'zing',
-            'spotify',
             'nct',
             'local',
             'navidrome',
@@ -108,12 +106,6 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                         <circle cx="12" cy="12" r="1.3" fill="#6A35FF" />
                     </svg>
                 );
-            case 'spotify':
-                return (
-                    <svg viewBox="0 0 24 24" fill="#1DB954" className="h-3.5 w-3.5 shrink-0">
-                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.215.353-.674.466-1.026.251-2.812-1.718-6.353-2.107-10.523-1.154-.403.092-.803-.16-.895-.563-.092-.403.16-.803.563-.895 4.568-1.044 8.49-.606 11.63 1.335.353.215.466.674.251 1.026zm1.468-3.262c-.27.441-.849.582-1.29.312-3.218-1.978-8.125-2.55-11.932-1.393-.497.151-1.027-.133-1.178-.63-.151-.497.133-1.027.63-1.178 4.353-1.322 9.774-.683 13.458 1.599.441.27.582.849.312 1.29zm.126-3.41c-3.859-2.292-10.228-2.503-13.906-1.386-.593.18-1.223-.154-1.403-.747-.18-.593.154-1.223.747-1.403 4.232-1.285 11.274-1.04 15.698 1.587.533.317.708 1.009.392 1.542-.317.533-1.009.708-1.542.392z" />
-                    </svg>
-                );
             case 'nct':
                 return (
                     <svg viewBox="0 0 24 24" fill="#00D3E5" className="h-3.5 w-3.5 shrink-0">
@@ -134,7 +126,6 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'local') return t('search.sourceLocal');
         if (source === 'navidrome') return t('search.sourceNavidrome');
-        if (source === 'spotify') return t('search.sourceSpotify', { defaultValue: 'Spotify' });
         if (source === 'zing') return t('search.sourceZing', { defaultValue: 'Zing MP3' });
         if (source === 'nct') return t('search.sourceNct', { defaultValue: 'NhacCuaTui' });
         if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
@@ -255,15 +246,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                             </div>
                         ) : results.length === 0 ? (
                             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm opacity-60 text-center px-4">
-                                {searchSourceTab === 'spotify' && !hasSpotifyClientId() ? (
-                                    <>
-                                        <AlertCircle size={32} className="opacity-50 mb-1" />
-                                        <p className="font-semibold">{t('spotify.needCredentials')}</p>
-                                        <p className="text-xs opacity-75 max-w-md">{t('spotify.needCredentialsHint')}</p>
-                                    </>
-                                ) : (
-                                    <span>{t('home.noResults')}</span>
-                                )}
+                                <span>{t('home.noResults')}</span>
                             </div>
                         ) : (
                             <div className="flex h-full flex-col">

@@ -2743,7 +2743,7 @@ export default {
     bravaisBackdropBlur: "Làm mờ nền sau thư viện",
     bravaisBackdropBlurDesc:
       "Làm mờ hiệu ứng thị giác hiển thị xuyên qua Không gian Bravais hoặc thanh thông tin. Đây là hiệu ứng làm mờ toàn màn hình trên lớp hiệu ứng thị giác và có thể giảm khung hình trên máy cấu hình yếu có tần số quét cao. Chỉ áp dụng khi có phần tử xuyên thấu.",
-    homeTabsVisibility: "Thanh điều hướng đầu trang (Capsule)",
+    homeTabsVisibility: "Thanh điều hướng Trang chủ",
     rememberHomeCardPosition: "Nhớ vị trí thẻ trang chủ",
     rememberHomeCardPositionDesc:
       "Quay lại thẻ cuối cùng trong từng phần khi chuyển tab hoặc rời trình phát. Vị trí được lưu cho đến khi đóng hoặc tải lại ứng dụng.",

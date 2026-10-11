@@ -11,8 +11,6 @@ import { omni } from '../services/onlineMusic/omni';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
 import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
-import { searchSpotifyTracks } from '../services/onlineMusic/spotify/spotifyApi';
-import { getSpotifyClientId, getStoredSpotifyAccessToken } from '../services/onlineMusic/spotify/spotifyAuth';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
 const DEFAULT_SEARCH_LIMIT = 30;
@@ -167,19 +165,6 @@ const executeSearch = async (
         return searchNavidromeSongs(query);
     }
 
-    if (sourceTab === 'spotify') {
-        const storedToken = getStoredSpotifyAccessToken();
-        const clientId = getSpotifyClientId();
-        if (!storedToken && !clientId) {
-            throw new Error(deps.t('spotify.needClientId', 'Vui lòng cấu hình Spotify Client ID trong Cài đặt'));
-        }
-        const page = await searchSpotifyTracks(query, limit, offset);
-        if (page.items.length === 0 && !storedToken) {
-            throw new Error(deps.t('spotify.loginRequired', 'Cần đăng nhập Spotify để tìm kiếm bài hát'));
-        }
-        return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
-    }
-
     if (sourceTab === 'zing') {
         const songs = await searchZingSongs(query, limit);
         const results = songs.map(song => song as UnifiedSong);
@@ -281,7 +266,6 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         || state.searchSourceTab === 'navidrome'
         || state.searchSourceTab === 'youtube'
         || state.searchSourceTab === 'zing'
-        || state.searchSourceTab === 'spotify'
         || state.searchSourceTab === 'nct'
         || state.searchSourceTab === providerId
             ? state

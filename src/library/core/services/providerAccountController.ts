@@ -380,30 +380,6 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
             return { status: 'superseded', providerId };
         }
 
-        if (providerId === 'spotify') {
-            const { getSpotifyAuthUrl, setSpotifyUserToken, getSpotifyClientId } = await import('../../../services/onlineMusic/spotify/spotifyAuth');
-            const clientId = getSpotifyClientId();
-            if (!clientId) {
-                return { status: 'superseded', providerId };
-            }
-            const authUrl = getSpotifyAuthUrl();
-            if (typeof window !== 'undefined' && window.electron?.openSpotifyLogin) {
-                try {
-                    const res = await window.electron.openSpotifyLogin(authUrl);
-                    if (res?.success && res.accessToken) {
-                        setSpotifyUserToken(res.accessToken, res.expiresIn || 3600, res.refreshToken || '');
-                        await providerAccounts.refresh('spotify');
-                        accounts.setActiveProviderId('spotify');
-                    }
-                } catch (e) {
-                    log('warn', 'login:spotify-error', { error: describeError(e) });
-                }
-            } else if (typeof window !== 'undefined') {
-                window.open(authUrl, '_blank', 'width=500,height=700');
-            }
-            return { status: 'superseded', providerId };
-        }
-
         const attempt = ++loginSeq;
         batch(() => {
             // 单一在途登录：先停旧会话（keyed 取消），旧会话不会再在后台替旧平台确认（A0 记下的潜在 bug）。

@@ -7,7 +7,6 @@ import { kugouProvider } from './kugouProvider';
 import { qqProvider } from './qqProvider';
 import { bodianProvider } from './bodianProvider';
 import { zingProvider } from './zingProvider';
-import { spotifyProvider } from './spotifyProvider';
 import { nctProvider } from './nctProvider';
 
 // src/services/onlineMusic/providerRegistry.ts
@@ -86,5 +85,4 @@ registerOnlineMusicProvider(kugouProvider);
 registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
 registerOnlineMusicProvider(zingProvider);
-registerOnlineMusicProvider(spotifyProvider);
 registerOnlineMusicProvider(nctProvider);

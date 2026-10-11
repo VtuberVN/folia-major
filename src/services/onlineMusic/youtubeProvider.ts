@@ -65,9 +65,8 @@ export const youtubeProvider: OnlineMusicProvider = {
         async getSongDetail(_id) {
             return null;
         },
-        async getAudioSource(song, quality): Promise<ProviderAudioSource | null> {
-            const { resolveSpotifyAudioSource } = await import('./spotify/spotifyAudioResolver');
-            return resolveSpotifyAudioSource(song, quality);
+        async getAudioSource(_song, _quality): Promise<ProviderAudioSource | null> {
+            return null;
         },
         getAvailability(_song): ProviderSongAvailability {
             return { state: 'playable' };
