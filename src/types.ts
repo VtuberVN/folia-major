@@ -1208,6 +1208,17 @@ export interface NoCopyrightRecommendation {
 export type LyricProviderSource = 'netease' | 'qq' | 'kugou' | 'amll' | 'zing' | 'nct';
 export type AmllDbPlatform = 'ncm' | 'qq';
 
+export type SongUnlockServer = 'netease' | 'bodian' | 'kuwo';
+export interface UnlockServerConfig {
+  key: SongUnlockServer;
+  enabled: boolean;
+}
+export interface UnlockSongUrlResult {
+  code: number;
+  url: string | null;
+  source?: SongUnlockServer;
+}
+
 export interface ReplayGainInfo {
   /** ReplayGain gain values in decibels. */
   trackGain?: number;

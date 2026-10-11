@@ -23,6 +23,8 @@ import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import type { AudioQualityInfo } from '../types/audioQuality';
+import { getUnlockAudioSource } from './songUnlockService';
+import { useSongUnlockSettingsStore } from '../stores/useSongUnlockSettingsStore';
 
 // Prefetch configuration
 //
@@ -236,10 +238,49 @@ const prefetchSong = async (
                         ? { ...data.replayGain, ...audioSource.replayGain }
                         : data.replayGain;
                     console.log(`[Prefetch] Got audio URL for: ${song.name} (quality: ${audioQuality})`);
+                } else if (!signal.aborted) {
+                    const settings = useSongUnlockSettingsStore.getState();
+                    if (settings.useSongUnlock) {
+                        const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
+                        const unlockUrl = toSafePlaybackUrl(unlockResult.url) ?? null;
+                        if (unlockUrl) {
+                            data.audioUrl = unlockUrl;
+                            data.audioUrlFetchedAt = Date.now();
+                            data.audioUrlQuality = audioQuality;
+                            data.audioQualityInfo = {
+                                bitrate: 320000,
+                                codec: 'MP3',
+                                label: 'VIP Unlocked',
+                                unlocked: true,
+                            };
+                            console.log(`[Prefetch] Got unlocked URL for: ${song.name}`);
+                        }
+                    }
                 }
             }
         } catch (e) {
             console.warn(`[Prefetch] Failed to get audio URL for ${song.name}:`, e);
+            if (!signal.aborted) {
+                const settings = useSongUnlockSettingsStore.getState();
+                if (settings.useSongUnlock) {
+                    try {
+                        const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
+                        const unlockUrl = toSafePlaybackUrl(unlockResult.url) ?? null;
+                        if (unlockUrl) {
+                            data.audioUrl = unlockUrl;
+                            data.audioUrlFetchedAt = Date.now();
+                            data.audioUrlQuality = audioQuality;
+                            data.audioQualityInfo = {
+                                bitrate: 320000,
+                                codec: 'MP3',
+                                label: 'VIP Unlocked',
+                                unlocked: true,
+                            };
+                            console.log(`[Prefetch] Got unlocked URL for: ${song.name} (fallback after error)`);
+                        }
+                    } catch {}
+                }
+            }
         }
     }
 

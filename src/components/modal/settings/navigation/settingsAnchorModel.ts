@@ -37,6 +37,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     transitionSettings: { section: 'playback', labelKey: 'options.transitionSettings' },
     replayGainSettings: { section: 'playback', labelKey: 'options.replayGainSettings' },
     lyrics: { section: 'playback', labelKey: 'options.lyrics' },
+    songUnlock: { section: 'playback', labelKey: 'options.songUnlock' },
     audioOutputSettings: { section: 'playback', labelKey: 'options.audioOutputSettings' },
 
     // InteractionSettingsSubview

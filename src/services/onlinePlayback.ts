@@ -18,6 +18,8 @@ import { saveLyricCacheSongMetadata } from './lyricExport/lyricCacheMetadata';
 import type { AudioQualityInfo } from '../types/audioQuality';
 import { normalizeAudioQualityInfo } from '../utils/audioQualityInfo';
 import { readCachedAudioQuality } from './cachedAudioQuality';
+import { getUnlockAudioSource } from './songUnlockService';
+import { useSongUnlockSettingsStore } from '../stores/useSongUnlockSettingsStore';
 
 export async function loadOnlineSongAudioSource(
     song: SongResult,
@@ -52,15 +54,33 @@ export async function loadOnlineSongAudioSource(
     }
 
     let source = null;
+    let providerError: OnlineProviderError | null = null;
     try {
         source = await omni.getAudioSource(song, audioQuality);
     } catch (error) {
         console.warn('[OnlinePlayback] Provider audio source is temporarily unavailable', error);
-        return { kind: 'unavailable', ...(error instanceof OnlineProviderError ? { reason: error.code } : {}) };
+        if (error instanceof OnlineProviderError) {
+            providerError = error;
+        }
     }
     const url = toSafePlaybackUrl(source?.url);
     if (!url) {
-        return { kind: 'unavailable' };
+        const settings = useSongUnlockSettingsStore.getState();
+        if (settings.useSongUnlock) {
+            const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
+            const unlockUrl = toSafePlaybackUrl(unlockResult.url);
+            if (unlockUrl) {
+                const audioQualityInfo: AudioQualityInfo = {
+                    bitrate: 320000,
+                    codec: 'MP3',
+                    label: 'VIP Unlocked',
+                    unlocked: true,
+                };
+                updatePrefetchedAudioUrl(song, unlockUrl, audioQuality, undefined, audioQualityInfo);
+                return { kind: 'ok', audioSrc: unlockUrl, audioQualityInfo };
+            }
+        }
+        return { kind: 'unavailable', ...(providerError ? { reason: providerError.code } : {}) };
     }
 
     const replayGain = applyOnlineAudioSourceMetadata(song, source?.replayGain).replayGain;

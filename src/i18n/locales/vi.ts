@@ -2227,12 +2227,9 @@ export default {
       "QQ Music giới hạn số thiết bị đăng nhập đồng thời: tài khoản miễn phí 1 thiết bị, Green Diamond 3 thiết bị, Super VIP 5 thiết bị.",
     qrDeviceLimitTipRemove:
       "Mở ứng dụng chính thức QQ Music, vào Cài đặt → Quản lý thiết bị (ở cuối trang Cài đặt) và xóa thiết bị bạn không còn sử dụng.",
-    qrDeviceLimitTipRescan:
-      "Sau đó quay lại Folia và quét mã đăng nhập lại.",
-    qrDeviceLimitTipsTitle:
-      "Xóa bớt thiết bị đã đăng nhập trước",
-    qrDiagnosticsToggleElsewhere:
-      "Vẫn không được? Xem thông tin chẩn đoán",
+    qrDeviceLimitTipRescan: "Sau đó quay lại Folia và quét mã đăng nhập lại.",
+    qrDeviceLimitTipsTitle: "Xóa bớt thiết bị đã đăng nhập trước",
+    qrDiagnosticsToggleElsewhere: "Vẫn không được? Xem thông tin chẩn đoán",
     qrReportUnofficialBuild:
       "Bạn đang sử dụng bản dựng không chính thức hoặc chưa theo hướng dẫn tự lưu trữ (có thể do người khác đóng gói hoặc chỉnh sửa). Vui lòng phản hồi vấn đề cho người cung cấp bản này. Bản chính thức luôn có tại GitHub Releases.",
     qrReportWebDeployment:
@@ -2501,7 +2498,7 @@ export default {
     gridSlideTargetCommandPalette: "Bảng lệnh",
     gridSlideTargetCommandPaletteDesc:
       "Mở danh sách lệnh, tương tự {{modifier}}+K.",
-    gridPaletteHotkey: "Mở bảng lệnh bằng phím S trên lưới",
+    gridPaletteHotkey: "Mở bảng lệnh",
     gridPaletteHotkeyDesc:
       "Mặc định tắt: trên lưới, mọi phím ký tự đều là nội dung lọc, gồm cả S. Bật tùy chọn này để phím S mở bảng lệnh, các phím còn lại vẫn dùng để lọc.",
     customShortcut: "Phím tắt tùy chỉnh",
@@ -3083,14 +3080,12 @@ export default {
     discordApplicationId: "Discord Application ID",
     discordApplicationIdHint:
       "Nhập Application ID công khai từ Discord Developer Portal. Không cần token hay Client Secret.",
-    discordApplicationIdInvalid:
-      "Nhập Application ID gồm 16–24 chữ số.",
+    discordApplicationIdInvalid: "Nhập Application ID gồm 16–24 chữ số.",
     discordApplicationIdSaveFailed:
       "Không thể lưu Application ID. Vui lòng thử lại.",
     discordApplicationIdSaved:
       "Đã lưu Application ID. Discord sẽ kết nối lại với danh tính mới.",
-    discordApplicationIdSaving:
-      "Đang lưu…",
+    discordApplicationIdSaving: "Đang lưu…",
     discordPresenceConnected: "Đã kết nối",
     discordPresenceDisconnected: "Chưa kết nối",
     obsBrowserSource: "Nguồn trình duyệt OBS",

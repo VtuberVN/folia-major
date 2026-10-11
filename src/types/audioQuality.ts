@@ -6,4 +6,6 @@ export interface AudioQualityInfo {
     sampleRate?: number; // Hz
     bitDepth?: number;
     codec?: string;
+    label?: string;
+    unlocked?: boolean;
 }

@@ -13,6 +13,7 @@ import { SettingsAnchor } from './navigation/SettingsAnchorContext';
 import SettingsSectionHeading from './navigation/SettingsSectionHeading';
 import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
+import { useSongUnlockSettingsStore } from '../../../stores/useSongUnlockSettingsStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { isNeteaseScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
 
@@ -89,6 +90,17 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         onToggleAutoUseBestLyric: state.handleToggleAutoUseBestLyric,
         onPreferredAlternativeLyricSourceChange: state.handleSetPreferredAlternativeLyricSource,
         onLocalLyricsPriorityChange: state.handleSetLocalLyricsPriority,
+    })));
+    const {
+        useSongUnlock,
+        songUnlockServers,
+        onToggleSongUnlock,
+        onToggleSongUnlockServer,
+    } = useSongUnlockSettingsStore(useShallow(state => ({
+        useSongUnlock: state.useSongUnlock,
+        songUnlockServers: state.songUnlockServers,
+        onToggleSongUnlock: state.handleToggleSongUnlock,
+        onToggleSongUnlockServer: state.handleToggleSongUnlockServer,
     })));
     const {
         devices: audioOutputDevices,
@@ -407,6 +419,40 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             <ChevronRight size={18} className="shrink-0 opacity-60" style={{ color: 'var(--text-primary)' }} />
                         </div>
                     </button>
+                </div>
+            </SettingsAnchor>
+
+            <SettingsAnchor anchorId="songUnlock" label={t('options.songUnlock')}>
+                <SettingsSectionHeading icon={RefreshCw} label={t('options.songUnlock')} />
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {t('options.songUnlockEnable')}
+                            </div>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                {t('options.songUnlockDesc')}
+                            </div>
+                        </div>
+                        {renderToggle(useSongUnlock, () => onToggleSongUnlock(!useSongUnlock))}
+                    </div>
+                    {useSongUnlock && (
+                        <div className="border-t divide-y" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
+                            {songUnlockServers.map((server) => (
+                                <div key={server.key} className="pt-4 flex items-center justify-between gap-4">
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                            {t('options.songUnlockServer' + server.key.charAt(0).toUpperCase() + server.key.slice(1))}
+                                        </div>
+                                        <div className="text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                            {t('options.songUnlockServerDesc' + server.key.charAt(0).toUpperCase() + server.key.slice(1))}
+                                        </div>
+                                    </div>
+                                    {renderToggle(server.enabled, () => onToggleSongUnlockServer(server.key, !server.enabled))}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </SettingsAnchor>
 
