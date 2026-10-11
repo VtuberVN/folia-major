@@ -840,6 +840,7 @@ export default function App() {
         stageLyricsSession,
         stageMediaSession,
         nowPlayingConnectionStatus,
+        nowPlayingConnectionError,
         nowPlayingTrack,
         nowPlayingLyricPayload,
         nowPlayingProgressMs,
@@ -1751,6 +1752,20 @@ export default function App() {
         loadCurrentSongLyricPreview,
         setLyrics: setLyricsStable,
     }), [loadCurrentSongLyricPreview, setLyricsStable]);
+    const setStageSourceFromCommandPalette = useCallback(async (source: StageSource) => {
+        if (!window.electron?.setStageSource) {
+            return false;
+        }
+
+        try {
+            const nextStatus = await window.electron.setStageSource(source);
+            setStageStatus(nextStatus);
+            return true;
+        } catch (error) {
+            console.warn('[CommandPalette] Failed to select Stage source:', error);
+            return false;
+        }
+    }, [setStageStatus]);
     const commandPaletteContext = useCommandPaletteContext({
 
         currentSearchSourceTab: currentSearchSourceTabInPalette,
@@ -1784,6 +1799,7 @@ export default function App() {
         toggleBrowserFullscreen,
         toggleRemoteControlWindow,
         toggleMainWindowAlwaysOnTop,
+        setStageSource: setStageSourceFromCommandPalette,
 
 
         toggleTransparentBackground: () => { void toggleTransparentModeWithHandoff(!transparentPlayerBackground); },
@@ -2340,6 +2356,7 @@ export default function App() {
         clearPersistedStagePlaybackCache,
         loadStageSessionIntoPlayback,
         nowPlayingConnectionStatus,
+        nowPlayingConnectionError,
         playerCapConnectionStatus,
         playerCapPlayers,
         obsBrowserSourceStatus,
@@ -2817,6 +2834,8 @@ export default function App() {
                 stageSource={stageSource}
                 stageActiveEntryKind={stageActiveEntryKind}
                 nowPlayingConnectionStatus={nowPlayingConnectionStatus}
+                nowPlayingConnectionError={nowPlayingConnectionError}
+                hasNowPlayingTrack={Boolean(nowPlayingTrack)}
                 playerCapConnectionStatus={playerCapConnectionStatus}
             />
 

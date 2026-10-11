@@ -823,7 +823,8 @@ export function useStagePlaybackController({
 
         setActivePlaybackContext('stage');
 
-        if (handoff.stage.source === 'now-playing') {
+        if (isExternalStageSource(handoff.stage.source)) {
+            const handoffSource = handoff.stage.source;
             const nextNowPlaying = handoff.nowPlaying;
             nowPlayingTrackRef.current = nextNowPlaying.track;
             nowPlayingLyricPayloadRef.current = nextNowPlaying.lyricPayload;
@@ -856,7 +857,12 @@ export function useStagePlaybackController({
                 nowPlayingContentLoadKeyRef.current = null;
                 const requestId = nowPlayingContentLoadRequestIdRef.current + 1;
                 nowPlayingContentLoadRequestIdRef.current = requestId;
-                await loadNowPlayingIntoPlayback(nextNowPlaying.track, nextNowPlaying.lyricPayload, requestId);
+                await loadNowPlayingIntoPlayback(
+                    nextNowPlaying.track,
+                    nextNowPlaying.lyricPayload,
+                    requestId,
+                    handoffSource,
+                );
                 syncNowPlayingDisplaySurface(displayTimeSec);
             } else if (stageSnapshot) {
                 applyPlaybackSnapshot(stageSnapshot);
@@ -943,7 +949,8 @@ export function useStagePlaybackController({
             return;
         }
 
-        if (stageSource === 'now-playing') {
+        if (isExternalPlaybackSource) {
+            const externalSource = stageSource as ExternalStageSource;
             clearMainPlaybackContext();
             stagePlaybackSnapshotRef.current = null;
             setActivePlaybackContext('stage');
@@ -953,9 +960,18 @@ export function useStagePlaybackController({
                 setNowPlayingPaused(nowPlayingPausedRef.current);
             }
             if (nowPlayingTrackRef.current || nowPlayingLyricPayloadRef.current) {
+                nowPlayingContentLoadKeyRef.current = buildNowPlayingContentLoadKey(
+                    nowPlayingTrackRef.current,
+                    nowPlayingLyricPayloadRef.current,
+                );
                 const requestId = nowPlayingContentLoadRequestIdRef.current + 1;
                 nowPlayingContentLoadRequestIdRef.current = requestId;
-                void loadNowPlayingIntoPlayback(nowPlayingTrackRef.current, nowPlayingLyricPayloadRef.current, requestId);
+                void loadNowPlayingIntoPlayback(
+                    nowPlayingTrackRef.current,
+                    nowPlayingLyricPayloadRef.current,
+                    requestId,
+                    externalSource,
+                );
             }
             navigateToPlayer();
             if (!nowPlayingTrackRef.current && !nowPlayingLyricPayloadRef.current) {

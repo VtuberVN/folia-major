@@ -393,11 +393,16 @@ export default {
     coverThemeApplied: "Đã áp dụng chủ đề từ ảnh bìa: {{themeName}}",
     aiFallbackThemeUsed: "Chưa cấu hình AI, dùng chủ đề tích hợp",
     playbackError: "Lỗi phát nhạc",
+    spotifyNoSynchronizedLyrics:
+      "Không tìm thấy lời bài hát khớp thời gian cho {{title}}. Folia đã không mở giao diện trống.",
+    spotifyControlFailed: "Điều khiển Spotify thất bại: {{error}}",
     loadingSong: "Đang tải URL bài hát...",
     cacheCleared: "Đã xóa bộ nhớ đệm",
     dataSynced: "Đồng bộ dữ liệu thành công",
     syncFailed: "Đồng bộ thất bại",
     loginExpired: "Phiên đăng nhập hết hạn. Đăng nhập lại",
+    spotifyLocalSelectionFailed:
+      "Không thể chọn nguồn Spotify nội bộ. Vui lòng mở Cài đặt tích hợp và thử lại.",
     songPreviewOnly:
       "Chỉ có thể nghe thử. Đăng nhập tài khoản có quyền phát toàn bộ bài hát.",
     songVipOnly:
@@ -787,6 +792,15 @@ export default {
       "settings-integration": {
         title: "Cài đặt tích hợp",
         description: "Mở cài đặt Stage, Đang phát và Navidrome",
+      },
+      "settings-spotify": {
+        title: "Tích hợp Spotify Web API",
+        description: "Cấu hình và kết nối Spotify Web API",
+      },
+      "settings-spotify-local": {
+        title: "Tích hợp Spotify cục bộ (Desktop)",
+        description:
+          "Đọc ứng dụng Spotify desktop mà không cần ủy quyền Web API",
       },
       "automix-toggle": {
         title: "Chuyển tiếp thông minh",
@@ -3049,6 +3063,47 @@ export default {
       "Khi bật, trang chủ hiển thị lối vào Stage và kết nối qua localhost tới dịch vụ now-playing.",
     nowPlayingFixedConnectionDesc:
       "Kết nối cố định ws://localhost:9863/api/ws/lyric. Cần khởi chạy dịch vụ now-playing trên máy trước.",
+    stageSourceLabel: "Nguồn phát",
+    stageSourceSpotifyWebApi: "Spotify (Web API)",
+    stageSourceSpotifyLocal: "Spotify (Local)",
+    spotifyWebApiTitle: "Spotify (Web API)",
+    spotifyMirrorDescription:
+      "Sử dụng Spotify Web API để đồng bộ và điều khiển trình phát Spotify đang hoạt động, đồng thời tự động khớp lời bài hát. Âm thanh vẫn phát qua Spotify.",
+    spotifyLocalTitle: "Spotify (Local)",
+    spotifyLocalDescription:
+      "Đọc ứng dụng Spotify desktop thông qua phiên đa phương tiện của hệ điều hành và khớp lời bài hát đồng bộ mà không cần xác thực Spotify Web API.",
+    spotifyLocalNoSetup: "Không cần cấu hình API",
+    spotifyLocalBackendDescription:
+      "Sử dụng GSMTC trên Windows, MPRIS trên Linux, và AppleScript trên macOS. Giữ Spotify luôn chạy; trên macOS, hãy cấp quyền Tự động hóa.",
+    spotifyLocalWaitingTitle: "Đang chờ Spotify cục bộ",
+    spotifyLocalConnectionError:
+      "Folia không thể đọc ứng dụng Spotify cục bộ. Hãy mở Spotify và trên macOS, cấp quyền cho Folia trong Quyền riêng tư & Bảo mật > Tự động hóa.",
+    spotifyClientId: "Spotify Client ID",
+    spotifyClientIdPlaceholder: "Dán Client ID từ ứng dụng Spotify của bạn",
+    spotifyRedirectUri: "Redirect URI",
+    spotifyRedirectInstruction:
+      "Thêm chính xác URI này vào ứng dụng của bạn trong Spotify Developer Dashboard trước khi kết nối.",
+    spotifyAuthorizing: "Đang chờ xác thực",
+    spotifyConnected: "Đã kết nối",
+    spotifyRateLimitCountdown: "Thời gian chờ giới hạn yêu cầu Spotify: còn lại {{time}}.",
+    spotifyReconnectRequired: "Cần kết nối lại",
+    spotifyDisconnected: "Chưa kết nối",
+    spotifyConnect: "Kết nối Spotify",
+    spotifyReconnect: "Kết nối lại",
+    spotifyReconnectForControls:
+      "Hãy kết nối lại Spotify và chấp thuận quyền điều khiển phát lại mới để bật các nút này.",
+    spotifyControlsRequirement:
+      "Các nút điều khiển phát sử dụng Spotify Connect và yêu cầu gói Spotify Premium. Hãy đảm bảo có thiết bị Spotify đang hoạt động.",
+    spotifyDisconnect: "Ngắt kết nối",
+    spotifyOpenDashboard: "Mở Spotify Dashboard",
+    spotifyWaitingTitle: "Đang chờ Spotify",
+    spotifyConnectionError:
+      "Kết nối Spotify trong Cài đặt tích hợp, sau đó giữ ứng dụng Spotify desktop luôn mở.",
+    spotifyNoPlayback:
+      "Bắt đầu phát bài hát trên Spotify. Folia sẽ tự động tải và đồng bộ lời bài hát.",
+    spotifyNoSyncedLyricsTitle: "Không tìm thấy lời bài hát khớp thời gian",
+    spotifyNoSyncedLyricsDescription:
+      "Bài hát Spotify này chưa được kích hoạt vì không có nguồn lời bài hát nào của Folia trả về mốc thời gian thực tế. Hãy thử bài khác.",
     enableStageModeDescWeb:
       "Khi bật, lối vào Stage sẽ xuất hiện ở trang chủ; chọn nguồn lời bài hát để kết nối tới dịch vụ nội bộ.",
     playerCapAddress: "Địa chỉ Nexus PlayerCap",

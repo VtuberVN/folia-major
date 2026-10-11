@@ -135,6 +135,27 @@ export const settingsCommands: CommandPaletteCommand[] = [
     createSettingsAnchorCommand('settings-local-lyrics-priority', 'Local song lyrics priority', 'Choose whether local songs prefer local or online lyrics', ['local lyrics priority', 'online lyrics first', 'local song lyrics', '本地歌曲歌词优先级', '在线优先', '本地歌词', 'bendigeciyouxianji', 'bdgcyxj'], 'lyrics'),
     createSettingsAnchorCommand('settings-local-lyric-format-order', 'Local lyric file format priority', 'Choose which format wins when a track has several lyric files', ['lyric format priority', 'lyric file order', 'lrc ttml priority', '本地歌词文件格式优先级', '歌词格式', '格式优先级', 'geciwenjiangeshi', 'gcgsyxj'], 'lyrics'),
     createSettingsCommand('settings-integration', 'Integration settings', 'Open Stage, Now Playing, and Navidrome settings', ['integration', 'stage', 'now playing', 'navidrome settings', '集成', '连接'], 'options', 'integration'),
+    createSettingsCommand('settings-spotify', 'Spotify Web API integration', 'Configure and connect Spotify Web API', ['spotify web api', 'spotify api', 'spotify connect', 'spotify settings', 'spotify', 'Spotify连接', 'Spotify设置', '连接Spotify', 'lianjie spotify', 'sz spotify'], 'options', 'integration', { platform: ['electron'] }),
+    {
+        id: 'settings-spotify-local',
+        group: 'settings',
+        title: 'Spotify Local integration',
+        description: 'Read the local Spotify desktop app without Web API authorization',
+        keywords: ['spotify local', 'local spotify', 'spotify lokal', 'spotify desktop local', 'gsmtc', 'mpris', 'applescript', 'Spotify本地', '本地Spotify', '本机Spotify', 'spotify bendi', 'spotify benji', 'bendi spotify', 'benji spotify', 'bd spotify', 'bj spotify'],
+        platform: ['electron'],
+        execute: async (_input, context) => {
+            const didSelectSource = await context.settings.setStageSource('spotify-local');
+            if (!didSelectSource) {
+                context.shared.setStatusMsg({
+                    type: 'error',
+                    text: context.shared.t('commandPalette.spotifyLocalSelectionFailed', 'Could not select Spotify Local. Open Integration settings and try again.'),
+                });
+                return true;
+            }
+            context.settings.openSettings('options', 'integration');
+            return true;
+        },
+    },
     createSettingsAnchorCommand('settings-navidrome', 'Navidrome server', 'Jump to the Navidrome server connection', ['navidrome', 'subsonic', 'music server', '音乐服务器'], 'navidrome'),
     createSettingsAnchorCommand('settings-stage-mode', 'Stage mode', 'Jump to the Stage external player settings', ['stage', 'external player', '舞台模式'], 'stageMode'),
     {

@@ -710,9 +710,10 @@ export async function autoMatchBestLyric(
         }
     }
 
-    if (lineByLineFallback) {
-        console.log(`[autoMatchBestLyric] No word-by-word lyric match found; using ${lineByLineFallback.source} line-by-line fallback.`);
-        return lineByLineFallback;
+    const fallbackResult = lineByLineFallback as AutoMatchBestLyricMatch | null;
+    if (fallbackResult) {
+        console.log(`[autoMatchBestLyric] No word-by-word lyric match found; using ${fallbackResult.source} line-by-line fallback.`);
+        return fallbackResult;
     }
 
     console.log(`[autoMatchBestLyric] No reliable lyric match found across any source.`);

@@ -20,6 +20,8 @@ import { setStatusMessage } from '../../../stores/useStatusMessageStore';
 import { useThemeSettingsStore } from '../../../stores/useThemeSettingsStore';
 import { useStageSettingsStore } from '../../../stores/useStageSettingsStore';
 import DiscordApplicationIdField from './DiscordApplicationIdField';
+import SpotifySettingsCard from './SpotifySettingsCard';
+import SpotifyLocalSettingsCard from './SpotifyLocalSettingsCard';
 
 // src/components/modal/settings/IntegrationSettingsSubview.tsx
 // Integration settings for Discord, Stage, Now Playing, OBS, and Navidrome.
@@ -40,6 +42,7 @@ export type IntegrationSettingsChrome = {
 };
 
 export type IntegrationStageModel = {
+    nowPlayingConnectionError?: string | null;
     nowPlayingConnectionStatus: NowPlayingConnectionStatus;
     obsBrowserSourceStatus?: ObsBrowserSourceStatus | null;
     onCopyText: (text: string) => Promise<void>;
@@ -126,6 +129,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         toggleOffBackgroundClass,
     } = chrome;
     const {
+        nowPlayingConnectionError,
         nowPlayingConnectionStatus,
         obsBrowserSourceStatus,
         onCopyText,
@@ -647,13 +651,15 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                             <div className="space-y-3">
                                 <div className={`rounded-xl border p-3 space-y-2 ${settingsCardClass}`}>
                                     <div className="text-[10px] uppercase tracking-[0.16em] opacity-40" style={{ color: 'var(--text-secondary)' }}>
-                                        Source
+                                        {t('options.stageSourceLabel', 'Source')}
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                                         {([
                                             { value: 'stage-api', label: 'Stage API' },
                                             { value: 'now-playing', label: 'Now Playing' },
                                             { value: 'playercap', label: 'Nexus PlayerCap' },
+                                            { value: 'spotify', label: t('options.stageSourceSpotifyWebApi') },
+                                            { value: 'spotify-local', label: t('options.stageSourceSpotifyLocal') },
                                         ] as Array<{ value: StageSource; label: string }>).map((option) => {
                                             const selected = stageSource === option.value;
                                             return (
@@ -671,7 +677,23 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     </div>
                                 </div>
 
-                                {stageSource === 'playercap' ? (
+                                {stageSource === 'spotify' ? (
+                                    <SpotifySettingsCard
+                                        settingsCardClass={settingsCardClass}
+                                        onCopyText={onCopyText}
+                                    />
+                                ) : stageSource === 'spotify-local' ? (
+                                    <SpotifyLocalSettingsCard
+                                        connectionError={nowPlayingConnectionError ?? null}
+                                        connectionStatus={nowPlayingConnectionStatus}
+                                        errorBgColor={errorBgColor}
+                                        errorTextColor={errorTextColor}
+                                        isDaylight={isDaylight}
+                                        settingsCardClass={settingsCardClass}
+                                        successBgColor={successBgColor}
+                                        successTextColor={successTextColor}
+                                    />
+                                ) : stageSource === 'playercap' ? (
                                     renderPlayerCapPanel()
                                 ) : stageSource === 'now-playing' ? (
                                     renderNowPlayingPanel()

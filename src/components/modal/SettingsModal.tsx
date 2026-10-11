@@ -119,6 +119,7 @@ interface SettingsModalProps {
     onClearStageState?: () => Promise<void> | void;
     onToggleNowPlayingStage?: (enabled: boolean) => Promise<void> | void;
     nowPlayingConnectionStatus?: NowPlayingConnectionStatus;
+    nowPlayingConnectionError?: string | null;
     playerCapConnectionStatus?: PlayerCapConnectionStatus;
     playerCapPlayers?: string[];
     obsBrowserSourceStatus?: ObsBrowserSourceStatus | null;
@@ -185,6 +186,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onClearStageState,
     onToggleNowPlayingStage,
     nowPlayingConnectionStatus = 'disabled',
+    nowPlayingConnectionError = null,
     playerCapConnectionStatus = 'idle',
     playerCapPlayers = [],
     obsBrowserSourceStatus = null,
@@ -981,12 +983,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             : activeStageSource === 'playercap'
     );
     const playerCapConnected = playerCapEnabled && playerCapConnectionStatus === 'connected';
+    const spotifyEnabled = Boolean(
+        isElectron && stageStatus?.modeEnabled && (activeStageSource === 'spotify' || activeStageSource === 'spotify-local')
+    );
+    const spotifyConnected = spotifyEnabled && nowPlayingConnectionStatus === 'connected';
     const integrationStatusItems = [
         ...(stageConnected
             ? [{
                 key: 'stage',
                 label: t('options.stageConnected'),
                 tone: 'success' as const,
+            }]
+            : []),
+        ...(spotifyEnabled
+            ? [{
+                key: 'spotify',
+                label: spotifyConnected ? t('options.spotifyConnected') : t('options.spotifyDisconnected'),
+                tone: spotifyConnected ? 'success' as const : 'error' as const,
             }]
             : []),
         ...(nowPlayingEnabled
@@ -1820,6 +1833,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 }}
                                                 stage={{
                                                     nowPlayingConnectionStatus,
+                                                    nowPlayingConnectionError,
                                                     playerCapConnectionStatus,
                                                     playerCapPlayers,
                                                     obsBrowserSourceStatus,

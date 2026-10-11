@@ -5,6 +5,7 @@ import type { PlayerCapConnectionStatus } from '../../../types/playerCap';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { useThemeSettingsStore } from '../../../stores/useThemeSettingsStore';
 import { usePlaybackStore } from '../../../stores/usePlaybackStore';
+import { isExternalStageSource } from '../../../utils/stageSources';
 
 // src/components/app/stage/StageSessionEmptyState.tsx
 // What the player page shows when it is following an external stage that has nothing playing yet.
@@ -15,6 +16,10 @@ type StageSessionEmptyStateProps = {
     /** Non-null once a stage entry is actually driving playback; the card is for before that. */
     stageActiveEntryKind: string | null;
     nowPlayingConnectionStatus?: NowPlayingConnectionStatus;
+    /** Detailed error reported by the external source (used by Spotify local). */
+    nowPlayingConnectionError?: string | null;
+    /** Whether the external source has reported a track (Spotify: playing, but no synced lyrics). */
+    hasNowPlayingTrack?: boolean;
     playerCapConnectionStatus?: PlayerCapConnectionStatus;
 };
 
@@ -27,6 +32,8 @@ const StageSessionEmptyState: React.FC<StageSessionEmptyStateProps> = ({
     stageSource,
     stageActiveEntryKind,
     nowPlayingConnectionStatus,
+    nowPlayingConnectionError = null,
+    hasNowPlayingTrack = false,
     playerCapConnectionStatus,
 }) => {
     const { t } = useTranslation();
@@ -35,18 +42,41 @@ const StageSessionEmptyState: React.FC<StageSessionEmptyStateProps> = ({
     const activePlaybackContext = usePlaybackStore(state => state.activePlaybackContext);
     const currentSong = usePlaybackStore(state => state.currentSong);
 
-    // now-playing is the exception: it keeps reporting an empty session even once an entry is
-    // active, so the card stays up for it while every other source hides as soon as one arrives.
+    // External sources (now-playing and the Spotify sources) are the exception: they keep reporting
+    // an empty session even once an entry is active, so the card stays up for them while every other
+    // source hides as soon as one arrives.
     const isWaitingOnStage = currentView === 'player'
         && activePlaybackContext === 'stage'
-        && (!stageActiveEntryKind || stageSource === 'now-playing')
+        && (!stageActiveEntryKind || isExternalStageSource(stageSource))
         && !currentSong;
 
     if (!isWaitingOnStage) {
         return null;
     }
 
-    const detail = stageSource === 'playercap'
+    const isSpotifySource = stageSource === 'spotify' || stageSource === 'spotify-local';
+    const label = stageSource === 'spotify'
+        ? `Stage · ${t('options.stageSourceSpotifyWebApi')}`
+        : stageSource === 'spotify-local'
+            ? `Stage · ${t('options.stageSourceSpotifyLocal')}`
+            : (stageSource && SOURCE_LABELS[stageSource]) ?? 'Stage · Stage API';
+    const title = isSpotifySource
+        ? (hasNowPlayingTrack
+            ? t('options.spotifyNoSyncedLyricsTitle')
+            : stageSource === 'spotify'
+                ? t('options.spotifyWaitingTitle')
+                : t('options.spotifyLocalWaitingTitle'))
+        : t('options.stageSessionEmpty');
+
+    const detail = isSpotifySource
+        ? (hasNowPlayingTrack
+            ? t('options.spotifyNoSyncedLyricsDescription')
+            : nowPlayingConnectionStatus === 'error'
+                ? (stageSource === 'spotify'
+                    ? t('options.spotifyConnectionError')
+                    : (nowPlayingConnectionError || t('options.spotifyLocalConnectionError')))
+                : t('options.spotifyNoPlayback'))
+        : stageSource === 'playercap'
         ? (playerCapConnectionStatus === 'connected'
             ? t('options.playerCapWaitingLyrics')
             : t('options.playerCapConnecting'))
@@ -60,11 +90,9 @@ const StageSessionEmptyState: React.FC<StageSessionEmptyStateProps> = ({
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center px-6">
             <div className={`max-w-lg rounded-3xl border px-6 py-5 text-center backdrop-blur-md ${isDaylight ? 'border-black/10 bg-white/50 text-zinc-800' : 'border-white/10 bg-black/30 text-white'}`}>
                 <div className="text-xs uppercase tracking-[0.22em] opacity-50">
-                    {(stageSource && SOURCE_LABELS[stageSource]) ?? 'Stage · Stage API'}
+                    {label}
                 </div>
-                {/* One key for every source. The original branched on now-playing and then used the
-                    same key in both arms - preserved as-is rather than inventing a second string. */}
-                <div className="mt-3 text-2xl font-semibold">{t('options.stageSessionEmpty')}</div>
+                <div className="mt-3 text-2xl font-semibold">{title}</div>
                 <div className="mt-2 text-sm opacity-70">{detail}</div>
             </div>
         </div>
