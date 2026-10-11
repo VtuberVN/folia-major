@@ -1,0 +1,11 @@
+{
+  "folium": 1,
+  "id": "youtube-provider",
+  "name": "YouTube Provider",
+  "version": "1.0.0",
+  "author": "Antigravity",
+  "description": "Nguồn phát YouTube: hỗ trợ tìm kiếm bài hát, dán link YouTube và tự động nạp lời bài hát đồng bộ (LRC).",
+  "client": "client.mjs",
+  "permissions": ["net.fetch", "filesystem.data"],
+  "experimental": ["omni.providers"]
+}

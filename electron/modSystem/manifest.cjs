@@ -75,7 +75,7 @@ const parseDependency = (raw) => {
 };
 
 const parseVersion = (version) => {
-    const match = /^([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(String(version ?? '').trim());
+    const match = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:[-+].*)?$/.exec(String(version ?? '').trim());
     if (!match) {
         return null;
     }

@@ -197,6 +197,12 @@ describe('satisfiesHostRange', () => {
         expect(satisfiesHostRange(null, '>=0.7.0')).toBe(false);
         expect(satisfiesHostRange('0.7.8', 'latest')).toBe(false);
     });
+
+    it('tolerates semver pre-release and build suffixes', () => {
+        expect(satisfiesHostRange('0.7.17-vi.1', '>=0.7.0')).toBe(true);
+        expect(satisfiesHostRange('0.7.17-beta.2', '^0.7.0')).toBe(true);
+        expect(satisfiesHostRange('0.7.17+build.123', '=0.7.17')).toBe(true);
+    });
 });
 
 describe('resolveLoadOrder', () => {
