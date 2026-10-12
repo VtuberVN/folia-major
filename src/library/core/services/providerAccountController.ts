@@ -1,4 +1,4 @@
-import type { OnlineProviderId, ProviderAccountSummary, QrLoginMethod } from '../../../types/onlineMusic';
+import type { OnlineProviderId, ProviderAccountSummary, ProviderUser, QrLoginMethod } from '../../../types/onlineMusic';
 import type {
     LibraryAccountController,
     LibraryAccountControllerDeps,
@@ -354,6 +354,11 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     if (res?.success && res.cookie) {
                         const { setStoredZingCookie, setStoredZingProfile } = await import('../../../services/onlineMusic/zingApi');
                         setStoredZingCookie(res.cookie);
+                        let userProfile: ProviderUser = {
+                            id: 'zing_user',
+                            nickname: 'Tài khoản Zing MP3',
+                            vipType: 0,
+                        };
                         if (res.profile) {
                             const p = res.profile;
                             const hasVip = (
@@ -361,12 +366,13 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                                     typeof x === 'string' && (x.toUpperCase().includes('VIP') || x.toUpperCase().includes('PREMIUM'))
                                 )
                             ) || Boolean(p.isVip);
-                            setStoredZingProfile({
+                            userProfile = {
                                 id: String(p.userid || 'zing_user'),
                                 nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
                                 avatarUrl: p.avatar || undefined,
                                 vipType: hasVip ? 1 : 0,
-                            });
+                            };
+                            setStoredZingProfile(userProfile);
                         }
                         await providerAccounts.refresh('zing');
                         accounts.setActiveProviderId('zing');
@@ -387,14 +393,13 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     if (res?.success && res.cookie) {
                         const { setStoredYouTubeCookie, setStoredYouTubeProfile } = await import('../../../services/onlineMusic/youtube/youtubeApi');
                         setStoredYouTubeCookie(res.cookie);
-                        if (res.profile) {
-                            setStoredYouTubeProfile({
-                                id: String(res.profile.id || 'youtube_user'),
-                                nickname: res.profile.nickname || 'Tài khoản YouTube',
-                                avatarUrl: res.profile.avatarUrl || undefined,
-                                vipType: 0,
-                            });
-                        }
+                        const userProfile = {
+                            id: String(res.profile?.id || 'youtube_user'),
+                            nickname: res.profile?.nickname || 'Tài khoản YouTube',
+                            avatarUrl: res.profile?.avatarUrl || undefined,
+                            vipType: 0,
+                        };
+                        setStoredYouTubeProfile(userProfile);
                         await providerAccounts.refresh(providerId);
                         accounts.setActiveProviderId(providerId);
                     }
@@ -563,6 +568,15 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         }
     };
 
+    const logoutDirect = async (providerId: OnlineProviderId): Promise<void> => {
+        if (disposed) return;
+        try {
+            await providerAccounts.logout(providerId);
+        } catch (error) {
+            log('warn', 'logoutDirect:error', { providerId, ...describeLoginError(error) });
+        }
+    };
+
     // ─── 寿命 ───────────────────────────────────────────────────────────
 
     const dispose = (): void => {
@@ -596,6 +610,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         restartLoginBackend,
         buildLoginDiagnosticReport,
         logout: logoutProvider,
+        logoutDirect,
         dispose,
     };
 };

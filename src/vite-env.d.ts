@@ -24,16 +24,8 @@ declare global {
       /** Docker gateway 注入 'docker'；其他部署不带这个字段。 */
       deployment?: 'docker';
     };
-    __FOLIA_WITH_YOUTUBE__?: boolean;
   }
 
-  interface ImportMetaEnv {
-    readonly VITE_ENABLE_YOUTUBE?: string;
-  }
-
-  interface ImportMeta {
-    readonly env: ImportMetaEnv;
-  }
 
   /** Unsaved AI settings sent by the "test connection" button. */
   interface AiConnectionTestPayload {
@@ -926,6 +918,10 @@ declare global {
       openExternalUrl: (url: string) => Promise<boolean>;
       openZingLogin: () => Promise<{ success: boolean; cookie?: string; profile?: any; error?: string }>;
       openYouTubeLogin: () => Promise<{ success: boolean; cookie?: string; profile?: any; error?: string }>;
+      safeStorageEncrypt: (text: string) => Promise<string | null>;
+      safeStorageDecrypt: (cipherText: string) => Promise<string | null>;
+      safeStorageDecryptSync: (cipherText: string) => string | null;
+      isSafeStorageAvailable: () => Promise<boolean>;
       getZingAudioSource: (songId: string, cookie?: string, quality?: string) => Promise<{ url: string; quality: 'standard' | 'high' | 'lossless'; isVipOnly?: boolean } | null>;
       downloadUpdate: () => Promise<ElectronUpdateStatus>;
       quitAndInstallUpdate: () => Promise<boolean>;

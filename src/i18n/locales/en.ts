@@ -3606,6 +3606,27 @@ export default {
     "vipUser": "Zing MP3 VIP",
     "cookieHint": "Signing in enables VIP 320kbps / Lossless playback. Default guest mode plays 128kbps without an account."
   },
+  "youtube": {
+    "title": "YouTube",
+    "heading": "YouTube Music (Account & Settings)",
+    "cookieLabel": "Session Cookie",
+    "cookiePlaceholder": "Paste Cookie string from youtube.com (LOGIN_INFO, SAPISID, SID...)",
+    "saveCookie": "Save Settings",
+    "saved": "Saved!",
+    "clear": "Clear",
+    "activeCookie": "✓ User Cookie active",
+    "guestMode": "• Guest mode (Sign-in optional)",
+    "loginButton": "Sign In to YouTube",
+    "logoutButton": "Sign Out",
+    "loggingIn": "Connecting...",
+    "loginSuccess": "Signed in to YouTube successfully!",
+    "loginFailed": "Sign in failed or cancelled.",
+    "saveSuccess": "YouTube settings saved!",
+    "clearSuccess": "YouTube cookie cleared.",
+    "advancedTitle": "Advanced Options (Manual Cookie)",
+    "cookieHint": "Guest mode requires no sign-in: You can search, stream music, and browse charts freely. Signing in with Cookie is entirely optional to sync personal playlists.",
+    "openExternal": "Open in External Browser (Chrome)"
+  },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing is being controlled by an external player. Folia is only responsible for displaying lyrics and visual effects.",
     "stageLocalInputDescription": "Stage is in local single-input mode. External devices can push lyrics or media, but playback and display are controlled by Folia itself.",

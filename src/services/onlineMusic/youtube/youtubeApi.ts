@@ -3,6 +3,7 @@
 // No API key required, directly queries official YouTube InnerTube endpoint.
 
 import type { UnifiedSong } from '../../../types';
+import type { ProviderCollection } from '../../../types/onlineMusic';
 
 export interface YouTubeSearchResult {
     items: UnifiedSong[];
@@ -45,20 +46,56 @@ export function extractPlaylistId(input?: string | null): string | null {
 }
 
 const YOUTUBE_COOKIE_STORAGE_KEY = 'folia_youtube_cookie';
-let inMemoryYouTubeCookie = '';
+let inMemoryYouTubeCookie: string | null = null;
+let youtubeWriteVersion = 0;
 
 export function getStoredYouTubeCookie(): string {
-    if (typeof localStorage === 'undefined') return inMemoryYouTubeCookie;
-    return localStorage.getItem(YOUTUBE_COOKIE_STORAGE_KEY) || inMemoryYouTubeCookie;
+    if (inMemoryYouTubeCookie !== null) return inMemoryYouTubeCookie;
+    if (typeof localStorage === 'undefined') return '';
+    const raw = localStorage.getItem(YOUTUBE_COOKIE_STORAGE_KEY) || '';
+    if (raw.startsWith('enc:')) {
+        if (typeof window !== 'undefined' && window.electron?.safeStorageDecryptSync) {
+            try {
+                const decrypted = window.electron.safeStorageDecryptSync(raw.slice(4));
+                if (decrypted) {
+                    inMemoryYouTubeCookie = decrypted;
+                    return decrypted;
+                }
+            } catch {
+                // decrypt failed
+            }
+        }
+        // Ciphertext not decryptable — treat as no cookie, don't leak ciphertext
+        inMemoryYouTubeCookie = '';
+        return '';
+    }
+    inMemoryYouTubeCookie = raw;
+    return raw;
 }
 
 export function setStoredYouTubeCookie(cookie: string): void {
-    inMemoryYouTubeCookie = cookie.trim();
+    const trimmed = cookie.trim();
+    inMemoryYouTubeCookie = trimmed || null;
+    const writeId = ++youtubeWriteVersion;
     if (typeof localStorage === 'undefined') return;
-    if (!cookie) {
+    if (!trimmed) {
         localStorage.removeItem(YOUTUBE_COOKIE_STORAGE_KEY);
     } else {
-        localStorage.setItem(YOUTUBE_COOKIE_STORAGE_KEY, cookie.trim());
+        if (typeof window !== 'undefined' && window.electron?.safeStorageEncrypt) {
+            void window.electron.safeStorageEncrypt(trimmed).then(encrypted => {
+                if (writeId !== youtubeWriteVersion) return; // superseded by newer write or logout
+                if (encrypted) {
+                    localStorage.setItem(YOUTUBE_COOKIE_STORAGE_KEY, `enc:${encrypted}`);
+                } else {
+                    localStorage.setItem(YOUTUBE_COOKIE_STORAGE_KEY, trimmed);
+                }
+            }).catch(() => {
+                if (writeId !== youtubeWriteVersion) return;
+                localStorage.setItem(YOUTUBE_COOKIE_STORAGE_KEY, trimmed);
+            });
+        } else {
+            localStorage.setItem(YOUTUBE_COOKIE_STORAGE_KEY, trimmed);
+        }
     }
 }
 
@@ -434,14 +471,192 @@ export interface YouTubePlaylistResult {
     id: string;
     name: string;
     coverUrl?: string;
+    description?: string;
     trackCount: number;
     items: UnifiedSong[];
+}
+
+function extractSapisid(cookie: string): string | null {
+    const match = cookie.match(/(?:^|;\s*)(?:__Secure-3PAPISID|SAPISID)=([^;]+)/);
+    return match ? match[1].trim() : null;
+}
+
+async function getSapisidHash(sapisid: string, origin: string = 'https://music.youtube.com'): Promise<string> {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const text = `${timestamp} ${sapisid} ${origin}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuf = await crypto.subtle.digest('SHA-1', data);
+    const hash = Array.from(new Uint8Array(hashBuf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    return `SAPISIDHASH ${timestamp}_${hash}`;
 }
 
 export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTubePlaylistResult | null> {
     const playlistId = extractPlaylistId(playlistIdInput) || playlistIdInput;
     if (!playlistId) return null;
 
+    const cleanId = playlistId.replace(/^VL/, '');
+    const browseId = `VL${cleanId}`;
+    const cookie = getStoredYouTubeCookie();
+
+    // 1. Try YouTube Music client (WEB_REMIX)
+    try {
+        const apiKey = await getApiKey();
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://music.youtube.com/',
+            'Origin': 'https://music.youtube.com',
+        };
+        if (cookie) {
+            headers['Cookie'] = cookie;
+            const sapisid = extractSapisid(cookie);
+            if (sapisid) {
+                headers['Authorization'] = await getSapisidHash(sapisid);
+                headers['X-Origin'] = 'https://music.youtube.com';
+            }
+        }
+
+        const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: '1.20240101.01.00',
+                        hl: 'vi',
+                        gl: 'VN',
+                    },
+                },
+                browseId,
+            }),
+            signal: AbortSignal.timeout(8000),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const secondaryContents = data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents;
+            const tabContent = data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content
+                || data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content;
+            const firstSec = secondaryContents?.sectionListRenderer?.contents?.[0]
+                || tabContent?.sectionListRenderer?.contents?.[0];
+            const shelf = firstSec?.musicPlaylistShelfRenderer || firstSec?.musicShelfRenderer;
+            const rawItems = shelf?.contents || [];
+
+            const respHeader = tabContent?.sectionListRenderer?.contents?.[0]?.musicResponsiveHeaderRenderer
+                || data.header?.musicResponsiveHeaderRenderer
+                || data.header?.musicDetailHeaderRenderer;
+            const playlistName = respHeader?.title?.runs?.[0]?.text
+                || respHeader?.title?.simpleText
+                || 'YouTube Playlist';
+            const playlistDescription = respHeader?.description?.runs?.[0]?.text
+                || respHeader?.description?.simpleText
+                || '';
+            const coverUrl = respHeader?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+
+            if (rawItems.length > 0) {
+                const items: UnifiedSong[] = [];
+                for (const raw of rawItems) {
+                    const v = raw.musicResponsiveListItemRenderer;
+                    if (!v) continue;
+                    const videoId = v.playlistItemData?.videoId
+                        || v.menu?.menuRenderer?.topLevelButtons?.[0]?.likeButtonRenderer?.target?.videoId
+                        || v.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+                    if (!videoId) continue;
+
+                    const title = v.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Track';
+                    const artist = v.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Artist';
+                    const durationText = v.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text;
+                    const thumb = v.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+                        || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+                    items.push({
+                        id: `youtube:${videoId}`,
+                        name: title,
+                        artists: [{ id: 0, name: artist }],
+                        album: { id: 0, name: playlistName, coverUrl: thumb },
+                        durationMs: parseDurationToMs(durationText),
+                        sourceRef: { kind: 'online', providerId: 'youtube', mediaId: videoId },
+                    });
+                }
+
+                // Continuation pagination for large playlists (>100 tracks)
+                let continuationToken = shelf?.continuations?.[0]?.nextContinuationData?.continuation
+                    || rawItems[rawItems.length - 1]?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+                let contPages = 0;
+                while (continuationToken && contPages < 4 && items.length < 500) {
+                    contPages++;
+                    try {
+                        const contRes = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                context: {
+                                    client: {
+                                        clientName: 'WEB_REMIX',
+                                        clientVersion: '1.20240101.01.00',
+                                        hl: 'vi',
+                                        gl: 'VN',
+                                    },
+                                },
+                                continuation: continuationToken,
+                            }),
+                            signal: AbortSignal.timeout(8000),
+                        });
+                        if (!contRes.ok) break;
+                        const contData = await contRes.json();
+                        const nextItems = contData.continuationContents?.musicPlaylistShelfContinuation?.contents
+                            || contData.continuationContents?.musicShelfContinuation?.contents
+                            || [];
+                        if (!nextItems.length) break;
+                        for (const raw of nextItems) {
+                            const v = raw.musicResponsiveListItemRenderer;
+                            if (!v) continue;
+                            const videoId = v.playlistItemData?.videoId
+                                || v.menu?.menuRenderer?.topLevelButtons?.[0]?.likeButtonRenderer?.target?.videoId
+                                || v.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+                            if (!videoId) continue;
+                            const title = v.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Track';
+                            const artist = v.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Artist';
+                            const durationText = v.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text;
+                            const thumb = v.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+                                || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                            items.push({
+                                id: `youtube:${videoId}`,
+                                name: title,
+                                artists: [{ id: 0, name: artist }],
+                                album: { id: 0, name: playlistName, coverUrl: thumb },
+                                durationMs: parseDurationToMs(durationText),
+                                sourceRef: { kind: 'online', providerId: 'youtube', mediaId: videoId },
+                            });
+                        }
+                        continuationToken = contData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
+                            || nextItems[nextItems.length - 1]?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+                    } catch {
+                        break;
+                    }
+                }
+
+                if (items.length > 0) {
+                    return {
+                        id: cleanId,
+                        name: playlistName,
+                        coverUrl,
+                        description: playlistDescription,
+                        trackCount: items.length,
+                        items,
+                    };
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[YouTubeApi] WEB_REMIX browse error:', err);
+    }
+
+    // 2. Fallback to desktop YouTube WEB client
     try {
         const apiKey = await getApiKey();
         const res = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
@@ -459,57 +674,307 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
                         gl: 'VN',
                     },
                 },
-                browseId: `VL${playlistId.startsWith('VL') ? playlistId.slice(2) : playlistId}`,
+                browseId,
             }),
+            signal: AbortSignal.timeout(8000),
         });
 
-        if (!res.ok) return null;
+        if (res.ok) {
+            const data = await res.json();
+            const sidebarTitle = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.title?.runs?.[0]?.text;
+            const headerTitle = data.header?.playlistHeaderRenderer?.title?.simpleText || data.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text;
+            const playlistName = sidebarTitle || headerTitle || 'YouTube Playlist';
+
+            const sidebarThumb = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.thumbnailRenderer?.playlistVideoThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+            const headerThumb = data.header?.playlistHeaderRenderer?.playlistHeaderBanner?.heroPlaylistThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+            const coverUrl = sidebarThumb || headerThumb;
+
+            const section = data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0];
+            const rawVideos = section?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents || [];
+
+            const items: UnifiedSong[] = [];
+            for (const raw of rawVideos) {
+                const v = raw?.playlistVideoRenderer;
+                if (!v || !v.videoId) continue;
+
+                const title = v.title?.runs?.[0]?.text || v.title?.simpleText || 'YouTube Track';
+                const artist = v.shortBylineText?.runs?.[0]?.text || 'YouTube Artist';
+                const durationMs = (parseInt(v.lengthSeconds || '0', 10) || 0) * 1000;
+                const thumb = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
+
+                items.push({
+                    id: `youtube:${v.videoId}`,
+                    name: title,
+                    artists: [{ id: 0, name: artist }],
+                    album: { id: 0, name: playlistName, coverUrl: thumb },
+                    durationMs,
+                    sourceRef: { kind: 'online', providerId: 'youtube', mediaId: v.videoId },
+                });
+            }
+
+            // Continuation for desktop WEB
+            let webContinuation = rawVideos[rawVideos.length - 1]?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+            let webPages = 0;
+            while (webContinuation && webPages < 4 && items.length < 500) {
+                webPages++;
+                try {
+                    const contRes = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                            'Referer': 'https://www.youtube.com/',
+                        },
+                        body: JSON.stringify({
+                            context: {
+                                client: {
+                                    clientName: 'WEB',
+                                    clientVersion: '2.20240101.00.00',
+                                    hl: 'vi',
+                                    gl: 'VN',
+                                },
+                            },
+                            continuation: webContinuation,
+                        }),
+                        signal: AbortSignal.timeout(8000),
+                    });
+                    if (!contRes.ok) break;
+                    const contData = await contRes.json();
+                    const nextVideos = contData.continuationContents?.playlistVideoListContinuation?.contents || [];
+                    if (!nextVideos.length) break;
+                    for (const raw of nextVideos) {
+                        const v = raw?.playlistVideoRenderer;
+                        if (!v || !v.videoId) continue;
+                        const title = v.title?.runs?.[0]?.text || v.title?.simpleText || 'YouTube Track';
+                        const artist = v.shortBylineText?.runs?.[0]?.text || 'YouTube Artist';
+                        const durationMs = (parseInt(v.lengthSeconds || '0', 10) || 0) * 1000;
+                        const thumb = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
+                        items.push({
+                            id: `youtube:${v.videoId}`,
+                            name: title,
+                            artists: [{ id: 0, name: artist }],
+                            album: { id: 0, name: playlistName, coverUrl: thumb },
+                            durationMs,
+                            sourceRef: { kind: 'online', providerId: 'youtube', mediaId: v.videoId },
+                        });
+                    }
+                    webContinuation = contData.continuationContents?.playlistVideoListContinuation?.continuations?.[0]?.nextContinuationData?.continuation
+                        || nextVideos[nextVideos.length - 1]?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+                } catch {
+                    break;
+                }
+            }
+
+            const fallbackDescription = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.description?.runs?.[0]?.text
+                || data.header?.playlistHeaderRenderer?.description?.simpleText
+                || '';
+            return {
+                id: cleanId,
+                name: playlistName,
+                coverUrl,
+                description: fallbackDescription,
+                trackCount: items.length,
+                items,
+            };
+        }
+    } catch (err) {
+        console.warn('[YouTubeApi] WEB fallback browse error:', err);
+    }
+
+    return null;
+}
+
+export async function getYouTubeTrendingSongs(limit = 30): Promise<UnifiedSong[]> {
+    try {
+        const apiKey = await getApiKey();
+        const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': 'https://music.youtube.com/',
+                'Origin': 'https://music.youtube.com',
+            },
+            body: JSON.stringify({
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: '1.20240101.01.00',
+                        hl: 'vi',
+                        gl: 'VN',
+                    },
+                },
+                browseId: 'FEmusic_charts',
+            }),
+            signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) throw new Error(`Charts browse failed: ${res.status}`);
         const data = await res.json();
 
-        // Extract title
-        const sidebarTitle = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.title?.runs?.[0]?.text;
-        const headerTitle = data.header?.playlistHeaderRenderer?.title?.simpleText || data.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text;
-        const playlistName = sidebarTitle || headerTitle || 'YouTube Playlist';
-
-        // Extract cover
-        const sidebarThumb = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.thumbnailRenderer?.playlistVideoThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
-        const headerThumb = data.header?.playlistHeaderRenderer?.playlistHeaderBanner?.heroPlaylistThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
-        const coverUrl = sidebarThumb || headerThumb;
-
-        // Extract tracks
-        const section = data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0];
-        const rawVideos = section?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents || [];
-
-        const items: UnifiedSong[] = [];
-        for (const raw of rawVideos) {
-            const v = raw?.playlistVideoRenderer;
-            if (!v || !v.videoId) continue;
-
-            const title = v.title?.runs?.[0]?.text || v.title?.simpleText || 'YouTube Track';
-            const artist = v.shortBylineText?.runs?.[0]?.text || 'YouTube Artist';
-            const durationMs = (parseInt(v.lengthSeconds || '0', 10) || 0) * 1000;
-            const thumb = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
-
-            items.push({
-                id: `youtube:${v.videoId}`,
-                name: title,
-                artists: [{ id: 0, name: artist }],
-                album: { id: 0, name: playlistName, coverUrl: thumb },
-                durationMs,
-                sourceRef: { kind: 'online', providerId: 'youtube', mediaId: v.videoId },
-            });
+        // Extract song items from chart sections
+        const sections = data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+        const songs: UnifiedSong[] = [];
+        for (const section of sections) {
+            const items = section?.musicShelfRenderer?.contents
+                || section?.musicCarouselShelfRenderer?.contents
+                || [];
+            for (const item of items) {
+                const renderer = item?.musicResponsiveListItemRenderer;
+                if (!renderer) continue;
+                const videoId = renderer.playlistItemData?.videoId
+                    || renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+                if (!videoId) continue;
+                const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Track';
+                const artist = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'YouTube Artist';
+                const thumb = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+                    || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                songs.push({
+                    id: `youtube:${videoId}`,
+                    name: title,
+                    artists: [{ id: 0, name: artist }],
+                    album: { id: 0, name: 'YouTube Charts', coverUrl: thumb },
+                    durationMs: 0,
+                    sourceRef: { kind: 'online', providerId: 'youtube', mediaId: videoId },
+                });
+                if (songs.length >= limit) break;
+            }
+            if (songs.length >= limit) break;
         }
-
-        return {
-            id: playlistId,
-            name: playlistName,
-            coverUrl,
-            trackCount: items.length,
-            items,
-        };
-    } catch (err) {
-        console.warn('[YouTubeApi] getYouTubePlaylist error:', err);
-        return null;
+        if (songs.length > 0) return songs;
+    } catch {
+        // fallback to search
+    }
+    // Fallback: search for trending (language-neutral keyword)
+    try {
+        const res = await searchYouTubeMusic('trending', limit, 0);
+        return res?.items || [];
+    } catch {
+        return [];
     }
 }
+
+export async function getUserYouTubePlaylists(limit = 50, offset = 0): Promise<{ items: ProviderCollection[]; total: number; hasMore: boolean; nextOffset: number }> {
+    const cookie = getStoredYouTubeCookie();
+    try {
+        const apiKey = await getApiKey();
+        const sapisid = cookie ? extractSapisid(cookie) : null;
+        const authHeader = sapisid ? await getSapisidHash(sapisid) : null;
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://music.youtube.com/',
+            'Origin': 'https://music.youtube.com',
+        };
+        if (cookie) {
+            headers['Cookie'] = cookie;
+        }
+        if (authHeader) {
+            headers['Authorization'] = authHeader;
+            headers['X-Origin'] = 'https://music.youtube.com';
+        }
+
+        const fetchBrowse = async (targetBrowseId: string) => {
+            const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    context: {
+                        client: {
+                            clientName: 'WEB_REMIX',
+                            clientVersion: '1.20240101.01.00',
+                            hl: 'vi',
+                            gl: 'VN',
+                        },
+                    },
+                    browseId: targetBrowseId,
+                }),
+                signal: AbortSignal.timeout(8000),
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            const collected: ProviderCollection[] = [];
+            const rawSections = data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents
+                || data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents
+                || [];
+            for (const sec of rawSections) {
+                const gridItems = sec?.gridRenderer?.items
+                    || sec?.musicShelfRenderer?.contents
+                    || sec?.musicCarouselShelfRenderer?.contents
+                    || [];
+                for (const g of gridItems) {
+                    const renderer = g?.musicTwoRowItemRenderer || g?.gridPlaylistRenderer;
+                    if (!renderer) continue;
+                    const title = renderer.title?.runs?.[0]?.text || renderer.title?.simpleText;
+                    const nav = renderer.navigationEndpoint?.browseEndpoint;
+                    const plId = nav?.browseId?.replace(/^VL/, '') || renderer.playlistId;
+                    if (!title || !plId) continue;
+                    const thumb = renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+                        || renderer.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+                    collected.push({
+                        providerId: 'youtube',
+                        id: String(plId),
+                        name: String(title),
+                        type: 'playlist',
+                        coverUrl: thumb,
+                        description: renderer.subtitle?.runs?.[0]?.text || '',
+                        trackCount: 0,
+                        isOwned: Boolean(cookie && targetBrowseId !== 'FEmusic_charts'),
+                    });
+                }
+            }
+            return collected;
+        };
+
+        const playlists: ProviderCollection[] = [];
+        if (cookie) {
+            // When user is authenticated, add Liked Music playlist
+            playlists.push({
+                providerId: 'youtube',
+                id: 'LM',
+                name: 'Liked Music',
+                type: 'playlist',
+                coverUrl: 'https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-music-@1200.png',
+                description: '',
+                trackCount: 100,
+                isOwned: true,
+                isLiked: true,
+            });
+
+            const likedPlaylists = await fetchBrowse('FEmusic_liked_playlists');
+            for (const p of likedPlaylists) {
+                if (!playlists.some(x => x.id === p.id)) {
+                    playlists.push(p);
+                }
+            }
+
+            if (playlists.length <= 1) {
+                const libraryPlaylists = await fetchBrowse('FEmusic_library_landing');
+                for (const p of libraryPlaylists) {
+                    if (!playlists.some(x => x.id === p.id)) {
+                        playlists.push(p);
+                    }
+                }
+            }
+        }
+
+        // If no user playlists or guest mode, load charts
+        if (playlists.length === 0) {
+            const chartPlaylists = await fetchBrowse('FEmusic_charts');
+            playlists.push(...chartPlaylists);
+        }
+
+        const sliced = playlists.slice(offset, offset + limit);
+        return {
+            items: sliced,
+            total: playlists.length,
+            hasMore: offset + limit < playlists.length,
+            nextOffset: offset + sliced.length,
+        };
+    } catch (err) {
+        console.warn('[YouTubeApi] getUserYouTubePlaylists error:', err);
+        return { items: [], total: 0, hasMore: false, nextOffset: offset };
+    }
+}
+
 

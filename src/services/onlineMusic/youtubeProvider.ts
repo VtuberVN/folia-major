@@ -20,6 +20,8 @@ import {
     setStoredYouTubeCookie,
     getStoredYouTubeProfile,
     clearStoredYouTubeProfile,
+    getUserYouTubePlaylists,
+    getYouTubeTrendingSongs,
 } from './youtube/youtubeApi';
 
 export async function fetchYouTubeLyrics(
@@ -102,7 +104,7 @@ export const youtubeProvider: OnlineMusicProvider = {
         playlists: true,
         albums: true,
         artists: false,
-        recommendations: false,
+        recommendations: true,
         mutations: false,
         wordByWordLyrics: false,
     },
@@ -207,6 +209,23 @@ export const youtubeProvider: OnlineMusicProvider = {
                 nextOffset: offset + limit,
             };
         },
+        async getPlaylistDetail(id, existingCollection) {
+            const playlistId = extractPlaylistId(String(id)) || String(id);
+            const isLiked = playlistId === 'LM';
+            const pl = await getYouTubePlaylist(playlistId);
+            if (!pl) return existingCollection || null;
+            return {
+                providerId: 'youtube',
+                id: pl.id,
+                name: pl.name || existingCollection?.name || 'Liked Music',
+                type: 'playlist',
+                coverUrl: pl.coverUrl || existingCollection?.coverUrl || (isLiked ? 'https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-music-@1200.png' : pl.items[0]?.album?.coverUrl),
+                description: pl.description || existingCollection?.description || '',
+                trackCount: pl.items.length,
+                isOwned: isLiked || (existingCollection?.isOwned ?? false),
+                isLiked,
+            };
+        },
         async getAlbumTracks(id, limit = 50, offset = 0) {
             const playlistId = extractPlaylistId(String(id)) || String(id);
             const pl = await getYouTubePlaylist(playlistId);
@@ -221,16 +240,39 @@ export const youtubeProvider: OnlineMusicProvider = {
         },
     },
     library: {
-        async getUserPlaylists(_userId, limit, offset) {
-            return {
-                items: [],
-                total: 0,
-                hasMore: false,
-                nextOffset: offset,
-            };
+        async getUserPlaylists(_userId, limit = 50, offset = 0) {
+            const cookie = getStoredYouTubeCookie();
+            if (!cookie) return { items: [], total: 0, hasMore: false, nextOffset: 0 };
+            return getUserYouTubePlaylists(limit, offset);
         },
         async getLikedSongs(_userId) {
-            return [];
+            const cookie = getStoredYouTubeCookie();
+            if (!cookie) return [];
+            try {
+                const pl = await getYouTubePlaylist('LM');
+                return pl?.items || [];
+            } catch {
+                return [];
+            }
+        },
+    },
+    recommendations: {
+        async getPersonalFm(_options) {
+            const songs = await getYouTubeTrendingSongs(50);
+            if (songs.length === 0) return [];
+            const shuffled = [...songs];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled.slice(0, 30);
+        },
+        async getDailySongs(_refresh) {
+            return getYouTubeTrendingSongs(30);
+        },
+        async getRecommendedCollections(limit = 20) {
+            const page = await getUserYouTubePlaylists(limit, 0);
+            return page.items || [];
         },
     },
     auth: {

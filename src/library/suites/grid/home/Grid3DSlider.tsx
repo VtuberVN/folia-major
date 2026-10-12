@@ -834,13 +834,27 @@ export const Grid3DSlider: React.FC<Grid3DSliderProps> = ({
                                             style={{ width: coverSize, height: coverSize }}
                                         >
                                             {item.coverUrl && loadedIndices.has(index) ? (
-                                                <img src={getSizedCoverUrl(item.coverUrl, coverSize)} alt={typeof displayName === 'string' ? displayName : ''} loading="lazy" decoding="async" className="w-full h-full object-cover pointer-events-none select-none" />
+                                                <>
+                                                    <img
+                                                        src={getSizedCoverUrl(item.coverUrl, coverSize)}
+                                                        alt={typeof displayName === 'string' ? displayName : ''}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                        className="w-full h-full object-cover pointer-events-none select-none relative z-10"
+                                                    />
+                                                    <div className="absolute inset-0 bg-zinc-800/20 flex items-center justify-center">
+                                                        <Disc size={64} className="opacity-20" />
+                                                    </div>
+                                                </>
                                             ) : (
                                                 <div className="w-full h-full bg-zinc-800/20 flex items-center justify-center">
                                                     <Disc size={64} className="opacity-20" />
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
+                                            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity z-20" />
                                         </div>
                                     ) : (
                                         <div
@@ -849,7 +863,21 @@ export const Grid3DSlider: React.FC<Grid3DSliderProps> = ({
                                         >
                                             <div className="w-full aspect-square rounded-lg overflow-hidden bg-zinc-800/20 relative shadow-inner mb-4 flex items-center justify-center">
                                                 {item.coverUrl && loadedIndices.has(index) ? (
-                                                    <img src={getSizedCoverUrl(item.coverUrl, coverSize)} alt={typeof displayName === 'string' ? displayName : ''} loading="lazy" decoding="async" className="w-full h-full object-cover pointer-events-none select-none" />
+                                                    <>
+                                                        <img
+                                                            src={getSizedCoverUrl(item.coverUrl, coverSize)}
+                                                            alt={typeof displayName === 'string' ? displayName : ''}
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = 'none';
+                                                            }}
+                                                            className="w-full h-full object-cover pointer-events-none select-none relative z-10"
+                                                        />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <Disc size={64} className="opacity-20" />
+                                                        </div>
+                                                    </>
                                                 ) : (
                                                     <Disc size={64} className="opacity-20" />
                                                 )}

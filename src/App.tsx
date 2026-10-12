@@ -75,6 +75,9 @@ import { useKugouLibrary } from './hooks/useKugouLibrary';
 import { useQqLibrary } from './hooks/useQqLibrary';
 import { useBodianLibrary } from './hooks/useBodianLibrary';
 import { zingProvider } from './services/onlineMusic/zingProvider';
+import { getStoredZingCookie } from './services/onlineMusic/zingApi';
+import { youtubeProvider } from './services/onlineMusic/youtubeProvider';
+import { getStoredYouTubeCookie } from './services/onlineMusic/youtube/youtubeApi';
 import { useLibraryAccountController } from './library/app/useLibraryAccountController';
 import { createLibraryAccountSwitchCleanupPort } from './library/app/createLibraryAccountPort';
 import { useAppWallToolsHost } from './components/app/wall-tools/useAppWallToolsHost';
@@ -750,12 +753,60 @@ export default function App() {
         bodian: refreshBodianLibrary,
         zing: async () => {
             const status = await zingProvider.auth?.getLoginStatus();
+            let collections: ProviderCollection[] = [];
+            let likedSongIds: string[] = [];
+            if (zingProvider.library?.getUserPlaylists) {
+                try {
+                    const page = await zingProvider.library.getUserPlaylists(status?.id || 'zing_user', 50, 0);
+                    collections = page.items;
+                } catch (e) {
+                    console.warn('[Zing] Failed to fetch playlists:', e);
+                }
+            }
+            if (status && zingProvider.library?.getLikedSongs) {
+                try {
+                    const liked = await zingProvider.library.getLikedSongs(status.id);
+                    likedSongIds = (liked || []).map(s => String(s.id));
+                } catch (e) {
+                    console.warn('[Zing] Failed to fetch liked songs:', e);
+                }
+            }
             useOnlineProviderAccountStore.getState().updateAccount('zing', {
                 status: status ? 'authenticated' : 'unknown',
                 user: status,
+                collections,
+                likedSongIds,
                 hydration: 'ready',
+                freshness: 'fresh',
             });
             return status;
+        },
+        youtube: async () => {
+            const status = await youtubeProvider.auth?.getLoginStatus();
+            let collections: ProviderCollection[] = [];
+            if (youtubeProvider.library?.getUserPlaylists) {
+                try {
+                    const page = await youtubeProvider.library.getUserPlaylists(status?.id || 'youtube_user', 50, 0);
+                    collections = page.items;
+                } catch (e) {
+                    console.warn('[YouTube] Failed to fetch playlists:', e);
+                }
+            }
+            const patch = {
+                status: status ? 'authenticated' as const : 'unknown' as const,
+                user: status,
+                collections,
+                hydration: 'ready' as const,
+                freshness: 'fresh' as const,
+            };
+            useOnlineProviderAccountStore.getState().updateAccount('youtube', patch);
+            useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', patch);
+            return status;
+        },
+        'folium.youtube-provider.youtube': async (): Promise<unknown> => {
+            // YouTube and its mod share the same data; the youtube refresher above already patched both keys.
+            // If called standalone, re-run the same logic:
+            return onlineProviderRefreshers.youtube?.();
         },
     }), [refreshKugouLibrary, refreshQqLibrary, refreshBodianLibrary, refreshUserData]);
     const onlineProviderLogouts = useMemo<Partial<Record<OnlineProviderId, () => Promise<void>>>>(() => ({
@@ -772,7 +823,83 @@ export default function App() {
                 likedSongIds: [],
             });
         },
+        youtube: async () => {
+            await youtubeProvider.auth?.logout();
+            const patch = {
+                status: 'unknown' as const,
+                user: null,
+                collections: [] as ProviderCollection[],
+                likedSongIds: [] as string[],
+            };
+            useOnlineProviderAccountStore.getState().updateAccount('youtube', patch);
+            useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', patch);
+        },
+        'folium.youtube-provider.youtube': async (): Promise<void> => {
+            // Delegate to the shared youtube logout
+            return onlineProviderLogouts.youtube?.();
+        },
     }), [handleLogout, logoutKugouLibrary, logoutQqLibrary, logoutBodianLibrary]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const zingCookie = getStoredZingCookie();
+        void zingProvider.auth?.getLoginStatus().then(user => {
+            if (cancelled) return;
+            const effectiveUser = user || (zingCookie ? { id: 'zing_user', nickname: 'Tài khoản Zing MP3', vipType: 0 } : null);
+            Promise.all([
+                zingProvider.library?.getUserPlaylists?.(effectiveUser?.id || 'zing_user', 50, 0),
+                effectiveUser ? zingProvider.library?.getLikedSongs?.(effectiveUser.id) : Promise.resolve([]),
+            ]).then(([page, likedSongs]) => {
+                if (cancelled) return;
+                const likedSongIds = (likedSongs || []).map(s => String(s.id));
+                useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                    status: effectiveUser ? 'authenticated' : 'anonymous',
+                    user: effectiveUser,
+                    collections: page?.items || [],
+                    likedSongIds,
+                    hydration: 'ready',
+                    freshness: 'fresh',
+                });
+            }).catch(() => {
+                if (cancelled) return;
+                useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                    status: effectiveUser ? 'authenticated' : 'anonymous',
+                    user: effectiveUser,
+                    hydration: 'ready',
+                    freshness: 'fresh',
+                });
+            });
+        });
+
+        void youtubeProvider.auth?.getLoginStatus().then(user => {
+            if (cancelled) return;
+            const effectiveUser = user || null;
+            void youtubeProvider.library?.getUserPlaylists?.(effectiveUser?.id || 'youtube_user', 50, 0).then(page => {
+                if (cancelled) return;
+                const patch = {
+                    status: effectiveUser ? ('authenticated' as const) : ('unknown' as const),
+                    user: effectiveUser,
+                    collections: page?.items || [],
+                    hydration: 'ready' as const,
+                    freshness: 'fresh' as const,
+                };
+                useOnlineProviderAccountStore.getState().updateAccount('youtube', patch);
+                useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', patch);
+            }).catch(() => {
+                if (cancelled) return;
+                const patch = {
+                    status: effectiveUser ? ('authenticated' as const) : ('unknown' as const),
+                    user: effectiveUser,
+                    hydration: 'ready' as const,
+                    freshness: 'fresh' as const,
+                };
+                useOnlineProviderAccountStore.getState().updateAccount('youtube', patch);
+                useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', patch);
+            });
+        });
+
+        return () => { cancelled = true; };
+    }, []);
 
     // 在线账户 controller（Library v2 · A4）：扫码登录、选平台、切换确认与登出都在 core，App 只交出 per-provider 的
     // 刷新与登出，以及确认切换后的播放清理端口。端口读的三样（audio / automix 句柄、歌词写入）都是稳定引用，建一次。

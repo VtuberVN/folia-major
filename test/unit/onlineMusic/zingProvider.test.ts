@@ -303,4 +303,140 @@ describe('zingProvider', () => {
         expect(result?.items).toHaveLength(1);
         expect(result?.items[0].name).toBe('Top 100 Nhạc Trẻ');
     });
+
+    it('returns empty array for getLikedSongs when unauthenticated', async () => {
+        const { setStoredZingCookie } = zingApi;
+        setStoredZingCookie('');
+        const liked = await zingProvider.library?.getLikedSongs?.('zing_user');
+        expect(liked).toEqual([]);
+    });
+
+    it('fetches personal liked songs when authenticated', async () => {
+        const mockLikedSongs = [
+            {
+                id: 'ZW78DIEO',
+                name: 'Lạc Trôi',
+                artists: [{ id: 1, name: 'Sơn Tùng M-TP' }],
+                album: { id: 1, name: 'Lạc Trôi' },
+                durationMs: 233000,
+                sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: 'ZW78DIEO' },
+            },
+        ];
+        vi.spyOn(zingApi, 'getZingLikedSongs').mockResolvedValue(mockLikedSongs);
+        const liked = await zingProvider.library?.getLikedSongs?.('zing_user');
+        expect(liked).toHaveLength(1);
+        expect(liked?.[0].name).toBe('Lạc Trôi');
+    });
+
+    it('fetches user personal playlists and falls back to home playlists', async () => {
+        const mockUserPlaylists = {
+            items: [
+                {
+                    providerId: 'zing' as const,
+                    id: 'PL_USER_1',
+                    name: 'Nghiện',
+                    type: 'playlist' as const,
+                    trackCount: 25,
+                    isOwned: true,
+                },
+            ],
+            total: 1,
+            hasMore: false,
+            nextOffset: 1,
+        };
+        vi.spyOn(zingApi, 'getUserZingPlaylists').mockResolvedValue(mockUserPlaylists);
+        const result = await zingProvider.library?.getUserPlaylists('zing_user', 30, 0);
+        expect(result?.items).toHaveLength(1);
+        expect(result?.items[0].name).toBe('Nghiện');
+        expect(result?.items[0].isOwned).toBe(true);
+    });
+
+    it('routes zing_liked_songs to getZingLikedSongs and zing_recent_songs to getZingRecentSongs', async () => {
+        const mockLikedSongs = [
+            {
+                id: 'ZW78DIEO',
+                name: 'Lạc Trôi',
+                artists: [{ id: 1, name: 'Sơn Tùng M-TP' }],
+                album: { id: 1, name: 'Lạc Trôi' },
+                durationMs: 233000,
+                sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: 'ZW78DIEO' },
+            },
+        ];
+        const mockRecentSongs = [
+            {
+                id: 'ZW78RECENT',
+                name: 'Bài Hát Gần Đây',
+                artists: [{ id: 2, name: 'Ca Sĩ' }],
+                album: { id: 2, name: 'Album' },
+                durationMs: 200000,
+                sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: 'ZW78RECENT' },
+            },
+        ];
+
+        vi.spyOn(zingApi, 'getZingLikedSongs').mockResolvedValue(mockLikedSongs);
+        vi.spyOn(zingApi, 'getZingRecentSongs').mockResolvedValue(mockRecentSongs);
+
+        const likedTracks = await zingProvider.catalog?.getPlaylistTracks?.('zing_liked_songs', 50, 0);
+        expect(likedTracks?.items).toHaveLength(1);
+        expect(likedTracks?.items[0].name).toBe('Lạc Trôi');
+
+        const recentTracks = await zingProvider.catalog?.getPlaylistTracks?.('zing_recent_songs', 50, 0);
+        expect(recentTracks?.items).toHaveLength(1);
+        expect(recentTracks?.items[0].name).toBe('Bài Hát Gần Đây');
+
+        const likedDetail = await zingProvider.catalog?.getPlaylistDetail?.('zing_liked_songs');
+        expect(likedDetail?.id).toBe('zing_liked_songs');
+        expect(likedDetail?.isLiked).toBe(true);
+
+        const recentDetail = await zingProvider.catalog?.getPlaylistDetail?.('zing_recent_songs');
+        expect(recentDetail?.id).toBe('zing_recent_songs');
+    });
+
+    it('shuffles chart songs for getPersonalFm', async () => {
+        const mockSongs = Array.from({ length: 40 }, (_, i) => ({
+            id: `song_${i}`,
+            name: `Track ${i}`,
+            artists: [{ id: 1, name: 'Artist' }],
+            album: { id: 1, name: 'Album' },
+            durationMs: 180000,
+            sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: `song_${i}` },
+        }));
+        vi.spyOn(zingApi, 'getZingChartSongs').mockResolvedValue(mockSongs);
+
+        const fm = await zingProvider.recommendations?.getPersonalFm?.();
+        expect(fm).toHaveLength(30);
+        expect(fm?.[0]).toBeDefined();
+    });
+
+    it('handles safeStorage cookie encryption and fallback correctly', async () => {
+        const prevWindow = (globalThis as any).window;
+        const prevLocalStorage = (globalThis as any).localStorage;
+
+        const store: Record<string, string> = {};
+        (globalThis as any).localStorage = {
+            getItem: (k: string) => store[k] ?? null,
+            setItem: (k: string, v: string) => { store[k] = v; },
+            removeItem: (k: string) => { delete store[k]; },
+        };
+
+        (globalThis as any).window = {
+            electron: {
+                safeStorageDecryptSync: vi.fn().mockReturnValue('mock-decrypted-cookie'),
+                safeStorageEncrypt: vi.fn().mockResolvedValue('mock-encrypted-base64'),
+            },
+        };
+
+        // When stored raw starts with enc:, decrypts
+        (globalThis as any).localStorage.setItem('folia_zing_cookie', 'enc:abc123encrypted');
+        zingApi.setStoredZingCookie('');
+        expect(zingApi.getStoredZingCookie()).toBe('');
+
+        // When decrypt fails, it must NOT return raw ciphertext
+        (globalThis as any).window.electron.safeStorageDecryptSync = vi.fn().mockReturnValue(null);
+        (globalThis as any).localStorage.setItem('folia_zing_cookie', 'enc:damaged_ciphertext');
+        expect(zingApi.getStoredZingCookie()).toBe('');
+
+        (globalThis as any).window = prevWindow;
+        (globalThis as any).localStorage = prevLocalStorage;
+    });
 });

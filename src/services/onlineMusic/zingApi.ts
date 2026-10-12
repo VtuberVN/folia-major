@@ -10,6 +10,8 @@ const ZING_SECRET_KEY = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
 const ZING_VERSION = '1.22.2';
 const ZING_BASE_URL = 'https://zingmp3.vn';
 const ZING_SUGGEST_URL = 'https://ac.zingmp3.vn/v1/web/ac-suggestions';
+/** Timeout for all Zing API fetch calls (ms). */
+const ZING_FETCH_TIMEOUT = 10_000;
 
 const SIGN_KEYS = ['ctime', 'id', 'type', 'page', 'count', 'version'];
 
@@ -75,8 +77,9 @@ export async function getZingSignature(path: string, idOrParams: string | Record
     return getHmac512(`${path}${sha256}`, ZING_SECRET_KEY);
 }
 
-let inMemoryCookie = '';
+let inMemoryCookie: string | null = null;
 let inMemoryProfile: ProviderUser | null = null;
+let zingWriteVersion = 0;
 
 /**
  * Retrieves the user profile if stored in localStorage.
@@ -108,18 +111,53 @@ export function setStoredZingProfile(profile: ProviderUser | null): void {
  * Retrieves the user-provided Zing MP3 cookie if stored in localStorage.
  */
 export function getStoredZingCookie(): string {
-    if (typeof localStorage === 'undefined') return inMemoryCookie;
-    return localStorage.getItem(ZING_COOKIE_STORAGE_KEY) || inMemoryCookie;
+    if (inMemoryCookie !== null) return inMemoryCookie;
+    if (typeof localStorage === 'undefined') return '';
+    const raw = localStorage.getItem(ZING_COOKIE_STORAGE_KEY) || '';
+    if (raw.startsWith('enc:')) {
+        if (typeof window !== 'undefined' && window.electron?.safeStorageDecryptSync) {
+            try {
+                const decrypted = window.electron.safeStorageDecryptSync(raw.slice(4));
+                if (decrypted) {
+                    inMemoryCookie = decrypted;
+                    return decrypted;
+                }
+            } catch {
+                // decrypt failed
+            }
+        }
+        // Ciphertext not decryptable — treat as no cookie, don't leak ciphertext
+        inMemoryCookie = '';
+        return '';
+    }
+    inMemoryCookie = raw;
+    return raw;
 }
 
 /**
  * Stores a user-provided Zing MP3 cookie in localStorage.
  */
 export function setStoredZingCookie(cookie: string): void {
-    inMemoryCookie = cookie.trim();
+    const trimmed = cookie.trim();
+    inMemoryCookie = trimmed || null;
+    const writeId = ++zingWriteVersion;
     if (typeof localStorage === 'undefined') return;
-    if (cookie.trim()) {
-        localStorage.setItem(ZING_COOKIE_STORAGE_KEY, cookie.trim());
+    if (trimmed) {
+        if (typeof window !== 'undefined' && window.electron?.safeStorageEncrypt) {
+            void window.electron.safeStorageEncrypt(trimmed).then(encrypted => {
+                if (writeId !== zingWriteVersion) return; // superseded by newer write or logout
+                if (encrypted) {
+                    localStorage.setItem(ZING_COOKIE_STORAGE_KEY, `enc:${encrypted}`);
+                } else {
+                    localStorage.setItem(ZING_COOKIE_STORAGE_KEY, trimmed);
+                }
+            }).catch(() => {
+                if (writeId !== zingWriteVersion) return;
+                localStorage.setItem(ZING_COOKIE_STORAGE_KEY, trimmed);
+            });
+        } else {
+            localStorage.setItem(ZING_COOKIE_STORAGE_KEY, trimmed);
+        }
     } else {
         localStorage.removeItem(ZING_COOKIE_STORAGE_KEY);
         setStoredZingProfile(null);
@@ -146,6 +184,7 @@ async function resolveCookie(): Promise<string> {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 },
+                signal: AbortSignal.timeout(5000),
             });
             const getSetCookie = (homeRes.headers as any).getSetCookie;
             if (typeof getSetCookie === 'function') {
@@ -215,6 +254,7 @@ export async function getZingAudioSource(
             'Referer': `${ZING_BASE_URL}/`,
             ...(cookie ? { Cookie: cookie, 'x-zing-cookie': cookie } : {}),
         },
+        signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
     });
 
     if (!res.ok) {
@@ -286,12 +326,13 @@ export async function getZingLyric(songId: string): Promise<LyricData | null> {
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return null;
         const json = await res.json();
         if (json.err === 0 && json.data?.file) {
-            const lyricRes = await fetch(toZingWebProxyUrl(json.data.file));
+            const lyricRes = await fetch(toZingWebProxyUrl(json.data.file), { signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT) });
             if (lyricRes.ok) {
                 const lrcText = await lyricRes.text();
                 return parseLRC(lrcText);
@@ -327,6 +368,7 @@ export async function getZingSongDetail(songId: string): Promise<UnifiedSong | n
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return null;
@@ -380,6 +422,7 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return [];
@@ -510,6 +553,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (res.ok) {
@@ -550,69 +594,396 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
 }
 
 /**
- * Fetches popular and trending playlists from Zing MP3 home page.
+ * Searches curated playlists from Zing suggestions endpoint as a robust fallback.
+ */
+export async function fetchZingSuggestedPlaylists(query: string = 'top 100'): Promise<ProviderCollection[]> {
+    try {
+        const ctime = Date.now();
+        const targetUrl = `${ZING_SUGGEST_URL}?num=20&query=${encodeURIComponent(query)}&language=vi&ctime=${ctime}`;
+        const res = await fetch(toZingWebProxyUrl(targetUrl), { signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT) });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const collections: ProviderCollection[] = [];
+        for (const group of data?.data?.items || []) {
+            for (const s of group?.suggestions || []) {
+                if (s.type === 3 && s.id && s.title) {
+                    const cover = s.thumb
+                        ? (s.thumb.startsWith('http')
+                            ? s.thumb.replace(/w\d+_r\d+x\d+_jpeg/, 'w600_r1x1_jpeg')
+                            : `https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/${s.thumb}`)
+                        : undefined;
+                    collections.push({
+                        providerId: 'zing',
+                        id: String(s.id),
+                        name: String(s.title),
+                        type: 'playlist',
+                        coverUrl: cover,
+                        description: s.preDesc || s.shortDesc || undefined,
+                        trackCount: 0,
+                        isOwned: false,
+                    });
+                }
+            }
+        }
+        return collections;
+    } catch (e) {
+        console.warn('[ZingApi] fetchZingSuggestedPlaylists error:', e);
+        return [];
+    }
+}
+
+/**
+ * Fetches popular and trending playlists from Zing MP3.
+ * Prioritizes official curated Top 100 collections as playlists.
  */
 export async function getZingHomePlaylists(): Promise<ProviderCollection[]> {
-    const path = '/api/v2/page/get/home';
+    try {
+        const top100 = await getZingTop100Albums(50, 0);
+        if (top100.items.length > 0) {
+            return top100.items.map(item => ({
+                ...item,
+                type: 'playlist' as const,
+            }));
+        }
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch home playlists:', err);
+    }
+    const fallback = await fetchZingSuggestedPlaylists('top 100');
+    return fallback;
+}
+
+function normalizeZingSong(s: any): UnifiedSong {
+    const id = String(s.encodeId || s.id);
+    const artists = Array.isArray(s.artists)
+        ? s.artists.map((a: any, i: number) => ({ id: a.id || i, name: String(a.name || 'Zing MP3') }))
+        : [{ id: 0, name: String(s.artistsNames || 'Zing MP3') }];
+
+    const coverUrl = s.thumbnailM || s.thumbnail
+        ? String(s.thumbnailM || s.thumbnail).replace('http:', 'https:')
+        : undefined;
+
+    return {
+        id,
+        name: String(s.title || s.name),
+        artists,
+        album: {
+            id: s.album?.encodeId || 0,
+            name: String(s.album?.title || s.title || 'Zing MP3'),
+            coverUrl,
+        },
+        durationMs: (Number(s.duration) || 0) * 1000,
+        sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: id },
+    };
+}
+
+function normalizeZingCollection(item: any, type: 'playlist' | 'album' = 'playlist', isOwned = true): ProviderCollection {
+    const id = String(item.encodeId || item.id);
+    const title = String(item.title || item.name || 'Zing Playlist');
+    const cover = item.thumbnailM || item.thumbnail || item.thumbnailR;
+    return {
+        providerId: 'zing',
+        id,
+        name: title,
+        type,
+        coverUrl: cover ? String(cover).replace('http:', 'https:') : undefined,
+        description: item.sortDescription || item.description || item.artistsNames || undefined,
+        trackCount: Number(item.song?.total || item.songCount || 0),
+        isOwned,
+    };
+}
+
+/**
+ * Fetches user's personal playlists from Zing MP3 library (/api/v2/user/playlist/get/list).
+ * Falls back to curated Top 100 collections when not logged in or empty.
+ */
+export async function getUserZingPlaylists(
+    limit: number = 30,
+    offset: number = 0,
+): Promise<ProviderPage<ProviderCollection>> {
+    const userCookie = getStoredZingCookie();
+    if (userCookie) {
+        const path = '/api/v2/user/playlist/get/list';
+        const page = Math.floor(offset / limit) + 1;
+        const ctime = String(Math.floor(Date.now() / 1000));
+        const sig = await getZingSignature(path, { type: 'library', page, count: limit, ctime });
+        const cookie = await resolveCookie();
+
+        const url = new URL(`${ZING_BASE_URL}${path}`);
+        url.searchParams.set('type', 'library');
+        url.searchParams.set('page', String(page));
+        url.searchParams.set('count', String(limit));
+        url.searchParams.set('ctime', ctime);
+        url.searchParams.set('version', ZING_VERSION);
+        url.searchParams.set('apiKey', ZING_API_KEY);
+        url.searchParams.set('sig', sig);
+
+        try {
+            const res = await fetch(toZingWebProxyUrl(url.toString()), {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Referer': `${ZING_BASE_URL}/`,
+                    ...(cookie ? { Cookie: cookie, 'x-zing-cookie': cookie } : {}),
+                },
+                signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.err === 0) {
+                    const rawItems = Array.isArray(json.data?.items) ? json.data.items : [];
+                    const userPlaylists = rawItems
+                        .filter((item: any) => item && (item.encodeId || item.id))
+                        .map((item: any) => normalizeZingCollection(item, 'playlist', true));
+
+                    let items = [...userPlaylists];
+
+                    // On page 1 (offset === 0), prepend "Bài hát yêu thích" (isLiked: true) and "Nghe gần đây"
+                    if (offset === 0) {
+                        const specials: ProviderCollection[] = [
+                            {
+                                providerId: 'zing',
+                                id: 'zing_liked_songs',
+                                name: 'Bài hát yêu thích',
+                                type: 'playlist',
+                                description: '',
+                                isLiked: true,
+                                isOwned: true,
+                            },
+                            {
+                                providerId: 'zing',
+                                id: 'zing_recent_songs',
+                                name: 'Nghe gần đây',
+                                type: 'playlist',
+                                description: '',
+                                isOwned: true,
+                            },
+                        ];
+                        items = [...specials, ...items];
+                    }
+
+                    const total = Number(json.data?.total ?? userPlaylists.length) + (offset === 0 ? 2 : 0);
+                    return {
+                        items,
+                        total,
+                        hasMore: offset + items.length < total,
+                        nextOffset: offset + items.length,
+                    };
+                }
+            }
+        } catch (err) {
+            console.warn('[ZingApi] Failed to fetch user playlists:', err);
+        }
+
+        // If the library endpoint call failed but user is authenticated, still provide the specials
+        if (offset === 0) {
+            return {
+                items: [
+                    {
+                        providerId: 'zing',
+                        id: 'zing_liked_songs',
+                        name: 'Bài hát yêu thích',
+                        type: 'playlist',
+                        description: '',
+                        isLiked: true,
+                        isOwned: true,
+                    },
+                    {
+                        providerId: 'zing',
+                        id: 'zing_recent_songs',
+                        name: 'Nghe gần đây',
+                        type: 'playlist',
+                        description: '',
+                        isOwned: true,
+                    },
+                ],
+                total: 2,
+                hasMore: false,
+                nextOffset: 2,
+            };
+        }
+    }
+
+    return { items: [], total: 0, hasMore: false, nextOffset: offset };
+}
+
+/**
+ * Fetches user's favorite/liked songs from Zing MP3 library (/api/v2/user/song/get/list).
+ */
+export async function getZingLikedSongs(
+    limit: number = 50,
+    offset: number = 0,
+): Promise<UnifiedSong[]> {
+    const userCookie = getStoredZingCookie();
+    if (!userCookie) return [];
+
+    const path = '/api/v2/user/song/get/list';
+    const page = Math.floor(offset / limit) + 1;
     const ctime = String(Math.floor(Date.now() / 1000));
-    const hashParams = `ctime=${ctime}page=1version=${ZING_VERSION}`;
-    const sha256 = await getHash256(hashParams);
-    const sig = await getHmac512(`${path}${sha256}`, ZING_SECRET_KEY);
+    const sig = await getZingSignature(path, { type: 'library', page, count: limit, ctime });
     const cookie = await resolveCookie();
 
     const url = new URL(`${ZING_BASE_URL}${path}`);
-    url.searchParams.set('page', '1');
+    url.searchParams.set('type', 'library');
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('count', String(limit));
     url.searchParams.set('ctime', ctime);
     url.searchParams.set('version', ZING_VERSION);
     url.searchParams.set('apiKey', ZING_API_KEY);
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
-
         if (!res.ok) return [];
         const json = await res.json();
-        if (json.err !== 0 || !Array.isArray(json.data?.items)) return [];
+        if (json.err === 0 && Array.isArray(json.data?.items)) {
+            return json.data.items
+                .filter((s: any) => s && (s.encodeId || s.id) && (s.title || s.name))
+                .map((s: any) => normalizeZingSong(s));
+        }
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch liked songs:', err);
+    }
+    return [];
+}
 
-        const collections: ProviderCollection[] = [];
-        for (const section of json.data.items) {
-            if (Array.isArray(section.items)) {
-                for (const item of section.items) {
-                    const id = item.id || item.encodeId;
-                    if (id && item.title) {
-                        const coverUrl = item.thumbnailM || item.thumbnail;
-                        collections.push({
-                            providerId: 'zing',
-                            id: String(id),
-                            name: String(item.title),
-                            type: 'playlist',
-                            coverUrl: coverUrl ? String(coverUrl) : undefined,
-                            description: item.description || item.sortDescription || item.artistsNames || undefined,
-                            trackCount: Number(item.song?.total || item.songCount || 100),
-                            isOwned: false,
-                        });
+/**
+ * Fetches user's library albums from Zing MP3 (/api/v2/user/album/get/list).
+ * Falls back to curated albums when unauthenticated or empty.
+ */
+export async function getUserZingAlbums(
+    limit: number = 30,
+    offset: number = 0,
+): Promise<ProviderPage<ProviderCollection>> {
+    const userCookie = getStoredZingCookie();
+    if (userCookie) {
+        const path = '/api/v2/user/album/get/list';
+        const page = Math.floor(offset / limit) + 1;
+        const ctime = String(Math.floor(Date.now() / 1000));
+        const sig = await getZingSignature(path, { type: 'library', page, count: limit, ctime });
+        const cookie = await resolveCookie();
+
+        const url = new URL(`${ZING_BASE_URL}${path}`);
+        url.searchParams.set('type', 'library');
+        url.searchParams.set('page', String(page));
+        url.searchParams.set('count', String(limit));
+        url.searchParams.set('ctime', ctime);
+        url.searchParams.set('version', ZING_VERSION);
+        url.searchParams.set('apiKey', ZING_API_KEY);
+        url.searchParams.set('sig', sig);
+
+        try {
+            const res = await fetch(toZingWebProxyUrl(url.toString()), {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Referer': `${ZING_BASE_URL}/`,
+                    ...(cookie ? { Cookie: cookie } : {}),
+                },
+                signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.err === 0 && Array.isArray(json.data?.items)) {
+                    const items = json.data.items
+                        .filter((item: any) => item && (item.encodeId || item.id))
+                        .map((item: any) => normalizeZingCollection(item, 'album', true));
+                    const total = Number(json.data.total ?? items.length);
+                    if (items.length > 0) {
+                        return {
+                            items,
+                            total,
+                            hasMore: offset + items.length < total,
+                            nextOffset: offset + items.length,
+                        };
                     }
                 }
             }
+        } catch (err) {
+            console.warn('[ZingApi] Failed to fetch user albums:', err);
         }
-
-        const uniqueMap = new Map<string, ProviderCollection>();
-        for (const col of collections) {
-            if (!uniqueMap.has(String(col.id))) {
-                uniqueMap.set(String(col.id), col);
-            }
-        }
-        return Array.from(uniqueMap.values());
-    } catch (err) {
-        console.warn('[ZingApi] Failed to fetch home playlists:', err);
-        return [];
     }
+
+    return { items: [], total: 0, hasMore: false, nextOffset: offset };
+}
+
+/**
+ * Fetches user's recent listening history from Zing MP3 (/api/v2/user/song/get/list with type: recentListen).
+ */
+export async function getZingRecentSongs(limit: number = 30): Promise<UnifiedSong[]> {
+    const userCookie = getStoredZingCookie();
+    if (!userCookie) return [];
+
+    const path = '/api/v2/user/song/get/list';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { type: 'recentListen', page: 1, count: limit, ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('type', 'recentListen');
+    url.searchParams.set('page', '1');
+    url.searchParams.set('count', String(limit));
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        if (json.err === 0 && Array.isArray(json.data?.items)) {
+            return json.data.items
+                .filter((s: any) => s && (s.encodeId || s.id) && (s.title || s.name))
+                .map((s: any) => normalizeZingSong(s));
+        }
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch recent songs:', err);
+    }
+    return [];
+}
+
+/**
+ * Retrieves details for a Zing MP3 playlist or virtual library collection.
+ */
+export async function getZingPlaylistDetail(
+    playlistId: string,
+    existingCollection?: ProviderCollection,
+): Promise<ProviderCollection | null> {
+    if (playlistId === 'zing_liked_songs' || playlistId === 'liked') {
+        return existingCollection || {
+            providerId: 'zing',
+            id: 'zing_liked_songs',
+            name: 'Bài hát yêu thích',
+            type: 'playlist',
+            description: '',
+            isLiked: true,
+            isOwned: true,
+        };
+    }
+    if (playlistId === 'zing_recent_songs' || playlistId === 'recent') {
+        return existingCollection || {
+            providerId: 'zing',
+            id: 'zing_recent_songs',
+            name: 'Nghe gần đây',
+            type: 'playlist',
+            description: '',
+            isOwned: true,
+        };
+    }
+    const albumDetail = await getZingAlbumDetail(playlistId);
+    return albumDetail || existingCollection || null;
 }
 
 /**
@@ -623,6 +994,28 @@ export async function getZingPlaylistTracks(
     limit: number = 50,
     offset: number = 0,
 ): Promise<ProviderPage<UnifiedSong>> {
+    // Handle special user library collections
+    if (playlistId === 'zing_liked_songs' || playlistId === 'liked') {
+        const songs = await getZingLikedSongs(Math.max(limit, 100), 0);
+        const paged = songs.slice(offset, offset + limit);
+        return {
+            items: paged,
+            total: songs.length,
+            hasMore: offset + limit < songs.length,
+            nextOffset: offset + limit,
+        };
+    }
+    if (playlistId === 'zing_recent_songs' || playlistId === 'recent') {
+        const songs = await getZingRecentSongs(Math.max(limit, 50));
+        const paged = songs.slice(offset, offset + limit);
+        return {
+            items: paged,
+            total: songs.length,
+            hasMore: offset + limit < songs.length,
+            nextOffset: offset + limit,
+        };
+    }
+
     const path = '/api/v2/page/get/playlist';
     const ctime = String(Math.floor(Date.now() / 1000));
     const sig = await getZingSignature(path, playlistId, ctime);
@@ -636,61 +1029,89 @@ export async function getZingPlaylistTracks(
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(8000),
         });
 
-        if (!res.ok) {
-            return { items: [], total: 0, hasMore: false, nextOffset: offset };
-        }
+        if (res.ok) {
+            const json = await res.json();
+            const rawSongs = (json.data?.song?.items || json.data?.items || []) as any[];
+            if (rawSongs.length > 0) {
+                const songs: UnifiedSong[] = rawSongs
+                    .filter(s => s && (s.encodeId || s.id) && (s.title || s.name))
+                    .map(s => {
+                        const id = String(s.encodeId || s.id);
+                        const artists = Array.isArray(s.artists)
+                            ? s.artists.map((a: any, i: number) => ({ id: a.id || i, name: String(a.name || 'Zing MP3') }))
+                            : [{ id: 0, name: String(s.artistsNames || 'Zing MP3') }];
 
-        const json = await res.json();
-        if (json.err !== 0 || !json.data?.song?.items) {
-            return { items: [], total: 0, hasMore: false, nextOffset: offset };
-        }
+                        const coverUrl = s.thumbnailM || s.thumbnail
+                            ? String(s.thumbnailM || s.thumbnail).replace('http:', 'https:')
+                            : undefined;
 
-        const rawSongs = json.data.song.items as any[];
-        const songs: UnifiedSong[] = rawSongs
-            .filter(s => s && (s.encodeId || s.id) && (s.title || s.name))
-            .map(s => {
-                const id = String(s.encodeId || s.id);
-                const artists = Array.isArray(s.artists)
-                    ? s.artists.map((a: any, i: number) => ({ id: a.id || i, name: String(a.name || 'Zing MP3') }))
-                    : [{ id: 0, name: String(s.artistsNames || 'Zing MP3') }];
+                        return {
+                            id,
+                            name: String(s.title || s.name),
+                            artists,
+                            album: {
+                                id: s.album?.encodeId || 0,
+                                name: String(s.album?.title || s.title || 'Zing MP3'),
+                                coverUrl,
+                            },
+                            durationMs: (Number(s.duration) || 0) * 1000,
+                            sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: id },
+                        };
+                    });
 
-                const coverUrl = s.thumbnailM || s.thumbnail
-                    ? String(s.thumbnailM || s.thumbnail).replace('http:', 'https:')
-                    : undefined;
-
+                const paged = songs.slice(offset, offset + limit);
                 return {
-                    id,
-                    name: String(s.title || s.name),
-                    artists,
-                    album: {
-                        id: s.album?.encodeId || 0,
-                        name: String(s.album?.title || s.title || 'Zing MP3'),
-                        coverUrl,
-                    },
-                    durationMs: (Number(s.duration) || 0) * 1000,
-                    sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: id },
+                    items: paged,
+                    total: songs.length,
+                    hasMore: offset + limit < songs.length,
+                    nextOffset: offset + limit,
                 };
-            });
-
-        const paged = songs.slice(offset, offset + limit);
-        return {
-            items: paged,
-            total: songs.length,
-            hasMore: offset + limit < songs.length,
-            nextOffset: offset + limit,
-        };
+            }
+        }
     } catch (err) {
         console.warn('[ZingApi] Failed to fetch playlist tracks:', err);
-        return { items: [], total: 0, hasMore: false, nextOffset: offset };
     }
+
+    // Fallback for radio stations, empty genres, or specialized collections
+    const ZING_RADIO_GENRE_MAP: Record<string, string> = {
+        'ZXbG0QKBQSA9': 'k-pop',
+        'Bo6sd787Kr2M': 'bolero',
+        'YddW1sgdpXYc': 'edm',
+        'yUEDI0z9aMs': 'nhạc trẻ',
+        'd8f3nFfU2P67': 'us-uk',
+        'IkWw5m7rbC5A': 'rap việt',
+        'o0FXZvZaF6Vp': 'nhạc hoa',
+        'z7cXHNUEp8c3': 'acoustic',
+        's2WSjK0DAJwC': 'chạm',
+        'cEtv3PxRbkQg': 'nhạc không lời',
+    };
+    const fallbackQuery = ZING_RADIO_GENRE_MAP[playlistId];
+    if (fallbackQuery) {
+        try {
+            const fallbackSongs = await searchZingSongs(fallbackQuery, limit);
+            if (fallbackSongs.length > 0) {
+                return {
+                    items: fallbackSongs,
+                    total: fallbackSongs.length,
+                    hasMore: false,
+                    nextOffset: offset + fallbackSongs.length,
+                };
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    return { items: [], total: 0, hasMore: false, nextOffset: offset };
 }
 
 /**
@@ -716,6 +1137,7 @@ export async function getZingAlbumDetail(albumId: string): Promise<ProviderColle
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
         if (!res.ok) return null;
         const json = await res.json();
@@ -740,12 +1162,30 @@ export async function getZingAlbumDetail(albumId: string): Promise<ProviderColle
 }
 
 /**
+ * In-memory cache for Top 100 results (TTL: 5 minutes).
+ * Prevents triple-fetching when Albums, Playlists, and Recommendations load concurrently.
+ */
+let top100Cache: { data: ProviderPage<ProviderCollection>; fetchedAt: number } | null = null;
+const TOP_100_CACHE_TTL = 5 * 60 * 1000;
+
+/**
  * Fetches curated Top 100 official albums/playlists from Zing MP3.
  */
 export async function getZingTop100Albums(
     limit: number = 30,
     offset: number = 0,
 ): Promise<ProviderPage<ProviderCollection>> {
+    // Return cached full result and apply pagination locally
+    if (top100Cache && Date.now() - top100Cache.fetchedAt < TOP_100_CACHE_TTL) {
+        const allItems = top100Cache.data.items;
+        const paged = allItems.slice(offset, offset + limit);
+        return {
+            items: paged,
+            total: allItems.length,
+            hasMore: offset + limit < allItems.length,
+            nextOffset: offset + limit,
+        };
+    }
     const path = '/api/v2/page/get/top-100';
     const ctime = String(Math.floor(Date.now() / 1000));
     const sig = await getZingSignature(path, { ctime });
@@ -758,13 +1198,15 @@ export async function getZingTop100Albums(
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(toZingWebProxyUrl(url.toString()), {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Referer': `${ZING_BASE_URL}/`,
-                ...(cookie ? { Cookie: cookie } : {}),
-            },
-        });
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': `${ZING_BASE_URL}/`,
+        };
+        if (cookie) {
+            headers['Cookie'] = cookie;
+            headers['x-zing-cookie'] = cookie;
+        }
+        const res = await fetch(toZingWebProxyUrl(url.toString()), { headers, signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT) });
 
         if (!res.ok) return { items: [], total: 0, hasMore: false, nextOffset: offset };
         const json = await res.json();
@@ -800,6 +1242,13 @@ export async function getZingTop100Albums(
         }
 
         const allAlbums = Array.from(albumMap.values());
+        // Cache the full result for subsequent calls
+        if (allAlbums.length > 0) {
+            top100Cache = {
+                data: { items: allAlbums, total: allAlbums.length, hasMore: false, nextOffset: allAlbums.length },
+                fetchedAt: Date.now(),
+            };
+        }
         const paged = allAlbums.slice(offset, offset + limit);
         return {
             items: paged,
@@ -845,6 +1294,7 @@ export async function getZingAlbums(
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return { items: [], total: 0, hasMore: false, nextOffset: offset };
@@ -874,17 +1324,28 @@ export async function getZingAlbums(
         }
 
         const allAlbums = Array.from(albumMap.values());
-        const paged = allAlbums.slice(offset, offset + limit);
-        return {
-            items: paged,
-            total: allAlbums.length,
-            hasMore: offset + limit < allAlbums.length,
-            nextOffset: offset + limit,
-        };
+        if (allAlbums.length > 0) {
+            const paged = allAlbums.slice(offset, offset + limit);
+            return {
+                items: paged,
+                total: allAlbums.length,
+                hasMore: offset + limit < allAlbums.length,
+                nextOffset: offset + limit,
+            };
+        }
     } catch (err) {
         console.warn('[ZingApi] Failed to fetch albums:', err);
-        return { items: [], total: 0, hasMore: false, nextOffset: offset };
     }
+
+    const fallback = await fetchZingSuggestedPlaylists('album');
+    const albumItems = fallback.map(item => ({ ...item, type: 'album' as const }));
+    const paged = albumItems.slice(offset, offset + limit);
+    return {
+        items: paged,
+        total: albumItems.length,
+        hasMore: offset + limit < albumItems.length,
+        nextOffset: offset + limit,
+    };
 }
 
 /**
@@ -909,6 +1370,7 @@ export async function getZingChartSongs(limit: number = 50): Promise<UnifiedSong
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return [];
@@ -969,6 +1431,7 @@ export async function getZingRadioStations(limit: number = 20): Promise<Provider
                 'Referer': `${ZING_BASE_URL}/`,
                 ...(cookie ? { Cookie: cookie } : {}),
             },
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (!res.ok) return [];

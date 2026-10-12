@@ -53,8 +53,6 @@
     "build:electron": "cross-env ELECTRON_DEV=false ELECTRON=true vite build && npm run build:windowtolayer && npm run build:wallpaper-helper && electron-builder",
     "build:win": "cross-env ELECTRON_DEV=false ELECTRON=true vite build && npm run build:wallpaper-helper && electron-builder --win",
     "build:win:dir": "cross-env ELECTRON_DEV=false ELECTRON=true vite build && npm run build:wallpaper-helper && electron-builder --win dir",
-    "build:win:ytb": "node packaging/windows/build-win-ytb.mjs",
-    "build:win:dir:ytb": "node packaging/windows/build-win-ytb.mjs dir",
     "build:windowtolayer": "node packaging/linux/build-windowtolayer.mjs",
     "build:wallpaper-helper": "node packaging/windows/build-wallpaper-helper.mjs",
     "build:ffmpeg": "node packaging/ffmpeg/fetch-ffmpeg.mjs",

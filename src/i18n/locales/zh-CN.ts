@@ -3605,6 +3605,27 @@ export default {
     "vipUser": "Zing MP3 VIP 账户",
     "cookieHint": "登录账户可畅享 VIP 320kbps / 无损音质。访客模式默认支持 128kbps 播放。"
   },
+  "youtube": {
+    "title": "YouTube",
+    "heading": "YouTube Music（账号与设置）",
+    "cookieLabel": "会话 Cookie",
+    "cookiePlaceholder": "从 youtube.com 粘贴 Cookie（LOGIN_INFO、SAPISID、SID...）",
+    "saveCookie": "保存配置",
+    "saved": "已保存！",
+    "clear": "清除",
+    "activeCookie": "✓ 已启用自定义 Cookie",
+    "guestMode": "• 访客模式（无需登录）",
+    "loginButton": "登录 YouTube",
+    "logoutButton": "退出登录",
+    "loggingIn": "正在连接...",
+    "loginSuccess": "成功登录 YouTube！",
+    "loginFailed": "登录失败或已取消。",
+    "saveSuccess": "已保存 YouTube 设置！",
+    "clearSuccess": "已清除 YouTube Cookie。",
+    "advancedTitle": "高级选项（手动 Cookie）",
+    "cookieHint": "访客模式无需登录：您仍可正常搜索、播放音乐和浏览排行榜。仅在需要同步个人播放列表时才需登录 Cookie。",
+    "openExternal": "在外部浏览器打开 (Chrome)"
+  },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing 正由外部播放器控制，Folia 只负责展示歌词和视觉效果。",
     "stageLocalInputDescription": "Stage 现在是本地单项输入模式。外部可以推送一份完整歌词对象或一段媒体，播放与展示仍由 Folia 自己控制。",

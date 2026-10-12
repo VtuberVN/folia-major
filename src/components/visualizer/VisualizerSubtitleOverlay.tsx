@@ -76,7 +76,7 @@ export const resolveVisualizerSubtitleOverlayContent = ({
     // Flattened text of all rows; kept for callers that only care whether any subtitle text exists.
     const subtitleText = subtitleTracks.length > 0 ? subtitleTracks.map(track => track.text).join(' / ') : null;
     const previewLines = nextLines.filter((line) => hasReadableText(line.fullText));
-    const activeLyricText = (subtitleActiveLyricsDisplay && !subtitleText && activeLine && hasReadableText(activeLine.fullText))
+    const activeLyricText = (subtitleActiveLyricsDisplay && activeLine && hasReadableText(activeLine.fullText))
         ? activeLine.fullText
         : null;
     const upcomingLines = (subtitleText || activeLyricText || !subtitleUpcomingLyricsPreview) ? [] : (activeLine ? previewLines : []);

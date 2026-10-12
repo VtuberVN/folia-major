@@ -283,7 +283,7 @@ const OnlineProviderSwitcher: React.FC<OnlineProviderSwitcherProps> = ({
                                         </span>
                                         {!canSwitchToProviderDirectly(provider) ? <LogIn size={16} className="opacity-55" /> : null}
                                     </button>
-                                    {canLogoutProvider(provider, activeProviderId) && (
+                                    {(canLogoutProvider(provider, activeProviderId) || provider.status === 'authenticated') && (
                                         <button
                                             type="button"
                                             onClick={() => {

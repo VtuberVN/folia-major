@@ -4,9 +4,9 @@ import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry'
 import { searchYouTubeMusic, getYouTubeAudioStream, extractVideoId } from '@/services/onlineMusic/youtube/youtubeApi';
 
 describe('youtubeProvider', () => {
-    it('is not registered in providerRegistry by default', () => {
+    it('is registered in providerRegistry by default', () => {
         const registered = getOnlineMusicProvider('youtube');
-        expect(registered).toBeNull();
+        expect(registered).toBe(youtubeProvider);
     });
 
     it('generates correct song page url', () => {
@@ -70,14 +70,6 @@ describe('youtubeProvider', () => {
             return { ok: false };
         });
 
-        const lyricsResult = await youtubeProvider.lyrics?.getLyrics({
-            id: 'vid123',
-            name: 'Test Song',
-            artists: [{ id: 0, name: 'Test Artist' }],
-        } as any);
-
-        // Note: fetchYouTubeLyrics uses global fetch by default or fetchFn
-        // Here we test youtubeProvider.lyrics.getLyrics directly with global fetch spy
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(mockFetch as any);
         try {
             const res = await youtubeProvider.lyrics?.getLyrics({
@@ -321,5 +313,51 @@ describe('youtubeProvider', () => {
         await youtubeProvider.auth?.logout();
         status = await youtubeProvider.auth?.getLoginStatus();
         expect(status).toBeNull();
+    });
+
+    it('implements recommendations and getLikedSongs', async () => {
+        expect(youtubeProvider.capabilities.recommendations).toBe(true);
+        expect(youtubeProvider.recommendations).toBeDefined();
+
+        const { setStoredYouTubeCookie } = await import('@/services/onlineMusic/youtube/youtubeApi');
+        setStoredYouTubeCookie('');
+
+        const unauthLiked = await youtubeProvider.library?.getLikedSongs?.('youtube_user');
+        expect(unauthLiked).toEqual([]);
+
+        const recs = await youtubeProvider.recommendations?.getRecommendedCollections?.(10);
+        expect(Array.isArray(recs)).toBe(true);
+    });
+
+    it('handles safeStorage cookie encryption and fallback for YouTube', async () => {
+        const { getStoredYouTubeCookie, setStoredYouTubeCookie } = await import('@/services/onlineMusic/youtube/youtubeApi');
+
+        const prevWindow = (globalThis as any).window;
+        const prevLocalStorage = (globalThis as any).localStorage;
+
+        const store: Record<string, string> = {};
+        (globalThis as any).localStorage = {
+            getItem: (k: string) => store[k] ?? null,
+            setItem: (k: string, v: string) => { store[k] = v; },
+            removeItem: (k: string) => { delete store[k]; },
+        };
+
+        (globalThis as any).window = {
+            electron: {
+                safeStorageDecryptSync: vi.fn().mockReturnValue('mock-youtube-cookie'),
+                safeStorageEncrypt: vi.fn().mockResolvedValue('mock-encrypted-cookie-base64'),
+            },
+        };
+
+        setStoredYouTubeCookie('');
+        expect(getStoredYouTubeCookie()).toBe('');
+
+        // Decrypt fail must not leak ciphertext
+        (globalThis as any).window.electron.safeStorageDecryptSync = vi.fn().mockReturnValue(null);
+        (globalThis as any).localStorage.setItem('folia_youtube_cookie', 'enc:corrupted_raw_ciphertext');
+        expect(getStoredYouTubeCookie()).toBe('');
+
+        (globalThis as any).window = prevWindow;
+        (globalThis as any).localStorage = prevLocalStorage;
     });
 });

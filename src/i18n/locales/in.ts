@@ -3487,6 +3487,27 @@ export default {
     "vipUser": "Zing MP3 VIP",
     "cookieHint": "Masuk dengan akun mendukung pemutaran VIP 320kbps / Lossless. Mode tamu default tetap memutar 128kbps."
   },
+  "youtube": {
+    "title": "YouTube",
+    "heading": "YouTube Music (Akun & Pengaturan)",
+    "cookieLabel": "Cookie Sesi",
+    "cookiePlaceholder": "Tempel string Cookie dari youtube.com (LOGIN_INFO, SAPISID, SID...)",
+    "saveCookie": "Simpan Pengaturan",
+    "saved": "Tersimpan!",
+    "clear": "Hapus",
+    "activeCookie": "✓ Cookie pengguna aktif",
+    "guestMode": "• Mode tamu (Masuk bersifat opsional)",
+    "loginButton": "Masuk ke YouTube",
+    "logoutButton": "Keluar",
+    "loggingIn": "Menghubungkan...",
+    "loginSuccess": "Berhasil masuk ke YouTube!",
+    "loginFailed": "Gagal masuk atau dibatalkan.",
+    "saveSuccess": "Pengaturan YouTube disimpan!",
+    "clearSuccess": "Cookie YouTube dihapus.",
+    "advancedTitle": "Opsi Lanjutan (Cookie Manual)",
+    "cookieHint": "Mode tamu tidak memerlukan login: Anda tetap dapat mencari, memutar musik, dan melihat tangga lagu secara normal. Masuk dengan Cookie bersifat opsional untuk menyinkronkan daftar putar pribadi.",
+    "openExternal": "Buka di Browser Eksternal (Chrome)"
+  },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing dikendalikan oleh pemutar eksternal. Folia hanya bertanggung jawab menampilkan lirik dan efek visual.",
     "stageLocalInputDescription": "Stage dalam mode input tunggal lokal. Perangkat eksternal dapat mengirim lirik atau media, tetapi pemutaran dan tampilan dikendalikan oleh Folia itu sendiri."

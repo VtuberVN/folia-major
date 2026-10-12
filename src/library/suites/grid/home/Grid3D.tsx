@@ -598,7 +598,11 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                 onBackToPlayer={onBackToPlayer}
                 onSelect={selectProvider}
                 onLogout={provider => {
-                    void account.logout(provider.providerId);
+                    if (provider.providerId === activeProviderId) {
+                        void account.logout(provider.providerId);
+                    } else if (account.logoutDirect) {
+                        void account.logoutDirect(provider.providerId);
+                    }
                 }}
             />
 

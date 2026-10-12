@@ -13,12 +13,17 @@ import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import {
     getStoredZingCookie,
+    getUserZingPlaylists,
+    getZingLikedSongs,
+    getUserZingAlbums,
+    getZingRecentSongs,
     getZingAlbumDetail,
     getZingAlbums,
     getZingAudioSource,
     getZingChartSongs,
     getZingHomePlaylists,
     getZingLyric,
+    getZingPlaylistDetail,
     getZingPlaylistTracks,
     getZingRadioStations,
     getZingSongDetail,
@@ -124,6 +129,8 @@ export const zingProvider: OnlineMusicProvider = {
     },
     library: {
         async getUserPlaylists(_userId, limit, offset) {
+            const userPage = await getUserZingPlaylists(limit, offset);
+            if (userPage.items.length > 0) return userPage;
             const items = await getZingHomePlaylists();
             if (items.length === 0) {
                 return getZingTop100Albums(limit, offset);
@@ -137,17 +144,30 @@ export const zingProvider: OnlineMusicProvider = {
             };
         },
         async getLikedSongs(_userId) {
-            return [];
+            return getZingLikedSongs(100, 0);
         },
         async getUserAlbums(_userId, limit, offset) {
+            const userAlbums = await getUserZingAlbums(limit, offset);
+            if (userAlbums.items.length > 0) return userAlbums;
             return getZingAlbums(limit, offset);
         },
     },
     recommendations: {
+        // Pseudo-FM fallback: Zing has no personal FM API like NetEase.
+        // We shuffle chart songs to simulate variety in the radio experience.
         async getPersonalFm(_options) {
-            return getZingChartSongs(30);
+            const songs = await getZingChartSongs(50);
+            if (songs.length === 0) return [];
+            const shuffled = [...songs];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled.slice(0, 30);
         },
         async getDailySongs(_refresh) {
+            const recent = await getZingRecentSongs(30);
+            if (recent.length > 0) return recent;
             return getZingChartSongs(30);
         },
         async getRecommendedCollections(limit = 20) {
@@ -155,12 +175,36 @@ export const zingProvider: OnlineMusicProvider = {
                 getZingTop100Albums(limit, 0),
                 getZingRadioStations(10),
             ]);
-            return [...radioStations, ...top100Page.items].slice(0, limit);
+            if (top100Page.items.length > 0 || radioStations.length > 0) {
+                return [...radioStations, ...top100Page.items].slice(0, limit);
+            }
+            return getZingHomePlaylists();
         },
     },
     catalog: {
-        async getPlaylistTracks(id, limit, offset) {
+        async getPlaylistTracks(id, limit = 50, offset = 0) {
+            if (id === 'zing_liked_songs' || id === 'liked') {
+                const songs = await getZingLikedSongs(limit, offset);
+                return {
+                    items: songs,
+                    total: songs.length,
+                    hasMore: offset + limit < songs.length,
+                    nextOffset: offset + limit,
+                };
+            }
+            if (id === 'zing_recent_songs' || id === 'recent') {
+                const songs = await getZingRecentSongs(limit);
+                return {
+                    items: songs,
+                    total: songs.length,
+                    hasMore: false,
+                    nextOffset: songs.length,
+                };
+            }
             return getZingPlaylistTracks(String(id), limit, offset);
+        },
+        async getPlaylistDetail(id, existingCollection) {
+            return getZingPlaylistDetail(String(id), existingCollection);
         },
         async getAlbumTracks(id, limit, offset) {
             return getZingPlaylistTracks(String(id), limit, offset);

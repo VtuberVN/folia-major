@@ -244,7 +244,10 @@ export const useTypographySettingsStore = create<TypographySettingsState>((set, 
     subtitleOverlayBackground: getStoredBoolean(SUBTITLE_OVERLAY_BACKGROUND_STORAGE_KEY, true),
     subtitleUpcomingLyricsBlur: getStoredBoolean(SUBTITLE_UPCOMING_LYRICS_BLUR_STORAGE_KEY, true),
     subtitleUpcomingLyricsPreview: getStoredBoolean(SUBTITLE_UPCOMING_LYRICS_PREVIEW_STORAGE_KEY, true),
-    subtitleActiveLyricsDisplay: getStoredBoolean(SUBTITLE_ACTIVE_LYRICS_DISPLAY_STORAGE_KEY, false),
+    // Mutex: if both upcoming and active are true in localStorage, prefer upcoming (original default)
+    subtitleActiveLyricsDisplay: getStoredBoolean(SUBTITLE_UPCOMING_LYRICS_PREVIEW_STORAGE_KEY, true)
+        ? false
+        : getStoredBoolean(SUBTITLE_ACTIVE_LYRICS_DISPLAY_STORAGE_KEY, false),
     showHarmonySubtitle: getStoredBoolean(SHOW_HARMONY_SUBTITLE_STORAGE_KEY, true),
     harmonySubtitleBackground: getStoredBoolean(HARMONY_SUBTITLE_BACKGROUND_STORAGE_KEY, true),
     lyricsFontStyle: readStoredLyricsFontStyle(),

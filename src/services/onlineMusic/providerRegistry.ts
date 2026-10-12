@@ -87,10 +87,5 @@ registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
 registerOnlineMusicProvider(zingProvider);
 registerOnlineMusicProvider(nctProvider);
+registerOnlineMusicProvider(youtubeProvider);
 
-if (
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_ENABLE_YOUTUBE === 'true') ||
-    (typeof window !== 'undefined' && Boolean((window as any).__FOLIA_WITH_YOUTUBE__))
-) {
-    registerOnlineMusicProvider(youtubeProvider);
-}

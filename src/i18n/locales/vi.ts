@@ -3430,7 +3430,7 @@ export default {
     saved: "Đã lưu!",
     clear: "Xóa",
     activeCookie: "✓ Đang kích hoạt Cookie người dùng",
-    guestMode: "• Đang dùng chế độ khách (Không cần đăng nhập)",
+    guestMode: "• Chế độ khách (Không bắt buộc đăng nhập)",
     loginButton: "Đăng nhập YouTube",
     logoutButton: "Đăng xuất",
     loggingIn: "Đang kết nối...",
@@ -3439,7 +3439,8 @@ export default {
     saveSuccess: "Đã lưu cấu hình YouTube!",
     clearSuccess: "Đã xóa Cookie YouTube.",
     advancedTitle: "Tùy chọn nâng cao (Cookie thủ công)",
-    cookieHint: "Đăng nhập tài khoản Google / YouTube để đồng bộ danh sách phát cá nhân, thư viện nhạc và nghe toàn bộ bài hát.",
+    cookieHint: "Chế độ khách không bắt buộc đăng nhập: Bạn vẫn có thể tìm kiếm, nghe nhạc và nghe bảng xếp hạng bình thường. Đăng nhập qua Cookie chỉ là tùy chọn nếu muốn đồng bộ danh sách phát cá nhân từ tài khoản YouTube.",
+    openExternal: "Mở trình duyệt ngoài (Chrome)",
   },
   unifiedPanel: {
     nowPlayingStageDescription: "Now Playing do trình phát ngoài điều khiển. Folia chỉ hiển thị lời bài hát và hiệu ứng thị giác.",

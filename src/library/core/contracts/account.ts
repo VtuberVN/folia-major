@@ -278,6 +278,8 @@ export interface LibraryAccountController {
     buildLoginDiagnosticReport(): Promise<LibraryLoginDiagnosticResult>;
     /** 只对当前且已登录的平台；走宿主注入的 per-provider logout。 */
     logout(providerId: OnlineProviderId): Promise<LibraryLogoutResult>;
+    /** 直接登出指定平台（例如在切换器里登出非当前已登录的平台）。 */
+    logoutDirect?(providerId: OnlineProviderId): Promise<void>;
     /** 宿主卸载：关闭登录会话（keyed 取消），待确认切换按 declined / disposed 结算。 */
     dispose(): void;
 }

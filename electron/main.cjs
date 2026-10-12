@@ -2989,8 +2989,46 @@ function setupFileSystemAccessPermissionHandlers() {
   });
 }
 
+let cachedZingSessionCookie = '';
+let cachedZingSessionExpiry = 0;
+let zingCookieFetchPromise = null;
+
+async function ensureZingSessionCookie() {
+  const now = Date.now();
+  if (cachedZingSessionCookie && now < cachedZingSessionExpiry) {
+    return cachedZingSessionCookie;
+  }
+  // Deduplicate concurrent fetches: reuse in-flight promise
+  if (zingCookieFetchPromise) return zingCookieFetchPromise;
+  zingCookieFetchPromise = (async () => {
+    try {
+      const homeRes = await fetch('https://zingmp3.vn', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
+      });
+      const getSetCookie = homeRes.headers.getSetCookie;
+      if (typeof getSetCookie === 'function') {
+        cachedZingSessionCookie = getSetCookie.call(homeRes.headers).map(c => c.split(';')[0]).join('; ');
+      } else {
+        cachedZingSessionCookie = homeRes.headers.get('set-cookie') || '';
+      }
+      cachedZingSessionExpiry = Date.now() + 3600 * 1000;
+    } catch (err) {
+      console.warn('[ZingMain] Cookie fetch failed:', err);
+    }
+    return cachedZingSessionCookie;
+  })();
+  try {
+    return await zingCookieFetchPromise;
+  } finally {
+    zingCookieFetchPromise = null;
+  }
+}
+
 function setupCorsBypassHandlers() {
   const ses = session.defaultSession;
+  void ensureZingSessionCookie();
 
   const getKugouMediaRequestInfo = details => {
     const parsedUrl = new URL(details.url);
@@ -3025,6 +3063,18 @@ function setupCorsBypassHandlers() {
         }
       } else if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
         requestHeaders['Referer'] = 'https://zingmp3.vn/';
+        if (!requestHeaders['User-Agent'] || requestHeaders['User-Agent'].includes('Electron')) {
+          requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+        }
+        const customCookie = requestHeaders['x-zing-cookie'] || '';
+        const cookieList = [cachedZingSessionCookie, customCookie].filter(Boolean);
+        if (!cookieList.some(c => c.includes('zmp3_rqid'))) {
+          const syntheticRaw = `0|127.0.0.1|v1.22.2|${Date.now()}`;
+          const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
+          cookieList.push('zmp3_app_version.1=1222', `zmp3_rqid=${syntheticRqid}`);
+        }
+        requestHeaders['Cookie'] = cookieList.join('; ');
+        delete requestHeaders['x-zing-cookie'];
       }
     } catch {}
     callback({ cancel: false, requestHeaders });
@@ -6107,6 +6157,7 @@ ipcMain.handle('auth-open-zing-login', async () => {
 ipcMain.handle('auth-open-youtube-login', async () => {
   return new Promise((resolve) => {
     let settled = false;
+    const CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
     const loginWin = new BrowserWindow({
       width: 540,
       height: 720,
@@ -6117,6 +6168,7 @@ ipcMain.handle('auth-open-youtube-login', async () => {
         contextIsolation: true,
       },
     });
+    loginWin.webContents.setUserAgent(CHROME_USER_AGENT);
 
     const checkCookies = async () => {
       try {
@@ -6192,9 +6244,40 @@ ipcMain.handle('auth-open-youtube-login', async () => {
   });
 });
 
+ipcMain.handle('safe-storage-encrypt', async (_event, plainText) => {
+  if (typeof plainText !== 'string' || plainText.length > 65536 || !safeStorage?.isEncryptionAvailable?.()) return null;
+  try {
+    return safeStorage.encryptString(plainText).toString('base64');
+  } catch (err) {
+    console.warn('[SafeStorage] encrypt failed:', err);
+    return null;
+  }
+});
 
-let cachedZingSessionCookie = '';
-let cachedZingSessionExpiry = 0;
+ipcMain.handle('safe-storage-decrypt', async (_event, cipherText) => {
+  if (typeof cipherText !== 'string' || cipherText.length > 131072 || !safeStorage?.isEncryptionAvailable?.()) return null;
+  try {
+    return safeStorage.decryptString(Buffer.from(cipherText, 'base64'));
+  } catch (err) {
+    console.warn('[SafeStorage] decrypt failed:', err);
+    return null;
+  }
+});
+
+ipcMain.on('safe-storage-decrypt-sync', (event, cipherText) => {
+  if (typeof cipherText !== 'string' || cipherText.length > 131072 || !safeStorage?.isEncryptionAvailable?.()) {
+    event.returnValue = null;
+    return;
+  }
+  try {
+    event.returnValue = safeStorage.decryptString(Buffer.from(cipherText, 'base64'));
+  } catch (err) {
+    console.warn('[SafeStorage] decrypt-sync failed:', err);
+    event.returnValue = null;
+  }
+});
+
+ipcMain.handle('safe-storage-is-available', () => Boolean(safeStorage?.isEncryptionAvailable?.()));
 
 ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, quality) => {
   try {

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getStoredZingCookie, setStoredZingCookie, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
+import { getStoredZingCookie, setStoredZingCookie, getStoredZingProfile, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
+import type { ProviderUser } from '../../../types/onlineMusic';
 import {
     getStoredYouTubeCookie,
     setStoredYouTubeCookie,
@@ -9,6 +10,9 @@ import {
     setStoredYouTubeProfile,
     clearStoredYouTubeProfile,
 } from '../../../services/onlineMusic/youtube/youtubeApi';
+import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
+import { youtubeProvider } from '../../../services/onlineMusic/youtubeProvider';
+import { zingProvider } from '../../../services/onlineMusic/zingProvider';
 import { useShallow } from 'zustand/react/shallow';
 import type { NowPlayingConnectionStatus, StageSource, StageStatus, Theme } from '../../../types';
 import type { NavidromeServerProfile } from '../../../types/navidrome';
@@ -204,6 +208,11 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 if (res.success && res.cookie) {
                     setZingCookie(res.cookie);
                     setStoredZingCookie(res.cookie);
+                    let userProfile: ProviderUser = {
+                        id: 'zing_user',
+                        nickname: 'Tài khoản Zing MP3',
+                        vipType: 0,
+                    };
                     if (res.profile) {
                         const p = res.profile;
                         const hasVip = (
@@ -211,13 +220,29 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                 typeof x === 'string' && (x.toUpperCase().includes('VIP') || x.toUpperCase().includes('PREMIUM'))
                             )
                         ) || Boolean(p.isVip);
-                        setStoredZingProfile({
+                        userProfile = {
                             id: String(p.userid || 'zing_user'),
                             nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
                             avatarUrl: p.avatar || undefined,
                             vipType: hasVip ? 1 : 0,
-                        });
+                        };
+                        setStoredZingProfile(userProfile);
                     }
+                    useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                        status: 'authenticated',
+                        user: userProfile,
+                        hydration: 'ready',
+                        freshness: 'fresh',
+                    });
+                    Promise.all([
+                        zingProvider.library?.getUserPlaylists?.(userProfile.id, 50, 0),
+                        zingProvider.library?.getLikedSongs?.(userProfile.id),
+                    ]).then(([page, likedSongs]) => {
+                        const patch: Record<string, any> = {};
+                        if (page?.items) patch.collections = page.items;
+                        if (likedSongs) patch.likedSongIds = likedSongs.map(s => String(s.id));
+                        useOnlineProviderAccountStore.getState().updateAccount('zing', patch);
+                    });
                     setStatusMessage({ type: 'success', text: t('zing.loginSuccess') });
                 } else if (res.error !== 'cancelled') {
                     setStatusMessage({ type: 'error', text: t('zing.loginFailed') });
@@ -235,6 +260,13 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const handleZingLogout = () => {
         setZingCookie('');
         setStoredZingCookie('');
+        setStoredZingProfile(null);
+        useOnlineProviderAccountStore.getState().updateAccount('zing', {
+            status: 'unknown',
+            user: null,
+            collections: [],
+            likedSongIds: [],
+        });
         setStatusMessage({ type: 'info', text: t('zing.clearSuccess') });
     };
 
@@ -252,21 +284,41 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 if (res.success && res.cookie) {
                     setYtCookie(res.cookie);
                     setStoredYouTubeCookie(res.cookie);
-                    if (res.profile) {
-                        const p = {
-                            id: String(res.profile.id || 'youtube_user'),
-                            nickname: res.profile.nickname || 'Tài khoản YouTube',
-                            avatarUrl: res.profile.avatarUrl || undefined,
-                        };
-                        setStoredYouTubeProfile(p);
-                        setYtProfile(p);
+                    const p = {
+                        id: String(res.profile?.id || 'youtube_user'),
+                        nickname: res.profile?.nickname || 'Tài khoản YouTube',
+                        avatarUrl: res.profile?.avatarUrl || undefined,
+                    };
+                    setStoredYouTubeProfile(p);
+                    setYtProfile(p);
+                    useOnlineProviderAccountStore.getState().updateAccount('youtube', {
+                        status: 'authenticated',
+                        user: p,
+                        hydration: 'ready',
+                        freshness: 'fresh',
+                    });
+                    if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                        useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', {
+                            status: 'authenticated',
+                            user: p,
+                            hydration: 'ready',
+                            freshness: 'fresh',
+                        });
                     }
-                    setStatusMessage({ type: 'success', text: t('youtube.loginSuccess', { defaultValue: 'Đăng nhập YouTube thành công' }) });
+                    void youtubeProvider.library?.getUserPlaylists?.(p.id, 50, 0).then(page => {
+                        if (page?.items) {
+                            useOnlineProviderAccountStore.getState().updateAccount('youtube', { collections: page.items });
+                            if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', { collections: page.items });
+                            }
+                        }
+                    });
+                    setStatusMessage({ type: 'success', text: t('youtube.loginSuccess') });
                 } else if (res.error !== 'cancelled') {
-                    setStatusMessage({ type: 'error', text: t('youtube.loginFailed', { defaultValue: 'Đăng nhập YouTube thất bại' }) });
+                    setStatusMessage({ type: 'error', text: t('youtube.loginFailed') });
                 }
             } catch {
-                setStatusMessage({ type: 'error', text: t('youtube.loginFailed', { defaultValue: 'Đăng nhập YouTube thất bại' }) });
+                setStatusMessage({ type: 'error', text: t('youtube.loginFailed') });
             } finally {
                 setIsYtLoggingIn(false);
             }
@@ -280,7 +332,21 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         setStoredYouTubeCookie('');
         clearStoredYouTubeProfile();
         setYtProfile(null);
-        setStatusMessage({ type: 'info', text: t('youtube.clearSuccess', { defaultValue: 'Đã xóa cookie YouTube' }) });
+        useOnlineProviderAccountStore.getState().updateAccount('youtube', {
+            status: 'unknown',
+            user: null,
+            collections: [],
+            likedSongIds: [],
+        });
+        if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+            useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', {
+                status: 'unknown',
+                user: null,
+                collections: [],
+                likedSongIds: [],
+            });
+        }
+        setStatusMessage({ type: 'info', text: t('youtube.clearSuccess') });
     };
     // PlayerCap config: the subview reads the store directly (fewer layers); connection state/players are passed in by the stage model.
     const {
@@ -1181,6 +1247,22 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     onClick={() => {
                                         setStoredZingCookie(zingCookie);
                                         setZingSaved(true);
+                                        const p = getStoredZingProfile() || { id: 'zing_user', nickname: 'Tài khoản Zing MP3', vipType: 0 };
+                                        useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                                            status: 'authenticated',
+                                            user: p,
+                                            hydration: 'ready',
+                                            freshness: 'fresh',
+                                        });
+                                        Promise.all([
+                                            zingProvider.library?.getUserPlaylists?.(p.id, 50, 0),
+                                            zingProvider.library?.getLikedSongs?.(p.id),
+                                        ]).then(([page, likedSongs]) => {
+                                            const patch: Record<string, any> = {};
+                                            if (page?.items) patch.collections = page.items;
+                                            if (likedSongs) patch.likedSongIds = likedSongs.map(s => String(s.id));
+                                            useOnlineProviderAccountStore.getState().updateAccount('zing', patch);
+                                        });
                                         setStatusMessage({ type: 'success', text: t('zing.saveSuccess') });
                                         setTimeout(() => setZingSaved(false), 2000);
                                     }}
@@ -1206,10 +1288,10 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
             </SettingsAnchor>
 
             {/* YouTube Music Settings */}
-            <SettingsAnchor anchorId="youtubeCookie" label={t('youtube.title', { defaultValue: 'YouTube' })}>
+            <SettingsAnchor anchorId="youtubeCookie" label={t('youtube.title')}>
                 <SettingsSectionHeading
                     icon={Music}
-                    label={t('youtube.heading', { defaultValue: 'YouTube Music' })}
+                    label={t('youtube.heading')}
                 />
                 <div className={`${settingsCardClass} p-5 space-y-4`}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1217,7 +1299,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                             <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
                                 ytCookie ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
                             }`}>
-                                {ytCookie ? (ytProfile?.nickname || t('youtube.activeCookie', { defaultValue: 'Đã kết nối tài khoản' })) : t('youtube.guestMode', { defaultValue: 'Chế độ khách (Không đăng nhập)' })}
+                                {ytCookie ? (ytProfile?.nickname || t('youtube.activeCookie')) : t('youtube.guestMode')}
                             </span>
                         </div>
 
@@ -1229,7 +1311,23 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                 className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50"
                             >
                                 {isYtLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                                {isYtLoggingIn ? t('youtube.loggingIn', { defaultValue: 'Đang đăng nhập...' }) : t('youtube.loginButton', { defaultValue: 'Đăng nhập YouTube' })}
+                                {isYtLoggingIn ? t('youtube.loggingIn') : t('youtube.loginButton')}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (isElectron && window.electron?.openExternalUrl) {
+                                        window.electron.openExternalUrl('https://music.youtube.com');
+                                    } else {
+                                        window.open('https://music.youtube.com', '_blank');
+                                    }
+                                }}
+                                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-white/10 hover:bg-white/15 text-white/90 flex items-center gap-1.5"
+                                title={t('youtube.openExternal')}
+                            >
+                                <ExternalLink size={16} />
+                                {t('youtube.openExternal')}
                             </button>
 
                             {ytCookie && (
@@ -1239,31 +1337,31 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
                                 >
                                     <Trash2 size={16} />
-                                    {t('youtube.logoutButton', { defaultValue: 'Đăng xuất' })}
+                                    {t('youtube.logoutButton')}
                                 </button>
                             )}
                         </div>
                     </div>
 
                     <p className="text-xs opacity-60">
-                        {t('youtube.cookieHint', { defaultValue: 'Đăng nhập Google / YouTube để đồng bộ danh sách phát cá nhân, thư viện nhạc và nghe toàn bộ bài hát.' })}
+                        {t('youtube.cookieHint')}
                     </p>
 
                     <details className="group border-t border-black/10 dark:border-white/10 pt-3">
                         <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
                             <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
-                            {t('youtube.advancedTitle', { defaultValue: 'Tùy chỉnh Cookie thủ công' })}
+                            {t('youtube.advancedTitle')}
                         </summary>
                         <div className="mt-3 space-y-3">
                             <div>
                                 <label className="block text-xs font-semibold mb-1 opacity-80">
-                                    {t('youtube.cookieLabel', { defaultValue: 'Cookie YouTube' })}
+                                    {t('youtube.cookieLabel')}
                                 </label>
                                 <input
                                     type="text"
                                     value={ytCookie}
                                     onChange={e => setYtCookie(e.target.value)}
-                                    placeholder={t('youtube.cookiePlaceholder', { defaultValue: 'Dán cookie SAPISID, LOGIN_INFO, SID...' })}
+                                    placeholder={t('youtube.cookiePlaceholder')}
                                     className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-xs"
                                 />
                             </div>
@@ -1273,13 +1371,47 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     onClick={() => {
                                         setStoredYouTubeCookie(ytCookie);
                                         setYtSaved(true);
-                                        setStatusMessage({ type: 'success', text: t('youtube.saveSuccess', { defaultValue: 'Đã lưu cookie YouTube' }) });
+                                        const p = getStoredYouTubeProfile() || { id: 'youtube_user', nickname: 'Tài khoản YouTube' };
+                                        if (ytCookie.trim()) {
+                                            useOnlineProviderAccountStore.getState().updateAccount('youtube', {
+                                                status: 'authenticated',
+                                                user: p,
+                                                hydration: 'ready',
+                                                freshness: 'fresh',
+                                            });
+                                            if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                                useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', {
+                                                    status: 'authenticated',
+                                                    user: p,
+                                                    hydration: 'ready',
+                                                    freshness: 'fresh',
+                                                });
+                                            }
+                                            void youtubeProvider.library?.getUserPlaylists?.(p.id, 50, 0).then(page => {
+                                                if (page?.items) {
+                                                    useOnlineProviderAccountStore.getState().updateAccount('youtube', { collections: page.items });
+                                                    if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                                        useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', { collections: page.items });
+                                                    }
+                                                }
+                                            }).catch(() => { /* ignore fetch errors */ });
+                                        } else {
+                                            // Clearing cookie: reset store state to match logout behavior
+                                            clearStoredYouTubeProfile();
+                                            const clearPatch = { status: 'unknown' as const, user: null, collections: [], hydration: 'ready' as const, freshness: 'fresh' as const };
+                                            useOnlineProviderAccountStore.getState().updateAccount('youtube', clearPatch);
+                                            if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                                useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', clearPatch);
+                                            }
+                                            setYtProfile(null);
+                                        }
+                                        setStatusMessage({ type: 'success', text: t('youtube.saveSuccess') });
                                         setTimeout(() => setYtSaved(false), 2000);
                                     }}
                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5"
                                 >
                                     {ytSaved ? <Check size={14} /> : <Music size={14} />}
-                                    {ytSaved ? t('youtube.saved', { defaultValue: 'Đã lưu' }) : t('youtube.saveCookie', { defaultValue: 'Lưu Cookie' })}
+                                    {ytSaved ? t('youtube.saved') : t('youtube.saveCookie')}
                                 </button>
                                 {ytCookie && (
                                     <button
@@ -1288,7 +1420,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
                                     >
                                         <Trash2 size={14} />
-                                        {t('youtube.clear', { defaultValue: 'Xóa' })}
+                                        {t('youtube.clear')}
                                     </button>
                                 )}
                             </div>

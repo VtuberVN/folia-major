@@ -45,7 +45,8 @@ try {
   if (existsSync(OUT_BIN)) {
     console.warn(`[wallpaper-helper] cargo build failed, using existing ${OUT_BIN}`);
   } else {
-    console.warn('[wallpaper-helper] cargo not found or build failed; skipping wallpaper helper');
-    import('node:fs').then(({ writeFileSync }) => writeFileSync(OUT_BIN, Buffer.alloc(0)));
+    console.warn('[wallpaper-helper] cargo not found or build failed; wallpaper helper will not be available');
+    // Do NOT create a 0-byte .exe — it would be packaged as a corrupted binary.
+    // The app's resolveWallpaperHelperPath() already handles the missing file gracefully.
   }
 }
