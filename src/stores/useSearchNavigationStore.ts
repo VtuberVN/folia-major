@@ -11,7 +11,6 @@ import { omni } from '../services/onlineMusic/omni';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
 import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
-import { getOnlineMusicProvider } from '../services/onlineMusic/providerRegistry';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';
 const DEFAULT_SEARCH_LIMIT = 30;
@@ -148,7 +147,7 @@ const searchOnlineProviderSongs = async (
     offset: number,
 ): Promise<SearchExecutionResult> => {
     let targetId = providerId;
-    if (targetId === 'youtube' && !getOnlineMusicProvider('youtube') && getOnlineMusicProvider('folium.youtube-provider.youtube')) {
+    if (targetId === 'youtube' && !omni.hasProvider('youtube') && omni.hasProvider('folium.youtube-provider.youtube')) {
         targetId = 'folium.youtube-provider.youtube';
     }
     const page = await omni.searchProviderSongs(targetId, query, { limit, offset });

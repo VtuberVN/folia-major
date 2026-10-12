@@ -32,6 +32,15 @@ async function getApiKey(fetchFn) {
   return '';
 }
 
+function parseDurationToMs(text) {
+  if (!text || typeof text !== 'string') return undefined;
+  const parts = text.trim().split(':').map(Number);
+  if (parts.some(isNaN)) return undefined;
+  if (parts.length === 2) return (parts[0] * 60 + parts[1]) * 1000;
+  if (parts.length === 3) return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+  return undefined;
+}
+
 export async function searchYouTube(query, fetchFn = globalThis.fetch) {
   const videoId = extractVideoId(query);
   if (videoId) {
@@ -82,6 +91,8 @@ export async function searchYouTube(query, fetchFn = globalThis.fetch) {
                      'YouTube Artist';
       const thumb = r.thumbnail?.thumbnails?.[r.thumbnail.thumbnails.length - 1]?.url ||
                     `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+      const durationText = r.lengthText?.runs?.[0]?.text || r.lengthText?.simpleText;
+      const durationMs = parseDurationToMs(durationText);
 
       if (!items.find(x => x.id === id)) {
         items.push({
@@ -89,7 +100,8 @@ export async function searchYouTube(query, fetchFn = globalThis.fetch) {
           title: title,
           artists: [artist],
           album: 'YouTube',
-          coverUrl: thumb
+          coverUrl: thumb,
+          ...(durationMs ? { durationMs } : {})
         });
       }
     }
@@ -183,8 +195,12 @@ export async function getAudioStreamUrl(videoId, fetchFn = globalThis.fetch) {
   audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
   const bestAudio = audioFormats[0];
+  const streamUrl = (typeof window !== 'undefined' && !window.electron)
+    ? `/api/lyric-proxy?url=${encodeURIComponent(bestAudio.url)}`
+    : bestAudio.url;
+
   return {
-    url: bestAudio.url,
+    url: streamUrl,
     expiresAt: Date.now() + 5 * 3600 * 1000 // URL Google Video có hạn thường là 6h
   };
 }

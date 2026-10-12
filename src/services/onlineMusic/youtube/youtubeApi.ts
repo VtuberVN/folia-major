@@ -118,3 +118,73 @@ export async function searchYouTubeMusic(query: string, limit: number = 30, offs
         return { items: [], total: 0, hasMore: false, nextOffset: 0 };
     }
 }
+
+let cachedApiKey = '';
+
+async function getApiKey(): Promise<string> {
+    if (cachedApiKey) return cachedApiKey;
+    try {
+        const res = await fetch('https://www.youtube.com/', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            },
+        });
+        const html = await res.text();
+        const match = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/);
+        if (match && match[1]) {
+            cachedApiKey = match[1];
+            return cachedApiKey;
+        }
+    } catch (err) {
+        console.warn('[YouTubeApi] Failed to extract API key:', err);
+    }
+    return '';
+}
+
+export async function getYouTubeAudioStream(videoId: string): Promise<{ url: string; expiresAt?: number } | null> {
+    try {
+        const apiKey = await getApiKey();
+        const endpoint = `https://www.youtube.com/youtubei/v1/player?key=${apiKey}`;
+        const body = {
+            context: {
+                client: {
+                    clientName: 'ANDROID',
+                    clientVersion: '20.10.38',
+                    androidSdkVersion: 31,
+                    hl: 'vi',
+                    gl: 'VN',
+                },
+            },
+            videoId,
+        };
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)',
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) return null;
+        const data = await res.json();
+        const formats = [...(data.streamingData?.formats || []), ...(data.streamingData?.adaptiveFormats || [])];
+        const audioFormats = formats.filter(f => f.mimeType && f.mimeType.startsWith('audio/') && f.url);
+        if (audioFormats.length === 0) return null;
+
+        audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        const bestAudio = audioFormats[0];
+        const streamUrl = (typeof window !== 'undefined' && !(window as any).electron)
+            ? `/api/lyric-proxy?url=${encodeURIComponent(bestAudio.url)}`
+            : bestAudio.url;
+
+        return {
+            url: streamUrl,
+            expiresAt: Date.now() + 5 * 3600 * 1000,
+        };
+    } catch (err) {
+        console.warn('[YouTubeApi] getYouTubeAudioStream error:', err);
+        return null;
+    }
+}

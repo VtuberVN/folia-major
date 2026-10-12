@@ -193,6 +193,10 @@ export const omni = {
         return requireOnlineMusicProvider(providerId).getAvailability?.() ?? { configured: true };
     },
 
+    hasProvider(providerId: string): boolean {
+        return Boolean(getOnlineMusicProvider(providerId));
+    },
+
     getProviderLabel(providerId: OmniProviderId): string {
         const provider = getOnlineMusicProvider(providerId);
         return provider?.shortName || provider?.displayName || providerId;

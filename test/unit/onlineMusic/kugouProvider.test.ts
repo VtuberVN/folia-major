@@ -618,6 +618,15 @@ describe('kugouProvider', () => {
         expect(source).toBeNull();
     });
 
+    it('throws OnlineProviderError with vip-only code when legacy mobile playInfo indicates VIP/paid track', async () => {
+        requestMock.mockResolvedValue({ status: 3 });
+        legacyPlayInfoMock.mockResolvedValue({ status: 0, error: '需要付费' });
+        const song = normalizeKugouSong({ FileHash: 'hash', SongName: 'Song' });
+
+        await expect(kugouProvider.playback?.getAudioSource(song, 'standard'))
+            .rejects.toThrowError(expect.objectContaining({ code: 'vip-only' }));
+    });
+
     it('hydrates canonical album and artist ids through hash-verified KRM metadata once', async () => {
         requestMock.mockResolvedValue({
             data: [{

@@ -126,6 +126,13 @@ export function setStoredZingCookie(cookie: string): void {
     }
 }
 
+function toZingWebProxyUrl(url: string): string {
+    if (typeof window !== 'undefined' && !(window as any).electron) {
+        return `/api/lyric-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+}
+
 /**
  * Obtains a valid cookie for Zing MP3 requests, prioritizing user VIP cookie.
  */
@@ -135,7 +142,7 @@ async function resolveCookie(): Promise<string> {
 
     if (!cachedSessionCookie || now >= cookieExpiryTime) {
         try {
-            const homeRes = await fetch(ZING_BASE_URL, {
+            const homeRes = await fetch(toZingWebProxyUrl(ZING_BASE_URL), {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 },
@@ -202,7 +209,7 @@ export async function getZingAudioSource(
     url.searchParams.set('apiKey', ZING_API_KEY);
     url.searchParams.set('sig', sig);
 
-    const res = await fetch(url.toString(), {
+    const res = await fetch(toZingWebProxyUrl(url.toString()), {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Referer': `${ZING_BASE_URL}/`,
@@ -273,7 +280,7 @@ export async function getZingLyric(songId: string): Promise<LyricData | null> {
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
@@ -284,7 +291,7 @@ export async function getZingLyric(songId: string): Promise<LyricData | null> {
         if (!res.ok) return null;
         const json = await res.json();
         if (json.err === 0 && json.data?.file) {
-            const lyricRes = await fetch(json.data.file);
+            const lyricRes = await fetch(toZingWebProxyUrl(json.data.file));
             if (lyricRes.ok) {
                 const lrcText = await lyricRes.text();
                 return parseLRC(lrcText);
@@ -314,7 +321,7 @@ export async function getZingSongDetail(songId: string): Promise<UnifiedSong | n
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
@@ -360,7 +367,7 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
     try {
         const ctime = Date.now();
         const targetUrl = `${ZING_SUGGEST_URL}?num=${Math.max(10, limit)}&query=${encodeURIComponent(query.trim())}&language=vi&ctime=${ctime}`;
-        const res = await fetch(targetUrl, {
+        const res = await fetch(toZingWebProxyUrl(targetUrl), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,

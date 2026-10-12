@@ -10,7 +10,7 @@ import type {
 } from '../../types/onlineMusic';
 import type { SongResult, UnifiedSong } from '../../types';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
-import { searchYouTubeMusic } from './youtube/youtubeApi';
+import { searchYouTubeMusic, getYouTubeAudioStream } from './youtube/youtubeApi';
 
 export const youtubeProvider: OnlineMusicProvider = {
     id: 'youtube',
@@ -62,11 +62,28 @@ export const youtubeProvider: OnlineMusicProvider = {
         },
     },
     playback: {
-        async getSongDetail(_id) {
-            return null;
+        async getSongDetail(id) {
+            const stream = await getYouTubeAudioStream(String(id));
+            return stream ? {
+                id: String(id),
+                name: 'YouTube Track',
+                artists: [{ id: 0, name: 'YouTube Artist' }],
+                album: { id: 0, name: 'YouTube' },
+                durationMs: 0,
+                sourceRef: { kind: 'online', providerId: 'youtube', mediaId: String(id) },
+            } : null;
         },
-        async getAudioSource(_song, _quality): Promise<ProviderAudioSource | null> {
-            return null;
+        async getAudioSource(song, _quality): Promise<ProviderAudioSource | null> {
+            const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);
+            if (!mediaId) return null;
+            const stream = await getYouTubeAudioStream(mediaId);
+            if (!stream?.url) return null;
+            return {
+                url: stream.url,
+                fetchedAt: Date.now(),
+                expiresAt: stream.expiresAt,
+                quality: 'standard',
+            };
         },
         getAvailability(_song): ProviderSongAvailability {
             return { state: 'playable' };

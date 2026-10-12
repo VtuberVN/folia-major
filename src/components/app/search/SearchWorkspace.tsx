@@ -13,7 +13,6 @@ import SearchResultsList from './SearchResultsList';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { omni } from '../../../services/onlineMusic/omni';
-import { listOnlineMusicProviders } from '../../../services/onlineMusic/providerRegistry';
 
 // src/components/app/search/SearchWorkspace.tsx
 
@@ -89,10 +88,10 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             'zing',
             'nct',
         ];
-        const onlineProviders = listOnlineMusicProviders();
-        for (const provider of onlineProviders) {
-            if (provider.capabilities.search && !base.includes(provider.id)) {
-                base.push(provider.id);
+        const onlineSummaries = omni.getProviderSummaries();
+        for (const summary of onlineSummaries) {
+            if (omni.getProviderCapabilities(summary.providerId).search && !base.includes(summary.providerId)) {
+                base.push(summary.providerId);
             }
         }
         base.push('local', 'navidrome');

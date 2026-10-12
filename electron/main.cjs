@@ -2994,6 +2994,20 @@ function setupCorsBypassHandlers() {
       resourceType: details.resourceType,
     } : null;
   };
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    const requestHeaders = { ...details.requestHeaders };
+    try {
+      const parsedUrl = new URL(details.url);
+      const hostname = parsedUrl.hostname;
+      if (hostname === 'googlevideo.com' || hostname.endsWith('.googlevideo.com')) {
+        requestHeaders['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
+      } else if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
+        requestHeaders['Referer'] = 'https://zingmp3.vn/';
+      }
+    } catch {}
+    callback({ cancel: false, requestHeaders });
+  });
+
   ses.webRequest.onHeadersReceived((details, callback) => {
     const responseHeaders = { ...details.responseHeaders };
     const originUrl = details.url;
@@ -3008,6 +3022,20 @@ function setupCorsBypassHandlers() {
         hostname === 'y.gtimg.cn' ||
         hostname === 'kugou.com' ||
         hostname.endsWith('.kugou.com') ||
+        hostname === 'googlevideo.com' ||
+        hostname.endsWith('.googlevideo.com') ||
+        hostname === 'youtube.com' ||
+        hostname.endsWith('.youtube.com') ||
+        hostname === 'ytimg.com' ||
+        hostname.endsWith('.ytimg.com') ||
+        hostname === 'zingmp3.vn' ||
+        hostname.endsWith('.zingmp3.vn') ||
+        hostname === 'zmdcdn.me' ||
+        hostname.endsWith('.zmdcdn.me') ||
+        hostname === 'nhaccuatui.com' ||
+        hostname.endsWith('.nhaccuatui.com') ||
+        hostname === 'nct.vn' ||
+        hostname.endsWith('.nct.vn') ||
         // Bodian audio and cover CDNs may omit CORS headers needed by Web Audio and canvas/WebGL.
         bodianMediaPolicy.allows(details);
     } catch (error) {

@@ -1113,12 +1113,21 @@ export const kugouProvider: OnlineMusicProvider = {
                             quality: 'standard',
                         };
                     }
+
+                    const legacyStatus = Number(valueOf(legacyResponse, 'status') ?? valueOf(dataOf(legacyResponse), 'status'));
+                    const legacyError = String(valueOf(legacyResponse, 'error') ?? valueOf(dataOf(legacyResponse), 'error') ?? '');
                     console.warn('[KuGouProvider] playback:no-url-legacy', {
                         hash,
                         requestedQuality: quality,
-                        status: valueOf(legacyResponse, 'status') ?? valueOf(dataOf(legacyResponse), 'status'),
+                        status: legacyStatus,
+                        error: legacyError,
                     });
+
+                    if (legacyStatus === 0 && (legacyError.includes('付费') || legacyError.toUpperCase().includes('VIP'))) {
+                        throw new OnlineProviderError('vip-only', `Bài hát yêu cầu tài khoản VIP KuGou (${legacyError})`, 'kugou');
+                    }
                 } catch (error) {
+                    if (error instanceof OnlineProviderError) throw error;
                     console.warn('[KuGouProvider] playback:legacy-failed', {
                         hash,
                         requestedQuality: quality,

@@ -1,5 +1,6 @@
 import { URL } from 'url';
-// 当前文件：Vercel 歌词请求代理函数的 TypeScript 源文件。
+import { Readable } from 'stream';
+// 当前文件：Vercel 歌词及媒体请求代理函数的 TypeScript 源文件。
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
@@ -18,6 +19,7 @@ const CORS_HEADERS = {
         'KG-CLIENTTIMEMS',
         'mid',
         'x-router',
+        'Range',
     ].join(', '),
 };
 const IGNORED_FORWARD_HEADERS = [
@@ -32,9 +34,16 @@ const IGNORED_FORWARD_HEADERS = [
     'x-vercel-protection-bypass',
 ];
 function isAllowedLyricProxyHost(hostname) {
-    return hostname === 'qq.com' || hostname.endsWith('.qq.com') ||
+    return (hostname === 'qq.com' || hostname.endsWith('.qq.com') ||
         hostname === 'y.gtimg.cn' ||
-        hostname === 'kugou.com' || hostname.endsWith('.kugou.com');
+        hostname === 'kugou.com' || hostname.endsWith('.kugou.com') ||
+        hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn') ||
+        hostname === 'zmdcdn.me' || hostname.endsWith('.zmdcdn.me') ||
+        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') ||
+        hostname === 'googlevideo.com' || hostname.endsWith('.googlevideo.com') ||
+        hostname === 'ytimg.com' || hostname.endsWith('.ytimg.com') ||
+        hostname === 'nhaccuatui.com' || hostname.endsWith('.nhaccuatui.com') ||
+        hostname === 'nct.vn' || hostname.endsWith('.nct.vn'));
 }
 export default async function handler(req, res) {
     // Allow CORS for the proxy
@@ -51,7 +60,7 @@ export default async function handler(req, res) {
     try {
         const targetUrl = new URL(targetUrlStr);
         const hostname = targetUrl.hostname;
-        // Security check: only allow proxying to known lyric provider domains
+        // Security check: only allow proxying to known provider domains
         const isAllowed = isAllowedLyricProxyHost(hostname);
         if (!isAllowed) {
             return res.status(403).json({ error: 'Forbidden: Domain not allowed' });
@@ -66,6 +75,13 @@ export default async function handler(req, res) {
         if (hostname === 'u.y.qq.com') {
             headers.Cookie = 'tmeLoginType=-1;';
             headers['User-Agent'] = 'okhttp/3.14.9';
+        }
+        else if (hostname.endsWith('zingmp3.vn') || hostname.endsWith('zmdcdn.me')) {
+            headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+            headers['Referer'] = 'https://zingmp3.vn/';
+        }
+        else if (hostname.endsWith('googlevideo.com') || hostname.endsWith('youtube.com')) {
+            headers['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
         }
         // Forward the method and body (if present and method is not GET/HEAD)
         const hasBody = ['POST', 'PUT', 'PATCH'].includes(req.method);
@@ -83,15 +99,25 @@ export default async function handler(req, res) {
         }
         const response = await fetch(targetUrl.toString(), fetchOptions);
         const contentType = response.headers.get('content-type') || '';
-        // Forward response headers
         res.setHeader('Content-Type', contentType);
+        const forwardHeaders = ['content-length', 'content-range', 'accept-ranges', 'content-disposition'];
+        for (const h of forwardHeaders) {
+            const val = response.headers.get(h);
+            if (val) {
+                res.setHeader(h, val);
+            }
+        }
+        res.status(response.status);
         if (contentType.includes('application/json')) {
             const json = await response.json();
-            return res.status(response.status).json(json);
+            return res.json(json);
+        }
+        else if (response.body && typeof Readable.fromWeb === 'function') {
+            return Readable.fromWeb(response.body).pipe(res);
         }
         else {
             const buffer = await response.arrayBuffer();
-            return res.status(response.status).send(Buffer.from(buffer));
+            return res.send(Buffer.from(buffer));
         }
     }
     catch (error) {
