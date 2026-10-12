@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { youtubeProvider } from '@/services/onlineMusic/youtubeProvider';
 import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry';
-import { searchYouTubeMusic } from '@/services/onlineMusic/youtube/youtubeApi';
+import { searchYouTubeMusic, getYouTubeAudioStream, extractVideoId } from '@/services/onlineMusic/youtube/youtubeApi';
 
 describe('youtubeProvider', () => {
     it('is not registered in providerRegistry by default', () => {
@@ -139,6 +139,80 @@ describe('youtubeProvider', () => {
             const line = res?.lyrics?.lines.find(l => l.fullText.includes('Zing MP3'));
             expect(line).toBeDefined();
             expect(line?.fullText).toBe('Zing MP3 synced lyric line');
+        } finally {
+            fetchSpy.mockRestore();
+        }
+    });
+
+    it('correctly extracts video ID from diverse URL formats and raw IDs', () => {
+        expect(extractVideoId('dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+        expect(extractVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+        expect(extractVideoId('https://youtu.be/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+        expect(extractVideoId('https://music.youtube.com/watch?v=dQw4w9WgXcQ&feature=shared')).toBe('dQw4w9WgXcQ');
+        expect(extractVideoId('')).toBeNull();
+        expect(extractVideoId(null)).toBeNull();
+    });
+
+    it('prioritizes progressive format (ITAG 18) over adaptive formats for reliable audio playback', async () => {
+        const mockPlayerResponse = {
+            playabilityStatus: { status: 'OK' },
+            videoDetails: {
+                title: 'Test Song Title',
+                author: 'Test Artist Name',
+                lengthSeconds: '210',
+                thumbnail: {
+                    thumbnails: [{ url: 'https://example.com/thumb.jpg' }],
+                },
+            },
+            streamingData: {
+                formats: [
+                    {
+                        itag: 18,
+                        mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
+                        url: 'https://rr.googlevideo.com/videoplayback?itag=18&test=progressive',
+                    },
+                ],
+                adaptiveFormats: [
+                    {
+                        itag: 251,
+                        mimeType: 'audio/webm; codecs="opus"',
+                        url: 'https://rr.googlevideo.com/videoplayback?itag=251&test=adaptive',
+                    },
+                ],
+            },
+        };
+
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: string | URL | Request) => {
+            const urlStr = String(url);
+            if (urlStr.includes('youtubei/v1/player')) {
+                return {
+                    ok: true,
+                    json: async () => mockPlayerResponse,
+                } as any;
+            }
+            return { ok: false } as any;
+        });
+
+        try {
+            const stream = await getYouTubeAudioStream('dQw4w9WgXcQ');
+            expect(stream).not.toBeNull();
+            expect(stream?.url).toContain('itag=18');
+            expect(stream?.details?.title).toBe('Test Song Title');
+            expect(stream?.details?.author).toBe('Test Artist Name');
+            expect(stream?.details?.durationMs).toBe(210000);
+
+            // Test getSongDetail integration
+            const detail = await youtubeProvider.playback?.getSongDetail('dQw4w9WgXcQ');
+            expect(detail?.name).toBe('Test Song Title');
+            expect(detail?.artists[0]?.name).toBe('Test Artist Name');
+            expect(detail?.durationMs).toBe(210000);
+
+            // Test getAudioSource integration
+            const source = await youtubeProvider.playback?.getAudioSource({
+                id: 'dQw4w9WgXcQ',
+                sourceRef: { kind: 'online', providerId: 'youtube', mediaId: 'dQw4w9WgXcQ' },
+            } as any, 'standard');
+            expect(source?.url).toContain('itag=18');
         } finally {
             fetchSpy.mockRestore();
         }

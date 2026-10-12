@@ -2999,8 +2999,23 @@ function setupCorsBypassHandlers() {
     try {
       const parsedUrl = new URL(details.url);
       const hostname = parsedUrl.hostname;
-      if (hostname === 'googlevideo.com' || hostname.endsWith('.googlevideo.com')) {
+      if (
+        hostname === 'googlevideo.com' ||
+        hostname.endsWith('.googlevideo.com') ||
+        hostname === 'youtube.com' ||
+        hostname.endsWith('.youtube.com')
+      ) {
         requestHeaders['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
+        for (const h of Object.keys(requestHeaders)) {
+          const lower = h.toLowerCase();
+          if (
+            lower === 'origin' ||
+            lower === 'referer' ||
+            lower.startsWith('sec-fetch-')
+          ) {
+            delete requestHeaders[h];
+          }
+        }
       } else if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
         requestHeaders['Referer'] = 'https://zingmp3.vn/';
       }
@@ -3047,6 +3062,7 @@ function setupCorsBypassHandlers() {
       responseHeaders['Access-Control-Allow-Origin'] = ['*'];
       responseHeaders['Access-Control-Allow-Headers'] = ['*'];
       responseHeaders['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS, PUT, DELETE'];
+      responseHeaders['Access-Control-Expose-Headers'] = ['Content-Length, Content-Range, Accept-Ranges'];
     }
 
     callback({ cancel: false, responseHeaders });
@@ -3071,7 +3087,8 @@ function removeCorsResponseHeaders(responseHeaders) {
     if (
       normalizedHeaderName === 'access-control-allow-origin' ||
       normalizedHeaderName === 'access-control-allow-headers' ||
-      normalizedHeaderName === 'access-control-allow-methods'
+      normalizedHeaderName === 'access-control-allow-methods' ||
+      normalizedHeaderName === 'access-control-expose-headers'
     ) {
       delete responseHeaders[headerName];
     }
@@ -3087,6 +3104,10 @@ function isAllowedLyricProxyHost(hostname) {
     hostname.endsWith('.kugou.com') ||
     hostname === 'kgimg.com' ||
     hostname.endsWith('.kgimg.com') ||
+    hostname === 'googlevideo.com' ||
+    hostname.endsWith('.googlevideo.com') ||
+    hostname === 'youtube.com' ||
+    hostname.endsWith('.youtube.com') ||
     hostname === 'api.amll.dev'
   );
 }

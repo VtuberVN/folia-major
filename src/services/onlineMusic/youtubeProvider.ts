@@ -131,14 +131,15 @@ export const youtubeProvider: OnlineMusicProvider = {
     playback: {
         async getSongDetail(id) {
             const stream = await getYouTubeAudioStream(String(id));
-            return stream ? {
+            if (!stream) return null;
+            return {
                 id: String(id),
-                name: 'YouTube Track',
-                artists: [{ id: 0, name: 'YouTube Artist' }],
-                album: { id: 0, name: 'YouTube' },
-                durationMs: 0,
+                name: stream.details?.title || 'YouTube Track',
+                artists: [{ id: 0, name: stream.details?.author || 'YouTube Artist' }],
+                album: { id: 0, name: 'YouTube', coverUrl: stream.details?.coverUrl },
+                durationMs: stream.details?.durationMs || 0,
                 sourceRef: { kind: 'online', providerId: 'youtube', mediaId: String(id) },
-            } : null;
+            };
         },
         async getAudioSource(song, _quality): Promise<ProviderAudioSource | null> {
             const mediaId = song.sourceRef?.kind === 'online' ? song.sourceRef.mediaId : String(song.id);

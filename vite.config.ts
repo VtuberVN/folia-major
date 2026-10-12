@@ -37,7 +37,9 @@ function isAllowedLyricProxyHost(hostname: string): boolean {
   return hostname === 'qq.com' || hostname.endsWith('.qq.com') ||
     hostname === 'y.gtimg.cn' ||
     hostname === 'kugou.com' || hostname.endsWith('.kugou.com') ||
-    hostname === 'kgimg.com' || hostname.endsWith('.kgimg.com');
+    hostname === 'kgimg.com' || hostname.endsWith('.kgimg.com') ||
+    hostname === 'googlevideo.com' || hostname.endsWith('.googlevideo.com') ||
+    hostname === 'youtube.com' || hostname.endsWith('.youtube.com');
 }
 
 function setLyricProxyCorsHeaders(res: import('http').ServerResponse): void {

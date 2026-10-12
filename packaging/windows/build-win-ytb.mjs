@@ -3,6 +3,7 @@
 // Builds the Windows desktop installer & portable zip with built-in YouTube Music provider.
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, cpSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +66,19 @@ const builderRes = spawnSync(
 
 if (builderRes.status !== 0) {
   process.exit(builderRes.status || 1);
+}
+
+const winUnpackedDir = path.join(ROOT, 'release', 'win-unpacked');
+const ytbUnpackedDir = path.join(ROOT, 'release', 'win-unpacked-with_ytb');
+if (existsSync(winUnpackedDir)) {
+  console.log(`[build-win-ytb] 4. Creating separate unpacked folder: ${ytbUnpackedDir}...`);
+  try {
+    rmSync(ytbUnpackedDir, { recursive: true, force: true });
+    cpSync(winUnpackedDir, ytbUnpackedDir, { recursive: true });
+    console.log('[build-win-ytb] Created win-unpacked-with_ytb successfully!');
+  } catch (err) {
+    console.warn('[build-win-ytb] Could not create separate unpacked directory:', err);
+  }
 }
 
 console.log('[build-win-ytb] Windows build with YouTube completed successfully!');
