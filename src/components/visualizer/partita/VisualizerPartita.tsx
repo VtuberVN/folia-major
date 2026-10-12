@@ -46,6 +46,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
         subtitleOverlayOpacity,
         subtitleOverlayBackground,
         subtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview,
         isPlayerChromeHidden = false,
         hideTranslationSubtitle = false,
         showSubtitleTranslation = true,
@@ -222,6 +223,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                 subtitleOverlayOpacity={subtitleOverlayOpacity}
                 subtitleOverlayBackground={subtitleOverlayBackground}
                 subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                subtitleUpcomingLyricsPreview={subtitleUpcomingLyricsPreview}
                 subtitleFontScale={subtitleFontScale}
                 isPlayerChromeHidden={isPlayerChromeHidden}
                 hideTranslationSubtitle={hideTranslationSubtitle}

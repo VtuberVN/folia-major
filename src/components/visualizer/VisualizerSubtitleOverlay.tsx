@@ -37,6 +37,7 @@ interface VisualizerSubtitleOverlayProps {
     subtitleOverlayOpacity?: number;
     subtitleOverlayBackground?: boolean;
     subtitleUpcomingLyricsBlur?: boolean;
+    subtitleUpcomingLyricsPreview?: boolean;
     isPlayerChromeHidden?: boolean;
     hideTranslationSubtitle?: boolean;
     showSubtitleTranslation?: boolean;
@@ -53,7 +54,8 @@ export const resolveVisualizerSubtitleOverlayContent = ({
     hideTranslationSubtitle = false,
     showSubtitleTranslation = true,
     subtitleContentMode,
-}: Pick<VisualizerSubtitleOverlayProps, 'showText' | 'activeLine' | 'recentCompletedLine' | 'nextLines' | 'hideTranslationSubtitle' | 'showSubtitleTranslation' | 'subtitleContentMode'>) => {
+    subtitleUpcomingLyricsPreview = true,
+}: Pick<VisualizerSubtitleOverlayProps, 'showText' | 'activeLine' | 'recentCompletedLine' | 'nextLines' | 'hideTranslationSubtitle' | 'showSubtitleTranslation' | 'subtitleContentMode' | 'subtitleUpcomingLyricsPreview'>) => {
     if (!showText || hideTranslationSubtitle) {
         return {
             shouldRenderOverlay: false,
@@ -70,12 +72,14 @@ export const resolveVisualizerSubtitleOverlayContent = ({
     // Flattened text of all rows; kept for callers that only care whether any subtitle text exists.
     const subtitleText = subtitleTracks.length > 0 ? subtitleTracks.map(track => track.text).join(' / ') : null;
     const previewLines = nextLines.filter((line) => hasReadableText(line.fullText));
+    const upcomingLines = (subtitleText || !subtitleUpcomingLyricsPreview) ? [] : (activeLine ? previewLines : []);
+    const hasContent = Boolean(subtitleText || upcomingLines.length > 0);
 
     return {
-        shouldRenderOverlay: true,
+        shouldRenderOverlay: hasContent,
         subtitleText,
         subtitleTracks,
-        upcomingLines: subtitleText ? [] : activeLine ? previewLines : [],
+        upcomingLines,
     };
 };
 
@@ -93,6 +97,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     subtitleOverlayOpacity,
     subtitleOverlayBackground = true,
     subtitleUpcomingLyricsBlur = true,
+    subtitleUpcomingLyricsPreview = true,
     isPlayerChromeHidden = false,
     hideTranslationSubtitle = false,
     showSubtitleTranslation = true,
@@ -112,6 +117,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
         hideTranslationSubtitle,
         showSubtitleTranslation,
         subtitleContentMode,
+        subtitleUpcomingLyricsPreview,
     });
     const resolvedOpacity = subtitleOverlayOpacity ?? opacity;
     const scaleFontSize = (fontSize: string, factor = 1) => fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`);

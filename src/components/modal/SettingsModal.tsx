@@ -281,6 +281,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         subtitleOverlayOpacity,
         subtitleOverlayBackground,
         subtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview,
         showHarmonySubtitle,
         harmonySubtitleBackground,
         lyricsFontStyle,
@@ -299,6 +300,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         handleSetSubtitleOverlayOpacity: setSubtitleOverlayOpacity,
         handleToggleSubtitleOverlayBackground: onToggleSubtitleOverlayBackground,
         handleToggleSubtitleUpcomingLyricsBlur: onToggleSubtitleUpcomingLyricsBlur,
+        handleToggleSubtitleUpcomingLyricsPreview: onToggleSubtitleUpcomingLyricsPreview,
         handleToggleShowHarmonySubtitle: onToggleShowHarmonySubtitle,
         handleToggleHarmonySubtitleBackground: onToggleHarmonySubtitleBackground,
         handleSetLyricsFontStyle: onLyricsFontStyleChange,
@@ -2101,6 +2103,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         subtitleOverlayOpacity={subtitleOverlayOpacity}
                         subtitleOverlayBackground={subtitleOverlayBackground}
                         subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                        subtitleUpcomingLyricsPreview={subtitleUpcomingLyricsPreview}
                         showHarmonySubtitle={showHarmonySubtitle}
                         harmonySubtitleBackground={harmonySubtitleBackground}
                         classicTuning={classicTuning}
@@ -2151,6 +2154,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         onSubtitleOverlayOpacityChange={setSubtitleOverlayOpacity}
                         onToggleSubtitleOverlayBackground={onToggleSubtitleOverlayBackground}
                         onToggleSubtitleUpcomingLyricsBlur={onToggleSubtitleUpcomingLyricsBlur}
+                        onToggleSubtitleUpcomingLyricsPreview={onToggleSubtitleUpcomingLyricsPreview}
                         onToggleShowHarmonySubtitle={onToggleShowHarmonySubtitle}
                         onToggleHarmonySubtitleBackground={onToggleHarmonySubtitleBackground}
                         onClassicTuningChange={onClassicTuningChange}

@@ -87,6 +87,7 @@ export const useVisualizerRendererModel = ({
         subtitleOverlayOpacity: state.subtitleOverlayOpacity,
         subtitleOverlayBackground: state.subtitleOverlayBackground,
         subtitleUpcomingLyricsBlur: state.subtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview: state.subtitleUpcomingLyricsPreview,
         showHarmonySubtitle: state.showHarmonySubtitle,
         harmonySubtitleBackground: state.harmonySubtitleBackground,
         showSubtitleTranslation: state.showSubtitleTranslation,

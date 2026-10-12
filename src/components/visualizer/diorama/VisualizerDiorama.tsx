@@ -112,6 +112,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         subtitleOverlayOpacity,
         subtitleOverlayBackground,
         subtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview,
         isPlayerChromeHidden = false,
         hideTranslationSubtitle = false,
         subtitleContentMode,
@@ -485,6 +486,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                 subtitleOverlayOpacity={subtitleOverlayOpacity}
                 subtitleOverlayBackground={subtitleOverlayBackground}
                 subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                subtitleUpcomingLyricsPreview={subtitleUpcomingLyricsPreview}
                 subtitleFontScale={subtitleFontScale}
                 isPlayerChromeHidden={isPlayerChromeHidden}
                 hideTranslationSubtitle={hideTranslationSubtitle}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CaptionsOff, Focus, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CaptionsOff, Focus, ListMusic, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
 import {
     type CappellaAvatarImage,
     type CappellaEmojiImage,
@@ -147,6 +147,8 @@ interface VisPlaygroundSettingsPanelProps {
     onToggleSubtitleOverlayBackground?: (enabled: boolean) => void;
     subtitleUpcomingLyricsBlur: boolean;
     onToggleSubtitleUpcomingLyricsBlur?: (enabled: boolean) => void;
+    subtitleUpcomingLyricsPreview?: boolean;
+    onToggleSubtitleUpcomingLyricsPreview?: (enabled: boolean) => void;
     showHarmonySubtitle: boolean;
     onToggleShowHarmonySubtitle?: (enabled: boolean) => void;
     harmonySubtitleBackground: boolean;
@@ -403,6 +405,8 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
         onToggleSubtitleOverlayBackground,
         subtitleUpcomingLyricsBlur,
         onToggleSubtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview = true,
+        onToggleSubtitleUpcomingLyricsPreview,
         showHarmonySubtitle,
         onToggleShowHarmonySubtitle,
         harmonySubtitleBackground,
@@ -834,12 +838,23 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                         />
 
                         <ToggleRow
-                            label={t('options.subtitleUpcomingLyricsBlur')}
-                            checked={subtitleUpcomingLyricsBlur}
-                            onChange={onToggleSubtitleUpcomingLyricsBlur}
+                            label={t('options.subtitleUpcomingLyricsPreview')}
+                            description={t('options.subtitleUpcomingLyricsPreviewDesc')}
+                            checked={subtitleUpcomingLyricsPreview}
+                            onChange={onToggleSubtitleUpcomingLyricsPreview}
                             theme={theme}
-                            icon={Focus}
+                            icon={ListMusic}
                         />
+
+                        {subtitleUpcomingLyricsPreview && (
+                            <ToggleRow
+                                label={t('options.subtitleUpcomingLyricsBlur')}
+                                checked={subtitleUpcomingLyricsBlur}
+                                onChange={onToggleSubtitleUpcomingLyricsBlur}
+                                theme={theme}
+                                icon={Focus}
+                            />
+                        )}
 
                         <ToggleRow
                             label={t('options.subtitleFontInheritsLyrics')}

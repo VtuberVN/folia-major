@@ -46,6 +46,7 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
         subtitleOverlayOpacity,
         subtitleOverlayBackground,
         subtitleUpcomingLyricsBlur,
+        subtitleUpcomingLyricsPreview,
         lumiereTuning = DEFAULT_LUMIERE_TUNING,
     } = props;
     const { t } = useTranslation();
@@ -197,6 +198,7 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
                 subtitleOverlayOpacity={subtitleOverlayOpacity}
                 subtitleOverlayBackground={subtitleOverlayBackground}
                 subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                subtitleUpcomingLyricsPreview={subtitleUpcomingLyricsPreview}
                 isPlayerChromeHidden={isPlayerChromeHidden}
                 hideTranslationSubtitle={hideTranslationSubtitle}
                 showSubtitleTranslation={showSubtitleTranslation}

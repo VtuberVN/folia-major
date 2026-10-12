@@ -1,7 +1,6 @@
 import React from 'react';
 import { RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useDebouncedFocusSync } from '../../hooks/useDebouncedFocusSync';
 
 // src/components/panelTab/LyricTimelineOffsetControl.tsx
 
@@ -20,12 +19,26 @@ const LyricTimelineOffsetControl: React.FC<LyricTimelineOffsetControlProps> = ({
     isDaylight,
 }) => {
     const { t } = useTranslation();
-    const [localOffsetMs, setLocalOffsetMs] = useDebouncedFocusSync(offsetMs, onOffsetChange, 20);
-    const [inputValue, setInputValue] = React.useState(localOffsetMs.toString());
+    const [localOffsetMs, setLocalOffsetMs] = React.useState(offsetMs);
+    const [inputValue, setInputValue] = React.useState(offsetMs.toString());
 
     React.useEffect(() => {
-        setInputValue(localOffsetMs.toString());
-    }, [localOffsetMs]);
+        setLocalOffsetMs(offsetMs);
+        setInputValue(offsetMs.toString());
+    }, [offsetMs]);
+
+    const handleStep = (delta: number) => {
+        const next = localOffsetMs + delta;
+        setLocalOffsetMs(next);
+        setInputValue(next.toString());
+        onOffsetChange(next);
+    };
+
+    const handleReset = () => {
+        setLocalOffsetMs(0);
+        setInputValue('0');
+        onOffsetChange(0);
+    };
 
     const buttonHover = isDaylight ? 'hover:bg-black/10 active:bg-black/15' : 'hover:bg-white/10 active:bg-white/15';
 
@@ -38,7 +51,7 @@ const LyricTimelineOffsetControl: React.FC<LyricTimelineOffsetControlProps> = ({
                 {localOffsetMs !== 0 && (
                     <button
                         type="button"
-                        onClick={() => setLocalOffsetMs(0)}
+                        onClick={handleReset}
                         className={`rounded-md p-1 opacity-80 transition-colors ${isDaylight ? 'hover:bg-black/10' : 'hover:bg-white/10'}`}
                         title={t('localMusic.resetLyricTimelineOffset')}
                     >
@@ -49,7 +62,7 @@ const LyricTimelineOffsetControl: React.FC<LyricTimelineOffsetControlProps> = ({
             <div className="flex items-center">
                 <button
                     type="button"
-                    onClick={() => setLocalOffsetMs(localOffsetMs - STEP_MS)}
+                    onClick={() => handleStep(-STEP_MS)}
                     className={`p-1 rounded-md transition-colors opacity-70 hover:opacity-100 ${buttonHover}`}
                     title="-250ms"
                 >
@@ -70,6 +83,7 @@ const LyricTimelineOffsetControl: React.FC<LyricTimelineOffsetControlProps> = ({
                             const parsed = Number.parseInt(val, 10);
                             if (Number.isFinite(parsed)) {
                                 setLocalOffsetMs(parsed);
+                                onOffsetChange(parsed);
                             }
                         }}
                         className="w-10 min-w-0 bg-transparent py-0.5 text-right text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -80,7 +94,7 @@ const LyricTimelineOffsetControl: React.FC<LyricTimelineOffsetControlProps> = ({
 
                 <button
                     type="button"
-                    onClick={() => setLocalOffsetMs(localOffsetMs + STEP_MS)}
+                    onClick={() => handleStep(STEP_MS)}
                     className={`p-1 rounded-md transition-colors opacity-70 hover:opacity-100 ${buttonHover}`}
                     title="+250ms"
                 >
