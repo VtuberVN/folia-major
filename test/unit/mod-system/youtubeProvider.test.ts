@@ -6,12 +6,14 @@ import path from 'path';
 const require = createRequire(import.meta.url);
 const { validateManifest } = require('../../../electron/modSystem/manifest.cjs');
 
-const MOD_DIR = path.join(
+const REPO_MOD_DIR = path.resolve(process.cwd(), 'mods', 'youtube-provider');
+const APPDATA_MOD_DIR = path.join(
     process.env.APPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Roaming'),
     'Folia',
     'mods',
     'youtube-provider'
 );
+const MOD_DIR = fs.existsSync(REPO_MOD_DIR) ? REPO_MOD_DIR : APPDATA_MOD_DIR;
 
 describe('YouTube Provider mod', () => {
     it('manifest exists and validates according to Folium 1 spec', () => {
