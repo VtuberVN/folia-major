@@ -76,7 +76,13 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $assets = @(Get-ChildItem release/*.exe, release/*.blockmap, release/vi.yml, release/SHA256SUMS.txt | ForEach-Object FullName)
-          $existingRelease = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"$env:RELEASE_TAG\") | .id"
+          $existingRelease = $false
+          try {
+            $null = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY 2>$null
+            if ($LASTEXITCODE -eq 0) { $existingRelease = $true }
+          } catch {
+            $existingRelease = $false
+          }
           if ($existingRelease) {
             gh release upload $env:RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --clobber
           } else {
@@ -88,7 +94,13 @@ jobs:
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          $existing = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name == "vietnamese") | .id'
+          $existing = $false
+          try {
+            $null = gh release view vietnamese --repo $env:GITHUB_REPOSITORY 2>$null
+            if ($LASTEXITCODE -eq 0) { $existing = $true }
+          } catch {
+            $existing = $false
+          }
           if ($existing) {
             gh api "repos/$env:GITHUB_REPOSITORY/git/refs/tags/vietnamese" --method PATCH --field "sha=$env:GITHUB_SHA" --field force=true
             $binaries = @(Get-ChildItem release/*.exe, release/*.blockmap, release/SHA256SUMS.txt | ForEach-Object FullName)
