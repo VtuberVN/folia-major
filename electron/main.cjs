@@ -6150,7 +6150,7 @@ ipcMain.handle('zing-get-audio-source', async (event, songId, customCookie, qual
 
     if (!streamRes.ok) return null;
     const json = await streamRes.json();
-    if (json.err === -1150) {
+    if (json.err === -1150 || (typeof json.msg === 'string' && json.msg.includes('VIP'))) {
       return { url: '', quality: 'standard', isVipOnly: true };
     }
     if (json.err !== 0 || !json.data) {

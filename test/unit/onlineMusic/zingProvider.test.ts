@@ -64,6 +64,24 @@ describe('zingProvider', () => {
         );
     });
 
+    it('throws vip-only error when song has fee === 1 even if stream returns null', async () => {
+        vi.spyOn(zingApi, 'getZingAudioSource').mockResolvedValue(null);
+
+        const song = {
+            id: 'ZZZBIW69',
+            name: 'See Tình',
+            artists: [{ id: 1, name: 'Hoàng Thùy Linh' }],
+            album: { id: 1, name: 'LINK' },
+            durationMs: 180000,
+            fee: 1,
+            sourceRef: { kind: 'online' as const, providerId: 'zing', mediaId: 'ZZZBIW69' },
+        };
+
+        await expect(zingProvider.playback?.getAudioSource(song, 'standard')).rejects.toThrow(
+            /VIP Zing MP3/
+        );
+    });
+
     it('fetches lyrics via zingApi', async () => {
         const mockLyricData: any = {
             lines: [{ startTime: 1000, endTime: 3000, words: [], fullText: 'Người theo hương hoa mây mù giăng lối' }],

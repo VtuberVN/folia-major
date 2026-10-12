@@ -101,7 +101,7 @@ export const zingProvider: OnlineMusicProvider = {
                 console.warn('[ZingProvider] Stream retrieval failed:', err);
             }
 
-            if (stream?.isVipOnly) {
+            if (stream?.isVipOnly || song.fee === 1) {
                 throw new OnlineProviderError(
                     'vip-only',
                     'VIP Zing MP3: song is VIP only',

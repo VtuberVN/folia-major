@@ -213,7 +213,7 @@ export async function getZingAudioSource(
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Referer': `${ZING_BASE_URL}/`,
-            ...(cookie ? { Cookie: cookie } : {}),
+            ...(cookie ? { Cookie: cookie, 'x-zing-cookie': cookie } : {}),
         },
     });
 
@@ -223,7 +223,7 @@ export async function getZingAudioSource(
 
     const json = await res.json();
 
-    if (json.err === -1150) {
+    if (json.err === -1150 || (typeof json.msg === 'string' && json.msg.includes('VIP'))) {
         return {
             url: '',
             quality: 'standard',
@@ -338,6 +338,13 @@ export async function getZingSongDetail(songId: string): Promise<UnifiedSong | n
                 name: a.name || 'Various Artists',
             }));
 
+            const isVip = Boolean(
+                d.streamingStatus === 2 ||
+                d.playStatus === 3 ||
+                (Array.isArray(d.playPrvl) && d.playPrvl.includes(2)) ||
+                (Array.isArray(d.indicators) && d.indicators.includes('vip'))
+            );
+
             return {
                 id: d.encodeId || songId,
                 name: d.title || '',
@@ -348,6 +355,7 @@ export async function getZingSongDetail(songId: string): Promise<UnifiedSong | n
                     coverUrl: d.thumbnailM || d.thumbnail,
                 },
                 durationMs: (d.duration || 0) * 1000,
+                fee: isVip ? 1 : 0,
                 sourceRef: { kind: 'online', providerId: 'zing', mediaId: d.encodeId || songId },
             };
         }
@@ -395,6 +403,13 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                             : `https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/${s.thumb}`)
                         : undefined;
 
+                    const isVip = Boolean(
+                        s.playStatus === 3 ||
+                        (Array.isArray(s.playPrvl) && s.playPrvl.includes(2)) ||
+                        (Array.isArray(s.downloadPrvl) && s.downloadPrvl.includes(3)) ||
+                        s.streamingStatus === 2
+                    );
+
                     results.push({
                         id: s.id,
                         name: s.title || s.name,
@@ -405,6 +420,7 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                             coverUrl,
                         },
                         durationMs: (Number(s.duration) || 0) * 1000,
+                        fee: isVip ? 1 : 0,
                         sourceRef: { kind: 'online', providerId: 'zing', mediaId: s.id },
                     });
 
@@ -426,6 +442,12 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                                 : `https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/${s.thumb}`)
                             : undefined;
 
+                        const isVip = Boolean(
+                            s.streamingStatus === 2 ||
+                            s.playStatus === 3 ||
+                            (Array.isArray(s.playPrvl) && s.playPrvl.includes(2))
+                        );
+
                         results.push({
                             id: s.id,
                             name: s.name || s.title,
@@ -436,6 +458,7 @@ export async function searchZingSongs(query: string, limit: number = 20): Promis
                                 coverUrl,
                             },
                             durationMs: (Number(s.duration) || 0) * 1000,
+                            fee: isVip ? 1 : 0,
                             sourceRef: { kind: 'online', providerId: 'zing', mediaId: s.id },
                         });
 
