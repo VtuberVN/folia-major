@@ -92,6 +92,15 @@ export default async function handler(req: any, res: any) {
     } else if (hostname.endsWith('zingmp3.vn') || hostname.endsWith('zmdcdn.me')) {
       headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
       headers['Referer'] = 'https://zingmp3.vn/';
+      const userCookie = (req.headers['x-zing-cookie'] || req.headers['cookie']) as string | undefined;
+      const cookieList: string[] = [];
+      if (userCookie) cookieList.push(userCookie);
+      if (!cookieList.some(c => typeof c === 'string' && c.includes('zmp3_rqid'))) {
+        const syntheticRaw = `0|127.0.0.1|v1.22.2|${Date.now()}`;
+        const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
+        cookieList.push('zmp3_app_version.1=1222', `zmp3_rqid=${syntheticRqid}`);
+      }
+      headers['Cookie'] = cookieList.join('; ');
     } else if (hostname.endsWith('googlevideo.com') || hostname.endsWith('youtube.com')) {
       headers['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
     }

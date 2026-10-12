@@ -79,9 +79,10 @@ export default async function handler(req, res) {
         else if (hostname.endsWith('zingmp3.vn') || hostname.endsWith('zmdcdn.me')) {
             headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
             headers['Referer'] = 'https://zingmp3.vn/';
-            const userCookie = req.headers['x-zing-cookie'] || req.headers['cookie'];
+            const userCookie = (req.headers['x-zing-cookie'] || req.headers['cookie']);
             const cookieList = [];
-            if (userCookie) cookieList.push(userCookie);
+            if (userCookie)
+                cookieList.push(userCookie);
             if (!cookieList.some(c => typeof c === 'string' && c.includes('zmp3_rqid'))) {
                 const syntheticRaw = `0|127.0.0.1|v1.22.2|${Date.now()}`;
                 const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
