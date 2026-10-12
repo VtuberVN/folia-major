@@ -264,6 +264,7 @@
     "autoprefixer": "^10.6.1",
     "baseline-browser-mapping": "^2.11.26",
     "blueimp-md5": "^2.19.0",
+    "budoux": "^0.9.3",
     "buffer": "^6.0.3",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",

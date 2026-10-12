@@ -47,6 +47,7 @@ import { createCoverUrlResolver } from './components/app/playback/createCoverUrl
 import { createLyricsSetter } from './components/app/playback/createLyricsSetter';
 import { createLyricSegmentationActions } from './components/app/playback/createLyricSegmentationActions';
 import { useLyricWordSegmentation } from './hooks/useLyricWordSegmentation';
+import { useIcuFoliaSegmentation } from './hooks/useIcuFoliaSegmentation';
 import { createOnlineRecoveryController } from './components/app/playback/createOnlineRecoveryController';
 import { persistPlaybackCache } from './components/app/playback/persistPlaybackCache';
 import { useAppOverlaysModel } from './components/app/overlays/useAppOverlaysModel';
@@ -1931,6 +1932,8 @@ export default function App() {
     });
     // Loads the playing song's saved word segmentation into the store the lyric setter reads.
     useLyricWordSegmentation();
+    // Loads icu-folia, the default word segmenter, once a word-based mode shows Chinese or Japanese.
+    useIcuFoliaSegmentation(visualizerMode);
     /**
      * Cancels a blend back onto the track the listener is hearing, or null when there is none.
      *

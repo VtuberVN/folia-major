@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { type ConfigEnv, type UserConfig, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { commandPinyinPlugin } from './dev/pinyin/commandPinyinPlugin.mjs';
+import { icuFoliaDataPlugin } from './dev/icuFolia/icuFoliaDataPlugin.mjs';
 import { normalizeBuildCommit, resolveBuildKind, resolveBuildRepo } from './dev/build/buildIdentity.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
@@ -209,15 +210,28 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
           modExport: 'mod-export.html',
         },
         output: {
-          // three.js is a large dependency used only by the diorama 3D visualizer. Split it into its
-          // own chunk so it doesn't bloat the main bundle past the PWA precache size limit (each file
-          // must stay under workbox.maximumFileSizeToCacheInBytes to be cached for offline use).
-          manualChunks(id) {
-            return id.includes('/node_modules/three/') ? 'three' : undefined;
+          // Rolldown ignores manualChunks once codeSplitting is set, so every manual split lives here.
+          codeSplitting: {
+            groups: [
+              // three.js is a large dependency used only by the diorama 3D visualizer. Split it into its
+              // own chunk so it doesn't bloat the main bundle past the PWA precache size limit (each file
+              // must stay under workbox.maximumFileSizeToCacheInBytes to be cached for offline use).
+              { name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/ },
+              // lucide's dynamicIconImports (folium.ui.icon, theme lyricsIcons) makes every icon a dynamic
+              // entry, so rolldown gives each icon a chunk of its own - the ones the app imports by name
+              // too, which turns them into ~200 single-file startup requests the precache leaves out.
+              // An icon referenced by more than its own loader is one the app imports: keep those in
+              // one ordinary chunk.
+              {
+                name: 'lucide-icons',
+                test: /[\\/]node_modules[\\/]lucide-react[\\/]dist[\\/]esm[\\/]icons[\\/]/,
+                minShareCount: 2,
+              },
+            ],
           },
-          // folium.ui.icon loads each lucide icon as its own chunk (~2000 of them). They live in one
-          // directory so the PWA precache can leave them out: only mods ask for them, and mods run in
-          // the desktop app, which does not go through the service worker.
+          // Icons only reachable through dynamicIconImports stay one chunk each (~1600 of them), loaded
+          // when a mod or a theme's lyricsIcons asks for that icon. They live in one directory so the
+          // PWA precache can leave them out; workbox.runtimeCaching keeps the ones that get used.
           chunkFileNames(chunk) {
             return chunk.moduleIds.some(id => id.includes('/node_modules/lucide-react/dist/esm/icons/'))
               && chunk.moduleIds.length === 1
@@ -242,6 +256,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
     plugins: [
       devLyricProxyPlugin(),
       commandPinyinPlugin(),
+      icuFoliaDataPlugin(),
       react(),
       VitePWA({
         registerType: 'autoUpdate',
@@ -253,6 +268,16 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
           maximumFileSizeToCacheInBytes: 5000000,
           // Docker serves this file dynamically; it must never be pinned in the PWA precache.
           globIgnores: ['**/runtime-config.js', '**/assets/folium-icons/**'],
+          runtimeCaching: [{
+            // Per-icon chunks load on demand. Their names are content-hashed, so an icon cached on
+            // first use can be served as-is when the app later starts offline.
+            urlPattern: /\/assets\/folium-icons\/[^/]+\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'folia-lucide-icons',
+              expiration: { maxEntries: 400 },
+            },
+          }],
           // API navigations must reach the deployment platform instead of the SPA shell.
           navigateFallbackDenylist: [/^\/api(?:\/|$)/]
         },

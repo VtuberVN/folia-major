@@ -89,6 +89,7 @@
 - `dev/probes/gridEntrancePerf.probe.tsx`
 - `dev/probes/gridPanelToggle.probe.tsx`
 - `dev/probes/homeBehavior.probe.tsx`
+- `dev/probes/icuFoliaCompare.probe.tsx`
 - `dev/probes/lattice.probe.tsx`
 - `dev/probes/latticeExit.probe.tsx`
 - `dev/probes/latticePerformance.probe.tsx`
