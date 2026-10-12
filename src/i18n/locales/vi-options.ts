@@ -552,6 +552,8 @@ export default {
   "subtitleOverlayBackgroundDesc": "Thêm quầng sáng khuếch tán mềm theo chủ đề để dễ đọc trên hình ảnh phức tạp.",
   "subtitleUpcomingLyricsPreview": "Xem trước lời bài hát sắp tới",
   "subtitleUpcomingLyricsPreviewDesc": "Hiển thị trước câu hát kế tiếp ở lớp phụ đề khi bài hát không có bản dịch.",
+  "subtitleActiveLyricsDisplay": "Hiển thị câu đang hát ở lớp phụ đề",
+  "subtitleActiveLyricsDisplayDesc": "Hiển thị tĩnh câu hát hiện tại ở lớp phụ đề dưới đáy màn hình để dễ nhìn theo hát karaoke (tự tắt xem trước).",
   "subtitleUpcomingLyricsBlur": "Làm mờ lời không phải bản dịch",
   "subtitleUpcomingLyricsBlurDesc": "Áp dụng hiệu ứng mờ cho các dòng lời bài hát sắp tới.",
   "showHarmonySubtitle": "Hiện phụ đề bè",

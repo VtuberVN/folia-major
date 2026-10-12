@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('electron', {
     openUpdateReleasePage: (version) => ipcRenderer.invoke('updates-open-release-page', version),
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
     openZingLogin: () => ipcRenderer.invoke('auth-open-zing-login'),
+    openYouTubeLogin: () => ipcRenderer.invoke('auth-open-youtube-login'),
     getZingAudioSource: (songId, cookie, quality) => ipcRenderer.invoke('zing-get-audio-source', songId, cookie, quality),
     downloadUpdate: () => ipcRenderer.invoke('updates-download'),
     quitAndInstallUpdate: () => ipcRenderer.invoke('updates-quit-and-install'),

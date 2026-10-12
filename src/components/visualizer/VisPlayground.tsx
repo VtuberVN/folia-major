@@ -77,6 +77,8 @@ interface VisPlaygroundProps {
     subtitleOverlayBackground?: boolean;
     subtitleUpcomingLyricsBlur?: boolean;
     subtitleUpcomingLyricsPreview?: boolean;
+    subtitleActiveLyricsDisplay?: boolean;
+    onToggleSubtitleActiveLyricsDisplay?: (enabled: boolean) => void;
     showHarmonySubtitle?: boolean;
     harmonySubtitleBackground?: boolean;
     classicTuning?: ClassicTuning;
@@ -311,6 +313,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     subtitleOverlayBackground = true,
     subtitleUpcomingLyricsBlur = true,
     subtitleUpcomingLyricsPreview = true,
+    subtitleActiveLyricsDisplay = false,
+    onToggleSubtitleActiveLyricsDisplay,
     showHarmonySubtitle = true,
     harmonySubtitleBackground = true,
     classicTuning = DEFAULT_CLASSIC_TUNING,
@@ -1337,6 +1341,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         onToggleSubtitleUpcomingLyricsBlur={onToggleSubtitleUpcomingLyricsBlur}
                         subtitleUpcomingLyricsPreview={subtitleUpcomingLyricsPreview}
                         onToggleSubtitleUpcomingLyricsPreview={onToggleSubtitleUpcomingLyricsPreview}
+                        subtitleActiveLyricsDisplay={subtitleActiveLyricsDisplay}
+                        onToggleSubtitleActiveLyricsDisplay={onToggleSubtitleActiveLyricsDisplay}
                         showHarmonySubtitle={showHarmonySubtitle}
                         onToggleShowHarmonySubtitle={onToggleShowHarmonySubtitle}
                         harmonySubtitleBackground={harmonySubtitleBackground}

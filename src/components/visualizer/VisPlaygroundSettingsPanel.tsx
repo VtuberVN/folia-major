@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CaptionsOff, Focus, ListMusic, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CaptionsOff, Focus, ListMusic, Mic2, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
 import {
     type CappellaAvatarImage,
     type CappellaEmojiImage,
@@ -149,6 +149,8 @@ interface VisPlaygroundSettingsPanelProps {
     onToggleSubtitleUpcomingLyricsBlur?: (enabled: boolean) => void;
     subtitleUpcomingLyricsPreview?: boolean;
     onToggleSubtitleUpcomingLyricsPreview?: (enabled: boolean) => void;
+    subtitleActiveLyricsDisplay?: boolean;
+    onToggleSubtitleActiveLyricsDisplay?: (enabled: boolean) => void;
     showHarmonySubtitle: boolean;
     onToggleShowHarmonySubtitle?: (enabled: boolean) => void;
     harmonySubtitleBackground: boolean;
@@ -407,6 +409,8 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
         onToggleSubtitleUpcomingLyricsBlur,
         subtitleUpcomingLyricsPreview = true,
         onToggleSubtitleUpcomingLyricsPreview,
+        subtitleActiveLyricsDisplay = false,
+        onToggleSubtitleActiveLyricsDisplay,
         showHarmonySubtitle,
         onToggleShowHarmonySubtitle,
         harmonySubtitleBackground,
@@ -835,6 +839,15 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                             onChange={onToggleSubtitleOverlayBackground}
                             theme={theme}
                             icon={PanelTop}
+                        />
+
+                        <ToggleRow
+                            label={t('options.subtitleActiveLyricsDisplay')}
+                            description={t('options.subtitleActiveLyricsDisplayDesc')}
+                            checked={subtitleActiveLyricsDisplay}
+                            onChange={onToggleSubtitleActiveLyricsDisplay}
+                            theme={theme}
+                            icon={Mic2}
                         />
 
                         <ToggleRow

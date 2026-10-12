@@ -18,6 +18,14 @@ const SRC_DIR = path.join(ROOT, 'packaging', 'windows', 'wallpaper-helper');
 const OUT_DIR = path.join(ROOT, 'build');
 const OUT_BIN = path.join(OUT_DIR, 'folia-wallpaper-helper.exe');
 
+function findCargo() {
+  const userCargo = path.join(process.env.USERPROFILE || '', '.cargo', 'bin', 'cargo.exe');
+  if (existsSync(userCargo)) {
+    return userCargo;
+  }
+  return 'cargo';
+}
+
 function run(command, args) {
   execFileSync(command, args, { stdio: 'inherit', cwd: SRC_DIR });
 }
@@ -28,8 +36,9 @@ if (process.platform !== 'win32') {
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
+const cargoBin = findCargo();
 try {
-  run('cargo', ['build', '--release']);
+  run(cargoBin, ['build', '--release']);
   copyFileSync(path.join(SRC_DIR, 'target', 'release', 'folia-wallpaper-helper.exe'), OUT_BIN);
   console.log(`[wallpaper-helper] built ${OUT_BIN}`);
 } catch (err) {

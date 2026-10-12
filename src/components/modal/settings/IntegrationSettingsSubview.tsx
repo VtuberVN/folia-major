@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getStoredZingCookie, setStoredZingCookie, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
+import {
+    getStoredYouTubeCookie,
+    setStoredYouTubeCookie,
+    getStoredYouTubeProfile,
+    setStoredYouTubeProfile,
+    clearStoredYouTubeProfile,
+} from '../../../services/onlineMusic/youtube/youtubeApi';
 import { useShallow } from 'zustand/react/shallow';
 import type { NowPlayingConnectionStatus, StageSource, StageStatus, Theme } from '../../../types';
 import type { NavidromeServerProfile } from '../../../types/navidrome';
@@ -229,6 +236,51 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         setZingCookie('');
         setStoredZingCookie('');
         setStatusMessage({ type: 'info', text: t('zing.clearSuccess') });
+    };
+
+    // YouTube Music
+    const [ytCookie, setYtCookie] = useState(() => getStoredYouTubeCookie());
+    const [ytSaved, setYtSaved] = useState(false);
+    const [isYtLoggingIn, setIsYtLoggingIn] = useState(false);
+    const [ytProfile, setYtProfile] = useState(() => getStoredYouTubeProfile());
+
+    const handleYouTubeWebLogin = async () => {
+        if (isElectron && window.electron?.openYouTubeLogin) {
+            setIsYtLoggingIn(true);
+            try {
+                const res = await window.electron.openYouTubeLogin();
+                if (res.success && res.cookie) {
+                    setYtCookie(res.cookie);
+                    setStoredYouTubeCookie(res.cookie);
+                    if (res.profile) {
+                        const p = {
+                            id: String(res.profile.id || 'youtube_user'),
+                            nickname: res.profile.nickname || 'Tài khoản YouTube',
+                            avatarUrl: res.profile.avatarUrl || undefined,
+                        };
+                        setStoredYouTubeProfile(p);
+                        setYtProfile(p);
+                    }
+                    setStatusMessage({ type: 'success', text: t('youtube.loginSuccess', { defaultValue: 'Đăng nhập YouTube thành công' }) });
+                } else if (res.error !== 'cancelled') {
+                    setStatusMessage({ type: 'error', text: t('youtube.loginFailed', { defaultValue: 'Đăng nhập YouTube thất bại' }) });
+                }
+            } catch {
+                setStatusMessage({ type: 'error', text: t('youtube.loginFailed', { defaultValue: 'Đăng nhập YouTube thất bại' }) });
+            } finally {
+                setIsYtLoggingIn(false);
+            }
+        } else {
+            window.open('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F', '_blank', 'width=540,height=720');
+        }
+    };
+
+    const handleYouTubeLogout = () => {
+        setYtCookie('');
+        setStoredYouTubeCookie('');
+        clearStoredYouTubeProfile();
+        setYtProfile(null);
+        setStatusMessage({ type: 'info', text: t('youtube.clearSuccess', { defaultValue: 'Đã xóa cookie YouTube' }) });
     };
     // PlayerCap config: the subview reads the store directly (fewer layers); connection state/players are passed in by the stage model.
     const {
@@ -1145,6 +1197,98 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     >
                                         <Trash2 size={14} />
                                         {t('zing.clear')}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </SettingsAnchor>
+
+            {/* YouTube Music Settings */}
+            <SettingsAnchor anchorId="youtubeCookie" label={t('youtube.title', { defaultValue: 'YouTube' })}>
+                <SettingsSectionHeading
+                    icon={Music}
+                    label={t('youtube.heading', { defaultValue: 'YouTube Music' })}
+                />
+                <div className={`${settingsCardClass} p-5 space-y-4`}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs">
+                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
+                                ytCookie ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
+                            }`}>
+                                {ytCookie ? (ytProfile?.nickname || t('youtube.activeCookie', { defaultValue: 'Đã kết nối tài khoản' })) : t('youtube.guestMode', { defaultValue: 'Chế độ khách (Không đăng nhập)' })}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleYouTubeWebLogin}
+                                disabled={isYtLoggingIn}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {isYtLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+                                {isYtLoggingIn ? t('youtube.loggingIn', { defaultValue: 'Đang đăng nhập...' }) : t('youtube.loginButton', { defaultValue: 'Đăng nhập YouTube' })}
+                            </button>
+
+                            {ytCookie && (
+                                <button
+                                    type="button"
+                                    onClick={handleYouTubeLogout}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
+                                >
+                                    <Trash2 size={16} />
+                                    {t('youtube.logoutButton', { defaultValue: 'Đăng xuất' })}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <p className="text-xs opacity-60">
+                        {t('youtube.cookieHint', { defaultValue: 'Đăng nhập Google / YouTube để đồng bộ danh sách phát cá nhân, thư viện nhạc và nghe toàn bộ bài hát.' })}
+                    </p>
+
+                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
+                            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                            {t('youtube.advancedTitle', { defaultValue: 'Tùy chỉnh Cookie thủ công' })}
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold mb-1 opacity-80">
+                                    {t('youtube.cookieLabel', { defaultValue: 'Cookie YouTube' })}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={ytCookie}
+                                    onChange={e => setYtCookie(e.target.value)}
+                                    placeholder={t('youtube.cookiePlaceholder', { defaultValue: 'Dán cookie SAPISID, LOGIN_INFO, SID...' })}
+                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-xs"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStoredYouTubeCookie(ytCookie);
+                                        setYtSaved(true);
+                                        setStatusMessage({ type: 'success', text: t('youtube.saveSuccess', { defaultValue: 'Đã lưu cookie YouTube' }) });
+                                        setTimeout(() => setYtSaved(false), 2000);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5"
+                                >
+                                    {ytSaved ? <Check size={14} /> : <Music size={14} />}
+                                    {ytSaved ? t('youtube.saved', { defaultValue: 'Đã lưu' }) : t('youtube.saveCookie', { defaultValue: 'Lưu Cookie' })}
+                                </button>
+                                {ytCookie && (
+                                    <button
+                                        type="button"
+                                        onClick={handleYouTubeLogout}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
+                                    >
+                                        <Trash2 size={14} />
+                                        {t('youtube.clear', { defaultValue: 'Xóa' })}
                                     </button>
                                 )}
                             </div>

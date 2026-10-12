@@ -380,6 +380,33 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
             return { status: 'superseded', providerId };
         }
 
+        if (providerId === 'youtube' || providerId === 'folium.youtube-provider.youtube') {
+            if (typeof window !== 'undefined' && window.electron?.openYouTubeLogin) {
+                try {
+                    const res = await window.electron.openYouTubeLogin();
+                    if (res?.success && res.cookie) {
+                        const { setStoredYouTubeCookie, setStoredYouTubeProfile } = await import('../../../services/onlineMusic/youtube/youtubeApi');
+                        setStoredYouTubeCookie(res.cookie);
+                        if (res.profile) {
+                            setStoredYouTubeProfile({
+                                id: String(res.profile.id || 'youtube_user'),
+                                nickname: res.profile.nickname || 'Tài khoản YouTube',
+                                avatarUrl: res.profile.avatarUrl || undefined,
+                                vipType: 0,
+                            });
+                        }
+                        await providerAccounts.refresh(providerId);
+                        accounts.setActiveProviderId(providerId);
+                    }
+                } catch (e) {
+                    log('warn', 'login:youtube-error', { error: describeError(e) });
+                }
+            } else if (typeof window !== 'undefined') {
+                window.open('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F', '_blank', 'width=540,height=720');
+            }
+            return { status: 'superseded', providerId };
+        }
+
         const attempt = ++loginSeq;
         batch(() => {
             // 单一在途登录：先停旧会话（keyed 取消），旧会话不会再在后台替旧平台确认（A0 记下的潜在 bug）。

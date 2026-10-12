@@ -2187,6 +2187,8 @@ export default {
     "subtitleOverlayBackgroundDesc": "为底部字幕添加主题自适应的柔和扩散光晕，提高复杂画面中的可读性。",
     "subtitleUpcomingLyricsPreview": "未翻译歌词预告",
     "subtitleUpcomingLyricsPreviewDesc": "当歌曲没有翻译时，在字幕层提前预览下一句歌词。",
+    "subtitleActiveLyricsDisplay": "副字幕显示当前歌词",
+    "subtitleActiveLyricsDisplayDesc": "在副字幕层常驻当前正在唱的歌词以便跟唱（与预告互斥）。",
     "subtitleUpcomingLyricsBlur": "非翻译歌词添加模糊效果",
     "subtitleUpcomingLyricsBlurDesc": "为后续歌词行应用微妙的模糊效果。",
     "showHarmonySubtitle": "显示和声字幕",

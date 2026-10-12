@@ -62,6 +62,39 @@ export function setStoredYouTubeCookie(cookie: string): void {
     }
 }
 
+const YOUTUBE_PROFILE_STORAGE_KEY = 'folia_youtube_profile';
+
+export interface YouTubeUserProfile {
+    id: string;
+    nickname: string;
+    avatarUrl?: string;
+    vipType?: number;
+}
+
+export function getStoredYouTubeProfile(): YouTubeUserProfile | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem(YOUTUBE_PROFILE_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+export function setStoredYouTubeProfile(profile: YouTubeUserProfile | null): void {
+    if (typeof localStorage === 'undefined') return;
+    if (!profile) {
+        localStorage.removeItem(YOUTUBE_PROFILE_STORAGE_KEY);
+    } else {
+        localStorage.setItem(YOUTUBE_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    }
+}
+
+export function clearStoredYouTubeProfile(): void {
+    setStoredYouTubeProfile(null);
+}
+
 function parseDurationToMs(text?: string): number {
     if (!text) return 0;
     const parts = text.trim().split(':').map(Number);

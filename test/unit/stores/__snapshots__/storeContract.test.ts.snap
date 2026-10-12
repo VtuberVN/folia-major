@@ -136,6 +136,7 @@ exports[`store contract > keeps every localStorage key the stores read or write 
   "stage_track_pill_mode",
   "stage_track_pill_on_home",
   "stage_track_pill_timeout_sec",
+  "subtitle_active_lyrics_display",
   "subtitle_content_mode",
   "subtitle_font_fallback_families",
   "subtitle_font_family",

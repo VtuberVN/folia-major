@@ -18,6 +18,8 @@ import {
     getYouTubePlaylist,
     getStoredYouTubeCookie,
     setStoredYouTubeCookie,
+    getStoredYouTubeProfile,
+    clearStoredYouTubeProfile,
 } from './youtube/youtubeApi';
 
 export async function fetchYouTubeLyrics(
@@ -235,14 +237,16 @@ export const youtubeProvider: OnlineMusicProvider = {
         async getLoginStatus(): Promise<ProviderUser | null> {
             const cookie = getStoredYouTubeCookie();
             if (!cookie) return null;
+            const profile = getStoredYouTubeProfile();
             return {
-                id: 'youtube_user',
-                nickname: 'Tài khoản YouTube',
-                avatarUrl: undefined,
+                id: profile?.id || 'youtube_user',
+                nickname: profile?.nickname || 'Tài khoản YouTube',
+                avatarUrl: profile?.avatarUrl || undefined,
             };
         },
         async logout(): Promise<void> {
             setStoredYouTubeCookie('');
+            clearStoredYouTubeProfile();
         },
     },
 };

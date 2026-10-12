@@ -53,6 +53,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     stageMode: { section: 'integration', labelKey: 'options.stageMode' },
     navidrome: { section: 'integration', labelKey: 'navidrome.settings' },
     zingCookie: { section: 'integration', labelKey: 'zing.title' },
+    youtubeCookie: { section: 'integration', labelKey: 'youtube.title' },
 
     // StorageSettingsSection (LocalLibraryWatchSection renders inside it)
     cacheDetails: { section: 'storage', labelKey: 'options.cacheDetails' },

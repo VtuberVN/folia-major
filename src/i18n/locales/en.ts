@@ -2186,6 +2186,8 @@ export default {
     "subtitleOverlayBackgroundDesc": "Add a theme-aware, soft diffused halo to improve readability over busy visuals.",
     "subtitleUpcomingLyricsPreview": "Upcoming lyrics preview",
     "subtitleUpcomingLyricsPreviewDesc": "Preview the next lyric lines in the subtitle layer when no translation is available.",
+    "subtitleActiveLyricsDisplay": "Show current lyric in subtitle",
+    "subtitleActiveLyricsDisplayDesc": "Display the active lyric line statically in the subtitle layer for singing along (exclusive with preview).",
     "subtitleUpcomingLyricsBlur": "Blur non-translation lyrics",
     "subtitleUpcomingLyricsBlurDesc": "Apply a subtle blur effect to upcoming lyric lines.",
     "showHarmonySubtitle": "Show Harmony Subtitles",

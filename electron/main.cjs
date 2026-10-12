@@ -373,7 +373,14 @@ function resolveWallpaperHelperPath() {
     return fs.existsSync(override) ? override : null;
   }
   const candidate = path.join(process.resourcesPath, 'folia-wallpaper-helper.exe');
-  return fs.existsSync(candidate) ? candidate : null;
+  if (fs.existsSync(candidate)) {
+    return candidate;
+  }
+  const devCandidate = path.join(__dirname, '../build/folia-wallpaper-helper.exe');
+  if (fs.existsSync(devCandidate)) {
+    return devCandidate;
+  }
+  return null;
 }
 function refreshWindowsDesktopWallpaper() {
   if (process.platform !== 'win32') {
@@ -6094,6 +6101,94 @@ ipcMain.handle('auth-open-zing-login', async () => {
     });
 
     loginWin.loadURL('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F');
+  });
+});
+
+ipcMain.handle('auth-open-youtube-login', async () => {
+  return new Promise((resolve) => {
+    let settled = false;
+    const loginWin = new BrowserWindow({
+      width: 540,
+      height: 720,
+      title: 'Đăng nhập YouTube / Google',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const checkCookies = async () => {
+      try {
+        if (!loginWin || loginWin.isDestroyed()) return;
+        const ytCookies = await loginWin.webContents.session.cookies.get({ domain: '.youtube.com' });
+        const allCookies = await loginWin.webContents.session.cookies.get({});
+        const targetCookies = [
+          ...ytCookies,
+          ...allCookies.filter(c => c.domain && (c.domain.includes('youtube.com') || c.domain.includes('google.com'))),
+        ];
+        const uniqueMap = new Map();
+        for (const c of targetCookies) {
+          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
+        }
+        const uniqueCookies = Array.from(uniqueMap.values());
+        const loginInfo = uniqueCookies.find(c => c.name === 'LOGIN_INFO');
+        const sapisid = uniqueCookies.find(c => c.name === 'SAPISID');
+        const sid = uniqueCookies.find(c => c.name === 'SID');
+        const currentUrl = loginWin.webContents.getURL() || '';
+        const isBackOnYouTube = currentUrl.includes('youtube.com') && !currentUrl.includes('accounts.google.com');
+
+        if ((loginInfo && loginInfo.value) || (sapisid && sapisid.value) || (isBackOnYouTube && sid)) {
+          if (!settled) {
+            settled = true;
+            clearInterval(interval);
+            let userProfile = null;
+            try {
+              userProfile = await loginWin.webContents.executeJavaScript(`
+                (async () => {
+                  try {
+                    const avatarImg = document.querySelector('#avatar-btn img, yt-img-shadow#avatar img, button#avatar-btn img');
+                    const nameEl = document.querySelector('#channel-name, #account-name, ytd-channel-name');
+                    return {
+                      nickname: nameEl?.innerText?.trim() || 'Tài khoản YouTube',
+                      avatarUrl: avatarImg?.src || undefined,
+                      id: 'youtube_user',
+                    };
+                  } catch (e) {}
+                  return null;
+                })()
+              `);
+            } catch (e) {
+              // ignore
+            }
+            const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
+            loginWin.close();
+            resolve({
+              success: true,
+              cookie: cookieStr,
+              profile: userProfile || { nickname: 'Tài khoản YouTube', id: 'youtube_user' },
+            });
+          }
+        }
+      } catch {
+        // window closing
+      }
+    };
+
+    const interval = setInterval(checkCookies, 1200);
+
+    loginWin.webContents.on('did-navigate', checkCookies);
+    loginWin.webContents.on('did-navigate-in-page', checkCookies);
+
+    loginWin.on('closed', () => {
+      clearInterval(interval);
+      if (!settled) {
+        settled = true;
+        resolve({ success: false, error: 'cancelled' });
+      }
+    });
+
+    loginWin.loadURL('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F');
   });
 });
 
