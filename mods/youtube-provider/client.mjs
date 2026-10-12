@@ -1,12 +1,15 @@
 // mods/youtube-provider/client.mjs
 // Entry point của mod YouTube Provider cho Folia Major
+// Tác giả: VtuberVN
 
-import { searchYouTube, getVideoInfo, getAudioStreamUrl } from './youtubeApi.mjs';
+import { searchYouTube, getVideoInfo, extractVideoId, getAudioStreamUrl } from './youtubeApi.mjs';
 import { fetchLyrics } from './lyricsService.mjs';
+
+const DEFAULT_PROXY_PORT = 52194;
 
 export default function activate(folium) {
   if (folium.log?.info) {
-    folium.log.info('YouTube Provider mod activated.');
+    folium.log.info('YouTube Provider mod activated (VtuberVN).');
   }
 
   const fetchFn = (url, init) => {
@@ -15,6 +18,8 @@ export default function activate(folium) {
     }
     return globalThis.fetch(url, init);
   };
+
+  const isElectron = typeof window !== 'undefined' && Boolean(window.electron);
 
   const providerHandle = folium.experimental['omni.providers'].register({
     id: 'youtube',
@@ -43,7 +48,45 @@ export default function activate(folium) {
     },
     getAudioUrl: async (song, _quality) => {
       try {
-        return await getAudioStreamUrl(song.id, fetchFn);
+        const videoId = extractVideoId(song.id) || song.id;
+        if (!videoId) return null;
+
+        if (isElectron) {
+          // 1. Môi trường Electron Desktop: Sử dụng Local Streaming Proxy (Main Process)
+          if (folium.rpc?.call) {
+            try {
+              const rpcResult = await folium.rpc.call('getStreamUrl', { videoId });
+              if (rpcResult && rpcResult.url) {
+                return {
+                  url: rpcResult.url,
+                  expiresAt: Date.now() + 4 * 3600 * 1000
+                };
+              }
+            } catch {
+              // Tiếp tục fallback
+            }
+          }
+
+          let port = DEFAULT_PROXY_PORT;
+          if (folium.storage?.get) {
+            try {
+              const storedPort = await folium.storage.get('proxyPort');
+              if (typeof storedPort === 'number' && storedPort > 0) {
+                port = storedPort;
+              }
+            } catch {
+              // Tiếp tục fallback
+            }
+          }
+
+          return {
+            url: `http://127.0.0.1:${port}/stream?v=${encodeURIComponent(videoId)}`,
+            expiresAt: Date.now() + 4 * 3600 * 1000
+          };
+        } else {
+          // 2. Môi trường Web: Sử dụng getAudioStreamUrl
+          return await getAudioStreamUrl(videoId, fetchFn);
+        }
       } catch (err) {
         if (folium.log?.error) folium.log.error('getAudioUrl failed:', err);
         return null;
@@ -63,9 +106,6 @@ export default function activate(folium) {
   return () => {
     if (providerHandle?.unregister) {
       providerHandle.unregister();
-    }
-    if (folium.log?.info) {
-      folium.log.info('YouTube Provider mod deactivated.');
     }
   };
 }

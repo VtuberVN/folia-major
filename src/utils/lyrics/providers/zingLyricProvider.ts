@@ -25,6 +25,10 @@ interface ZingRawSuggestion {
     lyricId?: string | number;
     artists?: Array<{ id?: string | number; name?: string }>;
     artist?: string;
+    playStatus?: number;
+    playPrvl?: number[];
+    downloadPrvl?: number[];
+    streamingStatus?: number;
 }
 
 const zingLyricUrlCache = new Map<string, string>();
@@ -83,6 +87,13 @@ export async function searchZingSongs(
                         name: a.name || 'Various Artists',
                     }));
 
+                    const isVip = Boolean(
+                        s.playStatus === 3 ||
+                        (Array.isArray(s.playPrvl) && s.playPrvl.includes(2)) ||
+                        (Array.isArray(s.downloadPrvl) && s.downloadPrvl.includes(3)) ||
+                        s.streamingStatus === 2
+                    );
+
                     results.push({
                         id: s.id,
                         name: s.title,
@@ -93,6 +104,7 @@ export async function searchZingSongs(
                             ...(s.thumb ? { coverUrl: s.thumb.replace(/w\d+_r\d+x\d+_jpeg/, 'w600_r1x1_jpeg') } : {}),
                         },
                         durationMs: (s.duration || 0) * 1000,
+                        fee: isVip ? 1 : 0,
                         sourceRef: { kind: 'online', providerId: 'zing', mediaId: s.id },
                     });
 

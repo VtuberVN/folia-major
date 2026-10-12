@@ -127,6 +127,13 @@ export async function searchQQLyrics(keyword: string, page = 1, pageSize = 20): 
         ? getOriginalCoverUrl(`https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg?max_age=2592000`)
         : undefined;
 
+      const isVip = Boolean(
+        info.fee === 1 ||
+        info.pay?.pay_play === 1 ||
+        info.pay?.payplay === 1 ||
+        (info.action?.msgpayinfo && info.action.msgpayinfo > 0)
+      );
+
       return {
         id: Number(info.id || 0),
         name: info.title || 'Unknown Song',
@@ -137,6 +144,7 @@ export async function searchQQLyrics(keyword: string, page = 1, pageSize = 20): 
           coverUrl: picUrl,
         },
         durationMs: (info.interval || 0) * 1000,
+        fee: isVip ? 1 : 0,
         qqMid: info.mid,
       };
     });

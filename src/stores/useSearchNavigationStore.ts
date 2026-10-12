@@ -9,7 +9,7 @@ import {
 } from '../services/playbackAdapters';
 import { omni } from '../services/onlineMusic/omni';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
-import { searchZingSongs } from '../utils/lyrics/providers/zingLyricProvider';
+import { searchZingSongs } from '../services/onlineMusic/zingApi';
 import { searchNctSongs } from '../utils/lyrics/providers/nctLyricProvider';
 
 const LAST_HOME_VIEW_TAB_KEY = 'last_home_view_tab';

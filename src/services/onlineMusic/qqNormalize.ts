@@ -122,6 +122,14 @@ export const normalizeQqSong = (raw: unknown): UnifiedSong => {
     const intervalSeconds = Number(pick(item, 'interval', 'duration'));
     const coverUrl = normalizeQqCoverUrl(pick(album, 'coverUrl', 'picUrl')) || getQqAlbumCoverUrl(albumMid);
 
+    const pay = record(item.pay);
+    const action = record(item.action);
+    const explicitFee = Number(pick(item, 'fee', 'Fee') ?? pick(pay, 'fee') ?? -1);
+    const payPlay = Number(pick(pay, 'pay_play', 'payplay') ?? pick(item, 'pay_play', 'payplay') ?? 0);
+    const msgPayInfo = Number(pick(action, 'msgpayinfo', 'msg_pay_info') ?? pick(item, 'msgpayinfo') ?? 0);
+    const isVip = explicitFee === 1 || explicitFee === 4 || payPlay === 1 || msgPayInfo > 0;
+    const fee = explicitFee === 4 ? 4 : (isVip ? 1 : 0);
+
     return {
         id: songId,
         name: text(pick(item, 'title', 'name', 'songname')) || 'Unknown Song',
@@ -137,6 +145,7 @@ export const normalizeQqSong = (raw: unknown): UnifiedSong => {
         durationMs: Number.isFinite(durationMs) && durationMs > 0
             ? durationMs
             : Number.isFinite(intervalSeconds) ? intervalSeconds * 1000 : 0,
+        ...(fee > 0 ? { fee } : {}),
         ...(songMid ? { qqMid: songMid } : {}),
         sourceRef: {
             kind: 'online',

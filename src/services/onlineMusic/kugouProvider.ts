@@ -222,6 +222,39 @@ const normalizeKugouTitleAndArtists = (rawTitle: string, rawArtists: ReturnType<
     };
 };
 
+const isKugouVip = (item: any, base: any = {}): boolean => {
+    if (!item || typeof item !== 'object') return false;
+
+    if (item.fee === 1 || base?.fee === 1) return true;
+
+    const privilege = Number(
+        valueOf(item, 'Privilege', 'privilege', 'priv_flag')
+        ?? valueOf(base, 'Privilege', 'privilege')
+    );
+    if (Number.isFinite(privilege) && (privilege === 5 || privilege === 10 || privilege === 8 || privilege === 1)) {
+        return true;
+    }
+
+    const payType = Number(valueOf(item, 'PayType', 'pay_type', 'payType') ?? valueOf(base, 'PayType', 'pay_type') ?? 0);
+    const price = Number(valueOf(item, 'Price', 'price') ?? valueOf(base, 'Price', 'price') ?? 0);
+    const pkgPrice = Number(valueOf(item, 'PkgPrice', 'pkg_price') ?? valueOf(base, 'PkgPrice', 'pkg_price') ?? 0);
+    if (payType > 0 || price > 0 || pkgPrice > 0) {
+        return true;
+    }
+
+    const failProcess = Number(valueOf(item, 'FailProcess', 'fail_process') ?? valueOf(base, 'FailProcess', 'fail_process') ?? 0);
+    if (failProcess === 4 || failProcess === 12) {
+        return true;
+    }
+
+    const errorStr = String(valueOf(item, 'error') ?? '');
+    if (errorStr.includes('付费') || errorStr.toUpperCase().includes('VIP')) {
+        return true;
+    }
+
+    return false;
+};
+
 export const normalizeKugouSong = (raw: unknown): UnifiedSong => {
     const item = raw as any;
     const base = item?.base ?? {};
@@ -276,12 +309,20 @@ export const normalizeKugouSong = (raw: unknown): UnifiedSong => {
         ...(albumCatalogRef ? { catalogRef: albumCatalogRef } : {}),
     };
 
+    const isVip = isKugouVip(item, base);
+    const price = Number(valueOf(item, 'Price', 'price') ?? valueOf(base, 'Price', 'price') ?? 0);
+    const payType = Number(valueOf(item, 'PayType', 'pay_type', 'payType') ?? valueOf(base, 'PayType', 'pay_type') ?? 0);
+    const privilege = Number(valueOf(item, 'Privilege', 'privilege', 'priv_flag') ?? valueOf(base, 'Privilege', 'privilege'));
+    const isAlbum = price > 0 && payType === 1 && privilege !== 5;
+    const fee = isAlbum ? 4 : (isVip ? 1 : 0);
+
     return {
         id: hash,
         name: title,
         artists,
         album,
         durationMs: duration,
+        fee,
         kgHash: hash,
         sourceRef: { kind: 'online', providerId: 'kugou', mediaId: hash, providerData },
     };

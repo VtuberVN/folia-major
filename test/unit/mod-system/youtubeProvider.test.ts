@@ -34,12 +34,14 @@ describe('YouTube Provider mod', () => {
         expect(content).toMatch(/folium\.experimental\['omni\.providers'\]\.register/);
     });
 
-    it('extractVideoId correctly extracts ID from various YouTube URLs', async () => {
+    it('extractVideoId correctly extracts ID from various YouTube URLs and provider prefixes', async () => {
         const { extractVideoId } = await import(path.join(MOD_DIR, 'youtubeApi.mjs'));
         expect(extractVideoId('https://www.youtube.com/watch?v=abPmZCZZrFA')).toBe('abPmZCZZrFA');
         expect(extractVideoId('https://youtu.be/abPmZCZZrFA')).toBe('abPmZCZZrFA');
         expect(extractVideoId('https://music.youtube.com/watch?v=abPmZCZZrFA&list=RD')).toBe('abPmZCZZrFA');
         expect(extractVideoId('abPmZCZZrFA')).toBe('abPmZCZZrFA');
+        expect(extractVideoId('folium.youtube-provider.youtube:abPmZCZZrFA')).toBe('abPmZCZZrFA');
+        expect(extractVideoId('youtube:abPmZCZZrFA')).toBe('abPmZCZZrFA');
         expect(extractVideoId('Shape of You')).toBeNull();
     });
 

@@ -135,6 +135,39 @@ describe('kugouProvider', () => {
         expect(song.album.catalogRef).toEqual({ providerId: 'kugou', kind: 'album', id: 9 });
     });
 
+    it('correctly maps VIP fee status for KuGou songs based on Privilege and payment flags', () => {
+        const vipPrivilege5 = normalizeKugouSong({
+            FileHash: 'vip-hash-5',
+            SongName: 'VIP Song 5',
+            Privilege: 5,
+        });
+        expect(vipPrivilege5.fee).toBe(1);
+
+        const vipPrivilege10 = normalizeKugouSong({
+            FileHash: 'vip-hash-10',
+            SongName: 'VIP Song 10',
+            Privilege: 10,
+        });
+        expect(vipPrivilege10.fee).toBe(1);
+
+        const paidSong = normalizeKugouSong({
+            FileHash: 'paid-hash',
+            SongName: 'Paid Song',
+            PayType: 3,
+            Price: 200,
+        });
+        expect(paidSong.fee).toBe(1);
+
+        const freeSong = normalizeKugouSong({
+            FileHash: 'free-hash',
+            SongName: 'Free Song',
+            Privilege: 0,
+            PayType: 0,
+            Price: 0,
+        });
+        expect(freeSong.fee).toBe(0);
+    });
+
     it('keeps a high-resolution canonical KuGou cover for templates and sized CDN URLs', () => {
         const templateSong = normalizeKugouSong({
             FileHash: 'template-cover',

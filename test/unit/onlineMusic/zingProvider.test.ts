@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { zingProvider } from '@/services/onlineMusic/zingProvider';
 import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry';
 import * as zingApi from '@/services/onlineMusic/zingApi';
+import { searchZingSongs as searchZingLyricSongs } from '@/utils/lyrics/providers/zingLyricProvider';
 
 describe('zingProvider', () => {
     beforeEach(() => {
@@ -186,5 +187,39 @@ describe('zingProvider', () => {
         expect(result?.items).toHaveLength(1);
         expect(result?.items[0].type).toBe('album');
         expect(result?.items[0].name).toBe('CHUNG KẾT (Anh Trai Vượt Ngàn Chông Gai 2026)');
+    });
+
+    it('correctly sets fee=1 on VIP songs in searchZingLyricSongs', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                data: {
+                    items: [
+                        {
+                            suggestions: [
+                                {
+                                    type: 1,
+                                    id: 'vip-song-id',
+                                    title: 'VIP Track',
+                                    playStatus: 3,
+                                    playPrvl: [2],
+                                },
+                                {
+                                    type: 1,
+                                    id: 'free-song-id',
+                                    title: 'Free Track',
+                                    playStatus: 2,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        } as any);
+
+        const results = await searchZingLyricSongs('test', 10);
+        expect(results).toHaveLength(2);
+        expect(results[0].fee).toBe(1);
+        expect(results[1].fee).toBe(0);
     });
 });

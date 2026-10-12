@@ -8,8 +8,17 @@ export function extractVideoId(input) {
   const str = input.trim();
   const urlMatch = str.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|music\.youtube\.com\/watch\?v=)([^"&?\/\s]{11})/i);
   if (urlMatch) return urlMatch[1];
+  const prefixMatch = str.match(/(?:^|[:#\/])([a-zA-Z0-9_-]{11})(?:[#?&/]|$)/);
+  if (prefixMatch) return prefixMatch[1];
   if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
   return null;
+}
+
+export function wrapProxyUrl(url) {
+  if (typeof window !== 'undefined' && !window.electron && typeof url === 'string' && !url.startsWith('/api/')) {
+    return `/api/lyric-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
 }
 
 const DEFAULT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4';
@@ -17,7 +26,7 @@ const DEFAULT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4';
 async function getApiKey(fetchFn) {
   if (cachedApiKey) return cachedApiKey;
   try {
-    const res = await fetchFn('https://www.youtube.com/', {
+    const res = await fetchFn(wrapProxyUrl('https://www.youtube.com/'), {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
       }
@@ -51,7 +60,7 @@ export async function searchYouTube(query, fetchFn = globalThis.fetch) {
   }
 
   const apiKey = await getApiKey(fetchFn);
-  const endpoint = `https://www.youtube.com/youtubei/v1/search?key=${apiKey}`;
+  const endpoint = wrapProxyUrl(`https://www.youtube.com/youtubei/v1/search?key=${apiKey}`);
   const body = {
     context: {
       client: {
@@ -117,8 +126,9 @@ export async function searchYouTube(query, fetchFn = globalThis.fetch) {
 }
 
 export async function getVideoInfo(videoId, fetchFn = globalThis.fetch) {
+  const vid = extractVideoId(videoId) || videoId;
   const apiKey = await getApiKey(fetchFn);
-  const endpoint = `https://www.youtube.com/youtubei/v1/player?key=${apiKey}`;
+  const endpoint = wrapProxyUrl(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`);
   const body = {
     context: {
       client: {
@@ -129,7 +139,7 @@ export async function getVideoInfo(videoId, fetchFn = globalThis.fetch) {
         gl: 'VN'
       }
     },
-    videoId: videoId
+    videoId: vid
   };
 
   const res = await fetchFn(endpoint, {
@@ -148,10 +158,10 @@ export async function getVideoInfo(videoId, fetchFn = globalThis.fetch) {
 
   const durationSec = parseInt(details.lengthSeconds || '0', 10);
   const thumb = details.thumbnail?.thumbnails?.[details.thumbnail.thumbnails.length - 1]?.url ||
-                `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
 
   return {
-    id: videoId,
+    id: vid,
     title: details.title || 'YouTube Track',
     artists: [details.author || 'YouTube Artist'],
     album: 'YouTube',
@@ -161,8 +171,9 @@ export async function getVideoInfo(videoId, fetchFn = globalThis.fetch) {
 }
 
 export async function getAudioStreamUrl(videoId, fetchFn = globalThis.fetch) {
+  const vid = extractVideoId(videoId) || videoId;
   const apiKey = await getApiKey(fetchFn);
-  const endpoint = `https://www.youtube.com/youtubei/v1/player?key=${apiKey}`;
+  const endpoint = wrapProxyUrl(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`);
   const body = {
     context: {
       client: {
@@ -173,7 +184,7 @@ export async function getAudioStreamUrl(videoId, fetchFn = globalThis.fetch) {
         gl: 'VN'
       }
     },
-    videoId: videoId
+    videoId: vid
   };
 
   const res = await fetchFn(endpoint, {
@@ -187,22 +198,20 @@ export async function getAudioStreamUrl(videoId, fetchFn = globalThis.fetch) {
 
   if (!res.ok) return null;
   const data = await res.json();
-  const formats = [...(data.streamingData?.formats || []), ...(data.streamingData?.adaptiveFormats || [])];
+  const formats = data.streamingData?.formats || [];
+
+  // 1. Ưu tiên Progressive format (ITAG 18: 360p MP4) - định dạng duy nhất giải mã trực tiếp trong thẻ audio
+  const progressive = formats.find(f => f.itag === 18 && f.url) || formats.find(f => f.url);
   
-  // Lọc các luồng audio
-  const audioFormats = formats.filter(f => f.mimeType && f.mimeType.startsWith('audio/') && f.url);
-  if (audioFormats.length === 0) return null;
+  // 2. Dự phòng sang adaptive format nếu không có progressive
+  const chosenFormat = progressive || (data.streamingData?.adaptiveFormats || []).find(f => f.url);
+  if (!chosenFormat) return null;
 
-  // Sắp xếp theo bitrate cao nhất
-  audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-
-  const bestAudio = audioFormats[0];
-  const streamUrl = (typeof window !== 'undefined' && !window.electron)
-    ? `/api/lyric-proxy?url=${encodeURIComponent(bestAudio.url)}`
-    : bestAudio.url;
+  const rawUrl = chosenFormat.url;
+  const streamUrl = wrapProxyUrl(rawUrl);
 
   return {
     url: streamUrl,
-    expiresAt: Date.now() + 5 * 3600 * 1000 // URL Google Video có hạn thường là 6h
+    expiresAt: Date.now() + 4 * 3600 * 1000
   };
 }
