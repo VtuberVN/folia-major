@@ -13,7 +13,7 @@ Lyrics Reimagined // 辞曲新境
 [![License](https://img.shields.io/github/license/chthollyphile/folia-major)](https://github.com/chthollyphile/folia-major/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/chthollyphile/folia-major?style=social)](https://github.com/chthollyphile/folia-major/stargazers)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chthollyphile/folia-major)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-6366f1?logo=gitbook&logoColor=white)](https://deepwiki.com/chthollyphile/folia-major)
 [![Discord](https://img.shields.io/discord/1541051241822687232?logo=discord&logoColor=white&label=Join%20our%20Discord)](https://discord.gg/dMDBTHxeKd)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-35-orange.svg?style=flat-square)](CONTRIBUTORS.md)
@@ -217,19 +217,28 @@ Folia 会读取音频文件元数据、同目录歌词和封面，并可通过�
 
 ## 致谢
 
-特别感谢以下项目和资源：
+本项目感谢并记录以下作者、仓库和资源项目的贡献：
 
+### 原作项目
+- [chthollyphile/folia-major](https://github.com/chthollyphile/folia-major)：Chthollyphile 的原作项目。
+
+### 社区分支与功能参考
+- [POPK406/folia-major](https://github.com/POPK406/folia-major)：Windows 启动脚本 (`start-folia.cmd`) 与潮汐 (Tide) 背景着色器。
+- [HaeImCH/folia-major](https://github.com/HaeImCH/folia-major) & [Rayray1099/folia-major](https://github.com/Rayray1099/folia-major)：本地 Spotify Desktop Stage 模式（GSMTC/AppleScript/MPRIS）、Spotify Web API 模式、窗口尺寸记忆与繁体中文支持。
+- [Lynx-1ST/folia-major](https://github.com/Lynx-1ST/folia-major)：Discord RPC 接入与后台静置资源挂起优化。
+- [VTB-LINK/folia-major-fork](https://github.com/VTB-LINK/folia-major-fork)：OBS 浏览器端点与 PlayerCap 浮层。
+- [yigexuanmu/folia-major](https://github.com/yigexuanmu/folia-major)：VIP 歌曲解锁机制 (Song Unlock)。
+- [PekolandBBQ/Folia-HiFi-WASAPI-ASIO-HQPlayer](https://github.com/PekolandBBQ/Folia-HiFi-WASAPI-ASIO-HQPlayer)：参考 Windows WASAPI / ASIO 音频输出架构。
+
+### 核心库与服务
+- [amll-dev/amll-ttml-db](https://github.com/amll-dev/amll-ttml-db)：Apple Music 风格 TTML 逐词歌词库。
 - [chenmozhijin/LDDC](https://github.com/chenmozhijin/LDDC)
-- [NeteaseCloudMusicApiEnhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
 - [chenglou/pretext](https://github.com/chenglou/pretext)
-- [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [paper-design/shaders](https://github.com/paper-design/shaders)
+- [NeteaseCloudMusicApiEnhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
+- [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api)
-- [Lynx-1ST/folia-major](https://github.com/Lynx-1ST/folia-major)：参考 Discord RPC 集成及后台挂起暂停优化。
-- [VTB-LINK/folia-major-fork](https://github.com/VTB-LINK/folia-major-fork)：参考 OBS 资源与样式集成。
-- [yigexuanmu/folia-major](https://github.com/yigexuanmu/folia-major)：参考 VIP 歌曲解锁机制 (Song Unlock)。
-
-本项目接入了 [Apple Music-like Lyrics TTML 逐词歌词库](https://github.com/amll-dev/amll-ttml-db) 以提供高质量的歌词文件，感谢此歌词库的作者和贡献者们。
+- 越南本地在线音源支持：Zing MP3, NhacCuaTui.
 
 ## 许可证
 

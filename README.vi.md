@@ -15,13 +15,15 @@ Trải nghiệm lời bài hát theo cách mới
 [![License](https://img.shields.io/github/license/chthollyphile/folia-major)](https://github.com/chthollyphile/folia-major/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/chthollyphile/folia-major?style=social)](https://github.com/chthollyphile/folia-major/stargazers)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chthollyphile/folia-major)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-6366f1?logo=gitbook&logoColor=white)](https://deepwiki.com/chthollyphile/folia-major)
 [![Discord](https://img.shields.io/discord/1541051241822687232?logo=discord&logoColor=white&label=Join%20our%20Discord)](https://discord.gg/dMDBTHxeKd)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-35-orange.svg?style=flat-square)](CONTRIBUTORS.md)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [Sử dụng Folia](#cách-sử-dụng-folia)
+·
+[Trang chủ](https://folia.vtuberhub.vn)
 ·
 [Triển khai lên Vercel](https://vercel.com/new/clone?repository-url=https://github.com/chthollyphile/folia-major)
 ·
@@ -204,18 +206,30 @@ Repository và mã nguồn dành cho học tập cá nhân, trao đổi kỹ thu
 
 Tôn trọng bản quyền số và ủng hộ nhạc có bản quyền qua nền tảng chính thức khi có thể.
 
-## Lời cảm ơn
+## Lời cảm ơn & Ghi nhận
 
-Đặc biệt cảm ơn:
+Dự án chân thành cảm ơn và ghi nhận đóng góp từ các tác giả, repository và tài nguyên:
 
+### Dự án gốc
+- [chthollyphile/folia-major](https://github.com/chthollyphile/folia-major): Dự án gốc của tác giả Chthollyphile.
+
+### Nhánh fork cộng đồng
+- [POPK406/folia-major](https://github.com/POPK406/folia-major): Script khởi chạy Windows (`start-folia.cmd`) và visualizer nền sóng nước Tide.
+- [HaeImCH/folia-major](https://github.com/HaeImCH/folia-major) & [Rayray1099/folia-major](https://github.com/Rayray1099/folia-major): Spotify Stage Mode (bắt nhạc trực tiếp từ Spotify Desktop qua GSMTC/AppleScript/MPRIS), Spotify Web API, ghi nhớ kích thước cửa sổ và hỗ trợ tiếng Trung phồn thể.
+- [Lynx-1ST/folia-major](https://github.com/Lynx-1ST/folia-major): Tích hợp Discord RPC và tối ưu tạm dừng khi app chạy nền.
+- [VTB-LINK/folia-major-fork](https://github.com/VTB-LINK/folia-major-fork): Tích hợp OBS Browser Shell và giao diện PlayerCap overlay.
+- [yigexuanmu/folia-major](https://github.com/yigexuanmu/folia-major): Cơ chế mở khóa bài hát VIP (Song Unlock).
+- [PekolandBBQ/Folia-HiFi-WASAPI-ASIO-HQPlayer](https://github.com/PekolandBBQ/Folia-HiFi-WASAPI-ASIO-HQPlayer): Tham khảo kiến trúc âm thanh WASAPI / ASIO trên Windows.
+
+### Thư viện và tài nguyên
+- [amll-dev/amll-ttml-db](https://github.com/amll-dev/amll-ttml-db): Kho dữ liệu lời bài hát TTML từng từ phong cách Apple Music.
 - [chenmozhijin/LDDC](https://github.com/chenmozhijin/LDDC)
-- [NeteaseCloudMusicApiEnhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
 - [chenglou/pretext](https://github.com/chenglou/pretext)
-- [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [paper-design/shaders](https://github.com/paper-design/shaders)
+- [NeteaseCloudMusicApiEnhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)
+- [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api)
-
-Folia tích hợp [kho lời theo từng từ Apple Music-like Lyrics TTML](https://github.com/amll-dev/amll-ttml-db) để cung cấp lời chất lượng cao. Cảm ơn các tác giả và người đóng góp của kho này.
+- Hỗ trợ nguồn nhạc trực tuyến Việt Nam: Zing MP3, NhacCuaTui.
 
 ## Giấy phép
 
