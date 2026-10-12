@@ -12,6 +12,8 @@ export function extractVideoId(input) {
   return null;
 }
 
+const DEFAULT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4';
+
 async function getApiKey(fetchFn) {
   if (cachedApiKey) return cachedApiKey;
   try {
@@ -29,7 +31,7 @@ async function getApiKey(fetchFn) {
   } catch (err) {
     console.warn('[YouTube Provider] Failed to extract API key from YouTube page:', err);
   }
-  return '';
+  return DEFAULT_INNERTUBE_KEY;
 }
 
 function parseDurationToMs(text) {

@@ -121,6 +121,8 @@ export async function searchYouTubeMusic(query: string, limit: number = 30, offs
 
 let cachedApiKey = '';
 
+const DEFAULT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4';
+
 async function getApiKey(): Promise<string> {
     if (cachedApiKey) return cachedApiKey;
     try {
@@ -138,7 +140,7 @@ async function getApiKey(): Promise<string> {
     } catch (err) {
         console.warn('[YouTubeApi] Failed to extract API key:', err);
     }
-    return '';
+    return DEFAULT_INNERTUBE_KEY;
 }
 
 export async function getYouTubeAudioStream(videoId: string): Promise<{ url: string; expiresAt?: number } | null> {
