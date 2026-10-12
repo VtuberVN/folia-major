@@ -217,4 +217,109 @@ describe('youtubeProvider', () => {
             fetchSpy.mockRestore();
         }
     });
+
+    it('extracts playlist ID from various playlist URLs and identifiers', async () => {
+        const { extractPlaylistId } = await import('@/services/onlineMusic/youtube/youtubeApi');
+        expect(extractPlaylistId('https://www.youtube.com/playlist?list=PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m')).toBe('PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m');
+        expect(extractPlaylistId('https://music.youtube.com/playlist?list=RDCLAK5uy_kfdxYj6m8oT43GvR4l2p7Jm')).toBe('RDCLAK5uy_kfdxYj6m8oT43GvR4l2p7Jm');
+        expect(extractPlaylistId('PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m')).toBe('PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m');
+        expect(extractPlaylistId('VLPL4fGSIF4CNYfE31oN_r16b8zN51bVq04m')).toBe('PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m');
+        expect(extractPlaylistId('dQw4w9WgXcQ')).toBeNull();
+    });
+
+    it('loads playlist tracks via getPlaylistTracks catalog', async () => {
+        const mockBrowseResponse = {
+            sidebar: {
+                playlistSidebarRenderer: {
+                    items: [
+                        {
+                            playlistSidebarPrimaryInfoRenderer: {
+                                title: { runs: [{ text: 'V-Pop Hits 2026' }] },
+                                thumbnailRenderer: {
+                                    playlistVideoThumbnailRenderer: {
+                                        thumbnail: { thumbnails: [{ url: 'https://example.com/playlist.jpg' }] },
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                itemSectionRenderer: {
+                                                    contents: [
+                                                        {
+                                                            playlistVideoListRenderer: {
+                                                                contents: [
+                                                                    {
+                                                                        playlistVideoRenderer: {
+                                                                            videoId: 'track123',
+                                                                            title: { runs: [{ text: 'Bài Hát 1' }] },
+                                                                            shortBylineText: { runs: [{ text: 'Ca Sĩ 1' }] },
+                                                                            lengthSeconds: '200',
+                                                                            thumbnail: { thumbnails: [{ url: 'https://example.com/track1.jpg' }] },
+                                                                        },
+                                                                    },
+                                                                ],
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: string | URL | Request) => {
+            const urlStr = String(url);
+            if (urlStr.includes('youtubei/v1/browse')) {
+                return {
+                    ok: true,
+                    json: async () => mockBrowseResponse,
+                } as any;
+            }
+            return { ok: false } as any;
+        });
+
+        try {
+            const page = await youtubeProvider.catalog?.getPlaylistTracks?.('PL4fGSIF4CNYfE31oN_r16b8zN51bVq04m', 20, 0);
+            expect(page).toBeDefined();
+            expect(page?.items).toHaveLength(1);
+            expect(page?.items[0].name).toBe('Bài Hát 1');
+            expect(page?.items[0].artists[0].name).toBe('Ca Sĩ 1');
+            expect(page?.items[0].durationMs).toBe(200000);
+        } finally {
+            fetchSpy.mockRestore();
+        }
+    });
+
+    it('handles auth login status and logout with cookie storage', async () => {
+        const { setStoredYouTubeCookie } = await import('@/services/onlineMusic/youtube/youtubeApi');
+        setStoredYouTubeCookie('');
+        let status = await youtubeProvider.auth?.getLoginStatus();
+        expect(status).toBeNull();
+
+        setStoredYouTubeCookie('SAPISID=12345; LOGIN_INFO=abcde');
+        status = await youtubeProvider.auth?.getLoginStatus();
+        expect(status).not.toBeNull();
+        expect(status?.id).toBe('youtube_user');
+
+        await youtubeProvider.auth?.logout();
+        status = await youtubeProvider.auth?.getLoginStatus();
+        expect(status).toBeNull();
+    });
 });

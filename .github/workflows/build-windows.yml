@@ -55,6 +55,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Package YouTube Provider mod zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path mods/youtube-provider/* -DestinationPath release/youtube-provider-mod.zip -Force
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:

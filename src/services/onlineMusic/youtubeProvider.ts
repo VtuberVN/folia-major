@@ -11,7 +11,14 @@ import type {
 import type { SongResult, UnifiedSong } from '../../types';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import { parseLRC } from '../../utils/lyrics/parserCore';
-import { searchYouTubeMusic, getYouTubeAudioStream } from './youtube/youtubeApi';
+import {
+    searchYouTubeMusic,
+    getYouTubeAudioStream,
+    extractPlaylistId,
+    getYouTubePlaylist,
+    getStoredYouTubeCookie,
+    setStoredYouTubeCookie,
+} from './youtube/youtubeApi';
 
 export async function fetchYouTubeLyrics(
     title: string,
@@ -88,10 +95,10 @@ export const youtubeProvider: OnlineMusicProvider = {
         search: true,
         playback: true,
         lyrics: true,
-        auth: false,
-        userLibrary: false,
-        playlists: false,
-        albums: false,
+        auth: true,
+        userLibrary: true,
+        playlists: true,
+        albums: true,
         artists: false,
         recommendations: false,
         mutations: false,
@@ -183,6 +190,59 @@ export const youtubeProvider: OnlineMusicProvider = {
                 romanizationText: null,
                 isPureMusic: false,
             };
+        },
+    },
+    catalog: {
+        async getPlaylistTracks(id, limit, offset) {
+            const playlistId = extractPlaylistId(String(id)) || String(id);
+            const pl = await getYouTubePlaylist(playlistId);
+            const items = pl?.items || [];
+            const paged = items.slice(offset, offset + limit);
+            return {
+                items: paged,
+                total: items.length,
+                hasMore: offset + limit < items.length,
+                nextOffset: offset + limit,
+            };
+        },
+        async getAlbumTracks(id, limit = 50, offset = 0) {
+            const playlistId = extractPlaylistId(String(id)) || String(id);
+            const pl = await getYouTubePlaylist(playlistId);
+            const items = pl?.items || [];
+            const paged = items.slice(offset, offset + limit);
+            return {
+                items: paged,
+                total: items.length,
+                hasMore: offset + limit < items.length,
+                nextOffset: offset + limit,
+            };
+        },
+    },
+    library: {
+        async getUserPlaylists(_userId, limit, offset) {
+            return {
+                items: [],
+                total: 0,
+                hasMore: false,
+                nextOffset: offset,
+            };
+        },
+        async getLikedSongs(_userId) {
+            return [];
+        },
+    },
+    auth: {
+        async getLoginStatus(): Promise<ProviderUser | null> {
+            const cookie = getStoredYouTubeCookie();
+            if (!cookie) return null;
+            return {
+                id: 'youtube_user',
+                nickname: 'Tài khoản YouTube',
+                avatarUrl: undefined,
+            };
+        },
+        async logout(): Promise<void> {
+            setStoredYouTubeCookie('');
         },
     },
 };

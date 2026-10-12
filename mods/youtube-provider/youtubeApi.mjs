@@ -14,6 +14,17 @@ export function extractVideoId(input) {
   return null;
 }
 
+export function extractPlaylistId(input) {
+  if (!input || typeof input !== 'string') return null;
+  const str = input.trim();
+  const match = str.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+  if (match) return match[1];
+  if (/^(?:PL|RD|OLAK5uy|VL)[a-zA-Z0-9_-]+$/i.test(str)) {
+    return str.startsWith('VL') ? str.slice(2) : str;
+  }
+  return null;
+}
+
 export function wrapProxyUrl(url) {
   if (typeof window !== 'undefined' && !window.electron && typeof url === 'string' && !url.startsWith('/api/')) {
     return `/api/lyric-proxy?url=${encodeURIComponent(url)}`;
@@ -54,9 +65,17 @@ function parseDurationToMs(text) {
 
 export async function searchYouTube(query, fetchFn = globalThis.fetch) {
   const videoId = extractVideoId(query);
-  if (videoId) {
+  if (videoId && !query.includes('list=')) {
     const song = await getVideoInfo(videoId, fetchFn);
     return song ? [song] : [];
+  }
+
+  const playlistId = extractPlaylistId(query);
+  if (playlistId && (query.includes('list=') || query.startsWith('PL') || query.startsWith('RD') || query.startsWith('VL'))) {
+    const pl = await getYouTubePlaylist(playlistId, fetchFn);
+    if (pl && pl.items?.length > 0) {
+      return pl.items;
+    }
   }
 
   const apiKey = await getApiKey(fetchFn);
@@ -214,4 +233,78 @@ export async function getAudioStreamUrl(videoId, fetchFn = globalThis.fetch) {
     url: streamUrl,
     expiresAt: Date.now() + 4 * 3600 * 1000
   };
+}
+
+export async function getYouTubePlaylist(playlistIdInput, fetchFn = globalThis.fetch) {
+  const playlistId = extractPlaylistId(playlistIdInput) || playlistIdInput;
+  if (!playlistId) return null;
+
+  try {
+    const apiKey = await getApiKey(fetchFn);
+    const endpoint = wrapProxyUrl(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`);
+    const res = await fetchFn(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20240101.00.00',
+            hl: 'vi',
+            gl: 'VN',
+          },
+        },
+        browseId: `VL${playlistId.startsWith('VL') ? playlistId.slice(2) : playlistId}`,
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    const sidebarTitle = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.title?.runs?.[0]?.text;
+    const headerTitle = data.header?.playlistHeaderRenderer?.title?.simpleText || data.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text;
+    const playlistName = sidebarTitle || headerTitle || 'YouTube Playlist';
+
+    const sidebarThumb = data.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.thumbnailRenderer?.playlistVideoThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+    const headerThumb = data.header?.playlistHeaderRenderer?.playlistHeaderBanner?.heroPlaylistThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url;
+    const coverUrl = sidebarThumb || headerThumb;
+
+    const section = data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0];
+    const rawVideos = section?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents || [];
+
+    const items = [];
+    for (const raw of rawVideos) {
+      const v = raw?.playlistVideoRenderer;
+      if (!v || !v.videoId) continue;
+
+      const title = v.title?.runs?.[0]?.text || v.title?.simpleText || 'YouTube Track';
+      const artist = v.shortBylineText?.runs?.[0]?.text || 'YouTube Artist';
+      const durationMs = (parseInt(v.lengthSeconds || '0', 10) || 0) * 1000;
+      const thumb = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
+
+      items.push({
+        id: v.videoId,
+        title,
+        artists: [artist],
+        album: playlistName,
+        coverUrl: thumb,
+        durationMs,
+        sourceRef: { kind: 'online', providerId: 'youtube', mediaId: v.videoId },
+      });
+    }
+
+    return {
+      id: playlistId,
+      name: playlistName,
+      coverUrl,
+      trackCount: items.length,
+      items,
+    };
+  } catch (err) {
+    console.warn('[YouTube Provider] getYouTubePlaylist error:', err);
+    return null;
+  }
 }
