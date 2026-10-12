@@ -20,9 +20,9 @@
 | utils | 128+ |
 | backend/electron | 64+ |
 | hooks | 64+ |
-| 其他 | 64+ |
 | src (其他) | 32+ |
 | stores | 32+ |
+| 其他 | 32+ |
 | types | 16+ |
 | i18n | 8+ |
 | workers | 4+ |
@@ -234,6 +234,8 @@
 
 下面这些边的依赖方向本身就是错的：
 
+- `src/components/modal/settings/IntegrationSettingsSubview.tsx` → `src/services/onlineMusic/youtubeProvider.ts`  —— 普通调用应经过 omni，不应直连 provider adapter/transport
+- `src/components/modal/settings/IntegrationSettingsSubview.tsx` → `src/services/onlineMusic/zingProvider.ts`  —— 普通调用应经过 omni，不应直连 provider adapter/transport
 - `src/stores/useVisualizerSettingsStore.ts` → `src/components/visualizer/registry.tsx`  —— store 不应依赖组件
 
 ### 目录归属存疑
