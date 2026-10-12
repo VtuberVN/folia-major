@@ -15,7 +15,7 @@ import { getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { omni } from './onlineMusic/omni';
 import { getSongResourceCacheKey } from './onlineMusic/resourceKeys';
 import { getSongCacheWithLegacyMigration, hasCachedSongAudio } from './onlineMusic/resourceCache';
-import { toSafePlaybackUrl } from '../utils/appPlaybackHelpers';
+import { toPlayableAudioUrl, toSafePlaybackUrl } from '../utils/appPlaybackHelpers';
 import { getProviderSongMetadata } from './onlineMusic/songMetadata';
 import { ensureTrackProfile, setAnalysisScope } from './automix/profileService';
 import { modeNeedsBeatGrid } from './automix/transitionStrategy';
@@ -25,6 +25,8 @@ import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import type { AudioQualityInfo } from '../types/audioQuality';
 import { getUnlockAudioSource } from './songUnlockService';
 import { useSongUnlockSettingsStore } from '../stores/useSongUnlockSettingsStore';
+import { classifyPlaybackError } from './playbackRecovery/onlinePlaybackFailure';
+import { getProviderPlaybackCooldown, noteProviderFailure } from './playbackRecovery/providerPlaybackCooldown';
 
 // Prefetch configuration
 //
@@ -163,6 +165,72 @@ export const getPrefetchedData = (song: SongResult, requiredQuality?: AudioQuali
     return touchPrefetchCacheEntry(songKey, cached);
 };
 
+/** 预取到的音源：'CACHED_IN_DB' 表示媒体缓存里已有这首歌，否则是 provider 给的地址与它附带的 ReplayGain。 */
+export interface PrefetchedAudioUrl {
+    audioUrl: string;
+    replayGain?: ReplayGainInfo;
+    audioQualityInfo?: AudioQualityInfo;
+}
+
+/**
+ * 预取一首歌的音源地址；拿不到时返回 null，调用方什么都不写。
+ *
+ * provider 在冷却期内（限流 / 服务异常之后）不请求；请求失败按原因登记冷却，但永不回写预取条目、可用性或缓存。
+ * 每个 await 之后检查 signal：预取已被新的队列取代时，结果直接丢弃。
+ * 不能 import onlinePlayback.ts（它反过来依赖本文件），所以失败归一直接用分类器和冷却模块。
+ */
+export const resolvePrefetchAudioUrl = async (
+    song: SongResult,
+    audioQuality: AudioQualityPreference,
+    signal: AbortSignal,
+): Promise<PrefetchedAudioUrl | null> => {
+    const sourceRef = getPlaybackSourceRef(song);
+    const providerId = sourceRef.kind === 'online' ? sourceRef.providerId : undefined;
+    try {
+        const audioExists = await hasCachedSongAudio(song);
+        if (signal.aborted) return null;
+        if (audioExists) {
+            console.log(`[Prefetch] Audio already cached for: ${song.name}`);
+            return { audioUrl: 'CACHED_IN_DB' };
+        }
+
+        const cooldown = providerId ? getProviderPlaybackCooldown(providerId, 'prefetch') : null;
+        if (cooldown) {
+            console.log(`[Prefetch] Skipping audio URL for ${song.name}: ${providerId} is cooling down (${Math.ceil(cooldown.remainingMs / 1000)}s left)`);
+            return null;
+        }
+
+        const audioSource = await omni.getAudioSource(song, audioQuality);
+        if (signal.aborted) return null;
+        let url = toPlayableAudioUrl(audioSource?.url);
+        let audioQualityInfo = audioSource?.audioQualityInfo;
+        if (!url && !signal.aborted) {
+            const settings = useSongUnlockSettingsStore.getState();
+            if (settings.useSongUnlock) {
+                const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
+                const unlockUrl = toPlayableAudioUrl(unlockResult?.url);
+                if (unlockUrl) {
+                    url = unlockUrl;
+                    audioQualityInfo = {
+                        bitrate: 320000,
+                        codec: 'MP3',
+                        label: 'VIP Unlocked',
+                        unlocked: true,
+                    };
+                }
+            }
+        }
+        if (!url) return null;
+        console.log(`[Prefetch] Got audio URL for: ${song.name} (quality: ${audioQuality})`);
+        return { audioUrl: url, replayGain: audioSource?.replayGain, audioQualityInfo };
+    } catch (e) {
+        console.warn(`[Prefetch] Failed to get audio URL for ${song.name}:`, e);
+        // 只有策略表标了冷却的原因（限流、服务异常）才会真正登记；其余原因在这里是空操作。
+        noteProviderFailure(classifyPlaybackError(e, { stage: 'prefetch', providerId }));
+        return null;
+    }
+};
+
 /**
  * Prefetch a single song's resources
  */
@@ -220,66 +288,16 @@ const prefetchSong = async (
 
     // Prefetch audio URL (if not cached or expired)
     if (!data.audioUrl) {
-        try {
-            const audioExists = await hasCachedSongAudio(song);
-            if (audioExists) {
-                console.log(`[Prefetch] Audio already cached for: ${song.name}`);
-                data.audioUrl = 'CACHED_IN_DB';
-                data.audioUrlFetchedAt = Date.now();
-            } else if (!signal.aborted) {
-                const audioSource = await omni.getAudioSource(song, audioQuality);
-                const url = toSafePlaybackUrl(audioSource?.url) ?? null;
-                if (url) {
-                    data.audioUrl = url;
-                    data.audioUrlFetchedAt = Date.now();
-                    data.audioUrlQuality = audioQuality;
-                    data.audioQualityInfo = audioSource?.audioQualityInfo;
-                    data.replayGain = audioSource?.replayGain
-                        ? { ...data.replayGain, ...audioSource.replayGain }
-                        : data.replayGain;
-                    console.log(`[Prefetch] Got audio URL for: ${song.name} (quality: ${audioQuality})`);
-                } else if (!signal.aborted) {
-                    const settings = useSongUnlockSettingsStore.getState();
-                    if (settings.useSongUnlock) {
-                        const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
-                        const unlockUrl = toSafePlaybackUrl(unlockResult.url) ?? null;
-                        if (unlockUrl) {
-                            data.audioUrl = unlockUrl;
-                            data.audioUrlFetchedAt = Date.now();
-                            data.audioUrlQuality = audioQuality;
-                            data.audioQualityInfo = {
-                                bitrate: 320000,
-                                codec: 'MP3',
-                                label: 'VIP Unlocked',
-                                unlocked: true,
-                            };
-                            console.log(`[Prefetch] Got unlocked URL for: ${song.name}`);
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn(`[Prefetch] Failed to get audio URL for ${song.name}:`, e);
-            if (!signal.aborted) {
-                const settings = useSongUnlockSettingsStore.getState();
-                if (settings.useSongUnlock) {
-                    try {
-                        const unlockResult = await getUnlockAudioSource(song, settings.songUnlockServers);
-                        const unlockUrl = toSafePlaybackUrl(unlockResult.url) ?? null;
-                        if (unlockUrl) {
-                            data.audioUrl = unlockUrl;
-                            data.audioUrlFetchedAt = Date.now();
-                            data.audioUrlQuality = audioQuality;
-                            data.audioQualityInfo = {
-                                bitrate: 320000,
-                                codec: 'MP3',
-                                label: 'VIP Unlocked',
-                                unlocked: true,
-                            };
-                            console.log(`[Prefetch] Got unlocked URL for: ${song.name} (fallback after error)`);
-                        }
-                    } catch {}
-                }
+        const resolved = await resolvePrefetchAudioUrl(song, audioQuality, signal);
+        if (resolved) {
+            data.audioUrl = resolved.audioUrl;
+            data.audioUrlFetchedAt = Date.now();
+            if (resolved.audioUrl !== 'CACHED_IN_DB') {
+                data.audioUrlQuality = audioQuality;
+                data.audioQualityInfo = resolved.audioQualityInfo;
+                data.replayGain = resolved.replayGain
+                    ? { ...data.replayGain, ...resolved.replayGain }
+                    : data.replayGain;
             }
         }
     }
