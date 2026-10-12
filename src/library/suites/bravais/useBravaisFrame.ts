@@ -1,5 +1,5 @@
 import { useCallback, useRef, type RefObject } from 'react';
-import type { WallView, WallViewCenter } from '../../../components/wall/wallView';
+import { formatWorldTransform, type WallView, type WallViewCenter } from '../../../components/wall/wallView';
 import { computeBravaisFrame } from './bravaisFrame';
 
 // src/library/suites/bravais/useBravaisFrame.ts
@@ -49,8 +49,8 @@ export const useBravaisFrame = (refs: BravaisFrameRefs) => {
             hidden: state.hidden,
         });
         const { left, right, seam, seamContent, tab } = refs;
-        if (left.current) left.current.style.transform = `translate3d(${frame.left.x}px, ${frame.left.y}px, 0) scale(${frame.scale})`;
-        if (right.current) right.current.style.transform = `translate3d(${frame.right.x}px, ${frame.right.y}px, 0) scale(${frame.scale})`;
+        if (left.current) left.current.style.transform = formatWorldTransform(frame.left.x, frame.left.y, frame.scale);
+        if (right.current) right.current.style.transform = formatWorldTransform(frame.right.x, frame.right.y, frame.scale);
         const seamElement = seam.current;
         if (seamElement) {
             seamElement.style.transform = `translate3d(${frame.seam.x - frame.seam.width / 2}px, 0, 0)`;

@@ -109,6 +109,7 @@ Thanks goes to these wonderful people. Issue reports, bug reports, ideas, docs, 
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/MarsSwimmer"><img src="https://avatars.githubusercontent.com/u/146618222?v=4?s=100" width="100px;" alt="MarsSwimmer"/><br /><sub><b>MarsSwimmer</b></sub></a><br /><a href="#ideas-MarsSwimmer" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/8ctsmR"><img src="https://avatars.githubusercontent.com/u/340171085?v=4?s=100" width="100px;" alt="nexquan"/><br /><sub><b>nexquan</b></sub></a><br /><a href="https://github.com/chthollyphile/folia-major/issues?q=author%3A8ctsmR" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/awaxiaoyu"><img src="https://avatars.githubusercontent.com/u/125581307?v=4?s=100" width="100px;" alt="awaxiaoyu"/><br /><sub><b>awaxiaoyu</b></sub></a><br /><a href="https://github.com/chthollyphile/folia-major/commits?author=awaxiaoyu" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
