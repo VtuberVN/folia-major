@@ -34,14 +34,14 @@ const ObsPlayerCapSourceApp: React.FC = () => {
     const paramsRef = useRef(parseObsWebParams(window.location.search));
     const extrasRef = useRef(parsePlayerCapExtras(window.location.search));
     const obsAiConfigRef = useRef(parseObsAiParams(window.location.search));
-    const { host, cfg, isDaylight, transparent, visualizer, themeMode } = paramsRef.current;
+    const { host, cfg, isDaylight, transparent, visualizer, themeMode, layer } = paramsRef.current;
     const { player, timeBasis, sticky } = extrasRef.current;
 
     const pc = usePlayerCapSource({ enabled: true, host: host || DEFAULT_PLAYERCAP_HOST, player, timeBasis, sticky });
     const source = playerCapToWebLyricSource(pc);
     const appearance = useMemo(
-        () => buildObsAppearanceFromShortcode(cfg, { isDaylight, transparent, visualizerOverride: visualizer, themeMode }),
-        [cfg, isDaylight, transparent, visualizer, themeMode],
+        () => buildObsAppearanceFromShortcode(cfg, { isDaylight, transparent, visualizerOverride: visualizer, themeMode, layer }),
+        [cfg, isDaylight, transparent, visualizer, themeMode, layer],
     );
 
     return <ObsWebSourceApp source={source} appearance={appearance} obsAiConfig={obsAiConfigRef.current} />;

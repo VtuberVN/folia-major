@@ -180,6 +180,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         return t('options.updateCheckDisabled');
     };
     const [obsAddressCopied, setObsAddressCopied] = useState(false);
+    const [copiedObsLayer, setCopiedObsLayer] = useState<'all' | 'lyrics' | 'background' | null>(null);
     const [lyricApiAddressCopied, setLyricApiAddressCopied] = useState(false);
     const [obsUrlCopied, setObsUrlCopied] = useState(false);
 
@@ -293,6 +294,39 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         await onCopyText(address);
         setObsAddressCopied(true);
         window.setTimeout(() => setObsAddressCopied(false), 1600);
+    };
+
+    const appendObsLayerParam = (baseUrl: string, layer: 'lyrics' | 'background' | 'all') => {
+        try {
+            const url = new URL(baseUrl);
+            if (layer === 'all') {
+                url.searchParams.delete('layer');
+                url.searchParams.delete('transparent');
+            } else if (layer === 'lyrics') {
+                url.searchParams.set('layer', 'lyrics');
+                url.searchParams.set('transparent', '1');
+            } else if (layer === 'background') {
+                url.searchParams.set('layer', 'background');
+                url.searchParams.delete('transparent');
+            }
+            return url.toString();
+        } catch {
+            const sep = baseUrl.includes('?') ? '&' : '?';
+            if (layer === 'lyrics') {
+                return `${baseUrl}${sep}layer=lyrics&transparent=1`;
+            }
+            if (layer === 'background') {
+                return `${baseUrl}${sep}layer=background`;
+            }
+            return baseUrl;
+        }
+    };
+
+    const handleCopyObsLayerAddress = async (baseUrl: string, layer: 'lyrics' | 'background' | 'all') => {
+        const url = appendObsLayerParam(baseUrl, layer);
+        await onCopyText(url);
+        setCopiedObsLayer(layer);
+        window.setTimeout(() => setCopiedObsLayer(prev => (prev === layer ? null : prev)), 1600);
     };
 
     const handleCopyLyricApiAddress = async (address: string) => {
@@ -510,15 +544,42 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     <div className="flex flex-wrap gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => obsBrowserSourceStatus.url ? void handleCopyObsAddress(obsBrowserSourceStatus.url) : undefined}
+                                            onClick={() => obsBrowserSourceStatus.url ? void handleCopyObsLayerAddress(obsBrowserSourceStatus.url, 'lyrics') : undefined}
                                             disabled={!obsBrowserSourceStatus.url}
-                                            className="px-3 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-xs transition-colors disabled:opacity-40 flex items-center gap-2"
-                                            style={{ color: obsAddressCopied ? '#86efac' : 'var(--text-primary)' }}
+                                            className="px-3 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-xs transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                                            style={{ color: copiedObsLayer === 'lyrics' ? '#86efac' : 'var(--text-primary)' }}
+                                            title={t('options.obsBrowserSourceLayerLyricsDesc') || 'Copy lyrics URL with transparent background'}
                                         >
-                                            {obsAddressCopied ? <Check size={14} /> : null}
-                                            {obsAddressCopied
+                                            {copiedObsLayer === 'lyrics' ? <Check size={14} /> : null}
+                                            {copiedObsLayer === 'lyrics'
                                                 ? (t('options.stageAddressCopied') || 'Copied')
-                                                : (t('options.copyObsBrowserSourceAddress') || 'Copy OBS URL')}
+                                                : (t('options.obsBrowserSourceLayerLyrics') || 'Lyrics (Transparent)')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => obsBrowserSourceStatus.url ? void handleCopyObsLayerAddress(obsBrowserSourceStatus.url, 'background') : undefined}
+                                            disabled={!obsBrowserSourceStatus.url}
+                                            className="px-3 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-xs transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                                            style={{ color: copiedObsLayer === 'background' ? '#86efac' : 'var(--text-primary)' }}
+                                            title={t('options.obsBrowserSourceLayerBackgroundDesc') || 'Copy visualizer background URL without lyrics'}
+                                        >
+                                            {copiedObsLayer === 'background' ? <Check size={14} /> : null}
+                                            {copiedObsLayer === 'background'
+                                                ? (t('options.stageAddressCopied') || 'Copied')
+                                                : (t('options.obsBrowserSourceLayerBackground') || 'Visualizer Background')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => obsBrowserSourceStatus.url ? void handleCopyObsLayerAddress(obsBrowserSourceStatus.url, 'all') : undefined}
+                                            disabled={!obsBrowserSourceStatus.url}
+                                            className="px-3 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-xs transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                                            style={{ color: copiedObsLayer === 'all' ? '#86efac' : 'var(--text-primary)' }}
+                                            title={t('options.obsBrowserSourceLayerAllDesc') || 'Copy full OBS URL with background and lyrics'}
+                                        >
+                                            {copiedObsLayer === 'all' ? <Check size={14} /> : null}
+                                            {copiedObsLayer === 'all'
+                                                ? (t('options.stageAddressCopied') || 'Copied')
+                                                : (t('options.obsBrowserSourceLayerAll') || 'Full')}
                                         </button>
                                         <button
                                             type="button"
@@ -556,7 +617,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                         {t('options.obsBrowserSourceGuideTitle') || 'How to use'}
                                     </summary>
                                     <ol className="mt-3 pl-4 list-decimal space-y-1.5 text-[11px] opacity-60 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                                        {[1, 2, 3, 4, 5, 6].map(step => (
+                                        {[1, 2, 3, 4, 5, 6, 7].map(step => (
                                             <li key={step}>{t(`options.obsBrowserSourceGuideStep${step}`)}</li>
                                         ))}
                                     </ol>

@@ -25,6 +25,8 @@ const readObsThemeMode = (params: URLSearchParams): ObsThemeMode | null => {
   return value === 'static' || value === 'builtin' || value === 'ai' ? value : null;
 };
 
+export type ObsLayerMode = 'all' | 'lyrics' | 'background';
+
 export interface ObsWebParams {
   host: string;
   cfg: string | null;
@@ -32,12 +34,14 @@ export interface ObsWebParams {
   transparent: boolean;
   visualizer: string; // single-mode override (empty = use the cfg's mode)
   themeMode: ObsThemeMode | null; // null = link predates the marker; infer from cfg instead
+  layer: ObsLayerMode;
 }
 
 export interface ObsWebAppearance {
   mode: VisualizerMode;
   isDaylight: boolean;
   transparent: boolean;
+  layer: ObsLayerMode;
   theme: Theme | null; // cfg theme (side picked by daylight); null -> shell uses cover colors
   visualizerTunings?: VisualizerTuningBundle;
   visualizerOpacity?: number;
@@ -68,6 +72,10 @@ export interface ObsWebAppearance {
 
 export function parseObsWebParams(search: string): ObsWebParams {
   const params = new URLSearchParams(search);
+  const layerParam = params.get('layer')?.trim().toLowerCase();
+  const layer: ObsLayerMode = layerParam === 'lyrics' || layerParam === 'background' ? layerParam : 'all';
+  const transparent = params.get('transparent') === '1' || layer === 'lyrics';
+
   return {
     // Sanitize host to host:port characters only; an untrusted '#'/space would otherwise
     // produce a malformed ws:// URL that throws in the WebSocket constructor.
@@ -77,9 +85,10 @@ export function parseObsWebParams(search: string): ObsWebParams {
     isDaylight: params.get('daylight') === '1',
     // Absent and transparent=0 both show the opaque theme background — matching the
     // transparent-player-background toggle's default (off); only transparent=1 makes it transparent.
-    transparent: params.get('transparent') === '1',
+    transparent,
     visualizer: params.get('visualizer')?.trim() || '',
     themeMode: readObsThemeMode(params),
+    layer,
   };
 }
 
@@ -98,11 +107,12 @@ interface BuildAppearanceOptions {
   transparent: boolean;
   visualizerOverride?: string;
   themeMode?: ObsThemeMode | null;
+  layer?: ObsLayerMode;
 }
 
 export function buildObsAppearanceFromShortcode(
   cfg: string | null,
-  { isDaylight, transparent, visualizerOverride, themeMode }: BuildAppearanceOptions,
+  { isDaylight, transparent, visualizerOverride, themeMode, layer = 'all' }: BuildAppearanceOptions,
 ): ObsWebAppearance {
   let decoded: any = null;
   if (cfg) {
@@ -157,6 +167,7 @@ export function buildObsAppearanceFromShortcode(
     mode,
     isDaylight,
     transparent,
+    layer,
     theme,
     visualizerTunings: decoded?.visualizerTunings,
     visualizerOpacity: decoded?.visualizerOpacity,

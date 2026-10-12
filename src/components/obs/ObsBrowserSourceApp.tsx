@@ -63,6 +63,33 @@ const ObsBrowserSourceApp: React.FC = () => {
         configRef.current = config;
     }, [config]);
 
+    const layerOptions = useMemo(() => {
+        if (typeof window === 'undefined') {
+            return { layer: 'all', isTransparent: false, showText: true };
+        }
+        const params = new URLSearchParams(window.location.search);
+        const layer = (params.get('layer')?.trim().toLowerCase() || 'all') as 'all' | 'lyrics' | 'background';
+        const transparentParam = params.get('transparent')?.trim();
+        const isTransparent = transparentParam === '1' || transparentParam === 'true' || layer === 'lyrics';
+        const showText = layer !== 'background';
+        return {
+            layer,
+            isTransparent,
+            showText,
+        };
+    }, []);
+
+    const resolvedBackground = useMemo(() => {
+        if (!config?.background) return config?.background;
+        if (layerOptions.isTransparent) {
+            return {
+                ...config.background,
+                transparent: true,
+            };
+        }
+        return config.background;
+    }, [config?.background, layerOptions.isTransparent]);
+
     useEffect(() => {
         let isHandlingResize = false;
         
@@ -174,6 +201,8 @@ const ObsBrowserSourceApp: React.FC = () => {
         );
     }
 
+    const isContainerTransparent = layerOptions.isTransparent || !!config.background?.transparent;
+
     return (
         <div
             className="overflow-hidden"
@@ -181,7 +210,7 @@ const ObsBrowserSourceApp: React.FC = () => {
                 width: obsDimensions.width,
                 height: obsDimensions.height,
                 zoom: obsScale,
-                backgroundColor: config.background?.transparent ? 'transparent' : config.theme.backgroundColor,
+                backgroundColor: isContainerTransparent ? 'transparent' : config.theme.backgroundColor,
                 color: config.theme.primaryColor,
             }}
         >
@@ -200,12 +229,12 @@ const ObsBrowserSourceApp: React.FC = () => {
                 songArtist={config.songArtist}
                 songAlbum={config.songAlbum}
                 coverUrl={config.coverUrl}
-                showText={true}
+                showText={layerOptions.showText}
                 seed={config.seed}
                 staticMode={config.staticMode}
                 paused={playbackState !== PlayerState.PLAYING}
                 visualizerOpacity={config.visualizerOpacity}
-                background={config.background}
+                background={resolvedBackground}
                 lyricsFontScale={config.lyricsFontScale}
                 subtitleFontScale={config.subtitleFontScale}
                 subtitleOverlayOpacity={config.subtitleOverlayOpacity}

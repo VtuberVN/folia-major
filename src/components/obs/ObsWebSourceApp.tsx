@@ -34,7 +34,7 @@ interface ObsWebSourceAppProps {
 
 const ObsWebSourceApp: React.FC<ObsWebSourceAppProps> = ({ source, appearance, obsAiConfig }) => {
     const { state, getCurrentTimeSec } = source;
-    const { isDaylight, transparent } = appearance;
+    const { isDaylight, transparent, layer = 'all' } = appearance;
 
     const [currentLineIndex, setCurrentLineIndex] = useState(-1);
     // The builtin fallback is generated as a light/dark pair and kept whole: it is randomized per
@@ -188,11 +188,15 @@ const ObsWebSourceApp: React.FC<ObsWebSourceAppProps> = ({ source, appearance, o
     // Graft the Custom-CSS assets onto the cfg appearance: the uploaded background feeds the Monet /
     // Nomand pipelines through customImage, the portrait rides its own renderer prop. Present-wins, so
     // an overlay with no custom CSS is byte-for-byte the old cover-derived behaviour.
-    const backgroundWithAssets = useMemo<VisualizerBackgroundConfig>(() => (
-        cssAssets.backgroundUrl
+    const backgroundWithAssets = useMemo<VisualizerBackgroundConfig>(() => {
+        const base = cssAssets.backgroundUrl
             ? { ...appearance.background, customImage: { id: 'obs-css-bg', name: 'obs-css-bg', url: cssAssets.backgroundUrl } }
-            : appearance.background
-    ), [appearance.background, cssAssets.backgroundUrl]);
+            : appearance.background;
+        if (transparent || layer === 'lyrics') {
+            return { ...base, transparent: true };
+        }
+        return base;
+    }, [appearance.background, cssAssets.backgroundUrl, transparent, layer]);
     const portraitImage = useMemo<MonetPortraitImage | null>(() => (
         cssAssets.portraitUrl ? { id: 'obs-css-portrait', name: 'obs-css-portrait', url: cssAssets.portraitUrl } : null
     ), [cssAssets.portraitUrl]);
@@ -214,6 +218,9 @@ const ObsWebSourceApp: React.FC<ObsWebSourceAppProps> = ({ source, appearance, o
         visualizerMode: appearance.mode,
     });
 
+    const isContainerTransparent = transparent || layer === 'lyrics';
+    const showText = layer !== 'background';
+
     return (
         <div
             className="overflow-hidden"
@@ -221,7 +228,7 @@ const ObsWebSourceApp: React.FC<ObsWebSourceAppProps> = ({ source, appearance, o
                 width: obsDimensions.width,
                 height: obsDimensions.height,
                 zoom: obsScale,
-                backgroundColor: transparent ? 'transparent' : theme.backgroundColor,
+                backgroundColor: isContainerTransparent ? 'transparent' : theme.backgroundColor,
                 color: theme.primaryColor,
             }}
         >
@@ -239,7 +246,7 @@ const ObsWebSourceApp: React.FC<ObsWebSourceAppProps> = ({ source, appearance, o
                 songTitle={state.track?.name}
                 songArtist={state.track?.artist}
                 coverUrl={coverUrl}
-                showText={true}
+                showText={showText}
                 seed={state.track?.seed || 'folia-obs-web'}
                 paused={paused}
                 staticMode={appearance.staticMode}

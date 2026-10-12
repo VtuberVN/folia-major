@@ -187,6 +187,20 @@ describe('parseObsWebParams', () => {
         expect(parseObsWebParams('').themeMode).toBeNull();
         expect(parseObsWebParams('?obsTheme=nonsense').themeMode).toBeNull();
     });
+
+    it('reads the layer parameter and forces transparent when layer=lyrics', () => {
+        expect(parseObsWebParams('').layer).toBe('all');
+        expect(parseObsWebParams('?layer=all').layer).toBe('all');
+        expect(parseObsWebParams('?layer=all').transparent).toBe(false);
+
+        const lyricsLayer = parseObsWebParams('?layer=lyrics');
+        expect(lyricsLayer.layer).toBe('lyrics');
+        expect(lyricsLayer.transparent).toBe(true);
+
+        const bgLayer = parseObsWebParams('?layer=background');
+        expect(bgLayer.layer).toBe('background');
+        expect(bgLayer.transparent).toBe(false);
+    });
 });
 
 describe('parseObsAiParams', () => {
