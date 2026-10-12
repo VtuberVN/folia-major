@@ -24,6 +24,15 @@ declare global {
       /** Docker gateway 注入 'docker'；其他部署不带这个字段。 */
       deployment?: 'docker';
     };
+    __FOLIA_WITH_YOUTUBE__?: boolean;
+  }
+
+  interface ImportMetaEnv {
+    readonly VITE_ENABLE_YOUTUBE?: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
   }
 
   /** Unsaved AI settings sent by the "test connection" button. */

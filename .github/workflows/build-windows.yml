@@ -45,8 +45,13 @@ jobs:
       - name: Build web application
         run: npm run build
 
-      - name: Build Windows installer & portable zip
+      - name: Build Windows installer & portable zip (Standard)
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Windows installer & portable zip (with_ytb)
+        run: npm run build:win:ytb
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

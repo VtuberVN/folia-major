@@ -8,6 +8,7 @@ import { qqProvider } from './qqProvider';
 import { bodianProvider } from './bodianProvider';
 import { zingProvider } from './zingProvider';
 import { nctProvider } from './nctProvider';
+import { youtubeProvider } from './youtubeProvider';
 
 // src/services/onlineMusic/providerRegistry.ts
 
@@ -86,3 +87,10 @@ registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
 registerOnlineMusicProvider(zingProvider);
 registerOnlineMusicProvider(nctProvider);
+
+if (
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_ENABLE_YOUTUBE === 'true') ||
+    (typeof window !== 'undefined' && Boolean((window as any).__FOLIA_WITH_YOUTUBE__))
+) {
+    registerOnlineMusicProvider(youtubeProvider);
+}
