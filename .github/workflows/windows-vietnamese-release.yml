@@ -26,8 +26,9 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if ($version -notmatch '^\d+\.\d+\.\d+-vi\.\d+$') { throw 'Expected a Vietnamese prerelease version.' }
-          "RELEASE_TAG=v$version" >> $env:GITHUB_ENV
+          $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "v$version" }
+          if (-not $tag.StartsWith('v')) { $tag = "v$tag" }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Check types
@@ -75,8 +76,12 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $assets = @(Get-ChildItem release/*.exe, release/*.blockmap, release/vi.yml, release/SHA256SUMS.txt | ForEach-Object FullName)
-          gh release create $env:RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Folia $env:RELEASE_TAG — Tiếng Việt" --notes-file .github/vietnamese-release-notes.md --prerelease
-          if ($LASTEXITCODE -ne 0) { throw 'Release publishing failed.' }
+          $existingRelease = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"$env:RELEASE_TAG\") | .id"
+          if ($existingRelease) {
+            gh release upload $env:RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $env:RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Folia $env:RELEASE_TAG — Tiếng Việt" --notes-file .github/vietnamese-release-notes.md --prerelease
+          }
       - name: Publish Vietnamese update channel
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
