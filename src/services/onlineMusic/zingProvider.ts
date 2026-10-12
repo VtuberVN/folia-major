@@ -16,10 +16,13 @@ import {
     getZingAlbumDetail,
     getZingAlbums,
     getZingAudioSource,
+    getZingChartSongs,
     getZingHomePlaylists,
     getZingLyric,
     getZingPlaylistTracks,
+    getZingRadioStations,
     getZingSongDetail,
+    getZingTop100Albums,
     getZingUserProfile,
     searchZingSongs,
     setStoredZingCookie,
@@ -122,6 +125,9 @@ export const zingProvider: OnlineMusicProvider = {
     library: {
         async getUserPlaylists(_userId, limit, offset) {
             const items = await getZingHomePlaylists();
+            if (items.length === 0) {
+                return getZingTop100Albums(limit, offset);
+            }
             const paged = items.slice(offset, offset + limit);
             return {
                 items: paged,
@@ -135,6 +141,21 @@ export const zingProvider: OnlineMusicProvider = {
         },
         async getUserAlbums(_userId, limit, offset) {
             return getZingAlbums(limit, offset);
+        },
+    },
+    recommendations: {
+        async getPersonalFm(_options) {
+            return getZingChartSongs(30);
+        },
+        async getDailySongs(_refresh) {
+            return getZingChartSongs(30);
+        },
+        async getRecommendedCollections(limit = 20) {
+            const [top100Page, radioStations] = await Promise.all([
+                getZingTop100Albums(limit, 0),
+                getZingRadioStations(10),
+            ]);
+            return [...radioStations, ...top100Page.items].slice(0, limit);
         },
     },
     catalog: {

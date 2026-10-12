@@ -740,12 +740,93 @@ export async function getZingAlbumDetail(albumId: string): Promise<ProviderColle
 }
 
 /**
- * Fetches real albums from Zing MP3 (new release chart & trending albums).
+ * Fetches curated Top 100 official albums/playlists from Zing MP3.
+ */
+export async function getZingTop100Albums(
+    limit: number = 30,
+    offset: number = 0,
+): Promise<ProviderPage<ProviderCollection>> {
+    const path = '/api/v2/page/get/top-100';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+        });
+
+        if (!res.ok) return { items: [], total: 0, hasMore: false, nextOffset: offset };
+        const json = await res.json();
+        if (json.err !== 0 || !json.data) {
+            return { items: [], total: 0, hasMore: false, nextOffset: offset };
+        }
+
+        const sections = Array.isArray(json.data)
+            ? json.data
+            : (typeof json.data === 'object' ? Object.values(json.data) : []);
+
+        const albumMap = new Map<string, ProviderCollection>();
+        for (const section of sections as any[]) {
+            if (Array.isArray(section?.items)) {
+                for (const item of section.items) {
+                    const albumId = item?.encodeId || item?.id;
+                    const title = item?.title || item?.name;
+                    if (albumId && title && !albumMap.has(String(albumId))) {
+                        const cover = item.thumbnailM || item.thumbnail || item.thumbnailR;
+                        albumMap.set(String(albumId), {
+                            providerId: 'zing',
+                            id: String(albumId),
+                            name: String(title),
+                            type: 'album',
+                            coverUrl: cover ? String(cover).replace('http:', 'https:') : undefined,
+                            description: item.sortDescription || item.description || item.artistsNames || undefined,
+                            trackCount: Number(item.song?.total || item.songCount || 100),
+                            isOwned: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        const allAlbums = Array.from(albumMap.values());
+        const paged = allAlbums.slice(offset, offset + limit);
+        return {
+            items: paged,
+            total: allAlbums.length,
+            hasMore: offset + limit < allAlbums.length,
+            nextOffset: offset + limit,
+        };
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch top-100 albums:', err);
+        return { items: [], total: 0, hasMore: false, nextOffset: offset };
+    }
+}
+
+/**
+ * Fetches real albums from Zing MP3 (Top 100 collections and trending releases).
  */
 export async function getZingAlbums(
     limit: number = 30,
     offset: number = 0,
 ): Promise<ProviderPage<ProviderCollection>> {
+    // 1. Prioritize Top 100 curated collections
+    const top100 = await getZingTop100Albums(limit, offset);
+    if (top100.items.length > 0) {
+        return top100;
+    }
+
+    // 2. Fallback to new release chart extraction
     const path = '/api/v2/page/get/newrelease-chart';
     const ctime = String(Math.floor(Date.now() / 1000));
     const sig = await getZingSignature(path, { ctime });
@@ -758,7 +839,7 @@ export async function getZingAlbums(
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
@@ -803,6 +884,124 @@ export async function getZingAlbums(
     } catch (err) {
         console.warn('[ZingApi] Failed to fetch albums:', err);
         return { items: [], total: 0, hasMore: false, nextOffset: offset };
+    }
+}
+
+/**
+ * Fetches top trending chart songs from #zingchart.
+ */
+export async function getZingChartSongs(limit: number = 50): Promise<UnifiedSong[]> {
+    const path = '/api/v2/page/get/chart-home';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+        });
+
+        if (!res.ok) return [];
+        const json = await res.json();
+        if (json.err !== 0 || !json.data?.RTChart?.items) return [];
+
+        const rawSongs = (json.data.RTChart.items as any[]).slice(0, limit);
+        return rawSongs
+            .filter(s => s && (s.encodeId || s.id) && (s.title || s.name))
+            .map(s => {
+                const id = String(s.encodeId || s.id);
+                const artists = Array.isArray(s.artists)
+                    ? s.artists.map((a: any, i: number) => ({ id: a.id || i, name: String(a.name || 'Zing MP3') }))
+                    : [{ id: 0, name: String(s.artistsNames || 'Zing MP3') }];
+
+                const coverUrl = s.thumbnailM || s.thumbnail
+                    ? String(s.thumbnailM || s.thumbnail).replace('http:', 'https:')
+                    : undefined;
+
+                return {
+                    id,
+                    name: String(s.title || s.name),
+                    artists,
+                    album: {
+                        id: s.album?.encodeId || 0,
+                        name: String(s.album?.title || s.title || 'Zing MP3'),
+                        coverUrl,
+                    },
+                    durationMs: (Number(s.duration) || 0) * 1000,
+                    sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: id },
+                };
+            });
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch chart songs:', err);
+        return [];
+    }
+}
+
+/**
+ * Fetches live radio and stream stations from Zing MP3.
+ */
+export async function getZingRadioStations(limit: number = 20): Promise<ProviderCollection[]> {
+    const path = '/api/v2/page/get/radio';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': `${ZING_BASE_URL}/`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+        });
+
+        if (!res.ok) return [];
+        const json = await res.json();
+        if (json.err !== 0 || !Array.isArray(json.data?.items)) return [];
+
+        const stations: ProviderCollection[] = [];
+        for (const section of json.data.items) {
+            if (Array.isArray(section?.items)) {
+                for (const item of section.items) {
+                    const id = item?.encodeId || item?.id;
+                    const title = item?.title || item?.name;
+                    if (id && title) {
+                        const cover = item.thumbnailM || item.thumbnail || item.thumbnailH;
+                        stations.push({
+                            providerId: 'zing',
+                            id: String(id),
+                            name: String(title),
+                            type: 'radio',
+                            coverUrl: cover ? String(cover).replace('http:', 'https:') : undefined,
+                            description: item.host?.name ? `Host: ${item.host.name}` : (item.description || 'Radio Zing MP3'),
+                            trackCount: Number(item.activeUsers || 1),
+                            isOwned: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        return stations.slice(0, limit);
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch radio stations:', err);
+        return [];
     }
 }
 

@@ -222,4 +222,85 @@ describe('zingProvider', () => {
         expect(results[0].fee).toBe(1);
         expect(results[1].fee).toBe(0);
     });
+
+    it('implements recommendations for radio, personal FM, and collections', async () => {
+        expect(zingProvider.recommendations).toBeDefined();
+
+        const mockChartSongs = [
+            {
+                id: 'CaBURT2uECZr',
+                name: 'Giá Như Anh Là Em',
+                artists: [{ id: 1, name: 'Lệ Quyên' }],
+                album: { id: 1, name: 'Giá Như Anh Là Em' },
+                durationMs: 240000,
+                sourceRef: { kind: 'online' as const, providerId: 'zing' as const, mediaId: 'CaBURT2uECZr' },
+            },
+        ];
+        vi.spyOn(zingApi, 'getZingChartSongs').mockResolvedValue(mockChartSongs);
+
+        const fmSongs = await zingProvider.recommendations?.getPersonalFm?.();
+        expect(fmSongs).toHaveLength(1);
+        expect(fmSongs?.[0].name).toBe('Giá Như Anh Là Em');
+
+        const dailySongs = await zingProvider.recommendations?.getDailySongs?.();
+        expect(dailySongs).toHaveLength(1);
+        expect(dailySongs?.[0].id).toBe('CaBURT2uECZr');
+
+        const mockTop100 = {
+            items: [
+                {
+                    providerId: 'zing' as const,
+                    id: 'CasHsDNUCujg',
+                    name: 'Top 100 Nhạc Trẻ',
+                    type: 'album' as const,
+                    trackCount: 100,
+                    isOwned: false,
+                },
+            ],
+            total: 1,
+            hasMore: false,
+            nextOffset: 1,
+        };
+        const mockRadioStations = [
+            {
+                providerId: 'zing' as const,
+                id: 'yUEDI0z9aMs',
+                name: 'V-POP Radio',
+                type: 'radio' as const,
+                trackCount: 1,
+                isOwned: false,
+            },
+        ];
+        vi.spyOn(zingApi, 'getZingTop100Albums').mockResolvedValue(mockTop100);
+        vi.spyOn(zingApi, 'getZingRadioStations').mockResolvedValue(mockRadioStations);
+
+        const collections = await zingProvider.recommendations?.getRecommendedCollections?.(20);
+        expect(collections).toHaveLength(2);
+        expect(collections?.[0].type).toBe('radio');
+        expect(collections?.[1].type).toBe('album');
+    });
+
+    it('falls back to getZingTop100Albums when getZingHomePlaylists returns empty', async () => {
+        vi.spyOn(zingApi, 'getZingHomePlaylists').mockResolvedValue([]);
+        const mockTop100 = {
+            items: [
+                {
+                    providerId: 'zing' as const,
+                    id: 'CasHsDNUCujg',
+                    name: 'Top 100 Nhạc Trẻ',
+                    type: 'album' as const,
+                    trackCount: 100,
+                    isOwned: false,
+                },
+            ],
+            total: 1,
+            hasMore: false,
+            nextOffset: 1,
+        };
+        vi.spyOn(zingApi, 'getZingTop100Albums').mockResolvedValue(mockTop100);
+
+        const result = await zingProvider.library?.getUserPlaylists('zing_user', 30, 0);
+        expect(result?.items).toHaveLength(1);
+        expect(result?.items[0].name).toBe('Top 100 Nhạc Trẻ');
+    });
 });
