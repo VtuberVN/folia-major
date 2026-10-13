@@ -917,7 +917,9 @@ declare global {
       openUpdateReleasePage: (version?: string | null) => Promise<boolean>;
       openExternalUrl: (url: string) => Promise<boolean>;
       openZingLogin: () => Promise<{ success: boolean; cookie?: string; profile?: any; error?: string }>;
+      fetchZingProfile?: (cookieStr?: string) => Promise<any>;
       openYouTubeLogin: () => Promise<{ success: boolean; cookie?: string; profile?: any; error?: string }>;
+      fetchYouTubeProfile?: (cookieStr?: string) => Promise<{ id: string; nickname: string; avatarUrl?: string } | null>;
       safeStorageEncrypt: (text: string) => Promise<string | null>;
       safeStorageDecrypt: (cipherText: string) => Promise<string | null>;
       safeStorageDecryptSync: (cipherText: string) => string | null;

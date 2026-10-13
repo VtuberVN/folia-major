@@ -19,6 +19,7 @@ import {
     getStoredYouTubeCookie,
     setStoredYouTubeCookie,
     getStoredYouTubeProfile,
+    getYouTubeUserProfile,
     clearStoredYouTubeProfile,
     getUserYouTubePlaylists,
     getYouTubeTrendingSongs,
@@ -279,7 +280,7 @@ export const youtubeProvider: OnlineMusicProvider = {
         async getLoginStatus(): Promise<ProviderUser | null> {
             const cookie = getStoredYouTubeCookie();
             if (!cookie) return null;
-            const profile = getStoredYouTubeProfile();
+            const profile = await getYouTubeUserProfile();
             return {
                 id: profile?.id || 'youtube_user',
                 nickname: profile?.nickname || 'Tài khoản YouTube',

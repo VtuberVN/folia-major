@@ -3454,6 +3454,7 @@ export default {
     advancedTitle: "Tùy chọn nâng cao (Cookie thủ công)",
     cookieHint: "Chế độ khách không bắt buộc đăng nhập: Bạn vẫn có thể tìm kiếm, nghe nhạc và nghe bảng xếp hạng bình thường. Đăng nhập qua Cookie chỉ là tùy chọn nếu muốn đồng bộ danh sách phát cá nhân từ tài khoản YouTube.",
     openExternal: "Mở trình duyệt ngoài (Chrome)",
+    accountUser: "Tài khoản YouTube",
   },
   unifiedPanel: {
     nowPlayingStageDescription: "Now Playing do trình phát ngoài điều khiển. Folia chỉ hiển thị lời bài hát và hiệu ứng thị giác.",

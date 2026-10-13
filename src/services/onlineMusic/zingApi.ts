@@ -4,6 +4,7 @@
 import type { LyricData, UnifiedSong } from '../../types';
 import type { AudioQualityPreference, ProviderCollection, ProviderPage, ProviderUser } from '../../types/onlineMusic';
 import { parseLRC } from '../../utils/lyrics/parserCore';
+import i18n from 'i18next';
 
 const ZING_API_KEY = 'X5BM3w8N7MKozC0B85o4KMlzLZKhV00y';
 const ZING_SECRET_KEY = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
@@ -531,8 +532,36 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
     }
 
     const cached = getStoredZingProfile();
-    if (cached) {
+    if (cached && cached.id && cached.id !== 'zing_user' && String(cached.id) !== '0') {
         return cached;
+    }
+
+    const mapRawZingProfile = (data: any): ProviderUser => {
+        const hasVip = (
+            Array.isArray(data.packages) && data.packages.some((p: any) =>
+                typeof p === 'string' && (p.toUpperCase().includes('VIP') || p.toUpperCase().includes('PREMIUM'))
+            )
+        ) || Boolean(data.isVip);
+
+        return {
+            id: String(data.userid || data.id || 'zing_user'),
+            nickname: data.displayName || data.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
+            avatarUrl: data.avatar || undefined,
+            vipType: hasVip ? 1 : 0,
+        };
+    };
+
+    if (typeof window !== 'undefined' && (window as any).electron?.fetchZingProfile) {
+        try {
+            const ipcData = await (window as any).electron.fetchZingProfile(userCookie);
+            if (ipcData && (ipcData.userid || ipcData.id) && ipcData.userid !== 0) {
+                const profile = mapRawZingProfile(ipcData);
+                setStoredZingProfile(profile);
+                return profile;
+            }
+        } catch (err) {
+            console.warn('[ZingApi] IPC fetchZingProfile failed:', err);
+        }
     }
 
     const path = '/api/v2/user/profile/get/info';
@@ -551,27 +580,15 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
-                ...(cookie ? { Cookie: cookie } : {}),
+                ...(cookie ? { Cookie: cookie, 'x-zing-cookie': cookie } : {}),
             },
             signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });
 
         if (res.ok) {
             const json = await res.json();
-            if (json.err === 0 && json.data) {
-                const data = json.data;
-                const hasVip = (
-                    Array.isArray(data.packages) && data.packages.some((p: any) =>
-                        typeof p === 'string' && (p.toUpperCase().includes('VIP') || p.toUpperCase().includes('PREMIUM'))
-                    )
-                ) || Boolean(data.isVip);
-
-                const profile: ProviderUser = {
-                    id: String(data.userid || 'zing_user'),
-                    nickname: data.displayName || data.username || 'Tài khoản Zing MP3',
-                    avatarUrl: data.avatar || undefined,
-                    vipType: hasVip ? 1 : 0,
-                };
+            if (json.err === 0 && json.data && (json.data.userid || json.data.id) && json.data.userid !== 0) {
+                const profile = mapRawZingProfile(json.data);
                 setStoredZingProfile(profile);
                 return profile;
             }
@@ -587,7 +604,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
     // Default neutral profile for standard users with vipType: 0 (NOT VIP)
     const fallbackProfile: ProviderUser = {
         id: 'zing_user',
-        nickname: 'Tài khoản Zing MP3',
+        nickname: (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
         vipType: 0,
     };
     return fallbackProfile;
@@ -717,6 +734,7 @@ export async function getUserZingPlaylists(
         url.searchParams.set('apiKey', ZING_API_KEY);
         url.searchParams.set('sig', sig);
 
+        let isAuthError = false;
         try {
             const res = await fetch(toZingWebProxyUrl(url.toString()), {
                 headers: {
@@ -730,9 +748,41 @@ export async function getUserZingPlaylists(
                 const json = await res.json();
                 if (json.err === 0) {
                     const rawItems = Array.isArray(json.data?.items) ? json.data.items : [];
-                    const userPlaylists = rawItems
+                    let userPlaylists = rawItems
                         .filter((item: any) => item && (item.encodeId || item.id))
                         .map((item: any) => normalizeZingCollection(item, 'playlist', true));
+
+                    if (userPlaylists.length === 0 && offset === 0) {
+                        try {
+                            const syncPath = '/api/v2/user/sync/get/data';
+                            const syncCtime = String(Math.floor(Date.now() / 1000));
+                            const syncSig = await getZingSignature(syncPath, '', syncCtime);
+                            const syncUrl = new URL(`${ZING_BASE_URL}${syncPath}`);
+                            syncUrl.searchParams.set('ctime', syncCtime);
+                            syncUrl.searchParams.set('version', ZING_VERSION);
+                            syncUrl.searchParams.set('apiKey', ZING_API_KEY);
+                            syncUrl.searchParams.set('sig', syncSig);
+                            const syncRes = await fetch(toZingWebProxyUrl(syncUrl.toString()), {
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                                    'Referer': `${ZING_BASE_URL}/`,
+                                    ...(cookie ? { Cookie: cookie, 'x-zing-cookie': cookie } : {}),
+                                },
+                                signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
+                            });
+                            if (syncRes.ok) {
+                                const syncJson = await syncRes.json();
+                                if (syncJson.err === 0 && Array.isArray(syncJson.data?.library?.playlists)) {
+                                    const syncPlaylists = syncJson.data.library.playlists
+                                        .filter((item: any) => item && (item.encodeId || item.id))
+                                        .map((item: any) => normalizeZingCollection(item, 'playlist', true));
+                                    userPlaylists = syncPlaylists;
+                                }
+                            }
+                        } catch {
+                            // sync fallback non-fatal
+                        }
+                    }
 
                     let items = [...userPlaylists];
 
@@ -744,6 +794,7 @@ export async function getUserZingPlaylists(
                                 id: 'zing_liked_songs',
                                 name: 'Bài hát yêu thích',
                                 type: 'playlist',
+                                coverUrl: 'https://photo-zmp3.zmdcdn.me/album_default.png',
                                 description: '',
                                 isLiked: true,
                                 isOwned: true,
@@ -753,6 +804,7 @@ export async function getUserZingPlaylists(
                                 id: 'zing_recent_songs',
                                 name: 'Nghe gần đây',
                                 type: 'playlist',
+                                coverUrl: 'https://photo-zmp3.zmdcdn.me/album_default.png',
                                 description: '',
                                 isOwned: true,
                             },
@@ -767,14 +819,17 @@ export async function getUserZingPlaylists(
                         hasMore: offset + items.length < total,
                         nextOffset: offset + items.length,
                     };
+                } else if (json.err === -801) {
+                    console.warn('[ZingApi] User session expired or unauthenticated (-801)');
+                    isAuthError = true;
                 }
             }
         } catch (err) {
             console.warn('[ZingApi] Failed to fetch user playlists:', err);
         }
 
-        // If the library endpoint call failed but user is authenticated, still provide the specials
-        if (offset === 0) {
+        // If not an explicit auth rejection and at offset 0, provide the specials with default cover
+        if (!isAuthError && offset === 0) {
             return {
                 items: [
                     {
@@ -782,6 +837,7 @@ export async function getUserZingPlaylists(
                         id: 'zing_liked_songs',
                         name: 'Bài hát yêu thích',
                         type: 'playlist',
+                        coverUrl: 'https://photo-zmp3.zmdcdn.me/album_default.png',
                         description: '',
                         isLiked: true,
                         isOwned: true,
@@ -791,6 +847,7 @@ export async function getUserZingPlaylists(
                         id: 'zing_recent_songs',
                         name: 'Nghe gần đây',
                         type: 'playlist',
+                        coverUrl: 'https://photo-zmp3.zmdcdn.me/album_default.png',
                         description: '',
                         isOwned: true,
                     },
@@ -962,23 +1019,25 @@ export async function getZingPlaylistDetail(
     existingCollection?: ProviderCollection,
 ): Promise<ProviderCollection | null> {
     if (playlistId === 'zing_liked_songs' || playlistId === 'liked') {
-        return existingCollection || {
+        return {
             providerId: 'zing',
             id: 'zing_liked_songs',
             name: 'Bài hát yêu thích',
             type: 'playlist',
-            description: '',
+            coverUrl: existingCollection?.coverUrl || 'https://photo-zmp3.zmdcdn.me/album_default.png',
+            description: existingCollection?.description || '',
             isLiked: true,
             isOwned: true,
         };
     }
     if (playlistId === 'zing_recent_songs' || playlistId === 'recent') {
-        return existingCollection || {
+        return {
             providerId: 'zing',
             id: 'zing_recent_songs',
             name: 'Nghe gần đây',
             type: 'playlist',
-            description: '',
+            coverUrl: existingCollection?.coverUrl || 'https://photo-zmp3.zmdcdn.me/album_default.png',
+            description: existingCollection?.description || '',
             isOwned: true,
         };
     }

@@ -848,7 +848,7 @@ export default function App() {
         const zingCookie = getStoredZingCookie();
         void zingProvider.auth?.getLoginStatus().then(user => {
             if (cancelled) return;
-            const effectiveUser = user || (zingCookie ? { id: 'zing_user', nickname: 'Tài khoản Zing MP3', vipType: 0 } : null);
+            const effectiveUser = user || (zingCookie ? { id: 'zing_user', nickname: t('zing.accountUser'), vipType: 0 } : null);
             Promise.all([
                 zingProvider.library?.getUserPlaylists?.(effectiveUser?.id || 'zing_user', 50, 0),
                 effectiveUser ? zingProvider.library?.getLikedSongs?.(effectiveUser.id) : Promise.resolve([]),

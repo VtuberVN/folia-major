@@ -38,6 +38,7 @@ import {
     type ProviderLoginConfirmedEvent,
     type ProviderLoginSessionSnapshot,
 } from './providerLoginSession';
+import i18n from 'i18next';
 
 // src/library/core/services/providerAccountController.ts
 // 在线账户 controller（Library v2 · A3）：组合 A2 的扫码登录会话，持有切换确认、单一在途登录与登出，
@@ -356,7 +357,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                         setStoredZingCookie(res.cookie);
                         let userProfile: ProviderUser = {
                             id: 'zing_user',
-                            nickname: 'Tài khoản Zing MP3',
+                            nickname: i18n.t('zing.accountUser'),
                             vipType: 0,
                         };
                         if (res.profile) {
@@ -368,7 +369,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                             ) || Boolean(p.isVip);
                             userProfile = {
                                 id: String(p.userid || 'zing_user'),
-                                nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
+                                nickname: p.displayName || p.username || i18n.t('zing.accountUser'),
                                 avatarUrl: p.avatar || undefined,
                                 vipType: hasVip ? 1 : 0,
                             };

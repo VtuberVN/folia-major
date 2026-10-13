@@ -132,6 +132,38 @@ export function clearStoredYouTubeProfile(): void {
     setStoredYouTubeProfile(null);
 }
 
+export async function getYouTubeUserProfile(): Promise<YouTubeUserProfile | null> {
+    const cookie = getStoredYouTubeCookie();
+    if (!cookie) {
+        clearStoredYouTubeProfile();
+        return null;
+    }
+
+    const cached = getStoredYouTubeProfile();
+    if (cached && (cached.avatarUrl || (cached.id && cached.id !== 'youtube_user'))) {
+        return cached;
+    }
+
+    if (typeof window !== 'undefined' && (window as any).electron?.fetchYouTubeProfile) {
+        try {
+            const ipcProfile = await (window as any).electron.fetchYouTubeProfile(cookie);
+            if (ipcProfile && ipcProfile.nickname) {
+                const resolved: YouTubeUserProfile = {
+                    id: String(ipcProfile.id || 'youtube_user'),
+                    nickname: ipcProfile.nickname,
+                    avatarUrl: ipcProfile.avatarUrl || undefined,
+                };
+                setStoredYouTubeProfile(resolved);
+                return resolved;
+            }
+        } catch (err) {
+            console.warn('[YouTubeApi] IPC fetchYouTubeProfile failed:', err);
+        }
+    }
+
+    return cached;
+}
+
 function parseDurationToMs(text?: string): number {
     if (!text) return 0;
     const parts = text.trim().split(':').map(Number);

@@ -11,6 +11,7 @@ import type {
 } from '../../types/onlineMusic';
 import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
+import i18n from 'i18next';
 import {
     getStoredZingCookie,
     getUserZingPlaylists,
@@ -67,7 +68,7 @@ export const zingProvider: OnlineMusicProvider = {
         const item = raw as any;
         return {
             id: item?.id || 'zing_user',
-            nickname: item?.nickname || 'Tài khoản Zing MP3',
+            nickname: item?.nickname || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
             avatarUrl: item?.avatarUrl,
             vipType: item?.vipType ?? 0,
         };

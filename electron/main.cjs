@@ -3047,8 +3047,7 @@ function setupCorsBypassHandlers() {
       if (
         hostname === 'googlevideo.com' ||
         hostname.endsWith('.googlevideo.com') ||
-        hostname === 'youtube.com' ||
-        hostname.endsWith('.youtube.com')
+        ((hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) && parsedUrl.pathname.includes('/youtubei/v1/player'))
       ) {
         requestHeaders['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
         for (const h of Object.keys(requestHeaders)) {
@@ -3061,12 +3060,28 @@ function setupCorsBypassHandlers() {
             delete requestHeaders[h];
           }
         }
+      } else if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) {
+        if (!requestHeaders['User-Agent'] || requestHeaders['User-Agent'].includes('Electron')) {
+          requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+        }
+        const ytCookie = requestHeaders['x-youtube-cookie'] || requestHeaders['X-YouTube-Cookie'] || '';
+        if (ytCookie) {
+          requestHeaders['Cookie'] = ytCookie;
+          delete requestHeaders['x-youtube-cookie'];
+          delete requestHeaders['X-YouTube-Cookie'];
+        }
+        const xOrigin = requestHeaders['X-Origin'] || requestHeaders['x-origin'] || '';
+        if (xOrigin) {
+          requestHeaders['Origin'] = xOrigin;
+          requestHeaders['Referer'] = `${xOrigin}/`;
+        }
       } else if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
         requestHeaders['Referer'] = 'https://zingmp3.vn/';
         if (!requestHeaders['User-Agent'] || requestHeaders['User-Agent'].includes('Electron')) {
           requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
         }
-        const customCookie = requestHeaders['x-zing-cookie'] || '';
+        const existingCookie = requestHeaders['Cookie'] || requestHeaders['cookie'] || '';
+        const customCookie = requestHeaders['x-zing-cookie'] || requestHeaders['X-Zing-Cookie'] || existingCookie || '';
         const cookieList = [cachedZingSessionCookie, customCookie].filter(Boolean);
         if (!cookieList.some(c => c.includes('zmp3_rqid'))) {
           const syntheticRaw = `0|127.0.0.1|v1.22.2|${Date.now()}`;
@@ -3075,6 +3090,7 @@ function setupCorsBypassHandlers() {
         }
         requestHeaders['Cookie'] = cookieList.join('; ');
         delete requestHeaders['x-zing-cookie'];
+        delete requestHeaders['X-Zing-Cookie'];
       }
     } catch {}
     callback({ cancel: false, requestHeaders });
@@ -6077,9 +6093,206 @@ ipcMain.handle('open-external-url', (event, url) => {
   return openExternalUrl(url);
 });
 
+const ZING_AUTH_API_KEY = 'X5BM3w8N7MKozC0B85o4KMlzLZKhV00y';
+const ZING_AUTH_SECRET_KEY = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
+const ZING_AUTH_VERSION = '1.22.2';
+const ZING_AUTH_BASE_URL = 'https://zingmp3.vn';
+
+function getZingSyntheticCookie() {
+  const syntheticRaw = `0|127.0.0.1|v${ZING_AUTH_VERSION}|${Date.now()}`;
+  const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
+  return `zmp3_app_version.1=1222; zmp3_rqid=${syntheticRqid}`;
+}
+
+function createZingApiSignature(path, params = {}) {
+  const ctime = params.ctime || String(Math.floor(Date.now() / 1000));
+  const fullParams = { ...params, ctime, version: ZING_AUTH_VERSION };
+  const signKeys = ['ctime', 'id', 'type', 'page', 'count', 'version'];
+  const sortedKeys = Object.keys(fullParams).sort();
+  const filtered = {};
+  for (const k of sortedKeys) {
+    if (signKeys.includes(k) && fullParams[k] !== null && fullParams[k] !== undefined && fullParams[k] !== '') {
+      filtered[k] = String(fullParams[k]);
+    }
+  }
+  const n = Object.keys(filtered).map(k => {
+    const val = encodeURIComponent(filtered[k]);
+    return val.length > 5000 ? '' : `${encodeURIComponent(k)}=${val}`;
+  }).filter(Boolean).join('');
+  const sha256 = crypto.createHash('sha256').update(n).digest('hex');
+  const sig = crypto.createHmac('sha512', ZING_AUTH_SECRET_KEY).update(`${path}${sha256}`).digest('hex');
+  return { ctime, sig };
+}
+
+function extractCleanZingCookiePairs(rawCookieStr = '') {
+  const map = new Map();
+  for (const seg of String(rawCookieStr || '').split(';')) {
+    const trimmed = seg.trim();
+    if (!trimmed) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx <= 0) continue;
+    const name = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim();
+    if (!name || !val) continue;
+    if (
+      name === 'za_oauth_v4' ||
+      name.startsWith('zmp3_') ||
+      name.startsWith('zpsid') ||
+      name.startsWith('zpw_') ||
+      name === '_zlang'
+    ) {
+      map.set(name, `${name}=${val}`);
+    }
+  }
+  return map;
+}
+
+function buildMergedZingCookie(...cookieStrings) {
+  const map = extractCleanZingCookiePairs(getZingSyntheticCookie());
+  for (const str of cookieStrings) {
+    for (const [k, v] of extractCleanZingCookiePairs(str)) {
+      map.set(k, v);
+    }
+  }
+  return Array.from(map.values()).join('; ');
+}
+
+async function getZingOAuthLoginInfo() {
+  const path = '/api/v2/auth/get/oauth-info';
+  const { ctime, sig } = createZingApiSignature(path);
+  const url = `${ZING_AUTH_BASE_URL}${path}?ctime=${ctime}&version=${ZING_AUTH_VERSION}&sig=${sig}&apiKey=${ZING_AUTH_API_KEY}`;
+  try {
+    await ensureZingSessionCookie();
+  } catch {}
+  const cookie = buildMergedZingCookie(cachedZingSessionCookie);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': `${ZING_AUTH_BASE_URL}/`,
+        'Cookie': cookie,
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.err === 0 && json.data?.url) {
+        const u = new URL(json.data.url);
+        const codeChallenge = u.searchParams.get('code_challenge') || '';
+        return { url: json.data.url, codeChallenge };
+      }
+    }
+  } catch (err) {
+    console.warn('[ZingAuth] Failed to fetch oauth-info URL:', err);
+  }
+  return {
+    url: 'https://oauth.zaloapp.com/v4/permission?app_id=2588341350709494368&redirect_uri=https://zingmp3.vn/login/zalo',
+    codeChallenge: '',
+  };
+}
+
+async function postZingLoginZalo(oauthCode, codeChallenge, extraCookie = '') {
+  const path = '/api/v2/auth/post/login-zalo';
+  const { ctime, sig } = createZingApiSignature(path);
+  const url = `${ZING_AUTH_BASE_URL}${path}?ctime=${ctime}&version=${ZING_AUTH_VERSION}&sig=${sig}&apiKey=${ZING_AUTH_API_KEY}`;
+  const body = JSON.stringify({ oauthCode, codeChallenge });
+  const cookie = buildMergedZingCookie(cachedZingSessionCookie, extraCookie);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': `${ZING_AUTH_BASE_URL}/`,
+        'Cookie': cookie,
+      },
+      body,
+    });
+    const setCookies = [];
+    if (typeof res.headers.getSetCookie === 'function') {
+      setCookies.push(...res.headers.getSetCookie());
+    } else if (res.headers.get('set-cookie')) {
+      setCookies.push(res.headers.get('set-cookie'));
+    }
+    const json = await res.json();
+    return { ok: res.ok, json, setCookies };
+  } catch (err) {
+    console.warn('[ZingAuth] Failed to post login-zalo:', err);
+    return { ok: false, error: err, setCookies: [] };
+  }
+}
+
+async function fetchZingUserProfileDirect(cookieStr) {
+  const path = '/api/v2/user/profile/get/info';
+  const { ctime, sig } = createZingApiSignature(path);
+  const url = `${ZING_AUTH_BASE_URL}${path}?ctime=${ctime}&version=${ZING_AUTH_VERSION}&sig=${sig}&apiKey=${ZING_AUTH_API_KEY}`;
+
+  try {
+    await ensureZingSessionCookie();
+  } catch {}
+
+  let sessionCookieStr = '';
+  try {
+    const allSessionCookies = await session.defaultSession.cookies.get({});
+    const pairs = [];
+    for (const c of allSessionCookies) {
+      const dom = c.domain || '';
+      if (
+        dom.includes('zingmp3.vn') ||
+        dom.includes('zalo') ||
+        c.name === 'za_oauth_v4' ||
+        c.name.startsWith('zmp3_')
+      ) {
+        pairs.push(`${c.name}=${c.value}`);
+      }
+    }
+    sessionCookieStr = pairs.join('; ');
+  } catch {}
+
+  const fullCookie = buildMergedZingCookie(cachedZingSessionCookie, sessionCookieStr, cookieStr);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': `${ZING_AUTH_BASE_URL}/`,
+        'Cookie': fullCookie,
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.err === 0 && json.data && (json.data.userid || json.data.id) && json.data.userid !== 0) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[ZingAuth] Failed to fetch user profile:', err);
+  }
+  return null;
+}
+
+ipcMain.handle('auth-fetch-zing-profile', async (_event, cookieStr) => {
+  return await fetchZingUserProfileDirect(cookieStr || '');
+});
+
 ipcMain.handle('auth-open-zing-login', async () => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     let settled = false;
+    let redirectedFromChat = false;
+    let authPromise = null;
+
+    // Clear any stale Zing auth cookie before launching login window
+    try {
+      const existingZa = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
+      for (const c of existingZa) {
+        const domain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+        await session.defaultSession.cookies.remove(`https://${domain}${c.path || '/'}`, c.name).catch(() => {});
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    let { url: initialUrl, codeChallenge } = await getZingOAuthLoginInfo();
+    console.log('[ZingAuth] Starting login flow with codeChallenge:', codeChallenge);
+
     const loginWin = new BrowserWindow({
       width: 520,
       height: 680,
@@ -6091,67 +6304,331 @@ ipcMain.handle('auth-open-zing-login', async () => {
       },
     });
 
-    const checkCookies = async () => {
+    const handleAuthCompletion = async (oauthCode, stateParam = '') => {
+      if (settled) return true;
       try {
-        if (!loginWin || loginWin.isDestroyed()) return;
-        const zingCookies = await loginWin.webContents.session.cookies.get({ url: 'https://zingmp3.vn' });
-        const allCookies = await loginWin.webContents.session.cookies.get({});
-        const targetCookies = [...zingCookies, ...allCookies.filter(c => c.domain && (c.domain.includes('zingmp3.vn') || c.domain.includes('zalo.me')))];
-        const uniqueMap = new Map();
-        for (const c of targetCookies) {
-          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
-        }
-        const uniqueCookies = Array.from(uniqueMap.values());
-        const zpsid = uniqueCookies.find(c => c.name === 'zpsid');
-        const currentUrl = loginWin.webContents.getURL() || '';
-        const isBackOnZing = currentUrl.includes('zingmp3.vn') && !currentUrl.includes('id.zalo.me');
+        let finalZa = '';
+        const sessionCookies = await session.defaultSession.cookies.get({});
+        const zingOrZaloCookies = sessionCookies.filter(c => {
+          const dom = c.domain || '';
+          return dom.includes('zingmp3.vn') || dom.includes('zalo') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_');
+        });
+        const extraCookie = zingOrZaloCookies.map(c => `${c.name}=${c.value}`).join('; ');
+        const effectiveChallenge = codeChallenge || stateParam || '';
 
-        if ((zpsid && zpsid.value) || (isBackOnZing && uniqueCookies.length >= 2)) {
-          if (!settled) {
-            settled = true;
-            clearInterval(interval);
-            let userProfile = null;
-            try {
-              userProfile = await loginWin.webContents.executeJavaScript(`
-                (async () => {
-                  try {
-                    const res = await fetch('/api/v2/user/profile/get/info', { credentials: 'include' });
-                    if (res.ok) {
-                      const json = await res.json();
-                      if (json.err === 0 && json.data) return json.data;
-                    }
-                  } catch (e) {}
-                  return null;
-                })()
-              `);
-            } catch (e) {
-              // ignore
+        // If we captured the oauth code from redirect URL, directly exchange it via Zing API
+        if (oauthCode && effectiveChallenge) {
+          console.log('[ZingAuth] Exchanging oauthCode with challenge...');
+          const loginRes = await postZingLoginZalo(oauthCode, effectiveChallenge, extraCookie);
+          console.log('[ZingAuth] postZingLoginZalo result ok:', loginRes.ok, 'err:', loginRes.json?.err, 'msg:', loginRes.json?.msg);
+          if (loginRes.setCookies && loginRes.setCookies.length > 0) {
+            for (const raw of loginRes.setCookies) {
+              const m = raw.match(/za_oauth_v4=([^;]+)/);
+              if (m) {
+                finalZa = m[1];
+                console.log('[ZingAuth] Found za_oauth_v4 in response headers');
+                try {
+                  await session.defaultSession.cookies.set({
+                    url: 'https://zingmp3.vn',
+                    name: 'za_oauth_v4',
+                    value: finalZa,
+                    domain: '.zingmp3.vn',
+                    path: '/',
+                    secure: true,
+                    httpOnly: true,
+                  });
+                } catch {}
+              }
             }
-            const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
-            loginWin.close();
-            resolve({ success: true, cookie: cookieStr, profile: userProfile });
+          }
+          if (!finalZa && loginRes.json?.data?.za_oauth_v4) {
+            finalZa = loginRes.json.data.za_oauth_v4;
+          }
+        }
+
+        // Also check defaultSession cookies (only Zing/Zalo relevant)
+        const freshCookies = await session.defaultSession.cookies.get({});
+        const cookieMap = extractCleanZingCookiePairs(cachedZingSessionCookie);
+        for (const c of freshCookies) {
+          const dom = c.domain || '';
+          if (dom.includes('zingmp3.vn') || dom.includes('zalo') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_')) {
+            cookieMap.set(c.name, `${c.name}=${c.value}`);
+          }
+        }
+        if (finalZa) cookieMap.set('za_oauth_v4', `za_oauth_v4=${finalZa}`);
+        if (!cookieMap.has('zmp3_app_version.1')) cookieMap.set('zmp3_app_version.1', 'zmp3_app_version.1=1222');
+
+        const zaCookie = cookieMap.get('za_oauth_v4');
+        if (zaCookie) {
+          const cookieStr = Array.from(cookieMap.values()).join('; ');
+          console.log('[ZingAuth] za_oauth_v4 cookie active, fetching user profile...');
+          let userProfile = await fetchZingUserProfileDirect(cookieStr);
+          if (!userProfile) {
+            await new Promise(r => setTimeout(r, 400));
+            userProfile = await fetchZingUserProfileDirect(cookieStr);
+          }
+          console.log('[ZingAuth] User profile fetched:', userProfile?.displayName || userProfile?.username || userProfile?.userid);
+          settled = true;
+          const resolvedProfile = userProfile && (userProfile.userid || userProfile.id) && userProfile.userid !== 0
+            ? userProfile
+            : { userid: 0, displayName: '__fallback__' };
+          resolve({ success: true, cookie: cookieStr, profile: resolvedProfile });
+          if (!loginWin.isDestroyed()) {
+            loginWin.destroy();
+          }
+          return true;
+        }
+
+        // If we had an oauthCode from redirect but postZingLoginZalo did not yield za_oauth_v4,
+        // close the window instead of leaving it stuck on the loading screen.
+        if (oauthCode) {
+          settled = true;
+          resolve({ success: false, error: 'token_exchange_failed' });
+          if (!loginWin.isDestroyed()) {
+            loginWin.destroy();
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('[ZingAuth] handleAuthCompletion error:', err);
+      }
+      return false;
+    };
+
+    const LOADING_HTML = `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:#e0e0e0;font-family:system-ui,sans-serif}
+.wrap{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.15);border-top-color:#a855f7;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 16px}
+@keyframes s{to{transform:rotate(360deg)}}h2{font-size:16px;font-weight:600;margin:0 0 8px}p{font-size:13px;opacity:.6;margin:0}
+</style></head><body><div class="wrap"><div class="spin"></div><h2>Đang đăng nhập Zing MP3...</h2><p>Vui lòng chờ trong giây lát</p></div></body></html>`)}`;
+
+    // Intercept navigation BEFORE the page loads to prevent Zing's JS from calling window.close()
+    loginWin.webContents.on('will-navigate', (e, targetUrl) => {
+      if (settled) return;
+      try {
+        const u = new URL(targetUrl);
+
+        // If Zalo redirected to chat.zalo.me, bounce back to OAuth
+        if (u.hostname.includes('chat.zalo.me') && !redirectedFromChat) {
+          redirectedFromChat = true;
+          console.log('[ZingAuth] Bouncing back from chat.zalo.me');
+          e.preventDefault();
+          getZingOAuthLoginInfo().then(bounceInfo => {
+            if (bounceInfo.codeChallenge) codeChallenge = bounceInfo.codeChallenge;
+            if (!loginWin.isDestroyed()) loginWin.loadURL(bounceInfo.url);
+          });
+          return;
+        }
+
+        // Intercept the OAuth code redirect — BLOCK the page from loading
+        if (u.hostname.includes('zingmp3.vn') && u.pathname.includes('/login/zalo')) {
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            e.preventDefault(); // CRITICAL: prevent Zing page from loading → no window.close()
+            console.log('[ZingAuth] Intercepted OAuth code at will-navigate:', code.slice(0, 8) + '...');
+            if (!loginWin.isDestroyed()) {
+              loginWin.loadURL(LOADING_HTML);
+            }
+            if (!authPromise) {
+              authPromise = handleAuthCompletion(code, state);
+            }
           }
         }
       } catch {
-        // window closing
+        // invalid URL
       }
-    };
+    });
 
-    const interval = setInterval(checkCookies, 1000);
+    // Fallback: also check will-redirect in case the navigation is a server redirect
+    loginWin.webContents.on('will-redirect', (e, targetUrl) => {
+      if (settled) return;
+      try {
+        const u = new URL(targetUrl);
+        if (u.hostname.includes('zingmp3.vn') && u.pathname.includes('/login/zalo')) {
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            e.preventDefault();
+            console.log('[ZingAuth] Intercepted OAuth code at will-redirect:', code.slice(0, 8) + '...');
+            if (!loginWin.isDestroyed()) {
+              loginWin.loadURL(LOADING_HTML);
+            }
+            if (!authPromise) {
+              authPromise = handleAuthCompletion(code, state);
+            }
+          }
+        }
+      } catch {}
+    });
 
-    loginWin.webContents.on('did-navigate', checkCookies);
-    loginWin.webContents.on('did-navigate-in-page', checkCookies);
+    // When the window is closing (e.g. user clicks [X] OR web page calls window.close())
+    loginWin.on('close', async (e) => {
+      if (settled) return;
+      e.preventDefault(); // Trap close to verify if login completed
+
+      if (authPromise) {
+        console.log('[ZingAuth] Close trapped while authPromise in-flight, waiting...');
+        const ok = await authPromise;
+        if (ok || settled) return;
+      }
+
+      try {
+        const curUrl = loginWin.webContents.getURL() || '';
+        if (curUrl.includes('/login/zalo') && curUrl.includes('code=')) {
+          const u = new URL(curUrl);
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            authPromise = handleAuthCompletion(code, state);
+            const ok = await authPromise;
+            if (ok || settled) return;
+          }
+        }
+      } catch {}
+
+      const ok = await handleAuthCompletion(null);
+      if (ok || settled) return;
+
+      // Grace period in case API token exchange is in-flight
+      await new Promise(r => setTimeout(r, 1200));
+      const retryOk = await handleAuthCompletion(null);
+      if (retryOk || settled) return;
+
+      // Truly cancelled by user
+      console.log('[ZingAuth] Login cancelled.');
+      settled = true;
+      resolve({ success: false, error: 'cancelled' });
+      if (!loginWin.isDestroyed()) {
+        loginWin.destroy();
+      }
+    });
 
     loginWin.on('closed', () => {
-      clearInterval(interval);
       if (!settled) {
         settled = true;
         resolve({ success: false, error: 'cancelled' });
       }
     });
 
-    loginWin.loadURL('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F');
+    loginWin.loadURL(initialUrl);
   });
+});
+
+function buildYouTubeSapisidAuthorization(sapisid, origin) {
+  if (!sapisid) return '';
+  const timestamp = Math.floor(Date.now() / 1000);
+  const sha1 = crypto.createHash('sha1').update(`${timestamp} ${sapisid} ${origin}`).digest('hex');
+  return `SAPISIDHASH ${timestamp}_${sha1} SAPISID1PHASH ${timestamp}_${sha1} SAPISID3PHASH ${timestamp}_${sha1}`;
+}
+
+async function fetchYouTubeProfileViaInnerTube(cookieStr) {
+  try {
+    const cookieMap = new Map();
+    try {
+      const ytCookies = await session.defaultSession.cookies.get({ domain: '.youtube.com' });
+      const allCookies = await session.defaultSession.cookies.get({});
+      for (const c of [...ytCookies, ...allCookies]) {
+        const dom = c.domain || '';
+        if (dom.includes('youtube.com') || dom.includes('google.com')) {
+          cookieMap.set(c.name, `${c.name}=${c.value}`);
+        }
+      }
+    } catch {}
+
+    for (const seg of String(cookieStr || '').split(';')) {
+      const trimmed = seg.trim();
+      if (!trimmed) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx <= 0) continue;
+      const name = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim();
+      if (name && val) {
+        cookieMap.set(name, `${name}=${val}`);
+      }
+    }
+
+    const mergedCookie = Array.from(cookieMap.values()).join('; ');
+    if (!mergedCookie) return null;
+
+    const sapisidMatch = mergedCookie.match(/(?:^|;\s*)(?:SAPISID|__Secure-3PAPISID|__Secure-1PAPISID)=([^;]+)/);
+    const sapisid = sapisidMatch ? sapisidMatch[1].trim() : '';
+
+    const endpoints = [
+      {
+        url: 'https://www.youtube.com/youtubei/v1/account/account_menu?key=AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4',
+        origin: 'https://www.youtube.com',
+        clientName: 'WEB',
+        clientVersion: '2.20241001.00.00',
+      },
+      {
+        url: 'https://music.youtube.com/youtubei/v1/account/account_menu?key=AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4',
+        origin: 'https://music.youtube.com',
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20240101.01.00',
+      },
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const authHeader = buildYouTubeSapisidAuthorization(sapisid, ep.origin);
+        const res = await fetch(ep.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': `${ep.origin}/`,
+            'Origin': ep.origin,
+            'X-Origin': ep.origin,
+            'X-Goog-AuthUser': '0',
+            'Cookie': mergedCookie,
+            ...(authHeader ? { 'Authorization': authHeader } : {}),
+          },
+          body: JSON.stringify({
+            context: {
+              client: { clientName: ep.clientName, clientVersion: ep.clientVersion, hl: 'vi', gl: 'VN' },
+            },
+          }),
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const actions = json.actions || [];
+        for (const action of actions) {
+          const popup = action?.openPopupAction?.popup;
+          const menuRenderer = popup?.multiPageMenuRenderer;
+          if (!menuRenderer) continue;
+          const header = menuRenderer.header?.activeAccountHeaderRenderer;
+          if (header) {
+            const name =
+              header.accountName?.simpleText ||
+              header.accountName?.runs?.map(r => r.text).join('') ||
+              '';
+            const thumbnails = header.accountPhoto?.thumbnails || [];
+            const avatarUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : undefined;
+            const handle =
+              header.channelHandle?.simpleText ||
+              header.channelHandle?.runs?.map(r => r.text).join('') ||
+              header.email?.simpleText ||
+              header.email?.runs?.map(r => r.text).join('') ||
+              '';
+            if (name) {
+              console.log('[YouTubeAuth] InnerTube profile found:', name, handle);
+              return { nickname: name, avatarUrl, id: handle || 'youtube_user' };
+            }
+          }
+        }
+      } catch (innerErr) {
+        console.warn('[YouTubeAuth] InnerTube endpoint attempt failed:', innerErr);
+      }
+    }
+  } catch (err) {
+    console.warn('[YouTubeAuth] InnerTube account_menu failed:', err);
+  }
+  return null;
+}
+
+ipcMain.handle('auth-fetch-youtube-profile', async (_event, cookieStr) => {
+  return await fetchYouTubeProfileViaInnerTube(cookieStr || '');
 });
 
 ipcMain.handle('auth-open-youtube-login', async () => {
@@ -6194,26 +6671,14 @@ ipcMain.handle('auth-open-youtube-login', async () => {
           if (!settled) {
             settled = true;
             clearInterval(interval);
-            let userProfile = null;
-            try {
-              userProfile = await loginWin.webContents.executeJavaScript(`
-                (async () => {
-                  try {
-                    const avatarImg = document.querySelector('#avatar-btn img, yt-img-shadow#avatar img, button#avatar-btn img');
-                    const nameEl = document.querySelector('#channel-name, #account-name, ytd-channel-name');
-                    return {
-                      nickname: nameEl?.innerText?.trim() || 'Tài khoản YouTube',
-                      avatarUrl: avatarImg?.src || undefined,
-                      id: 'youtube_user',
-                    };
-                  } catch (e) {}
-                  return null;
-                })()
-              `);
-            } catch (e) {
-              // ignore
-            }
             const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
+            // Use InnerTube API instead of unreliable DOM scraping
+            let userProfile = await fetchYouTubeProfileViaInnerTube(cookieStr);
+            if (!userProfile) {
+              // Retry once after a short delay
+              await new Promise(r => setTimeout(r, 500));
+              userProfile = await fetchYouTubeProfileViaInnerTube(cookieStr);
+            }
             loginWin.close();
             resolve({
               success: true,

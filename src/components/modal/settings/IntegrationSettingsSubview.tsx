@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertCircle, Check, ChevronDown, ExternalLink, Key, Loader2, LogIn, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
+import { Activity, AlertCircle, Check, ChevronDown, Key, Loader2, LogIn, LogOut, Music, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getStoredZingCookie, setStoredZingCookie, getStoredZingProfile, setStoredZingProfile } from '../../../services/onlineMusic/zingApi';
+import { getStoredZingCookie, setStoredZingCookie, getStoredZingProfile, setStoredZingProfile, getZingUserProfile } from '../../../services/onlineMusic/zingApi';
 import type { ProviderUser } from '../../../types/onlineMusic';
 import {
     getStoredYouTubeCookie,
     setStoredYouTubeCookie,
     getStoredYouTubeProfile,
+    getYouTubeUserProfile,
     setStoredYouTubeProfile,
     clearStoredYouTubeProfile,
 } from '../../../services/onlineMusic/youtube/youtubeApi';
@@ -199,6 +200,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const [zingCookie, setZingCookie] = useState(() => getStoredZingCookie());
     const [zingSaved, setZingSaved] = useState(false);
     const [isZingLoggingIn, setIsZingLoggingIn] = useState(false);
+    const [zingProfile, setZingProfile] = useState<ProviderUser | null>(() => getStoredZingProfile());
 
     const handleZingWebLogin = async () => {
         if (isElectron && window.electron?.openZingLogin) {
@@ -210,7 +212,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     setStoredZingCookie(res.cookie);
                     let userProfile: ProviderUser = {
                         id: 'zing_user',
-                        nickname: 'Tài khoản Zing MP3',
+                        nickname: t('zing.accountUser'),
                         vipType: 0,
                     };
                     if (res.profile) {
@@ -220,14 +222,16 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                 typeof x === 'string' && (x.toUpperCase().includes('VIP') || x.toUpperCase().includes('PREMIUM'))
                             )
                         ) || Boolean(p.isVip);
+                        const rawName = p.displayName || p.username || '';
                         userProfile = {
-                            id: String(p.userid || 'zing_user'),
-                            nickname: p.displayName || p.username || 'Tài khoản Zing MP3',
+                            id: String(p.userid || p.id || 'zing_user'),
+                            nickname: (rawName && rawName !== '__fallback__') ? rawName : t('zing.accountUser'),
                             avatarUrl: p.avatar || undefined,
                             vipType: hasVip ? 1 : 0,
                         };
                         setStoredZingProfile(userProfile);
                     }
+                    setZingProfile(userProfile);
                     useOnlineProviderAccountStore.getState().updateAccount('zing', {
                         status: 'authenticated',
                         user: userProfile,
@@ -243,6 +247,17 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                         if (likedSongs) patch.likedSongIds = likedSongs.map(s => String(s.id));
                         useOnlineProviderAccountStore.getState().updateAccount('zing', patch);
                     });
+                    if (userProfile.id === 'zing_user' || String(userProfile.id) === '0' || !userProfile.avatarUrl) {
+                        getZingUserProfile().then(realProfile => {
+                            if (realProfile && realProfile.id && realProfile.id !== 'zing_user' && String(realProfile.id) !== '0') {
+                                setZingProfile(realProfile);
+                                setStoredZingProfile(realProfile);
+                                useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                                    user: realProfile,
+                                });
+                            }
+                        }).catch(() => { /* profile fetch is best-effort */ });
+                    }
                     setStatusMessage({ type: 'success', text: t('zing.loginSuccess') });
                 } else if (res.error !== 'cancelled') {
                     setStatusMessage({ type: 'error', text: t('zing.loginFailed') });
@@ -253,7 +268,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                 setIsZingLoggingIn(false);
             }
         } else {
-            window.open('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F', '_blank', 'width=500,height=650');
+            window.open('https://oauth.zaloapp.com/v4/permission?app_id=2588341350709494368&redirect_uri=https://zingmp3.vn/login/zalo', '_blank', 'width=520,height=680');
         }
     };
 
@@ -261,6 +276,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
         setZingCookie('');
         setStoredZingCookie('');
         setStoredZingProfile(null);
+        setZingProfile(null);
         useOnlineProviderAccountStore.getState().updateAccount('zing', {
             status: 'unknown',
             user: null,
@@ -286,7 +302,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     setStoredYouTubeCookie(res.cookie);
                     const p = {
                         id: String(res.profile?.id || 'youtube_user'),
-                        nickname: res.profile?.nickname || 'Tài khoản YouTube',
+                        nickname: res.profile?.nickname || t('youtube.accountUser'),
                         avatarUrl: res.profile?.avatarUrl || undefined,
                     };
                     setStoredYouTubeProfile(p);
@@ -313,6 +329,18 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                             }
                         }
                     });
+                    if (!p.avatarUrl && p.id === 'youtube_user') {
+                        getYouTubeUserProfile().then(realProfile => {
+                            if (realProfile && (realProfile.avatarUrl || realProfile.id !== 'youtube_user')) {
+                                setYtProfile(realProfile);
+                                setStoredYouTubeProfile(realProfile);
+                                useOnlineProviderAccountStore.getState().updateAccount('youtube', { user: realProfile });
+                                if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                    useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', { user: realProfile });
+                                }
+                            }
+                        }).catch(() => {});
+                    }
                     setStatusMessage({ type: 'success', text: t('youtube.loginSuccess') });
                 } else if (res.error !== 'cancelled') {
                     setStatusMessage({ type: 'error', text: t('youtube.loginFailed') });
@@ -326,6 +354,52 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
             window.open('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F', '_blank', 'width=540,height=720');
         }
     };
+
+    // Auto-hydrate real account profiles on mount if cookies exist and stored profile is missing/fallback
+    useEffect(() => {
+        let cancelled = false;
+        const currentZingCookie = getStoredZingCookie();
+        const currentZingProfile = getStoredZingProfile();
+        if (currentZingCookie && (!currentZingProfile || !currentZingProfile.avatarUrl || currentZingProfile.id === 'zing_user' || String(currentZingProfile.id) === '0')) {
+            setStoredZingProfile(null);
+            getZingUserProfile().then(realProfile => {
+                if (cancelled || !realProfile) return;
+                setZingProfile(realProfile);
+                if (realProfile.id && realProfile.id !== 'zing_user' && String(realProfile.id) !== '0') {
+                    setStoredZingProfile(realProfile);
+                    useOnlineProviderAccountStore.getState().updateAccount('zing', {
+                        status: 'authenticated',
+                        user: realProfile,
+                    });
+                }
+            }).catch(() => {});
+        }
+
+        const currentYtCookie = getStoredYouTubeCookie();
+        const currentYtProfile = getStoredYouTubeProfile();
+        if (currentYtCookie && (!currentYtProfile || (!currentYtProfile.avatarUrl && currentYtProfile.id === 'youtube_user'))) {
+            getYouTubeUserProfile().then(realProfile => {
+                if (cancelled || !realProfile) return;
+                setYtProfile(realProfile);
+                if (realProfile.avatarUrl || realProfile.id !== 'youtube_user') {
+                    setStoredYouTubeProfile(realProfile);
+                    useOnlineProviderAccountStore.getState().updateAccount('youtube', {
+                        status: 'authenticated',
+                        user: realProfile,
+                    });
+                    if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                        useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', {
+                            status: 'authenticated',
+                            user: realProfile,
+                        });
+                    }
+                }
+            }).catch(() => {});
+        }
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const handleYouTubeLogout = () => {
         setYtCookie('');
@@ -1181,56 +1255,97 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
 
             {/* Zing MP3 Settings */}
             <SettingsAnchor anchorId="zingCookie" label={t('zing.title')}>
-                <SettingsSectionHeading
-                    icon={Music}
-                    label={t('zing.heading')}
-                />
-                <div className={`${settingsCardClass} p-5 space-y-4`}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-xs">
-                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
-                                zingCookie ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
-                            }`}>
-                                {zingCookie ? t('zing.activeCookie') : t('zing.guestMode')}
-                            </span>
+                <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-4 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                    <Music size={14} /> {t('zing.heading')}
+                    {zingCookie && (
+                        <span className={`ml-2 px-2 py-0.5 ${successBgColor} ${successTextColor} text-xs rounded-full font-normal normal-case`}>
+                            {zingProfile?.nickname || t('zing.activeCookie')}
+                        </span>
+                    )}
+                </h3>
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-4">
+                    {/* Profile info bar — always shown when logged in */}
+                    {zingCookie && zingProfile && (
+                        <div className="border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-3">
+                                {zingProfile.avatarUrl ? (
+                                    <img
+                                        src={zingProfile.avatarUrl.replace('http:', 'https:')}
+                                        alt={zingProfile.nickname}
+                                        className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                                        {zingProfile.nickname ? zingProfile.nickname.charAt(0).toUpperCase() : <Music size={14} />}
+                                    </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium overflow-hidden whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                                        <span className="truncate">{zingProfile.nickname}</span>
+                                        {Boolean(zingProfile.vipType && zingProfile.vipType !== 0) && (
+                                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-500 to-yellow-400 text-black">
+                                                VIP
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs opacity-60 overflow-hidden whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                                        {zingProfile.id && zingProfile.id !== 'zing_user' && String(zingProfile.id) !== '0' && String(zingProfile.id) !== '1' ? (
+                                            <span>ID: {zingProfile.id} · Zing MP3</span>
+                                        ) : (
+                                            <span>Zing MP3 · {t('zing.activeCookie')}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    )}
 
-                        <div className="flex items-center gap-2">
+                    <p className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        {t('zing.cookieHint')}
+                    </p>
+
+                    {/* Action buttons — state-dependent */}
+                    <div className="flex gap-2">
+                        {!zingCookie ? (
                             <button
                                 type="button"
                                 onClick={handleZingWebLogin}
                                 disabled={isZingLoggingIn}
-                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 disabled:opacity-50"
+                                className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
+                                style={{ color: 'var(--text-primary)' }}
                             >
-                                {isZingLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                                {isZingLoggingIn ? t('zing.loggingIn') : t('zing.loginButton')}
+                                {isZingLoggingIn ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        {t('zing.loggingIn')}
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn size={16} />
+                                        {t('zing.loginButton')}
+                                    </>
+                                )}
                             </button>
-
-                            {zingCookie && (
-                                <button
-                                    type="button"
-                                    onClick={handleZingLogout}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
-                                >
-                                    <Trash2 size={16} />
-                                    {t('zing.logoutButton')}
-                                </button>
-                            )}
-                        </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleZingLogout}
+                                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
+                            >
+                                <LogOut size={16} />
+                                {t('zing.logoutButton') || t('common.logout') || 'Đăng xuất'}
+                            </button>
+                        )}
                     </div>
 
-                    <p className="text-xs opacity-60">
-                        {t('zing.cookieHint')}
-                    </p>
-
-                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
-                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
+                    <details className="group border-t border-white/10 pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none" style={{ color: 'var(--text-primary)' }}>
                             <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
                             {t('zing.advancedTitle')}
                         </summary>
                         <div className="mt-3 space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold mb-1 opacity-80">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                     {t('zing.cookieLabel')}
                                 </label>
                                 <input
@@ -1238,22 +1353,31 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     value={zingCookie}
                                     onChange={e => setZingCookie(e.target.value)}
                                     placeholder={t('zing.cookiePlaceholder')}
-                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-xs"
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-white/30 transition-colors font-mono text-xs"
+                                    style={{ color: 'var(--text-primary)' }}
                                 />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setStoredZingCookie(zingCookie);
                                         setZingSaved(true);
-                                        const p = getStoredZingProfile() || { id: 'zing_user', nickname: 'Tài khoản Zing MP3', vipType: 0 };
+                                        const p = getStoredZingProfile() || { id: 'zing_user', nickname: t('zing.accountUser'), vipType: 0 };
+                                        setZingProfile(p);
                                         useOnlineProviderAccountStore.getState().updateAccount('zing', {
                                             status: 'authenticated',
                                             user: p,
                                             hydration: 'ready',
                                             freshness: 'fresh',
                                         });
+                                        void getZingUserProfile().then(realProfile => {
+                                            if (realProfile && realProfile.id && realProfile.id !== 'zing_user' && String(realProfile.id) !== '0') {
+                                                setZingProfile(realProfile);
+                                                setStoredZingProfile(realProfile);
+                                                useOnlineProviderAccountStore.getState().updateAccount('zing', { user: realProfile });
+                                            }
+                                        }).catch(() => {});
                                         Promise.all([
                                             zingProvider.library?.getUserPlaylists?.(p.id, 50, 0),
                                             zingProvider.library?.getLikedSongs?.(p.id),
@@ -1266,7 +1390,8 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                         setStatusMessage({ type: 'success', text: t('zing.saveSuccess') });
                                         setTimeout(() => setZingSaved(false), 2000);
                                     }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1.5"
+                                    className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15"
+                                    style={{ color: 'var(--text-primary)' }}
                                 >
                                     {zingSaved ? <Check size={14} /> : <Music size={14} />}
                                     {zingSaved ? t('zing.saved') : t('zing.saveCookie')}
@@ -1275,10 +1400,9 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     <button
                                         type="button"
                                         onClick={handleZingLogout}
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center justify-center`}
                                     >
                                         <Trash2 size={14} />
-                                        {t('zing.clear')}
                                     </button>
                                 )}
                             </div>
@@ -1289,72 +1413,92 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
 
             {/* YouTube Music Settings */}
             <SettingsAnchor anchorId="youtubeCookie" label={t('youtube.title')}>
-                <SettingsSectionHeading
-                    icon={Music}
-                    label={t('youtube.heading')}
-                />
-                <div className={`${settingsCardClass} p-5 space-y-4`}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-xs">
-                            <span className={`inline-block px-2.5 py-1 rounded-full font-medium ${
-                                ytCookie ? `${successBgColor} ${successTextColor}` : 'bg-black/5 dark:bg-white/10 opacity-70'
-                            }`}>
-                                {ytCookie ? (ytProfile?.nickname || t('youtube.activeCookie')) : t('youtube.guestMode')}
-                            </span>
+                <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-4 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                    <Music size={14} /> {t('youtube.heading')}
+                    {ytCookie && (
+                        <span className={`ml-2 px-2 py-0.5 ${successBgColor} ${successTextColor} text-xs rounded-full font-normal normal-case`}>
+                            {ytProfile?.nickname || t('youtube.activeCookie')}
+                        </span>
+                    )}
+                </h3>
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-4">
+                    {/* Profile info bar — always shown when logged in */}
+                    {ytCookie && ytProfile && (
+                        <div className="border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-3">
+                                {ytProfile.avatarUrl ? (
+                                    <img
+                                        src={ytProfile.avatarUrl.replace('http:', 'https:')}
+                                        alt={ytProfile.nickname}
+                                        className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                                        {ytProfile.nickname ? ytProfile.nickname.charAt(0).toUpperCase() : <Music size={14} />}
+                                    </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium overflow-hidden whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                                        <span className="truncate">{ytProfile.nickname}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs opacity-60 overflow-hidden whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                                        {ytProfile.id && ytProfile.id !== 'youtube_user' ? (
+                                            <span>{ytProfile.id} · YouTube Music</span>
+                                        ) : (
+                                            <span>YouTube Music · {t('youtube.activeCookie')}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    )}
 
-                        <div className="flex items-center gap-2">
+                    <p className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        {t('youtube.cookieHint')}
+                    </p>
+
+                    {/* Action buttons — state-dependent */}
+                    <div className="flex gap-2">
+                        {!ytCookie ? (
                             <button
                                 type="button"
                                 onClick={handleYouTubeWebLogin}
                                 disabled={isYtLoggingIn}
-                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50"
+                                className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
+                                style={{ color: 'var(--text-primary)' }}
                             >
-                                {isYtLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                                {isYtLoggingIn ? t('youtube.loggingIn') : t('youtube.loginButton')}
+                                {isYtLoggingIn ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        {t('youtube.loggingIn')}
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn size={16} />
+                                        {t('youtube.loginButton')}
+                                    </>
+                                )}
                             </button>
-
+                        ) : (
                             <button
                                 type="button"
-                                onClick={() => {
-                                    if (isElectron && window.electron?.openExternalUrl) {
-                                        window.electron.openExternalUrl('https://music.youtube.com');
-                                    } else {
-                                        window.open('https://music.youtube.com', '_blank');
-                                    }
-                                }}
-                                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-white/10 hover:bg-white/15 text-white/90 flex items-center gap-1.5"
-                                title={t('youtube.openExternal')}
+                                onClick={handleYouTubeLogout}
+                                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
                             >
-                                <ExternalLink size={16} />
-                                {t('youtube.openExternal')}
+                                <LogOut size={16} />
+                                {t('youtube.logoutButton') || t('common.logout') || 'Đăng xuất'}
                             </button>
-
-                            {ytCookie && (
-                                <button
-                                    type="button"
-                                    onClick={handleYouTubeLogout}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1.5`}
-                                >
-                                    <Trash2 size={16} />
-                                    {t('youtube.logoutButton')}
-                                </button>
-                            )}
-                        </div>
+                        )}
                     </div>
 
-                    <p className="text-xs opacity-60">
-                        {t('youtube.cookieHint')}
-                    </p>
-
-                    <details className="group border-t border-black/10 dark:border-white/10 pt-3">
-                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none">
+                    <details className="group border-t border-white/10 pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none" style={{ color: 'var(--text-primary)' }}>
                             <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
                             {t('youtube.advancedTitle')}
                         </summary>
                         <div className="mt-3 space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold mb-1 opacity-80">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                     {t('youtube.cookieLabel')}
                                 </label>
                                 <input
@@ -1362,17 +1506,19 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     value={ytCookie}
                                     onChange={e => setYtCookie(e.target.value)}
                                     placeholder={t('youtube.cookiePlaceholder')}
-                                    className="w-full px-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-xs"
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-white/30 transition-colors font-mono text-xs"
+                                    style={{ color: 'var(--text-primary)' }}
                                 />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setStoredYouTubeCookie(ytCookie);
                                         setYtSaved(true);
-                                        const p = getStoredYouTubeProfile() || { id: 'youtube_user', nickname: 'Tài khoản YouTube' };
+                                        const p = getStoredYouTubeProfile() || { id: 'youtube_user', nickname: t('youtube.accountUser') };
                                         if (ytCookie.trim()) {
+                                            setYtProfile(p);
                                             useOnlineProviderAccountStore.getState().updateAccount('youtube', {
                                                 status: 'authenticated',
                                                 user: p,
@@ -1387,6 +1533,16 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                                     freshness: 'fresh',
                                                 });
                                             }
+                                            void getYouTubeUserProfile().then(realProfile => {
+                                                if (realProfile && (realProfile.avatarUrl || realProfile.id !== 'youtube_user')) {
+                                                    setYtProfile(realProfile);
+                                                    setStoredYouTubeProfile(realProfile);
+                                                    useOnlineProviderAccountStore.getState().updateAccount('youtube', { user: realProfile });
+                                                    if (useOnlineProviderAccountStore.getState().accounts['folium.youtube-provider.youtube']) {
+                                                        useOnlineProviderAccountStore.getState().updateAccount('folium.youtube-provider.youtube', { user: realProfile });
+                                                    }
+                                                }
+                                            }).catch(() => {});
                                             void youtubeProvider.library?.getUserPlaylists?.(p.id, 50, 0).then(page => {
                                                 if (page?.items) {
                                                     useOnlineProviderAccountStore.getState().updateAccount('youtube', { collections: page.items });
@@ -1408,7 +1564,8 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                         setStatusMessage({ type: 'success', text: t('youtube.saveSuccess') });
                                         setTimeout(() => setYtSaved(false), 2000);
                                     }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5"
+                                    className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15"
+                                    style={{ color: 'var(--text-primary)' }}
                                 >
                                     {ytSaved ? <Check size={14} /> : <Music size={14} />}
                                     {ytSaved ? t('youtube.saved') : t('youtube.saveCookie')}
@@ -1417,10 +1574,9 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                                     <button
                                         type="button"
                                         onClick={handleYouTubeLogout}
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center gap-1`}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${errorBgColor} hover:bg-red-500/20 ${errorTextColor} flex items-center justify-center`}
                                     >
                                         <Trash2 size={14} />
-                                        {t('youtube.clear')}
                                     </button>
                                 )}
                             </div>

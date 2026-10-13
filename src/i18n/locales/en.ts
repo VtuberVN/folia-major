@@ -3638,7 +3638,8 @@ export default {
     "clearSuccess": "YouTube cookie cleared.",
     "advancedTitle": "Advanced Options (Manual Cookie)",
     "cookieHint": "Guest mode requires no sign-in: You can search, stream music, and browse charts freely. Signing in with Cookie is entirely optional to sync personal playlists.",
-    "openExternal": "Open in External Browser (Chrome)"
+    "openExternal": "Open in External Browser (Chrome)",
+    "accountUser": "YouTube Account"
   },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing is being controlled by an external player. Folia is only responsible for displaying lyrics and visual effects.",
