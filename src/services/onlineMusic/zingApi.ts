@@ -572,7 +572,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': `${ZING_BASE_URL}/`,
@@ -1273,7 +1273,7 @@ export async function getZingAlbumDetail(albumId: string): Promise<ProviderColle
     url.searchParams.set('sig', sig);
 
     try {
-        const res = await fetch(url.toString(), {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
             headers: buildZingRequestHeaders(cookie),
             signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
         });

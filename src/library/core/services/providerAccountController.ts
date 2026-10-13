@@ -382,7 +382,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     log('warn', 'login:zing-error', { error: describeError(e) });
                 }
             } else if (typeof window !== 'undefined') {
-                window.open('https://id.zalo.me/account?continue=https%3A%2F%2Fzingmp3.vn%2F', '_blank', 'width=500,height=650');
+                accounts.setActiveProviderId('zing');
             }
             return { status: 'superseded', providerId };
         }
@@ -408,7 +408,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     log('warn', 'login:youtube-error', { error: describeError(e) });
                 }
             } else if (typeof window !== 'undefined') {
-                window.open('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F', '_blank', 'width=540,height=720');
+                accounts.setActiveProviderId(providerId);
             }
             return { status: 'superseded', providerId };
         }

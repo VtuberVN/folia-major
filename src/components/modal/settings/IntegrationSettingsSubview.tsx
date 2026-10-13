@@ -267,8 +267,6 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
             } finally {
                 setIsZingLoggingIn(false);
             }
-        } else {
-            window.open('https://oauth.zaloapp.com/v4/permission?app_id=2588341350709494368&redirect_uri=https://zingmp3.vn/login/zalo', '_blank', 'width=520,height=680');
         }
     };
 
@@ -350,8 +348,6 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
             } finally {
                 setIsYtLoggingIn(false);
             }
-        } else {
-            window.open('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F', '_blank', 'width=540,height=720');
         }
     };
 
@@ -1305,38 +1301,40 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     </p>
 
                     {/* Action buttons — state-dependent */}
-                    <div className="flex gap-2">
-                        {!zingCookie ? (
-                            <button
-                                type="button"
-                                onClick={handleZingWebLogin}
-                                disabled={isZingLoggingIn}
-                                className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ color: 'var(--text-primary)' }}
-                            >
-                                {isZingLoggingIn ? (
-                                    <>
-                                        <Loader2 size={16} className="animate-spin" />
-                                        {t('zing.loggingIn')}
-                                    </>
-                                ) : (
-                                    <>
-                                        <LogIn size={16} />
-                                        {t('zing.loginButton')}
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={handleZingLogout}
-                                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
-                            >
-                                <LogOut size={16} />
-                                {t('zing.logoutButton') || t('common.logout') || 'Đăng xuất'}
-                            </button>
-                        )}
-                    </div>
+                    {(isElectron || zingCookie) && (
+                        <div className="flex gap-2">
+                            {!zingCookie ? (
+                                <button
+                                    type="button"
+                                    onClick={handleZingWebLogin}
+                                    disabled={isZingLoggingIn}
+                                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style={{ color: 'var(--text-primary)' }}
+                                >
+                                    {isZingLoggingIn ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            {t('zing.loggingIn')}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogIn size={16} />
+                                            {t('zing.loginButton')}
+                                        </>
+                                    )}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleZingLogout}
+                                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
+                                >
+                                    <LogOut size={16} />
+                                    {t('zing.logoutButton') || t('common.logout') || 'Đăng xuất'}
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     <details className="group border-t border-white/10 pt-3">
                         <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none" style={{ color: 'var(--text-primary)' }}>
@@ -1458,38 +1456,40 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                     </p>
 
                     {/* Action buttons — state-dependent */}
-                    <div className="flex gap-2">
-                        {!ytCookie ? (
-                            <button
-                                type="button"
-                                onClick={handleYouTubeWebLogin}
-                                disabled={isYtLoggingIn}
-                                className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ color: 'var(--text-primary)' }}
-                            >
-                                {isYtLoggingIn ? (
-                                    <>
-                                        <Loader2 size={16} className="animate-spin" />
-                                        {t('youtube.loggingIn')}
-                                    </>
-                                ) : (
-                                    <>
-                                        <LogIn size={16} />
-                                        {t('youtube.loginButton')}
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={handleYouTubeLogout}
-                                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
-                            >
-                                <LogOut size={16} />
-                                {t('youtube.logoutButton') || t('common.logout') || 'Đăng xuất'}
-                            </button>
-                        )}
-                    </div>
+                    {(isElectron || ytCookie) && (
+                        <div className="flex gap-2">
+                            {!ytCookie ? (
+                                <button
+                                    type="button"
+                                    onClick={handleYouTubeWebLogin}
+                                    disabled={isYtLoggingIn}
+                                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style={{ color: 'var(--text-primary)' }}
+                                >
+                                    {isYtLoggingIn ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            {t('youtube.loggingIn')}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogIn size={16} />
+                                            {t('youtube.loginButton')}
+                                        </>
+                                    )}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleYouTubeLogout}
+                                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${errorBgColor} hover:bg-red-500/20 ${errorTextColor}`}
+                                >
+                                    <LogOut size={16} />
+                                    {t('youtube.logoutButton') || t('common.logout') || 'Đăng xuất'}
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     <details className="group border-t border-white/10 pt-3">
                         <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none" style={{ color: 'var(--text-primary)' }}>

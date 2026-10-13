@@ -100,7 +100,7 @@ export const youtubeProvider: OnlineMusicProvider = {
         search: true,
         playback: true,
         lyrics: true,
-        auth: true,
+        auth: typeof window !== 'undefined' ? Boolean((window as any).electron) : true,
         userLibrary: true,
         playlists: true,
         albums: true,

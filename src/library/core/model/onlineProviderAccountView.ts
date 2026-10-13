@@ -21,8 +21,8 @@ export const resolveOnlineProviderAccountView = ({
     hasUser: boolean;
     platformAvailable: boolean;
 }): OnlineProviderAccountView => {
-    if (isAccountless(provider)) return 'accountless';
     if (hasUser) return 'authenticated';
+    if (isAccountless(provider)) return 'accountless';
     if (platformAvailable && (provider?.hydration === 'loading' || provider?.status === 'unknown')) return 'resolving';
     return 'guest';
 };
