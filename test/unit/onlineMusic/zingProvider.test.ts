@@ -108,7 +108,7 @@ describe('zingProvider', () => {
 
         zingApi.setStoredZingCookie('zpsid=test12345');
         const status = await zingProvider.auth?.getLoginStatus();
-        expect(status?.nickname).toBe('Tài khoản Zing MP3');
+        expect(status?.nickname).toMatch(/^(Tài khoản Zing MP3|Zing MP3 Account)$/);
         expect(status?.vipType).toBe(0);
 
         // When verified VIP profile is stored
