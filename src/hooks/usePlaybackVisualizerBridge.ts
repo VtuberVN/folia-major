@@ -80,7 +80,7 @@ export function usePlaybackVisualizerBridge({
 
     const currentLineIndexRef = useRef(-1);
 
-    const updateLoop = useCallback(() => {
+    const tick = useCallback(() => {
         // Normally the active deck; the outgoing one for as long as a blend holds the picture on
         // the track it is finishing, so that clock and picture never describe different songs.
         const audioElement = getDisplayElement?.() ?? audioRef.current;
@@ -236,14 +236,11 @@ export function usePlaybackVisualizerBridge({
                 }
             }
         }
-
-        animationFrameRef.current = requestAnimationFrame(updateLoop);
     }, [
         activePlaybackContext,
         findActiveLineIndex,
         audioAnalysisEnabled,
         analyserRef,
-        animationFrameRef,
         audioBands,
         audioPower,
         audioRef,
@@ -270,12 +267,35 @@ export function usePlaybackVisualizerBridge({
         getDisplayElement,
     ]);
 
+    const lastRafTimeRef = useRef(typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+    const updateLoop = useCallback(() => {
+        lastRafTimeRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        tick();
+        animationFrameRef.current = requestAnimationFrame(updateLoop);
+    }, [tick, animationFrameRef]);
+
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(updateLoop);
+
+        // Fallback heartbeat timer: when requestAnimationFrame is suspended or throttled by Chromium
+        // (e.g. main window minimized to taskbar, hidden, or occluded),
+        // ensures continuous clock progression, lyric synchronization, and audio analysis for OBS.
+        const FALLBACK_INTERVAL_MS = 25;
+        const RAF_STALL_THRESHOLD_MS = 45;
+
+        const intervalId = setInterval(() => {
+            const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            if (now - lastRafTimeRef.current >= RAF_STALL_THRESHOLD_MS) {
+                tick();
+            }
+        }, FALLBACK_INTERVAL_MS);
+
         return () => {
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            clearInterval(intervalId);
         };
-    }, [animationFrameRef, updateLoop]);
+    }, [animationFrameRef, tick, updateLoop]);
 }

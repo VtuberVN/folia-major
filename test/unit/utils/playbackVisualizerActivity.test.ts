@@ -104,4 +104,21 @@ describe('playback visual activity gate', () => {
         expect(firstSpectrum[0]).toBe(60);
         cleanup();
     });
+
+    it('advances clock via fallback timer when requestAnimationFrame is stalled', () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'Date', 'performance'] });
+        try {
+            const { audio, cleanup } = mountBridge();
+
+            // Simulate window minimization: rAF stops firing, but audio time advances
+            audio.currentTime = 45;
+            vi.advanceTimersByTime(60);
+
+            expect(currentTime.set).toHaveBeenCalledWith(45);
+            expect(lyricCurrentTime.set).toHaveBeenCalledWith(44.5);
+            cleanup();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
