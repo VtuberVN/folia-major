@@ -3474,6 +3474,11 @@ export default {
     albumsSyncingOpen: "Đang tải album… {{loaded}}",
     albumsInterrupted: "Dừng tải album ở mốc {{loaded}}",
     panelTitle: "Bài hát nổi bật và album",
+    posterLabel: "Áp phích nghệ sĩ",
+    posterTopSongs: "Bài hát nổi bật",
+  },
+  libraryBravaisAlbum: {
+    posterLabel: "Áp phích album",
   },
   artistGrid: {
     localArtist: "Nghệ sĩ nội bộ: {{artistName}}",
