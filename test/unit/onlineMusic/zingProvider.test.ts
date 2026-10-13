@@ -439,4 +439,51 @@ describe('zingProvider', () => {
         (globalThis as any).window = prevWindow;
         (globalThis as any).localStorage = prevLocalStorage;
     });
+
+    it('sends x-zing-cookie header and sectionId in getZingLikedSongs and getZingRecentSongs', async () => {
+        zingApi.setStoredZingCookie('za_oauth_v4=test_token_123');
+        const fetchCalls: { url: string; headers: Record<string, string> }[] = [];
+
+        vi.spyOn(globalThis, 'fetch').mockImplementation((async (input: any, init?: any) => {
+            const urlStr = String(input);
+            fetchCalls.push({ url: urlStr, headers: (init?.headers || {}) as Record<string, string> });
+            return {
+                ok: true,
+                headers: { get: () => '' },
+                json: async () => ({
+                    err: 0,
+                    data: {
+                        items: [
+                            {
+                                encodeId: 'ZW78TEST',
+                                title: 'Test Song',
+                                artistsNames: 'Test Artist',
+                                thumbnailM: 'https://photo-resize-zmp3.zmdcdn.me/cover.jpg',
+                                duration: 210,
+                            },
+                        ],
+                        total: 1,
+                    },
+                }),
+            } as any;
+        }) as any);
+
+        const liked = await zingApi.getZingLikedSongs(50, 0);
+        expect(liked).toHaveLength(1);
+        expect(liked[0].name).toBe('Test Song');
+
+        const likedCall = fetchCalls.find(c => c.url.includes('type=library') && c.url.includes('sectionId=mFavSong'));
+        expect(likedCall).toBeDefined();
+        expect(likedCall?.headers['x-zing-cookie']).toContain('za_oauth_v4=test_token_123');
+
+        const recent = await zingApi.getZingRecentSongs(20);
+        expect(recent).toHaveLength(1);
+
+        const recentCall = fetchCalls.find(c => c.url.includes('type=recentListen') && c.url.includes('sectionId=mRecent'));
+        expect(recentCall).toBeDefined();
+        expect(recentCall?.headers['x-zing-cookie']).toContain('za_oauth_v4=test_token_123');
+
+        zingApi.setStoredZingCookie('');
+    });
 });
+

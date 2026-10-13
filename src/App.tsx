@@ -758,20 +758,30 @@ export default function App() {
             const status = await zingProvider.auth?.getLoginStatus();
             let collections: ProviderCollection[] = [];
             let likedSongIds: string[] = [];
+            let likedSongs: UnifiedSong[] = [];
+            if (status && zingProvider.library?.getLikedSongs) {
+                try {
+                    likedSongs = await zingProvider.library.getLikedSongs(status.id);
+                    likedSongIds = (likedSongs || []).map(s => String(s.id));
+                } catch (e) {
+                    console.warn('[Zing] Failed to fetch liked songs:', e);
+                }
+            }
             if (zingProvider.library?.getUserPlaylists) {
                 try {
                     const page = await zingProvider.library.getUserPlaylists(status?.id || 'zing_user', 50, 0);
-                    collections = page.items;
+                    collections = page.items.map(item => {
+                        if (item.id === 'zing_liked_songs' && likedSongs && likedSongs.length > 0) {
+                            return {
+                                ...item,
+                                coverUrl: likedSongs[0]?.album?.coverUrl || item.coverUrl,
+                                trackCount: item.trackCount ?? likedSongs.length,
+                            };
+                        }
+                        return item;
+                    });
                 } catch (e) {
                     console.warn('[Zing] Failed to fetch playlists:', e);
-                }
-            }
-            if (status && zingProvider.library?.getLikedSongs) {
-                try {
-                    const liked = await zingProvider.library.getLikedSongs(status.id);
-                    likedSongIds = (liked || []).map(s => String(s.id));
-                } catch (e) {
-                    console.warn('[Zing] Failed to fetch liked songs:', e);
                 }
             }
             useOnlineProviderAccountStore.getState().updateAccount('zing', {
@@ -854,11 +864,22 @@ export default function App() {
                 effectiveUser ? zingProvider.library?.getLikedSongs?.(effectiveUser.id) : Promise.resolve([]),
             ]).then(([page, likedSongs]) => {
                 if (cancelled) return;
-                const likedSongIds = (likedSongs || []).map(s => String(s.id));
+                const likedList = likedSongs || [];
+                const likedSongIds = likedList.map(s => String(s.id));
+                const collections = (page?.items || []).map(item => {
+                    if (item.id === 'zing_liked_songs' && likedList.length > 0) {
+                        return {
+                            ...item,
+                            coverUrl: likedList[0]?.album?.coverUrl || item.coverUrl,
+                            trackCount: item.trackCount ?? likedList.length,
+                        };
+                    }
+                    return item;
+                });
                 useOnlineProviderAccountStore.getState().updateAccount('zing', {
                     status: effectiveUser ? 'authenticated' : 'anonymous',
                     user: effectiveUser,
-                    collections: page?.items || [],
+                    collections,
                     likedSongIds,
                     hydration: 'ready',
                     freshness: 'fresh',

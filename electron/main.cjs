@@ -3081,14 +3081,8 @@ function setupCorsBypassHandlers() {
           requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
         }
         const existingCookie = requestHeaders['Cookie'] || requestHeaders['cookie'] || '';
-        const customCookie = requestHeaders['x-zing-cookie'] || requestHeaders['X-Zing-Cookie'] || existingCookie || '';
-        const cookieList = [cachedZingSessionCookie, customCookie].filter(Boolean);
-        if (!cookieList.some(c => c.includes('zmp3_rqid'))) {
-          const syntheticRaw = `0|127.0.0.1|v1.22.2|${Date.now()}`;
-          const syntheticRqid = Buffer.from(syntheticRaw).toString('base64');
-          cookieList.push('zmp3_app_version.1=1222', `zmp3_rqid=${syntheticRqid}`);
-        }
-        requestHeaders['Cookie'] = cookieList.join('; ');
+        const customCookie = requestHeaders['x-zing-cookie'] || requestHeaders['X-Zing-Cookie'] || '';
+        requestHeaders['Cookie'] = buildMergedZingCookie(cachedZingSessionCookie, existingCookie, customCookie);
         delete requestHeaders['x-zing-cookie'];
         delete requestHeaders['X-Zing-Cookie'];
       }
