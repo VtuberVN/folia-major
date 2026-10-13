@@ -78,19 +78,20 @@ export async function searchNctSongs(
                 name: singer.name || 'Various Artists',
             }));
             const stream = (s.streamURL || []).find((st: any) => st?.stream)?.stream;
+            const cover = s.image ? String(s.image).replace(/^http:/, 'https:') : undefined;
 
             return {
                 id: songKey,
                 name: s.name || 'Unknown Song',
                 artists: artists.length > 0 ? artists : [{ id: 0, name: s.artistName || 'NhacCuaTui' }],
-                album: { id: 0, name: s.album?.name || 'NhacCuaTui', coverUrl: s.image },
+                album: { id: 0, name: s.album?.name || 'NhacCuaTui', coverUrl: cover },
                 durationMs: (s.duration || 0) * 1000,
                 sourceRef: {
                     kind: 'online',
                     providerId: 'nct',
                     mediaId: songKey,
                     providerData: {
-                        coverUrl: s.image,
+                        coverUrl: cover,
                         streamUrl: stream,
                     },
                 },

@@ -94,6 +94,7 @@ http {
         }
 
         location / {
+            add_header Content-Security-Policy "upgrade-insecure-requests" always;
             try_files $uri $uri/ /index.html;
         }
     }

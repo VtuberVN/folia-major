@@ -391,7 +391,7 @@ export async function getZingSongDetail(songId: string): Promise<UnifiedSong | n
                 album: {
                     id: 0,
                     name: d.album?.title || 'Zing MP3',
-                    coverUrl: d.thumbnailM || d.thumbnail,
+                    coverUrl: (d.thumbnailM || d.thumbnail) ? String(d.thumbnailM || d.thumbnail).replace(/^http:/, 'https:') : undefined,
                 },
                 durationMs: (d.duration || 0) * 1000,
                 fee: isVip ? 1 : 0,
@@ -542,7 +542,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
         return {
             id: String(data.userid || data.id || 'zing_user'),
             nickname: data.displayName || data.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
-            avatarUrl: data.avatar || undefined,
+            avatarUrl: data.avatar ? String(data.avatar).replace(/^http:/, 'https:') : undefined,
             vipType: hasVip ? 1 : 0,
         };
     };

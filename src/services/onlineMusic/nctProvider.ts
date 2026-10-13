@@ -103,18 +103,19 @@ export const nctProvider: OnlineMusicProvider = {
                 if (json.code !== 0 || !json.data) return null;
                 const d = json.data;
                 const stream = (d.streamURL || []).find((s: any) => s.stream)?.stream;
+                const cover = d.image ? String(d.image).replace(/^http:/, 'https:') : undefined;
                 return nctProvider.normalizeSong({
                     id: d.key,
                     name: d.name,
                     artists: (d.artist || []).map((a: any, idx: number) => ({ id: a.key || idx, name: a.name })),
-                    album: { id: 0, name: d.album?.name || 'NhacCuaTui', coverUrl: d.image },
+                    album: { id: 0, name: d.album?.name || 'NhacCuaTui', coverUrl: cover },
                     durationMs: (d.duration || 0) * 1000,
                     sourceRef: {
                         kind: 'online',
                         providerId: 'nct',
                         mediaId: d.key,
                         providerData: {
-                            coverUrl: d.image,
+                            coverUrl: cover,
                             streamUrl: stream,
                         },
                     },

@@ -5,7 +5,7 @@ import type { ProviderSongMetadata } from '../types/onlineMusic';
 
 export const getSongAlbumCoverUrl = (song?: Pick<SongResult, 'album'> | null): string | undefined => {
     const coverUrl = song?.album?.coverUrl;
-    return typeof coverUrl === 'string' && coverUrl ? coverUrl : undefined;
+    return typeof coverUrl === 'string' && coverUrl ? coverUrl.replace(/^http:/, 'https:') : undefined;
 };
 
 // Builds provider-neutral song metadata after a provider has normalized its response.
