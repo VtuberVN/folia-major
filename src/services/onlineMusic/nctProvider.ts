@@ -12,9 +12,17 @@ import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import { fetchNctLyrics, searchNctSongs } from '../../utils/lyrics/providers/nctLyricProvider';
 
+function toNctWebProxyUrl(targetUrl: string): string {
+    if (typeof window !== 'undefined' && !(window as any).electron) {
+        return `/api/lyric-proxy?url=${encodeURIComponent(targetUrl)}`;
+    }
+    return targetUrl;
+}
+
 export async function getNctSongAudioSource(mediaId: string): Promise<string | null> {
     try {
-        const res = await fetch(`https://graph.nhaccuatui.com/api/v1/song/detail/${encodeURIComponent(mediaId)}`, {
+        const targetUrl = `https://graph.nhaccuatui.com/api/v1/song/detail/${encodeURIComponent(mediaId)}`;
+        const res = await fetch(toNctWebProxyUrl(targetUrl), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://www.nhaccuatui.com/',
@@ -86,7 +94,8 @@ export const nctProvider: OnlineMusicProvider = {
         async getSongDetail(id) {
             const mediaId = String(id);
             try {
-                const res = await fetch(`https://graph.nhaccuatui.com/api/v1/song/detail/${encodeURIComponent(mediaId)}`, {
+                const targetUrl = `https://graph.nhaccuatui.com/api/v1/song/detail/${encodeURIComponent(mediaId)}`;
+                const res = await fetch(toNctWebProxyUrl(targetUrl), {
                     headers: { 'User-Agent': 'Mozilla/5.0' },
                 });
                 if (!res.ok) return null;

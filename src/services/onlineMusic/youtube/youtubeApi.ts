@@ -180,10 +180,17 @@ function parseDurationToMs(text?: string): number {
 let cachedApiKey = '';
 const DEFAULT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4';
 
+function toYouTubeWebProxyUrl(url: string): string {
+    if (typeof window !== 'undefined' && !(window as any).electron) {
+        return `/api/lyric-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+}
+
 async function getApiKey(): Promise<string> {
     if (cachedApiKey) return cachedApiKey;
     try {
-        const res = await fetch('https://www.youtube.com/', {
+        const res = await fetch(toYouTubeWebProxyUrl('https://www.youtube.com/'), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             },
@@ -221,7 +228,7 @@ export async function getVideoInfo(videoId: string): Promise<UnifiedSong | null>
             videoId: vid,
         };
 
-        const res = await fetch(endpoint, {
+        const res = await fetch(toYouTubeWebProxyUrl(endpoint), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -301,7 +308,7 @@ export async function searchYouTubeMusic(query: string, limit: number = 30, offs
             params: 'EgWKAQIIAWoQEAQQAxAFEAoQCRAREBAQFQ%3D%3D', // Songs filter
         };
 
-        const res = await fetch('https://music.youtube.com/youtubei/v1/search', {
+        const res = await fetch(toYouTubeWebProxyUrl('https://music.youtube.com/youtubei/v1/search'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -362,7 +369,7 @@ export async function searchYouTubeMusic(query: string, limit: number = 30, offs
         // Fallback to standard YouTube Android search if YouTube Music returns nothing
         if (items.length === 0) {
             const apiKey = await getApiKey();
-            const fallbackRes = await fetch(`https://www.youtube.com/youtubei/v1/search?key=${apiKey}`, {
+            const fallbackRes = await fetch(toYouTubeWebProxyUrl(`https://www.youtube.com/youtubei/v1/search?key=${apiKey}`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -457,7 +464,7 @@ export async function getYouTubeAudioStream(videoId: string): Promise<YouTubeStr
             videoId: vid,
         };
 
-        const res = await fetch(endpoint, {
+        const res = await fetch(toYouTubeWebProxyUrl(endpoint), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -544,6 +551,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
         };
         if (cookie) {
             headers['Cookie'] = cookie;
+            headers['x-youtube-cookie'] = cookie;
             const sapisid = extractSapisid(cookie);
             if (sapisid) {
                 headers['Authorization'] = await getSapisidHash(sapisid);
@@ -551,7 +559,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
             }
         }
 
-        const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+        const res = await fetch(toYouTubeWebProxyUrl(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -622,7 +630,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
                 while (continuationToken && contPages < 4 && items.length < 500) {
                     contPages++;
                     try {
-                        const contRes = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+                        const contRes = await fetch(toYouTubeWebProxyUrl(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
                             method: 'POST',
                             headers,
                             body: JSON.stringify({
@@ -691,7 +699,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
     // 2. Fallback to desktop YouTube WEB client
     try {
         const apiKey = await getApiKey();
-        const res = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+        const res = await fetch(toYouTubeWebProxyUrl(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -750,7 +758,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
             while (webContinuation && webPages < 4 && items.length < 500) {
                 webPages++;
                 try {
-                    const contRes = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+                    const contRes = await fetch(toYouTubeWebProxyUrl(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -819,7 +827,7 @@ export async function getYouTubePlaylist(playlistIdInput: string): Promise<YouTu
 export async function getYouTubeTrendingSongs(limit = 30): Promise<UnifiedSong[]> {
     try {
         const apiKey = await getApiKey();
-        const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+        const res = await fetch(toYouTubeWebProxyUrl(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -900,6 +908,7 @@ export async function getUserYouTubePlaylists(limit = 50, offset = 0): Promise<{
         };
         if (cookie) {
             headers['Cookie'] = cookie;
+            headers['x-youtube-cookie'] = cookie;
         }
         if (authHeader) {
             headers['Authorization'] = authHeader;
@@ -907,7 +916,7 @@ export async function getUserYouTubePlaylists(limit = 50, offset = 0): Promise<{
         }
 
         const fetchBrowse = async (targetBrowseId: string) => {
-            const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`, {
+            const res = await fetch(toYouTubeWebProxyUrl(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}`), {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
