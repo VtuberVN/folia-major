@@ -9,7 +9,8 @@ import type { BravaisFrameState } from './useBravaisFrame';
 // src/library/suites/bravais/useBravaisFocus.ts
 // 两个独立的状态（与 Lattice 的 is-focused / is-expanded 对应）：键盘焦点（发丝线 + 主色环）与聚焦卡（6×6 块内让位，
 // 全局只有一张）。都按 slot 记、只在离散变化时 setState。聚焦卡所在块的 12 个 slot 换成让位后的矩形（块外不动），
-// 展开后与键盘焦点移动后相机做最小平移让矩形完整可见（底边避开播放条安全区），尽量让缝留在屏内（wall/revealRect）。
+// 展开后与键盘焦点移动后相机做最小平移让矩形完整可见（底边避开播放条安全区），尽量让缝留在屏内（wall/revealRect）；
+// 海报在场时只上下平移（海报那一列不动）。
 // 让位的过渡（展开、换卡、收起 / 换块时的归位）由 useBravaisReflowDriver 逐帧驱动，这里只给落定的让位表。
 
 export const useBravaisFocus = ({
@@ -42,7 +43,7 @@ export const useBravaisFocus = ({
     const reveal = useCallback((rect: RevealRect) => {
         const frame = frameRef.current;
         if (!frame.view) return;
-        tweenTo(resolveRevealCenter({
+        const next = resolveRevealCenter({
             rect,
             center: frame.center,
             view: frame.view,
@@ -52,7 +53,10 @@ export const useBravaisFocus = ({
             seamWidth: Math.max(frame.openWidth, frame.targetOpenWidth),
             pad: BRAVAIS_REVEAL_PAD_PX,
             bottomInset: getBottomInset(),
-        }));
+        });
+        // 海报在场时它那一列贴着视口左边不动（bravaisFrame 的 planPosterOpening）：只上下让位，不左右平移——
+        // 按普通缝的边距让位会把海报挤出屏幕左边一截，还因为开口看着变窄而整列变淡。
+        tweenTo(frame.poster ? { x: frame.center.x, y: next.y } : next);
     }, [frameRef, getBottomInset, tweenTo]);
 
     const focusSlot = useCallback((slot: WallSlot | null, options: { reveal?: boolean } = {}) => {

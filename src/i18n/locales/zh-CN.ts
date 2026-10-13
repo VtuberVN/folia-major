@@ -3656,7 +3656,12 @@ export default {
     "albumsSyncing": "专辑加载中 {{loaded}} / {{total}}",
     "albumsSyncingOpen": "专辑加载中… {{loaded}}",
     "albumsInterrupted": "专辑停在第 {{loaded}} 张",
-    "panelTitle": "热门歌曲与专辑"
+    "panelTitle": "热门歌曲与专辑",
+    "posterLabel": "歌手海报",
+    "posterTopSongs": "热门歌曲"
+  },
+  "libraryBravaisAlbum": {
+    "posterLabel": "专辑海报"
   },
   "artistGrid": {
     "localArtist": "本地歌手: {{artistName}}",
