@@ -53,9 +53,10 @@ jobs:
           RELEASES_FILE="$(mktemp)"
           trap 'rm -f "${RELEASES_FILE}"' EXIT
           gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${RELEASES_FILE}"
-          RELEASE_FILE_VERSION="${RELEASE_FILE_VERSION}" RELEASES_FILE="${RELEASES_FILE}" node <<'NODE'
+          EVENT_NAME="${{ github.event_name }}" RELEASE_FILE_VERSION="${RELEASE_FILE_VERSION}" RELEASES_FILE="${RELEASES_FILE}" node <<'NODE'
           const fs = require('fs');
           const target = process.env.RELEASE_FILE_VERSION;
+          const isManualDispatch = process.env.EVENT_NAME === 'workflow_dispatch';
           const releases = JSON.parse(fs.readFileSync(process.env.RELEASES_FILE, 'utf8'));
           const parse = (tag) => {
             const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(tag || '');
@@ -74,15 +75,17 @@ jobs:
             return current;
           }, null);
 
-          if (existing && !existing.draft && !existing.prerelease) {
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${target}\ntag=v${target}\nversion_valid=true\nshould_build=false\n`);
-            process.exit(0);
-          }
-          if (existing && !existing.draft) {
-            throw new Error(`v${target} already exists as a pre-release; Realeco tags must be stable releases.`);
-          }
-          if (latest && compareVersions(targetParts, parse(latest.tag_name)) <= 0) {
-            throw new Error(`Realeco version ${target} must be higher than published ${latest.tag_name}.`);
+          if (!isManualDispatch) {
+            if (existing && !existing.draft && !existing.prerelease) {
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${target}\ntag=v${target}\nversion_valid=true\nshould_build=false\n`);
+              process.exit(0);
+            }
+            if (existing && !existing.draft) {
+              throw new Error(`v${target} already exists as a pre-release; Realeco tags must be stable releases.`);
+            }
+            if (latest && compareVersions(targetParts, parse(latest.tag_name)) <= 0) {
+              throw new Error(`Realeco version ${target} must be higher than published ${latest.tag_name}.`);
+            }
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${target}\ntag=v${target}\nversion_valid=true\nshould_build=true\n`);
           NODE
@@ -240,13 +243,21 @@ jobs:
         shell: bash
         run: |
           NOTES_FILE=$(find realeco-artifacts -type f -name 'release-notes.md' | head -n 1)
-          mapfile -d '' files < <(find realeco-artifacts -type f ! -name 'release-notes.md' -print0)
-          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${RELEASE_TAG}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
-            gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --title "Realeco ${RELEASE_TAG}" --notes-file "${NOTES_FILE}"
-          else
-            gh release create "${RELEASE_TAG}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --title "Realeco ${RELEASE_TAG}" --notes-file "${NOTES_FILE}" --target "${GITHUB_SHA}" --draft
+          declare -A seen_names=()
+          files=()
+          while IFS= read -r -d '' f; do
+            base="$(basename "$f")"
+            if [[ -z "${seen_names[$base]:-}" ]]; then
+              seen_names[$base]=1
+              files+=("$f")
+            fi
+          done < <(find realeco-artifacts -type f ! -name 'release-notes.md' -print0)
+          TITLE="Folia ${RELEASE_TAG} - Bản phát hành tiếng Việt và tích hợp đa nền tảng"
+          if ! gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --title "${TITLE}" --notes-file "${NOTES_FILE}" --target "${GITHUB_SHA}"
           fi
+          gh release upload "${RELEASE_TAG}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --title "${TITLE}" --notes-file "${NOTES_FILE}" --draft=false --latest
 
   publish-aur:
     name: Publish AUR package
