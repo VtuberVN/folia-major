@@ -91,8 +91,8 @@ export async function searchNctSongs(
                     providerId: 'nct',
                     mediaId: songKey,
                     providerData: {
-                        coverUrl: cover,
-                        streamUrl: stream,
+                        coverUrl: cover ?? null,
+                        streamUrl: stream ? String(stream) : null,
                     },
                 },
             };

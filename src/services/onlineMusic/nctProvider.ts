@@ -115,8 +115,8 @@ export const nctProvider: OnlineMusicProvider = {
                         providerId: 'nct',
                         mediaId: d.key,
                         providerData: {
-                            coverUrl: cover,
-                            streamUrl: stream,
+                            coverUrl: cover ?? null,
+                            streamUrl: stream ? String(stream) : null,
                         },
                     },
                 });
