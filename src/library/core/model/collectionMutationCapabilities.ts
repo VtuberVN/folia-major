@@ -25,6 +25,8 @@ export type CollectionMutationBranchInput = {
     canEditCollectionTracks: boolean;
     /** omni.canSubscribeCollection(descriptor)；非在线集合传 false。 */
     canSubscribeCollection: boolean;
+    /** omni.canDislikeCollectionSongs(descriptor)：每日推荐能不能「不喜欢并换一首」；非在线集合传 false。 */
+    canDislikeCollectionSongs: boolean;
     /** isCloudDriveCollection(descriptor)。 */
     isCloudDrive: boolean;
     /** 每日推荐当前看的日期，'' 表示今天；看历史时不能编辑。 */
@@ -73,7 +75,8 @@ export const resolveCollectionMutationBranches = (input: CollectionMutationBranc
     const canEditPlaylist = Boolean(
         canEditOwnedPlaylist
         || canEditProviderPlaylist
-        || (isDailyRecommendationsCollection && !input.dailyDate)
+        // 管理每日推荐就是逐首「不喜欢」：provider 没有 dislikeSong（QQ）时不给编辑，免得按钮点了必定失败。
+        || (isDailyRecommendationsCollection && !input.dailyDate && input.canDislikeCollectionSongs)
         || isLocalPlaylistCollection
         || isNavidromePlaylistCollection,
     );
@@ -234,6 +237,7 @@ const NO_BRANCHES = resolveCollectionMutationBranches({
     resourceKind: null,
     canEditCollectionTracks: false,
     canSubscribeCollection: false,
+    canDislikeCollectionSongs: false,
     isCloudDrive: false,
     dailyDate: '',
     port: NO_PORT,

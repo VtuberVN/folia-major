@@ -19,7 +19,7 @@ import type { AudioQualityPreference } from '../types/onlineMusic';
 import type { ThemeSourceModel } from '../hooks/themeControllerState';
 import { getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { canSaveQueueAsLocalPlaylist } from '../utils/queueReorder';
-import { resolveLikeAvailability } from '../utils/playerLikeAvailability';
+import { canDislikeCurrentSong, resolveLikeAvailability } from '../utils/playerLikeAvailability';
 import { usePlayerBottomBarBottomPx } from '../hooks/usePlayerBottomBarBottomPx';
 import { getSizedCoverUrl } from '../utils/coverUrl';
 import { openAddToPlaylist, useAddToPlaylistStore } from '../stores/useAddToPlaylistStore';
@@ -853,6 +853,7 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                                                 onNextTrack={onNextTrack}
                                                 onPrevTrack={onPrevTrack}
                                                 onTrash={onFmTrash}
+                                                trashDisabled={playbackControlsDisabled || !canDislikeCurrentSong(currentSong)}
                                                 onLike={onLike}
                                                 isLiked={isLiked}
                                                 likeDisabled={likeDisabled}

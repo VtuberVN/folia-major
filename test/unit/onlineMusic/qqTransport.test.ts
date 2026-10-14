@@ -119,6 +119,27 @@ describe('QQ Music Web transport', () => {
         expect(classifyPlaybackError(error, { stage: 'resolve-url', providerId: 'qq' }).reason).toBe('unknown');
     });
 
+    // 3.2.0 起网关码与凭证拒绝码同时出现时改回 502，正文是同一个协议模板（GatewayCredentialConflictError）：
+    // 仍是上游应答过的拒绝，不能当成服务故障去冷却音源；新路由的 502 带 errorKey，照旧按服务失败处理。
+    it('reads the gateway/credential conflict 502 as an upstream refusal, but not a new-route 502', async () => {
+        const backendText = 'get-music-play failed (HTTP 200, global=2000, code=1000)';
+        vi.stubGlobal('fetch', vi.fn()
+            .mockResolvedValueOnce(Response.json({ error: backendText }, { status: 502 }))
+            .mockResolvedValueOnce(Response.json(
+                { code: 502, kind: 'upstream-business', errorKey: 'upstream.unknown', message: backendText, retryable: false },
+                { status: 502 },
+            )));
+        const { requestQq } = await import('@/services/onlineMusic/qqTransport');
+
+        const legacy = await requestQq('music_play', { songmid: 'song-mid' }).catch((thrown: unknown) => thrown);
+        expect(legacy).toMatchObject({ code: 'network', details: { stage: 'upstream', upstreamCode: 1000 } });
+        expect((legacy as { httpStatus?: number }).httpStatus).toBeUndefined();
+
+        const newRoute = await requestQq('user_daily_songs').catch((thrown: unknown) => thrown);
+        expect(newRoute).toMatchObject({ code: 'network', httpStatus: 502 });
+        expect((newRoute as { details?: unknown }).details).toBeUndefined();
+    });
+
     it.each([
         ['an axios failure', 'Request failed with status code 503'],
         ['a non-2xx upstream answer', 'get-music-play failed (HTTP 302, global=0, code=unknown)'],
@@ -583,6 +604,69 @@ describe('QQ Music Web transport', () => {
             code: 'network',
             message: 'QQMusicApi login_qr_check unreachable: Failed to fetch',
         });
+    });
+
+    // 3.3.0 的写入路由只收 POST + JSON；会话照旧走 `?cookie=`（跨源）或 header（同源），后端两种都认。
+    it('posts a JSON body to the write routes and keeps the session where the GET routes put it', async () => {
+        storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: 200, changed: true }));
+        vi.stubGlobal('fetch', fetchMock);
+        const { requestQq } = await import('@/services/onlineMusic/qqTransport');
+
+        await requestQq('user_playlist_tracks', {}, { tid: '70001', op: 'add', songs: [{ id: 101, type: 0 }] });
+
+        const [target, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const url = new URL(target);
+        expect(url.pathname).toBe('/user/playlist/tracks');
+        expect(url.searchParams.get('cookie')).toBe(CONFIRMED_COOKIE);
+        expect(init).toMatchObject({ method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' } });
+        expect(JSON.parse(String(init.body))).toEqual({ tid: '70001', op: 'add', songs: [{ id: 101, type: 0 }] });
+    });
+
+    it('sends a same-origin write with the session header and no session in the URL', async () => {
+        vi.stubEnv('VITE_QQ_API_BASE', '/api/qq');
+        storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: 200, subscribed: true }));
+        vi.stubGlobal('fetch', fetchMock);
+        const { requestQq } = await import('@/services/onlineMusic/qqTransport');
+
+        await requestQq('user_playlist_subscribe', {}, { tid: '70001', subscribed: true });
+
+        const [target, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(String(target).startsWith('/api/qq/user/playlist/subscribe?')).toBe(true);
+        expect(String(target)).not.toContain('cookie=');
+        expect(init).toMatchObject({
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-QQ-Session': 'opaque-token', 'Content-Type': 'application/json' },
+        });
+    });
+
+    // 方法和正文要配对：读路由带正文、写路由不带正文都是调用方的错，不发请求。
+    it('refuses a body on a read route and a write route without one', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const { requestQq } = await import('@/services/onlineMusic/qqTransport');
+
+        await expect(requestQq('user_daily_songs', {}, { refresh: true })).rejects.toMatchObject({ code: 'invalid-response' });
+        await expect(requestQq('user_playlist_tracks')).rejects.toMatchObject({ code: 'invalid-response' });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // 新路由的 message 是通用英文，真正说明失败类别的是 errorKey，上游数字码另放；两样都要进错误原文。
+    it('names the errorKey and upstream code of a new-route failure', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+            { code: 502, kind: 'upstream-business', errorKey: 'playlist.already-applied', message: 'Upstream rejected the request', retryable: false, upstreamCode: 80092 },
+            { status: 502 },
+        )));
+        const { requestQq } = await import('@/services/onlineMusic/qqTransport');
+
+        const error = await requestQq('user_playlist_tracks', {}, { tid: '1', op: 'add', songs: [] }).catch((thrown: Error) => thrown);
+
+        expect(error).toMatchObject({ code: 'network', httpStatus: 502 });
+        expect((error as Error).message).toBe(
+            'QQMusicApi user_playlist_tracks failed: HTTP 502 (playlist.already-applied upstream 80092: Upstream rejected the request)',
+        );
     });
 
     it('says why the embedded server is not running', async () => {

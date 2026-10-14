@@ -201,4 +201,17 @@ describe('summarizePlaybackAttempts', () => {
         });
         expect(classifyPlaybackError(summary, { stage: 'resolve-url' })).toMatchObject({ reason: 'unknown', hint: 'sign-in-may-help', attempts });
     });
+
+    // 「可能」原因（QQ 3.3.0 的 maybe-*）只修饰没给链接这一种结论；限流、网络这些结论有自己的说法，不挂它。
+    it('carries a possible cause only on a not-playable conclusion, as a softer message', () => {
+        const soft = conclude([empty('high'), empty('standard')], { likelyCause: 'membership' });
+        expect(soft).toMatchObject({ code: 'not-playable', details: { likelyCause: 'membership' } });
+        const failure = classifyPlaybackError(soft, { stage: 'resolve-url' });
+        expect(failure).toMatchObject({ reason: 'unknown', hint: 'maybe-membership' });
+        expect(getPlaybackFailureMessage(failure).key).toBe('status.songTemporarilyUnavailableMaybeMembership');
+
+        const throttled = conclude([empty('high'), failed('rate-limited')], { likelyCause: 'region' });
+        expect(throttled.code).toBe('rate-limited');
+        expect(throttled.details?.likelyCause).toBeUndefined();
+    });
 });

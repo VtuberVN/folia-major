@@ -13,6 +13,8 @@ export type PlaybackFailureReason =
     | 'network' | 'timeout' | 'service-unavailable' | 'rate-limited'
     | 'invalid-response' | 'unknown';
 
+export type PlaybackFailureHint = 'sign-in-may-help' | 'maybe-membership' | 'maybe-region-restricted';
+
 export type PlaybackFailureStage =
     | 'static' | 'replacement' | 'cooldown' | 'resolve-url'
     | 'refresh' | 'restore' | 'media-element' | 'prefetch';
@@ -27,7 +29,8 @@ export interface PlaybackFailure {
     httpStatus?: number;
     retryAfterMs?: number;
     transient?: boolean;
-    hint?: 'sign-in-may-help';
+    /** 证据不足时的补充说法：登录可能有用，或后端按实测特征认出的「可能」原因（只换文案，不改原因与策略）。 */
+    hint?: PlaybackFailureHint;
     mediaErrorCode?: number;
     attempts?: readonly ProviderPlaybackAttempt[];
     message?: string;
@@ -44,7 +47,8 @@ export type PlaybackFailureMessageKey =
     | 'status.songNetworkFailed' | 'status.songRequestTimedOut'
     | 'status.songServiceUnavailable' | 'status.songServiceNotConfigured'
     | 'status.songRateLimited' | 'status.songRateLimitedNoWait'
-    | 'status.songTemporarilyUnavailable' | 'status.songTemporarilyUnavailableSignInHint';
+    | 'status.songTemporarilyUnavailable' | 'status.songTemporarilyUnavailableSignInHint'
+    | 'status.songTemporarilyUnavailableMaybeMembership' | 'status.songTemporarilyUnavailableMaybeRegion';
 
 export interface PlaybackFailurePolicy {
     messageKey: PlaybackFailureMessageKey;

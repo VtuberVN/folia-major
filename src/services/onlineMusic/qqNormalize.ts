@@ -320,10 +320,18 @@ export const normalizeQqCollection = (raw: unknown, type = 'playlist'): Provider
     const dissid = pick(item, 'dissid')
         ?? pick(existing, 'dissid')
         ?? (tid === undefined && dirId === undefined && Object.keys(existing).length === 0 ? rawId : undefined);
+    // 系统目录的类型标记（0 是普通歌单）。后端只允许往没有标记、目录号 1–199 的自建歌单里加歌删歌。
+    const dirType = pick(item, 'dirType') ?? pick(existing, 'dirType');
     const name = text(pick(item, 'dirName', 'dirname', 'dissname', 'title', 'name'));
     // GetPlaylistByUin exposes both cover sizes and songNum; cached normalized keys remain fallbacks.
     const coverUrl = normalizeQqCoverUrl(pick(item, 'bigpicUrl', 'picUrl', 'picurl', 'coverUrl'));
     const trackCount = Number(pick(item, 'songNum', 'songnum', 'trackCount'));
+    // `/recommend/playlists` 的条目带 `desc`、`play_cnt` 与 `creator.nick`；上游没给的数字不出现，不补 0。
+    const description = text(pick(item, 'desc', 'description'));
+    const playCount = Number(pick(item, 'play_cnt', 'listennum', 'playCount'));
+    const creator = record(item.creator);
+    const creatorName = text(pick(creator, 'nick', 'nickname', 'name'));
+    const creatorId = pick(creator, 'encrypt_uin', 'uin', 'id');
     // 「我喜欢」是自建目录 201（GetPlaylistByUin 实测；getPlaylistTracks 也按它走 liked-songs 路由）。收藏条目的
     // dirId 是创建者账号里的目录号，所以还要 owned，别把收藏来的别人的「我喜欢」标成自己的。
     const isLiked = owned === true && Number(dirId) === QQ_LIKED_DIR_ID;
@@ -334,10 +342,16 @@ export const normalizeQqCollection = (raw: unknown, type = 'playlist'): Provider
         name,
         type: text(item.type) || type,
         ...(coverUrl ? { coverUrl } : {}),
+        ...(description ? { description } : {}),
         ...(Number.isFinite(trackCount) && trackCount >= 0 ? { trackCount } : {}),
+        ...(Number.isFinite(playCount) && playCount >= 0 ? { playCount } : {}),
+        ...(creatorName ? { creator: { id: (creatorId ?? '') as MediaId, nickname: creatorName } } : {}),
+        // 歌单界面靠 isOwned 决定给不给编辑、给不给收藏按钮；只在判得出自建时写，收藏的条目不冒充。
+        ...(owned === true ? { isOwned: true } : {}),
         providerData: jsonData([
             ['tid', tid],
             ['dirId', dirId],
+            ['dirType', dirType],
             ['dissid', dissid],
             ['dirShow', dirShow],
             ['owned', owned],

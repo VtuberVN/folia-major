@@ -47,7 +47,29 @@ jobs:
             RELEASE_FILE_VERSION="$(node -e "const version=require('./package.json').version; if (!/^[0-9]+\\.[0-9]+\\.[0-9]+$/.test(version)) throw new Error('package.json version must be a stable A.B.C version for a manual Realeco release.'); process.stdout.write(version);")"
           else
             COMMIT_MESSAGE="$(git log -1 --format=%B)"
-            RELEASE_FILE_VERSION="$(COMMIT_MESSAGE="${COMMIT_MESSAGE}" node -e "const fs=require('fs'); const { validateRealecoReleaseMetadata }=require('./shared/realecoReleaseMetadata.cjs'); process.stdout.write(validateRealecoReleaseMetadata({ commitMessage: process.env.COMMIT_MESSAGE, releaseFileContent: fs.readFileSync('realeco-release', 'utf8'), packageVersion: require('./package.json').version }));")"
+            RELEASE_FILE_VERSION="$(COMMIT_MESSAGE="${COMMIT_MESSAGE}" node -e "
+              const fs = require('fs');
+              const { validateRealecoReleaseMetadata } = require('./shared/realecoReleaseMetadata.cjs');
+              try {
+                process.stdout.write(validateRealecoReleaseMetadata({
+                  commitMessage: process.env.COMMIT_MESSAGE,
+                  releaseFileContent: fs.readFileSync('realeco-release', 'utf8'),
+                  packageVersion: require('./package.json').version
+                }));
+              } catch {
+                process.exit(10);
+              }
+            ")" || {
+              if [[ $? -eq 10 ]]; then
+                echo "Commit message does not trigger a Realeco release; skipping."
+                echo "version=" >> "$GITHUB_OUTPUT"
+                echo "tag=" >> "$GITHUB_OUTPUT"
+                echo "version_valid=false" >> "$GITHUB_OUTPUT"
+                echo "should_build=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              exit 1
+            }
           fi
 
           RELEASES_FILE="$(mktemp)"

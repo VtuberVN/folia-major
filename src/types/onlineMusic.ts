@@ -284,6 +284,11 @@ export interface OnlineProviderErrorDetails {
     transient?: boolean;
     /** 没有会话且上游只是没给链接：登录“可能”有用，不能断定为 auth-required */
     signInMayHelp?: boolean;
+    /**
+     * 后端按受控实测的特征给出的「可能」原因（QQ 3.3.0 的 playback.maybe-membership / maybe-region-restricted）。
+     * 只是可能：结论仍是 not-playable，界面只换一句带「可能」的文案，不能升级成 membership-required / region-restricted。
+     */
+    likelyCause?: 'membership' | 'region';
     attempts?: readonly ProviderPlaybackAttempt[];
 }
 
@@ -478,6 +483,8 @@ export interface OnlineRecommendationProvider {
 
 export interface OnlineMutationProvider {
     canAddToPlaylist?(playlist: ProviderCollection): boolean;
+    /** 这个歌单能不能进编辑模式加删歌（「我喜欢」另走 likeSong）；不实现视为能。只有 QQ 需要它：自建但非普通目录的歌单不收写入。 */
+    canEditPlaylistTracks?(playlist: ProviderCollection): boolean;
     likeSong?(
         song: MediaId | SongResult,
         liked: boolean,

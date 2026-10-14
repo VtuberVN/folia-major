@@ -379,6 +379,8 @@ export default {
     "songRegionRestricted": "仅限中国大陆地区播放，请检查网络环境",
     "songTemporarilyUnavailable": "暂时无法播放这首歌",
     "songTemporarilyUnavailableSignInHint": "暂时无法播放这首歌，登录后可能可以播放",
+    "songTemporarilyUnavailableMaybeMembership": "暂时无法播放这首歌，完整播放可能需要会员",
+    "songTemporarilyUnavailableMaybeRegion": "暂时无法播放这首歌，可能受所在地区限制",
     "songNetworkFailed": "连接失败，无法获取这首歌，请检查网络后重试",
     "songRequestTimedOut": "获取歌曲超时，请稍后重试",
     "songRetrying": "连接失败，正在重试…",

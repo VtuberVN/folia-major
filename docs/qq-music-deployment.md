@@ -1,6 +1,6 @@
 # 部署 QQ 音乐服务
 
-这篇指南会带你为 Folia Web 版启用 QQ 音乐，包括登录、歌单、收藏专辑、我喜欢和播放功能。
+这篇指南会带你为 Folia Web 版启用 QQ 音乐，包括登录、歌单、收藏专辑、我喜欢、播放，以及电台页的每日推荐、私人 FM 和推荐歌单。
 
 桌面版已经内置 QQ 音乐服务，不需要按照本文额外部署。本文主要面向 Vercel、Cloudflare、Docker 和裸 Node.js 用户。
 
@@ -234,7 +234,7 @@ Docker / NAS、HTTPS、反向代理和本地镜像验证见 [Docker 全栈部署
 mkdir qq-api
 cd qq-api
 npm init -y
-npm install @yakult-green-tea/qq-music-api@^3.1.0
+npm install @yakult-green-tea/qq-music-api@^3.3.0
 ```
 
 macOS / Linux：
@@ -265,13 +265,15 @@ VITE_QQ_API_BASE=https://你的-qq-api-域名
 
 常驻 Node 服务同时支持 QQ 扫码和微信扫码两种登录方式。`QQ_AUTH_STATE_PATH` 保存非凭证的设备标识；`QQ_AUTH_SESSION_PATH` 保存使用 `QQ_SESSION_SECRET` 加密后的登录态。不要让多个实例共用同一份状态文件。
 
+Folia 的每日推荐、私人 FM、推荐歌单、往自建歌单加歌删歌和收藏歌单用到 3.3.0 新增的接口。已经部署的旧版本服务请升级到 3.3.0 或更高版本，否则这些入口照样显示，但内容是空的，加歌、收藏会提示失败。3.3.0 起常驻服务会在登录凭证到期前自动续期，不用再隔几天重新扫码；Vercel、Cloudflare 这类 serverless 部署暂时没有这个能力。
+
 ## 部署后接入 Folia
 
 1. 打开 Folia。
 2. 切换到 QQ 音乐音源。
 3. 点击连接账号。
 4. 根据平台能力选择 QQ 扫码或微信扫码登录方式。
-5. 登录后确认歌单、收藏专辑、我喜欢和播放功能。
+5. 登录后确认歌单、收藏专辑、我喜欢和播放功能，再到电台页确认每日推荐、私人 FM 和推荐歌单。
 
 建议同时检查 API：
 
@@ -287,9 +289,9 @@ GET /api/qq/getSongInfo/0039MnYb0qxYhV
 
 QQ 扫码失败后，登录界面与其它平台一样在二维码旁边给出失败帮助：先是两条简单办法（重启 Folia 再扫码；换个网络，例如手机热点，再重启 Folia），然后是自动检查（本地服务、凭据保存、DNS、IPv4 / IPv6 的 TCP 与 TLS 握手、HTTPS、代理、系统时间）的一句结论与逐项结果，最后才是收起的「还是不行？」——展开后有「复制诊断」「反馈」（TUI 登录框里排在最后，F4 复制）。在手机上取消不跑自检、不给这块帮助。
 
-账号的登录设备数已达上限（凭据交换返回 `20279`）时，状态行直接说明设备超限，两条简单办法换成清理登录设备的步骤（QQ 音乐客户端「设置 → 设备管理」移除旧设备，再重新扫码），自动检查照常跑。微信通道的 `20279` 直接出现在响应的 `upstreamCode` 上；QQ 通道交换失败后后端会用 MQTT 凭据再验一次，响应里只剩验证那一步的码，所以只有桌面版能从主进程记下的本轮 `qq-auth.upstream-result` 里认出来，网页版仍按普通失败处理，以排错表为准。
+账号的登录设备数已达上限（凭据交换返回 `20279`）时，状态行直接说明设备超限，两条简单办法换成清理登录设备的步骤（QQ 音乐客户端「设置 → 设备管理」移除旧设备，再重新扫码），自动检查照常跑。微信通道的 `20279` 直接出现在响应的 `upstreamCode` 上（3.3.0 起还有 `upstreamErrorKey: auth.device-limit`）；QQ 通道交换失败后后端会用 MQTT 凭据再验一次，顶层只剩验证那一步的码，3.3.0 起被盖掉的换凭证结果放在 `primaryFailure` 里，网页版和桌面版都能认出来。后端低于 3.3.0 时，只有桌面版能从主进程记下的本轮 `qq-auth.upstream-result` 里认出来，网页版仍按普通失败处理，以排错表为准。
 
-报告分三段：本轮扫码的时间线（每一步的错误原文、HTTP 状态、后端原始响应，包括 `failureStage`、`failureReason`、`upstreamCode`、`retryAfterMs`、`lastFailure` 等字段，后端新增的类别也原样保留）、自检结果、`qq details`。`qq details` 来自主进程：应用与系统环境、凭据加密后端（Linux 上为 `basic_text` 时 QQ 登录态无法保存，自检会直接给出这个结论）、QQ 本地服务的状态与拉起步骤、包内扫码服务的原始失败（挂在 `failSession` / `failBootstrap` 上的钩子记下的错误名、原文、错误码、上游 HTTP 状态与栈顶几行）、`qq-auth.*` 事件、上游连接记录（`u.y.qq.com`、`mu.y.qq.com` 的 MQTT 等，含连上的地址与断在哪一步），以及最近一次登录态检查的结论。报告不做隐私脱敏，界面会告知其中包含版本、网卡与 IP、请求记录与错误原文；登录凭据（session 的值）不在其中。
+报告分三段：本轮扫码的时间线（每一步的错误原文、HTTP 状态、后端原始响应，包括 `failureStage`、`failureReason`、`upstreamCode`、`retryAfterMs`、`lastFailure`、`upstreamErrorKey`、`failureHint`、`primaryFailure` 等字段，后端新增的类别也原样保留）、自检结果、`qq details`。`qq details` 来自主进程：应用与系统环境、凭据加密后端（Linux 上为 `basic_text` 时 QQ 登录态无法保存，自检会直接给出这个结论）、QQ 本地服务的状态与拉起步骤、包内扫码服务的原始失败（挂在 `failSession` / `failBootstrap` 上的钩子记下的错误名、原文、错误码、上游 HTTP 状态与栈顶几行）、`qq-auth.*` 事件、上游连接记录（`u.y.qq.com`、`mu.y.qq.com` 的 MQTT 等，含连上的地址与断在哪一步），以及最近一次登录态检查的结论。报告不做隐私脱敏，界面会告知其中包含版本、网卡与 IP、请求记录与错误原文；登录凭据（session 的值）不在其中。
 
 没扫过码就自然过期不算失败：后端回 `failureReason=qr-timeout`，或会话已被清掉、回一个不带任何失败字段的 `800` 时，会话记为过期、不跑自检。判定只看这些结构化字段，不比对后端文案；带失败字段的 `800`（上游拒绝、MQTT 断开、凭据交换失败等）一律算失败。关闭登录框、二维码到期时 Folia 取消当前二维码，之后才回来的轮询结果作废。
 
@@ -305,7 +307,9 @@ QQ 扫码失败后，登录界面与其它平台一样在二维码旁边给出�
 | 正式 `workers.dev` 返回 1042，但 Preview 正常 | 等待新域名传播，不要因为这个现象修改 Static Assets 或 MQTT 代码 |
 | 自建歌单打不开，提示不是公开歌单 | 后端版本过旧，缺少带凭据的 `/user/playlist-detail` 路由；升级 `@yakult-green-tea/qq-music-api` 后即可读取不公开的自建歌单 |
 | 收藏的「百万收藏」「歌手漫游」等官方歌单打不开，报 `code 10` | 后端低于 3.1.4，或 serverless 部署未设置 `QQ_SESSION_SECRET`；这类歌单只能带登录会话读取 |
-| 扫码后上游返回 `20279` | 先在 QQ 音乐账号中清理旧登录设备，再重新扫码 |
+| 扫码后上游返回 `20279` | 先在 QQ 音乐账号中清理旧登录设备，再重新扫码。serverless 部署换一次 `QQ_SESSION_SECRET` 或换一个部署，对 QQ 来说就是一台新设备 |
+| 电台页的每日推荐、私人 FM、推荐歌单都是空的，加歌、收藏歌单按钮点了提示失败 | 后端低于 3.3.0，缺少这些接口（Folia 不按后端版本隐藏这些入口）；内置的 Vercel、Cloudflare、Docker 入口已经是 3.3.0，自行部署的 Node 服务需要升级 |
+| 网页版个别歌曲提示「暂时无法播放」，桌面版同一账号能播 | serverless 由平台机房向 QQ 取链接，QQ 看到的是机房的网络；这是部署形态的限制，想让能播的歌最多就用 Docker、Node 或桌面版 |
 | 修改 `VITE_QQ_API_BASE` 后仍请求旧地址 | 该变量在构建时写入前端，必须重新构建；同时检查 `.env.local` 是否覆盖平台配置 |
 | 关闭二维码后仍担心计费 | 查看日志是否出现取消请求，以及 Durable Object 的 `/open`、`/close` 是否成对出现 |
 

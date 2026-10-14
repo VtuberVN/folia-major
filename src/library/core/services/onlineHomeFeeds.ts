@@ -25,6 +25,7 @@ export type OnlineHomeFeedDeps = {
         personalFm: SongResult[];
         dailySongs: SongResult[];
         recommendedCollections: ProviderCollection[];
+        partial?: true;
     }>;
     songCoverUrl(song: SongResult | undefined, providerId: string): string | undefined;
     supportsDailySongs?(providerId: string): boolean;
@@ -42,15 +43,18 @@ const isAbortError = (error: unknown) => (
 /**
  * 通用的首页数据资源。`load` 收到归属与 `isCurrent`（这次读取是否仍有效，分页读取可以据此提前停下）。
  * 失败时保留已有数据、状态记为 error；ensure 只在这个归属下还没成功读过时才读。
+ * isComplete 判为不完整的结果照常显示，但不算「读过」，下次 ensure 再读一遍。
  */
 export const createHomeFeedResource = <TData>({
     label,
     empty,
     load,
+    isComplete,
 }: {
     label: string;
     empty: TData;
     load: (owner: LibraryHomeFeedOwner, isCurrent: () => boolean) => Promise<TData>;
+    isComplete?: (data: TData) => boolean;
 }): LibraryHomeFeedResource<TData> => {
     let snapshot: LibraryHomeFeedSnapshot<TData> = { owner: null, status: 'idle', loaded: false, data: empty };
     let generation = 0;
@@ -70,7 +74,7 @@ export const createHomeFeedResource = <TData>({
         try {
             const data = await load(owner, isCurrent);
             if (!isCurrent()) return;
-            commit({ owner, status: 'ready', loaded: true, data });
+            commit({ owner, status: 'ready', loaded: isComplete ? isComplete(data) : true, data });
         } catch (error) {
             if (!isCurrent()) return;
             if (!isAbortError(error)) console.error(`[LibraryHome] Failed to load ${label}`, error);
@@ -137,8 +141,9 @@ export const createRadioFeed = (
     label: 'radio feed',
     empty: null,
     load: async (owner) => {
-        const { personalFm, dailySongs, recommendedCollections } = await deps.getHomeFeed(HOME_FEED_RECOMMENDATION_LIMIT);
+        const { personalFm, dailySongs, recommendedCollections, partial } = await deps.getHomeFeed(HOME_FEED_RECOMMENDATION_LIMIT);
         return {
+            ...(partial ? { partial } : {}),
             personalFmCoverUrl: deps.songCoverUrl(personalFm[0], owner.providerId),
             dailyCoverUrl: deps.songCoverUrl(dailySongs[0], owner.providerId) || '',
             dailyCount: dailySongs.length,
@@ -146,4 +151,6 @@ export const createRadioFeed = (
             recommended: recommendedCollections,
         };
     },
+    // 有一块没读到时照常显示读到的部分，但下次进电台页再读一遍（以前整份失败，下次进来也会重读）。
+    isComplete: feed => !feed?.partial,
 });

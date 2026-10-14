@@ -1,5 +1,5 @@
 import { OnlineProviderError, type OnlineProviderId, type ProviderErrorCode } from '../../types/onlineMusic';
-import type { PlaybackFailure, PlaybackFailureReason, PlaybackFailureStage } from '../../types/playbackFailure';
+import type { PlaybackFailure, PlaybackFailureHint, PlaybackFailureReason, PlaybackFailureStage } from '../../types/playbackFailure';
 
 // src/services/playbackRecovery/onlinePlaybackFailure.ts
 // 把一次播放请求的失败（OmniError、普通异常、空 URL、媒体元素错误）归一成 PlaybackFailure。
@@ -97,6 +97,14 @@ const resolveProviderErrorReason = (
     }
 };
 
+// 证据不足时的补充说法。登录可能有用只在没有会话时出现，可能原因只在带会话时出现，两者不会同时给；万一同时给，先说登录。
+const resolveFailureHint = (details: OnlineProviderError['details']): PlaybackFailureHint | undefined => {
+    if (details?.signInMayHelp) return 'sign-in-may-help';
+    if (details?.likelyCause === 'membership') return 'maybe-membership';
+    if (details?.likelyCause === 'region') return 'maybe-region-restricted';
+    return undefined;
+};
+
 const isTimeoutDomException = (error: unknown): boolean => (
     typeof DOMException !== 'undefined'
     && error instanceof DOMException
@@ -117,7 +125,7 @@ export const classifyPlaybackError = (error: unknown, ctx: PlaybackFailureClassi
             httpStatus: error.httpStatus,
             retryAfterMs: error.retryAfterMs,
             transient: details?.transient,
-            hint: details?.signInMayHelp ? 'sign-in-may-help' : undefined,
+            hint: resolveFailureHint(details),
             attempts: details?.attempts,
             message: error.message,
             cause: error,

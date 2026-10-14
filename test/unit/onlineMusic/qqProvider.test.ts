@@ -166,17 +166,23 @@ describe('qqProvider', () => {
         resetQqProviderRuntimeCache();
     });
 
-    it('declares readable library features without exposing unsupported mutations or recommendations', () => {
+    // 3.3.0 开放了推荐、歌单增删与收藏歌单；红心、收藏专辑、不喜欢与历史日推后端还没有，不能冒出来。
+    it('declares the 3.3.0 recommendations and mutations without the ones the backend lacks', () => {
         expect(qqProvider.capabilities).toMatchObject({
             userLibrary: true,
             playlists: true,
             userAlbums: true,
             likes: true,
-            recommendations: false,
-            mutations: false,
+            recommendations: true,
+            mutations: true,
+            playlistTrackMutations: true,
+            playlistSubscription: true,
         });
-        expect(qqProvider.mutations).toBeUndefined();
-        expect(qqProvider.recommendations).toBeUndefined();
+        expect(qqProvider.capabilities.personalFmModes).toBeFalsy();
+        expect(qqProvider.capabilities.historyRecommendations).toBeFalsy();
+        expect(Object.keys(qqProvider.recommendations ?? {}).sort()).toEqual(['getDailySongs', 'getPersonalFm', 'getRecommendedCollections']);
+        expect(Object.keys(qqProvider.mutations ?? {}).sort()).toEqual(['canAddToPlaylist', 'canEditPlaylistTracks', 'subscribePlaylist', 'updatePlaylistTracks']);
+        expect(qqProvider.catalog?.getSubscriptionStatus).toBeTypeOf('function');
     });
 
     it('normalizes a song onto songmid identity and keeps the numeric id in provider data', () => {
@@ -284,6 +290,7 @@ describe('qqProvider', () => {
             type: 'playlist',
             coverUrl: 'https://img.example.test/big.jpg',
             trackCount: 2,
+            isOwned: true,
             providerData: { tid: 7, dirId: 201, owned: true },
             isLiked: true,
         });
@@ -454,6 +461,32 @@ describe('qqProvider', () => {
             expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
         });
 
+        // 3.3.0：QQ 通道被再验证盖掉的换凭证结果在 primaryFailure 里，网页版也认得出来，不必问主进程。
+        it('reads the device limit out of primaryFailure without asking the desktop', async () => {
+            const getLoginDiagnostics = stubDesktop([]);
+            requestMock.mockResolvedValueOnce({
+                ...validationFailure,
+                fallbackAttempted: true,
+                primaryFailure: { failureStage: 'credential-exchange', failureReason: 'upstream-rejected', upstreamCode: 20279, upstreamErrorKey: 'auth.device-limit' },
+            });
+
+            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+            expect(getLoginDiagnostics).not.toHaveBeenCalled();
+        });
+
+        // 登记过的错误键与上游码等价：后端只在通道、步骤、码都对得上时才给。
+        it('takes the registered error key as the device limit', async () => {
+            requestMock.mockResolvedValueOnce({ ...validationFailure, failureStage: 'credential-exchange', upstreamCode: undefined, upstreamErrorKey: 'auth.device-limit' });
+            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+
+            requestMock.mockResolvedValueOnce({
+                ...validationFailure,
+                primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 50006 },
+                failureHint: { key: 'login.wrong-scan-app', message: 'Use mobile QQ to scan' },
+            });
+            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+        });
+
         // 网页版没有主进程可问；取快照失败也只是少了这条提示。
         it('falls back to a plain failure without a desktop snapshot', async () => {
             requestMock.mockResolvedValueOnce(validationFailure);
@@ -475,6 +508,10 @@ describe('qqProvider', () => {
             upstreamGlobalCode: -1,
             retryAfterMs: 30000,
             lastFailure: { failureStage: 'device-bootstrap', failureReason: 'upstream-rejected', upstreamCode: -30002 },
+            upstreamErrorKey: 'auth.some-future-key',
+            failureHint: { key: 'login.some-future-hint', message: 'Something new' },
+            primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 12345 },
+            fallbackAttempted: true,
         });
 
         await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({
@@ -490,6 +527,10 @@ describe('qqProvider', () => {
                 upstreamGlobalCode: -1,
                 retryAfterMs: 30000,
                 lastFailure: { failureStage: 'device-bootstrap', failureReason: 'upstream-rejected', upstreamCode: -30002 },
+                upstreamErrorKey: 'auth.some-future-key',
+                failureHint: { key: 'login.some-future-hint', message: 'Something new' },
+                primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 12345 },
+                fallbackAttempted: true,
             },
         });
     });
@@ -975,6 +1016,61 @@ describe('qqProvider', () => {
             ]);
             const { classifyPlaybackError } = await import('@/services/playbackRecovery/onlinePlaybackFailure');
             expect(classifyPlaybackError(error, { stage: 'resolve-url', providerId: 'qq' }).reason).toBe('unknown');
+        });
+
+        // 3.3.0 的 restriction：数字码只进诊断，hint.key 只有 maybe-* 两种算「可能」原因，而且只认最后一档（标准音质）的。
+        const restricted = (hintKey: string, codes: Record<string, number> = { result: 104003, subcode: 1 }) => ({
+            data: { playUrl: { '003rJSwm3TechU': {
+                url: '',
+                error: '暂无播放链接',
+                restriction: { key: 'url_unavailable', evidence: 'observed-response', codes, hint: { key: hintKey, message: 'Preset English text' } },
+            } } },
+        });
+
+        it('keeps the restriction codes and hint key as diagnostics on each empty attempt', async () => {
+            requestMock.mockResolvedValue(restricted('playback.reason-unconfirmed'));
+
+            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
+
+            expect(error.code).toBe('not-playable');
+            expect(error.details?.attempts).toEqual([
+                { stage: 'music_play', quality: 'high', outcome: 'empty', upstreamCode: 104003, detail: '暂无播放链接 [playback.reason-unconfirmed; result=104003 subcode=1]' },
+                { stage: 'music_play', quality: 'standard', outcome: 'empty', upstreamCode: 104003, detail: '暂无播放链接 [playback.reason-unconfirmed; result=104003 subcode=1]' },
+            ]);
+            expect(error.details?.likelyCause).toBeUndefined();
+        });
+
+        it.each([
+            ['playback.maybe-membership', 'membership', 'status.songTemporarilyUnavailableMaybeMembership'],
+            ['playback.maybe-region-restricted', 'region', 'status.songTemporarilyUnavailableMaybeRegion'],
+        ] as const)('turns %s on the standard tier into a possible cause, never a definite reason', async (hintKey, cause, messageKey) => {
+            requestMock
+                .mockResolvedValueOnce(restricted('playback.reason-unconfirmed'))
+                .mockResolvedValueOnce(restricted(hintKey));
+
+            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
+
+            expect(error).toMatchObject({ code: 'not-playable', details: { likelyCause: cause } });
+            const { classifyPlaybackError } = await import('@/services/playbackRecovery/onlinePlaybackFailure');
+            const { getPlaybackFailureMessage } = await import('@/services/playbackRecovery/playbackFailurePolicy');
+            const failure = classifyPlaybackError(error, { stage: 'resolve-url', providerId: 'qq' });
+            expect(failure.reason).toBe('unknown');
+            expect(getPlaybackFailureMessage(failure).key).toBe(messageKey);
+        });
+
+        // 可能原因只看最后一档：最后一档是网络错误时，前面档位的提示不能代表这次失败。
+        // 最后一档用不算暂时性的失败：结论仍是 not-playable，可能原因要靠 adapter 自己清掉，汇总不会替它挡。
+        it.each([
+            ['throws a non-transient error', () => requestMock.mockRejectedValueOnce(new OnlineProviderError('invalid-response', 'QQMusicApi music_play body unreadable', 'qq'))],
+            ['answers without an entry', () => requestMock.mockResolvedValueOnce({ data: { playUrl: {} } })],
+        ])('drops a possible cause when the last tier %s', async (_label, failLastTier) => {
+            requestMock.mockResolvedValueOnce(restricted('playback.maybe-membership'));
+            failLastTier();
+
+            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
+
+            expect(error.code).toBe('not-playable');
+            expect(error.details?.likelyCause).toBeUndefined();
         });
 
         it('never turns an empty play link into a takedown, membership, region or preview reason', async () => {
@@ -1505,7 +1601,7 @@ describe('qqProvider', () => {
             wordByWordLyrics: true,
             playback: true,
             likes: true,
-            mutations: false,
+            mutations: true,
         });
         expect(qqProvider.playback).toBeDefined();
         expect(qqProvider.catalog?.getPlaylistTracks).toBeTypeOf('function');

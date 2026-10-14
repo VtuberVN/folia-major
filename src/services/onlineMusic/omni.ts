@@ -383,13 +383,21 @@ export const omni = {
             return providerSupports(provider, 'likes') && Boolean(provider?.mutations?.likeSong);
         }
         return providerSupports(provider, 'playlistTrackMutations')
-            && Boolean(provider?.mutations?.updatePlaylistTracks);
+            && Boolean(provider?.mutations?.updatePlaylistTracks)
+            && (provider?.mutations?.canEditPlaylistTracks?.(collection) ?? true);
     },
 
     canDislikeSong(song: SongResult): boolean {
         const source = getPlaybackSourceRef(song);
         if (source.kind !== 'online') return false;
         const provider = getOnlineMusicProvider(source.providerId);
+        return providerSupports(provider, 'recommendations')
+            && Boolean(provider?.recommendations?.dislikeSong);
+    },
+
+    /** 每日推荐里「不喜欢并换一首」：集合所属 provider 有 dislikeSong 才能管理推荐（QQ 有日推，没有不喜欢）。 */
+    canDislikeCollectionSongs(collection: OmniCollection): boolean {
+        const provider = getOnlineMusicProvider(collection.providerId);
         return providerSupports(provider, 'recommendations')
             && Boolean(provider?.recommendations?.dislikeSong);
     },
@@ -402,9 +410,11 @@ export const omni = {
         ) {
             return false;
         }
-        return collection.type === 'album'
-            ? Boolean(provider?.mutations?.subscribeAlbum)
-            : Boolean(provider?.mutations?.subscribePlaylist);
+        if (collection.type === 'album') return Boolean(provider?.mutations?.subscribeAlbum);
+        // 自己的歌单（含「我喜欢」）谈不上收藏。以前靠「能编辑就不显示收藏」挡住，但 QQ 能收藏歌单却不能红心，
+        // 「我喜欢」编辑不了，会落到收藏分支，一点就是去收藏自己的 201 目录。
+        if (collection.isOwned === true || collection.isLiked === true) return false;
+        return Boolean(provider?.mutations?.subscribePlaylist);
     },
 
     async getUserAlbums(userId: MediaId, page: PageInput): Promise<OmniPage<OmniCollection>> {
@@ -445,15 +455,35 @@ export const omni = {
         personalFm: UnifiedSong[];
         dailySongs: UnifiedSong[];
         recommendedCollections: OmniCollection[];
+        /** 有一块失败、按空处理了：调用方可以照常显示，但下次应该再读一遍。 */
+        partial?: true;
     }> {
         return withActiveProvider(async provider => {
             const recommendations = provider.recommendations;
-            const [personalFm, dailySongs, recommendedCollections] = await Promise.all([
+            // 三块各自成败：一块失败（例如 QQ 日推被上游拒绝）只让那一块为空、结果标成 partial，不把 FM 与推荐歌单
+            // 一起拖下去；三块都失败才算这次首页推荐失败。作废（AbortError）不算某一块的失败，整次照常作废。
+            const [personalFm, dailySongs, recommendedCollections] = await Promise.allSettled([
                 recommendations?.getPersonalFm?.() ?? [],
                 recommendations?.getDailySongs?.() ?? [],
                 recommendations?.getRecommendedCollections?.(limit) ?? [],
             ]);
-            return { personalFm, dailySongs, recommendedCollections };
+            const settled = [personalFm, dailySongs, recommendedCollections];
+            const failures = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+            const aborted = failures.find(failure => (failure.reason as { name?: unknown } | null)?.name === 'AbortError');
+            if (aborted) throw aborted.reason;
+            if (failures.length === settled.length) throw failures[0].reason;
+            failures.forEach(failure => console.warn('[Omni] Home feed section failed', {
+                providerId: provider.id,
+                name: failure.reason instanceof Error ? failure.reason.name : 'Error',
+                message: failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
+            }));
+            const valueOf = <T>(result: PromiseSettledResult<T[]>): T[] => (result.status === 'fulfilled' ? result.value : []);
+            return {
+                personalFm: valueOf(personalFm),
+                dailySongs: valueOf(dailySongs),
+                recommendedCollections: valueOf(recommendedCollections),
+                ...(failures.length > 0 ? { partial: true as const } : {}),
+            };
         });
     },
 

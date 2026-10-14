@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('daily recommendation capability', () => {
-    it.each([['netease', true], ['kugou', true], ['qq', false], ['bodian', false]] as const)(
+    it.each([['netease', true], ['kugou', true], ['qq', true], ['bodian', false]] as const)(
         'shows the daily entry according to %s support', (providerId, supported) => {
             expect(omni.supportsDailySongs(providerId)).toBe(supported);
         },

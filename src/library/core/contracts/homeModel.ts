@@ -101,6 +101,8 @@ export type LibraryHomeRadioFeed = {
     /** 未声明时沿用旧 feed 的支持语义；默认环境装配会明确提供实际 provider 能力。 */
     supportsDailySongs?: boolean;
     recommended: ProviderCollection[];
+    /** 有一块没读到（按空显示）：资源不记成读过，下次进电台页再读。 */
+    partial?: true;
 };
 
 /**

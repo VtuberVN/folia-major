@@ -377,6 +377,8 @@ export default {
     "songRegionRestricted": "Pemutaran hanya tersedia di Tiongkok daratan. Periksa koneksi jaringan Anda.",
     "songTemporarilyUnavailable": "Lagu ini belum dapat diputar saat ini",
     "songTemporarilyUnavailableSignInHint": "Lagu ini belum dapat diputar saat ini. Masuk ke akun mungkin dapat membantu.",
+    "songTemporarilyUnavailableMaybeMembership": "Lagu ini belum dapat diputar saat ini. Pemutaran penuh mungkin memerlukan keanggotaan.",
+    "songTemporarilyUnavailableMaybeRegion": "Lagu ini belum dapat diputar saat ini. Lagu ini mungkin dibatasi di wilayah Anda.",
     "songNetworkFailed": "Gagal terhubung untuk memuat lagu ini. Periksa jaringan Anda lalu coba lagi.",
     "songRequestTimedOut": "Waktu memuat lagu ini habis. Silakan coba lagi.",
     "songRetrying": "Koneksi gagal. Mencoba lagi…",

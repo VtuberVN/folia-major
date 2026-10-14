@@ -193,7 +193,8 @@ export function usePlaybackInteractionBridge({
             return;
         }
 
-        if (currentSong && isFmMode) {
+        // 没有「不喜欢」的 provider 不做任何事：按钮已经置灰，快捷键也不该只是悄悄切歌。
+        if (currentSong && isFmMode && omni.canDislikeSong(currentSong)) {
             try {
                 await omni.dislikeSong(currentSong);
             } catch (error) {
