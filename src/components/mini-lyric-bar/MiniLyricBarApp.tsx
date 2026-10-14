@@ -2,12 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import {
     Lock,
-    Maximize2,
-    Minus,
     Music,
     Pause,
     Play,
-    RotateCcw,
     SkipBack,
     SkipForward,
     Unlock,
@@ -19,26 +16,19 @@ import { findLatestActiveLineIndex } from '../../utils/appPlaybackHelpers';
 import { buildMonetDisplayTokens, type MonetDisplayToken } from '../visualizer/monet/monetLyricsModel';
 
 // src/components/mini-lyric-bar/MiniLyricBarApp.tsx
-// Desktop Mini Lyric Bar inspired by lia.lines.
+// High-performance Desktop Mini Lyric Bar.
 // Runs in an independent transparent, frameless, always-on-top window.
+// Uses direct DOM manipulation in requestAnimationFrame to decouple 60fps/144fps gradient animation
+// from React component reconciliation, and soft slew drift correction to prevent 500ms IPC clock snapping.
 
-const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
+export const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
 
-const getInterpolatedTime = (
-    playerState: PlayerState,
-    duration: number,
-    sync: { snapshotTime: number; localTime: number },
-) => {
-    if (playerState !== PlayerState.PLAYING) {
-        return sync.snapshotTime;
-    }
+export interface MiniLyricDisplay {
+    currentLine: Line | null;
+    nextLine: Line | null;
+}
 
-    const elapsed = (performance.now() - sync.localTime) / 1000;
-    const upperBound = Number.isFinite(duration) && duration > 0 ? duration : Number.POSITIVE_INFINITY;
-    return Math.min(upperBound, sync.snapshotTime + elapsed);
-};
-
-const resolveDisplayLines = (lyrics: LyricData | null | undefined, time: number) => {
+export const resolveDisplayLines = (lyrics: LyricData | null | undefined, time: number): MiniLyricDisplay => {
     if (!lyrics?.lines?.length) {
         return { currentLine: null, nextLine: null };
     }
@@ -59,15 +49,267 @@ const resolveDisplayLines = (lyrics: LyricData | null | undefined, time: number)
     };
 };
 
+export interface MiniLyricClockSyncState {
+    currentTime: number;
+    lastTrackKey: string | null;
+    lastPlayerState: PlayerState;
+    isInitialized: boolean;
+}
+
+export const calculateClockSyncOnSnapshot = (
+    state: MiniLyricClockSyncState,
+    snapshot: RemoteControlSnapshot,
+    nowWallMs: number,
+): number => {
+    const rawTime = snapshot.currentTime;
+    const offsetSec = (snapshot.lyricOffsetMs || 0) / 1000;
+    const baseTime = rawTime - offsetSec;
+
+    // Compensate for IPC / event-loop transit latency
+    const transitLatencySec = (typeof snapshot.updatedAt === 'number' && snapshot.updatedAt > 0 && nowWallMs >= snapshot.updatedAt)
+        ? Math.min(0.5, (nowWallMs - snapshot.updatedAt) / 1000)
+        : 0;
+
+    const targetTime = snapshot.playerState === PlayerState.PLAYING
+        ? baseTime + transitLatencySec
+        : baseTime;
+
+    const isTrackChange = state.lastTrackKey !== snapshot.trackKey;
+    const isStateChange = state.lastPlayerState !== snapshot.playerState;
+    const drift = targetTime - state.currentTime;
+
+    // Hard jump on init, track change, play/pause change, or user seek (|drift| > 0.35s)
+    if (!state.isInitialized || isTrackChange || isStateChange || Math.abs(drift) > 0.35) {
+        return targetTime;
+    }
+
+    // Soft slew during continuous playback: gently correct 15% of the drift per snapshot
+    return state.currentTime + drift * 0.15;
+};
+
 export default function MiniLyricBarApp() {
     const { t } = useTranslation();
     const [snapshot, setSnapshot] = useState<RemoteControlSnapshot | null>(null);
     const [isClickThrough, setIsClickThrough] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
 
-    const syncRef = useRef({ snapshotTime: 0, localTime: performance.now() });
-    const animFrameRef = useRef<number | null>(null);
+    // React state only updates when active lyric line changes (avoiding 60fps VDOM churn)
+    const [display, setDisplay] = useState<MiniLyricDisplay>({ currentLine: null, nextLine: null });
+    const displayRef = useRef<MiniLyricDisplay>(display);
+
+    // Refs for continuous 60fps/144fps interpolation
+    const latestSnapshotRef = useRef<RemoteControlSnapshot | null>(null);
+    const currentTimeRef = useRef<number>(0);
+    const lastTickTimeRef = useRef<number>(performance.now());
+    const clockSyncStateRef = useRef<MiniLyricClockSyncState>({
+        currentTime: 0,
+        lastTrackKey: null,
+        lastPlayerState: PlayerState.PAUSED,
+        isInitialized: false,
+    });
+
+    // DOM node refs for direct GPU styling without React reconciliation
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const tokenNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
+    const singleLineNodeRef = useRef<HTMLSpanElement | null>(null);
+    const tokenCentersRef = useRef<number[]>([]);
+    const scrollMetricsRef = useRef({ containerWidth: 0, maxScroll: 0 });
+    const targetScrollRef = useRef<number>(0);
+
+    const currentLine = display.currentLine;
+
+    // Tokens for current line
+    const displayTokens = useMemo<MonetDisplayToken[]>(() => {
+        if (!currentLine) return [];
+        return buildMonetDisplayTokens({
+            ...currentLine,
+            words: currentLine.words || [],
+        });
+    }, [currentLine]);
+
+    const displayTokensRef = useRef<MonetDisplayToken[]>(displayTokens);
+    useEffect(() => {
+        displayTokensRef.current = displayTokens;
+        tokenNodesRef.current = [];
+    }, [displayTokens]);
+
+    useEffect(() => {
+        displayRef.current = display;
+    }, [display]);
+
+    // Measure horizontal scroll bounding boxes
+    const measureScrollTargets = useCallback(() => {
+        const container = scrollContainerRef.current;
+        if (!container) {
+            tokenCentersRef.current = [];
+            scrollMetricsRef.current = { containerWidth: 0, maxScroll: 0 };
+            return;
+        }
+
+        const containerWidth = container.clientWidth;
+        const maxScroll = Math.max(0, container.scrollWidth - containerWidth);
+        scrollMetricsRef.current = { containerWidth, maxScroll };
+        tokenCentersRef.current = tokenNodesRef.current.map(child =>
+            child ? child.offsetLeft + child.offsetWidth / 2 : 0
+        );
+
+        if (maxScroll <= 0) {
+            container.scrollLeft = 0;
+            targetScrollRef.current = 0;
+        }
+    }, []);
+
+    useEffect(() => {
+        measureScrollTargets();
+        const handleResize = () => measureScrollTargets();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [measureScrollTargets, displayTokens]);
+
+    // Direct DOM text gradient updates (runs on every rAF frame at 60fps/144fps)
+    const updateLineProgress = useCallback((time: number) => {
+        const line = displayRef.current.currentLine;
+        if (!line) return;
+
+        const tokens = displayTokensRef.current;
+        if (tokens.length > 0) {
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                const node = tokenNodesRef.current[i];
+                if (!node) continue;
+
+                if (token.timed && token.startTime !== null && token.endTime !== null) {
+                    const progress = token.endTime > token.startTime
+                        ? clampProgress(((time - token.startTime) / (token.endTime - token.startTime)) * 100)
+                        : (time >= token.startTime ? 100 : 0);
+                    node.style.backgroundImage = `linear-gradient(to right, #38bdf8 ${progress}%, #f1f5f9 ${progress}%)`;
+                } else {
+                    // Delimiter token (space, punctuation): highlight if preceding word passed
+                    let isPassed = false;
+                    for (let j = i - 1; j >= 0; j--) {
+                        const prev = tokens[j];
+                        if (prev.timed && prev.endTime !== null) {
+                            isPassed = time >= prev.endTime;
+                            break;
+                        }
+                    }
+                    node.style.color = isPassed ? '#38bdf8' : '#f1f5f9';
+                }
+            }
+            return;
+        }
+
+        // Plain LRC fallback for single line
+        if (singleLineNodeRef.current) {
+            const duration = line.endTime > line.startTime ? line.endTime - line.startTime : 3.5;
+            const progress = clampProgress(((time - line.startTime) / duration) * 100);
+            singleLineNodeRef.current.style.backgroundImage = `linear-gradient(to right, #38bdf8 ${progress}%, #f1f5f9 ${progress}%)`;
+        }
+    }, []);
+
+    // Smooth horizontal autoscroll centering the currently sung word
+    const updateScroll = useCallback((time: number) => {
+        const container = scrollContainerRef.current;
+        const line = displayRef.current.currentLine;
+        const { containerWidth, maxScroll } = scrollMetricsRef.current;
+        if (!container || !line || maxScroll <= 0) {
+            if (container && container.scrollLeft !== 0) {
+                container.scrollLeft = 0;
+            }
+            return;
+        }
+
+        let targetScroll = 0;
+        const tokens = displayTokensRef.current;
+        if (tokens.length > 0) {
+            const activeIdx = tokens.findIndex(t => t.timed && t.startTime !== null && t.endTime !== null && time >= t.startTime && time <= t.endTime);
+            if (activeIdx !== -1) {
+                targetScroll = (tokenCentersRef.current[activeIdx] ?? 0) - containerWidth / 2;
+            } else {
+                const lastTimed = [...tokens].reverse().find(t => t.timed && t.endTime !== null);
+                if (lastTimed && lastTimed.endTime !== null && time >= lastTimed.endTime) {
+                    targetScroll = maxScroll;
+                } else {
+                    const firstTimed = tokens.find(t => t.timed && t.startTime !== null);
+                    if (firstTimed && firstTimed.startTime !== null && time < firstTimed.startTime) {
+                        targetScroll = 0;
+                    }
+                }
+            }
+        } else if (line.endTime > line.startTime && time >= line.startTime) {
+            targetScroll = ((time - line.startTime) / (line.endTime - line.startTime)) * maxScroll;
+        }
+
+        const bounded = Math.max(0, Math.min(maxScroll, targetScroll));
+        targetScrollRef.current = bounded;
+
+        const diff = bounded - container.scrollLeft;
+        if (Math.abs(diff) > 0.2) {
+            container.scrollLeft += diff * 0.14;
+        } else {
+            container.scrollLeft = bounded;
+        }
+    }, []);
+
+    // Line switcher: only updates React state when line index actually changes
+    const updateDisplay = useCallback((time: number) => {
+        const lyrics = latestSnapshotRef.current?.lyrics;
+        const nextDisplay = resolveDisplayLines(lyrics, time);
+        const prev = displayRef.current;
+
+        if (
+            prev.currentLine !== nextDisplay.currentLine ||
+            prev.nextLine !== nextDisplay.nextLine
+        ) {
+            displayRef.current = nextDisplay;
+            setDisplay(nextDisplay);
+            requestAnimationFrame(() => {
+                measureScrollTargets();
+                updateLineProgress(time);
+            });
+        }
+    }, [measureScrollTargets, updateLineProgress]);
+
+    // Apply snapshot with soft drift slew
+    const applySnapshot = useCallback((next: unknown) => {
+        if (!next) return;
+        const nextSnapshot = next as unknown as RemoteControlSnapshot;
+        latestSnapshotRef.current = nextSnapshot;
+
+        const syncState = clockSyncStateRef.current;
+        const nextTime = calculateClockSyncOnSnapshot(syncState, nextSnapshot, Date.now());
+
+        currentTimeRef.current = nextTime;
+        syncState.currentTime = nextTime;
+        syncState.lastTrackKey = nextSnapshot.trackKey;
+        syncState.lastPlayerState = nextSnapshot.playerState;
+        syncState.isInitialized = true;
+
+        setSnapshot(prev => {
+            const rawNext = next as { lyrics?: unknown };
+            const hasLyricsProp = Object.prototype.hasOwnProperty.call(rawNext, 'lyrics');
+            const hasMetaChange = !prev ||
+                prev.trackKey !== nextSnapshot.trackKey ||
+                prev.playerState !== nextSnapshot.playerState ||
+                prev.title !== nextSnapshot.title ||
+                prev.artist !== nextSnapshot.artist ||
+                prev.coverUrl !== nextSnapshot.coverUrl ||
+                prev.duration !== nextSnapshot.duration ||
+                (hasLyricsProp && rawNext.lyrics !== prev.lyrics);
+
+            if (!hasMetaChange) {
+                return prev;
+            }
+
+            return {
+                ...(prev || {}),
+                ...nextSnapshot,
+                lyrics: hasLyricsProp
+                    ? (rawNext.lyrics as LyricData | null) ?? null
+                    : prev?.lyrics ?? null,
+            } as RemoteControlSnapshot;
+        });
+    }, []);
 
     // Subscribe to IPC snapshot and click-through updates
     useEffect(() => {
@@ -76,37 +318,19 @@ export default function MiniLyricBarApp() {
 
         let active = true;
 
-        // Fetch initial state
         void electron.getMiniLyricBarState?.().then(state => {
             if (!active || !state) return;
             setIsClickThrough(Boolean(state.clickThrough));
             if (state.snapshot) {
-                const snapshotData = state.snapshot as unknown as RemoteControlSnapshot;
-                setSnapshot(snapshotData);
-                const baseTime = snapshotData.currentTime - (snapshotData.lyricOffsetMs || 0) / 1000;
-                syncRef.current = { snapshotTime: baseTime, localTime: performance.now() };
-                setCurrentTime(baseTime);
+                applySnapshot(state.snapshot);
             }
         });
 
-        // Listen for live snapshot updates
         const unsubsSnapshot = electron.onMiniLyricBarSnapshot?.(next => {
             if (!active) return;
-            const nextSnapshot = next as unknown as RemoteControlSnapshot;
-            setSnapshot(prev => ({
-                ...(prev || {}),
-                ...nextSnapshot,
-                lyrics: Object.prototype.hasOwnProperty.call(next, 'lyrics')
-                    ? next.lyrics ?? null
-                    : prev?.lyrics ?? null,
-            } as RemoteControlSnapshot));
-
-            const baseTime = nextSnapshot.currentTime - (nextSnapshot.lyricOffsetMs || 0) / 1000;
-            syncRef.current = { snapshotTime: baseTime, localTime: performance.now() };
-            setCurrentTime(baseTime);
+            applySnapshot(next);
         });
 
-        // Listen for click-through toggles
         const unsubsClickThrough = electron.onMiniLyricBarClickThroughChanged?.(enabled => {
             if (active) setIsClickThrough(enabled);
         });
@@ -116,38 +340,39 @@ export default function MiniLyricBarApp() {
             unsubsSnapshot?.();
             unsubsClickThrough?.();
         };
-    }, []);
+    }, [applySnapshot]);
 
-    // Interpolate playback position smoothly during active playback
+    // Silky smooth rAF animation loop running at native display refresh rate
     useEffect(() => {
-        const isPlaying = snapshot?.playerState === PlayerState.PLAYING;
-        if (!isPlaying) {
-            if (animFrameRef.current) {
-                cancelAnimationFrame(animFrameRef.current);
-                animFrameRef.current = null;
-            }
-            return;
-        }
+        let frameId: number | null = null;
+        lastTickTimeRef.current = performance.now();
 
-        const updateLoop = () => {
-            const interpolated = getInterpolatedTime(
-                PlayerState.PLAYING,
-                snapshot?.duration || 0,
-                syncRef.current,
-            );
-            setCurrentTime(interpolated);
-            animFrameRef.current = requestAnimationFrame(updateLoop);
+        const tick = (now: number) => {
+            const dt = Math.min(0.1, (now - lastTickTimeRef.current) / 1000);
+            lastTickTimeRef.current = now;
+
+            const currentSnapshot = latestSnapshotRef.current;
+            const isPlaying = currentSnapshot?.playerState === PlayerState.PLAYING;
+
+            if (isPlaying) {
+                const duration = currentSnapshot?.duration || Number.POSITIVE_INFINITY;
+                currentTimeRef.current = Math.min(duration, currentTimeRef.current + dt);
+                clockSyncStateRef.current.currentTime = currentTimeRef.current;
+            }
+
+            const lyricTime = currentTimeRef.current;
+            updateDisplay(lyricTime);
+            updateLineProgress(lyricTime);
+            updateScroll(lyricTime);
+
+            frameId = requestAnimationFrame(tick);
         };
 
-        animFrameRef.current = requestAnimationFrame(updateLoop);
-
+        frameId = requestAnimationFrame(tick);
         return () => {
-            if (animFrameRef.current) {
-                cancelAnimationFrame(animFrameRef.current);
-                animFrameRef.current = null;
-            }
+            if (frameId !== null) cancelAnimationFrame(frameId);
         };
-    }, [snapshot?.playerState, snapshot?.duration]);
+    }, [updateDisplay, updateLineProgress, updateScroll]);
 
     // Send playback commands to main window
     const handleCommand = useCallback((command: RemoteControlCommand) => {
@@ -164,20 +389,6 @@ export default function MiniLyricBarApp() {
     const handleClose = useCallback(() => {
         void window.electron?.closeMiniLyricBar?.();
     }, []);
-
-    // Current lines resolution
-    const { currentLine } = useMemo(() => {
-        return resolveDisplayLines(snapshot?.lyrics, currentTime);
-    }, [snapshot?.lyrics, currentTime]);
-
-    // Build stable display tokens matching fullText spaces and punctuation around timed words
-    const displayTokens = useMemo<MonetDisplayToken[]>(() => {
-        if (!currentLine) return [];
-        return buildMonetDisplayTokens({
-            ...currentLine,
-            words: currentLine.words || [],
-        });
-    }, [currentLine]);
 
     // Translation or Romanization subtitle
     const secondaryText = useMemo(() => {
@@ -233,54 +444,40 @@ export default function MiniLyricBarApp() {
                 <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                     {currentLine ? (
                         <div className="flex flex-col justify-center">
-                            {/* Primary lyric line with word-level or line progress fill */}
-                            <div className="text-sm sm:text-base font-bold tracking-wide truncate text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] leading-tight">
+                            {/* Primary lyric line with word-level or line progress fill and smooth autoscroll */}
+                            <div
+                                ref={scrollContainerRef}
+                                className="text-sm sm:text-base font-bold tracking-wide overflow-x-hidden whitespace-nowrap text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] leading-tight select-none"
+                            >
                                 {displayTokens.length > 0 ? (
-                                    displayTokens.map((token, idx) => {
-                                        if (token.timed && token.startTime !== null && token.endTime !== null) {
-                                            const progress = token.endTime > token.startTime
-                                                ? clampProgress(((currentTime - token.startTime) / (token.endTime - token.startTime)) * 100)
-                                                : (currentTime >= token.startTime ? 100 : 0);
-
-                                            return (
-                                                <span
-                                                    key={token.key}
-                                                    className="inline-block whitespace-pre transition-colors duration-75"
-                                                    style={{
-                                                        backgroundImage: `linear-gradient(to right, #38bdf8 ${progress}%, #f1f5f9 ${progress}%)`,
-                                                        WebkitBackgroundClip: 'text',
-                                                        WebkitTextFillColor: 'transparent',
-                                                    }}
-                                                >
-                                                    {token.text}
-                                                </span>
-                                            );
-                                        }
-
-                                        // Static delimiter token (e.g. space, punctuation) preserving original text spacing
-                                        let isPassed = false;
-                                        for (let i = idx - 1; i >= 0; i--) {
-                                            const prev = displayTokens[i];
-                                            if (prev.timed && prev.endTime !== null) {
-                                                isPassed = currentTime >= prev.endTime;
-                                                break;
-                                            }
-                                        }
-
-                                        return (
-                                            <span
-                                                key={token.key}
-                                                className="inline-block whitespace-pre select-none"
-                                                style={{
-                                                    color: isPassed ? '#38bdf8' : '#f1f5f9',
-                                                }}
-                                            >
-                                                {token.text}
-                                            </span>
-                                        );
-                                    })
+                                    displayTokens.map((token, idx) => (
+                                        <span
+                                            key={token.key}
+                                            ref={el => { tokenNodesRef.current[idx] = el; }}
+                                            className="inline-block whitespace-pre select-none"
+                                            style={token.timed && token.startTime !== null && token.endTime !== null ? {
+                                                backgroundImage: 'linear-gradient(to right, #38bdf8 0%, #f1f5f9 0%)',
+                                                WebkitBackgroundClip: 'text',
+                                                WebkitTextFillColor: 'transparent',
+                                                willChange: 'background-image',
+                                            } : {
+                                                color: '#f1f5f9',
+                                            }}
+                                        >
+                                            {token.text}
+                                        </span>
+                                    ))
                                 ) : (
-                                    <span style={{ color: '#f1f5f9' }}>
+                                    <span
+                                        ref={singleLineNodeRef}
+                                        className="inline-block whitespace-pre select-none"
+                                        style={{
+                                            backgroundImage: 'linear-gradient(to right, #38bdf8 0%, #f1f5f9 0%)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            willChange: 'background-image',
+                                        }}
+                                    >
                                         {currentLine.fullText}
                                     </span>
                                 )}
@@ -288,7 +485,7 @@ export default function MiniLyricBarApp() {
 
                             {/* Secondary translation or romanization subtitle */}
                             {secondaryText && (
-                                <div className="text-[11px] text-white/70 font-medium truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5">
+                                <div className="text-[11px] text-white/70 font-medium truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 select-none">
                                     {secondaryText}
                                 </div>
                             )}

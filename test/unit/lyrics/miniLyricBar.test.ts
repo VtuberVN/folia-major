@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { findLatestActiveLineIndex } from '../../../src/utils/appPlaybackHelpers';
 import { buildMonetDisplayTokens } from '../../../src/components/visualizer/monet/monetLyricsModel';
-import type { LyricData } from '../../../src/types';
+import { calculateClockSyncOnSnapshot, type MiniLyricClockSyncState } from '../../../src/components/mini-lyric-bar/MiniLyricBarApp';
+import { PlayerState, type LyricData } from '../../../src/types';
+import type { RemoteControlSnapshot } from '../../../src/types/remoteControl';
 
 // test/unit/lyrics/miniLyricBar.test.ts
 // Unit tests for Desktop Mini Lyric Bar logic
@@ -180,5 +182,128 @@ describe('Desktop Mini Lyric Bar', () => {
             showLockOnly: false,
         });
     });
+
+    describe('Clock Synchronization & Drift Slew', () => {
+        const baseSnapshot: RemoteControlSnapshot = {
+            hasTrack: true,
+            trackKey: 'song-1',
+            title: 'Test Song',
+            artist: 'Test Artist',
+            coverUrl: null,
+            currentTime: 20.0,
+            duration: 180.0,
+            playerState: PlayerState.PLAYING,
+            loopMode: 'off',
+            canGoPrevious: true,
+            canGoNext: true,
+            prevTrackKey: null,
+            prevTrackTitle: null,
+            prevTrackArtist: null,
+            prevTrackCoverUrl: null,
+            nextTrackKey: null,
+            nextTrackTitle: null,
+            nextTrackArtist: null,
+            nextTrackCoverUrl: null,
+            trackTransition: null,
+            controlsDisabled: false,
+            isStageActive: false,
+            transparentModeEnabled: false,
+            mainWindowClickThroughEnabled: false,
+            mainWindowAlwaysOnTop: false,
+            mainWindowBorderVisible: false,
+            playerChromeHidden: false,
+            playerChromeVisibilityMode: 'auto-hide',
+            exportState: { state: 'idle' } as any,
+            lyricOffsetMs: 0,
+            updatedAt: 1000000,
+        };
+
+        it('snaps immediately on first initialization', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 0,
+                lastTrackKey: null,
+                lastPlayerState: PlayerState.PAUSED,
+                isInitialized: false,
+            };
+
+            const result = calculateClockSyncOnSnapshot(state, baseSnapshot, 1000000);
+            expect(result).toBe(20.0);
+        });
+
+        it('compensates for IPC transit latency using updatedAt', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 0,
+                lastTrackKey: null,
+                lastPlayerState: PlayerState.PAUSED,
+                isInitialized: false,
+            };
+
+            // 50ms transit latency between main window and miniLyricBar window
+            const result = calculateClockSyncOnSnapshot(state, baseSnapshot, 1000050);
+            expect(result).toBeCloseTo(20.05, 3);
+        });
+
+        it('softly slews small drifts without jerky clock jumps', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 20.0,
+                lastTrackKey: 'song-1',
+                lastPlayerState: PlayerState.PLAYING,
+                isInitialized: true,
+            };
+
+            // Snapshot arrives indicating 20.10s (drift = +0.10s, which is <= 0.35s)
+            const snapshot = { ...baseSnapshot, currentTime: 20.10, updatedAt: 1000000 };
+            const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
+
+            // Slews 15% of the 0.10s drift: 20.0 + 0.015 = 20.015s (smooth, no jerky snap)
+            expect(result).toBeCloseTo(20.015, 3);
+        });
+
+        it('snaps immediately on large drift (user seeked / scrubbed)', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 20.0,
+                lastTrackKey: 'song-1',
+                lastPlayerState: PlayerState.PLAYING,
+                isInitialized: true,
+            };
+
+            // User seeks to 55.0s (drift = +35s, > 0.35s)
+            const snapshot = { ...baseSnapshot, currentTime: 55.0, updatedAt: 1000000 };
+            const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
+
+            // Jumps immediately to seek target
+            expect(result).toBe(55.0);
+        });
+
+        it('snaps immediately on track change', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 175.0,
+                lastTrackKey: 'song-1',
+                lastPlayerState: PlayerState.PLAYING,
+                isInitialized: true,
+            };
+
+            // New track starts at 0.0s
+            const snapshot = { ...baseSnapshot, trackKey: 'song-2', currentTime: 0.0, updatedAt: 1000000 };
+            const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
+
+            expect(result).toBe(0.0);
+        });
+
+        it('snaps immediately on player state change (pause -> play)', () => {
+            const state: MiniLyricClockSyncState = {
+                currentTime: 15.0,
+                lastTrackKey: 'song-1',
+                lastPlayerState: PlayerState.PAUSED,
+                isInitialized: true,
+            };
+
+            const snapshot = { ...baseSnapshot, playerState: PlayerState.PLAYING, currentTime: 15.0, updatedAt: 1000000 };
+            const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
+
+            expect(result).toBe(15.0);
+        });
+    });
 });
+
 
