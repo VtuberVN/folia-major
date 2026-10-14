@@ -3,6 +3,7 @@ import { motion, AnimatePresence, MotionValue, useMotionValueEvent } from 'frame
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LyricData, Theme } from '../../types';
+import { useGlass } from '../../mods/useGlass';
 
 interface LyricsTimelineModalProps {
     isOpen: boolean;
@@ -33,6 +34,7 @@ const LyricsTimelineModal: React.FC<LyricsTimelineModalProps> = ({
     theme,
     isDaylight
 }) => {
+    useGlass();
     const { t } = useTranslation();
     // const isDaylight = theme?.name === 'Daylight Default'; // Deprecated, passed as prop
     const glassBg = isDaylight ? 'bg-white/70' : 'bg-black/40';
@@ -225,6 +227,7 @@ const LyricsTimelineModal: React.FC<LyricsTimelineModalProps> = ({
                     onClick={onClose}
                 >
                     <motion.div
+                        data-glass
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.9, opacity: 0 }}

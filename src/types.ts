@@ -987,9 +987,56 @@ export interface LatentBackgroundTuning {
   overlayOpacity: number;
 }
 
+export type SoraStarShape = 'soft' | 'cross' | 'diamond' | 'point';
+export type SoraStarPalette = 'real' | 'neon' | 'diamond';
+export type SoraGalaxyShape = 'spiral2' | 'spiral4' | 'ring' | 'cloud';
+export type SoraShootingPalette = 'white' | 'gold' | 'cyan' | 'rose' | 'rainbow';
+
 export interface SoraBackgroundTuning {
   /** Skips the WebGL starfield and shows a static solid black (night) / white (daylight) frame. */
   blank: boolean;
+
+  // 3D Camera Orbit
+  camYaw: number;
+  camPitch: number;
+  camRoll: number;
+  autoCinematicCam: boolean;
+
+  // Starfield 3D
+  starShape: SoraStarShape;
+  starPalette: SoraStarPalette;
+  starCount: number;
+  starScale: number;
+  depthSpread: number;
+  twinkle: number;
+  starDriftAngle: number;
+  starDriftSpeed: number;
+
+  // Sub-Galaxy 3D
+  showGalaxy: boolean;
+  galaxyShape: SoraGalaxyShape;
+  galaxyRadius: number;
+  galaxyTwist: number;
+  galaxyArmWidth: number;
+  galaxyThickness: number;
+  galaxyChaos: number;
+  galaxyCore: number;
+  galaxySpin: number;
+  galaxyRotX: number;
+  galaxyRotY: number;
+  galaxyRotZ: number;
+  galaxyPosX: number;
+  galaxyPosY: number;
+  galaxyPosZ: number;
+
+  // Shooting Stars 3D
+  enableShootingStars: boolean;
+  shootingFreq: number;
+  shootingTail: number;
+  shootingPalette: SoraShootingPalette;
+
+  // Sound Reactive
+  audioPulse: number;
 }
 
 export type TideColorMode = 'theme' | 'custom';
@@ -1114,6 +1161,50 @@ export const DEFAULT_LATENT_BACKGROUND_TUNING: LatentBackgroundTuning = {
 
 export const DEFAULT_SORA_BACKGROUND_TUNING: SoraBackgroundTuning = {
   blank: false,
+  camYaw: 0,
+  camPitch: 0,
+  camRoll: 0,
+  autoCinematicCam: true,
+  starShape: 'soft',
+  starPalette: 'real',
+  starCount: 1600,
+  starScale: 1.1,
+  depthSpread: 1.1,
+  twinkle: 0.75,
+  starDriftAngle: 300,
+  starDriftSpeed: 1.0,
+  showGalaxy: true,
+  galaxyShape: 'spiral4',
+  galaxyRadius: 180,
+  galaxyTwist: 1.25,
+  galaxyArmWidth: 0.8,
+  galaxyThickness: 0.2,
+  galaxyChaos: 0.65,
+  galaxyCore: 0.75,
+  galaxySpin: 0.8,
+  galaxyRotX: 32,
+  galaxyRotY: 180,
+  galaxyRotZ: -34,
+  galaxyPosX: 150,
+  galaxyPosY: -85,
+  galaxyPosZ: -350,
+  enableShootingStars: true,
+  shootingFreq: 4.5,
+  shootingTail: 80,
+  shootingPalette: 'gold',
+  audioPulse: 1.2,
+};
+
+export const SORA_CLASSIC_TUNING: SoraBackgroundTuning = {
+  ...DEFAULT_SORA_BACKGROUND_TUNING,
+  showGalaxy: false,
+  enableShootingStars: false,
+  autoCinematicCam: false,
+  starCount: 900,
+  starScale: 1.0,
+  depthSpread: 1.0,
+  twinkle: 0.4,
+  audioPulse: 0,
 };
 
 export const DEFAULT_TIDE_BACKGROUND_TUNING: TideBackgroundTuning = {

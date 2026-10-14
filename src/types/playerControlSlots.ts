@@ -1,8 +1,7 @@
 // src/types/playerControlSlots.ts
-// 进度条胶囊右侧两个可自定义槽位的跨层合同。
-//
-// 只放 id、默认值和校验：store 需要它们来持久化，但不该为此依赖组件层的图标模块。
-// 图标和 handler 解析在 src/components/floating-player/playerControlSlotActions.ts。
+// Cross-layer contract for the two customizable slots on the right side of the progress bar capsule.
+// Contains IDs, defaults, and validation: the store requires them for persistence without importing icon modules.
+// Icon and handler resolution live in src/components/floating-player/playerControlSlotActions.ts.
 
 export type PlayerControlSlotActionId =
     | 'loop'
@@ -11,6 +10,7 @@ export type PlayerControlSlotActionId =
     | 'shuffle'
     | 'like'
     | 'lyrics-timeline'
+    | 'lyrics-list'
     | 'volume'
     | 'queue'
     | 'song-wall'
@@ -23,13 +23,14 @@ export const PLAYER_CONTROL_SLOT_ACTION_IDS: readonly PlayerControlSlotActionId[
     'shuffle',
     'like',
     'lyrics-timeline',
+    'lyrics-list',
     'volume',
     'queue',
     'song-wall',
     'sleep-timer',
 ];
 
-/** 默认保持改动前的样子：循环模式 + 歌词时间轴。 */
+/** Default: loop mode + lyrics timeline. */
 export const DEFAULT_PLAYER_CONTROL_SLOT_PRIMARY: PlayerControlSlotActionId = 'loop';
 export const DEFAULT_PLAYER_CONTROL_SLOT_SECONDARY: PlayerControlSlotActionId = 'lyrics-timeline';
 

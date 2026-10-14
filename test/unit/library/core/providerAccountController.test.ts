@@ -160,11 +160,11 @@ let logoutPort: ReturnType<typeof vi.fn<LibraryProviderAccountPort['logout']>>;
 let cleanup: ReturnType<typeof vi.fn<LibraryProviderSwitchCleanupPort['resetForProviderSwitch']>>;
 let keySeq: number;
 
-const createController = (): LibraryAccountController => createProviderAccountController({
+const createController = (switchOptions: { requiresConfirmation?: boolean } = {}): LibraryAccountController => createProviderAccountController({
     auth: auth as unknown as LibraryAccountAuthPort,
     accounts: accounts.port,
     providerAccounts: { refresh, logout: logoutPort },
-    switchCleanup: { resetForProviderSwitch: cleanup },
+    switchCleanup: { resetForProviderSwitch: cleanup, ...switchOptions },
     neteaseBackend: backend.port,
     clock: manual.clock,
     diagnostics: { appVersion: '9.9.9-test', userAgent: 'vitest agent' },
@@ -242,6 +242,22 @@ describe('providerAccountController · switch', () => {
         expect(controller.getSnapshot().pendingSwitch).toBeNull();
         expect(controller.getSnapshot().activeProviderId).toBe('alpha');
         expect(opsOf('cleanup', 'invalidate', 'set-active', 'refresh')).toEqual([]);
+    });
+
+    it('switches without a confirmation step when the host says nothing would be lost', async () => {
+        const controller = createController({ requiresConfirmation: false });
+
+        const result = controller.requestSwitch('beta');
+
+        await expect(result).resolves.toEqual({ status: 'switched', providerId: 'beta', changed: true });
+        expect(controller.getSnapshot().pendingSwitch).toBeNull();
+        expect(controller.getSnapshot().activeProviderId).toBe('beta');
+        expect(opsOf('cleanup', 'invalidate', 'set-active', 'refresh')).toEqual([
+            ['cleanup', 'beta', 'alpha'],
+            ['invalidate'],
+            ['set-active', 'beta'],
+            ['refresh', 'beta'],
+        ]);
     });
 
     it('[txn] cleans up before committing and refreshes only the new provider', async () => {

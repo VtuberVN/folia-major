@@ -17,13 +17,25 @@ export function normalizeAudioQualityInfo(value: AudioQualityInfo | null | undef
     return result;
 }
 
+export function simplifyAudioCodec(codec?: string): string {
+    if (!codec) return '';
+    const lower = codec.toLowerCase();
+    if (lower.includes('aac') || lower.includes('mp4a')) return 'AAC';
+    if (lower.includes('mp3') || lower.includes('layer 3') || lower.includes('mpeg 1 layer')) return 'MP3';
+    if (lower.includes('flac')) return 'FLAC';
+    if (lower.includes('alac')) return 'ALAC';
+    if (lower.includes('opus')) return 'Opus';
+    if (lower.includes('vorbis')) return 'Vorbis';
+    return codec.toUpperCase();
+}
+
 export function formatAudioQualityInfo(value: AudioQualityInfo | undefined, language = 'en'): string {
     const info = normalizeAudioQualityInfo(value);
     if (!info) return '';
     const number = new Intl.NumberFormat(language === 'in' ? 'id' : language, { useGrouping: false, maximumFractionDigits: 1 });
     const formatted = [
         info.bitrate ? `${number.format(Math.round(info.bitrate / 1000))} kbps` : '',
-        info.codec?.toUpperCase() ?? '',
+        simplifyAudioCodec(info.codec),
         info.sampleRate ? `${number.format(info.sampleRate / 1000)} kHz` : '',
         info.bitDepth ? `${info.bitDepth}-bit` : '',
     ].filter(Boolean).join(' · ');

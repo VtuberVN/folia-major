@@ -30,12 +30,23 @@
   }
 }
 </script>
+    <script>
+      if (window.location.search.includes('miniLyric=1')) {
+        document.documentElement.classList.add('mini-lyric-surface');
+      }
+    </script>
     <!-- 首屏加载遮罩：内联样式，随 HTML 首帧一起绘制，不等 index.css 与 JS bundle。
          由 src/utils/appSplash.ts 在 React 挂载后淡出并移除。 -->
     <style>
-      html,
-      body {
+      html:not(.mini-lyric-surface),
+      body:not(.mini-lyric-surface) {
         background-color: #09090b;
+      }
+      html.mini-lyric-surface,
+      body.mini-lyric-surface,
+      .mini-lyric-surface #app-splash {
+        background: transparent !important;
+        background-color: transparent !important;
       }
 
       #app-splash {
@@ -168,7 +179,7 @@
           // 需要透明背景的入口不能盖遮罩：OBS 浏览器源会被直接推流捕获，
           // Electron 的透明播放背景 / 壁纸窗口（main.cjs 传 splash=0）会在桌面上闪一个黑块。
           var params = new URLSearchParams(window.location.search);
-          if (params.get('obs') === '1' || window.location.pathname === '/obs' || params.get('splash') === '0') {
+          if (params.get('obs') === '1' || window.location.pathname === '/obs' || params.get('splash') === '0' || params.get('miniLyric') === '1') {
             var splash = document.getElementById('app-splash');
             if (splash) {
               splash.remove();

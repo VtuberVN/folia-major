@@ -22,6 +22,7 @@ import { resolveStagePlayerPositionSec } from '../utils/stagePlayerSnapshot';
 import { getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { omni } from '../services/onlineMusic/omni';
 import { subscribeToTransitionCue } from '../services/automix/transitionCue';
+import { markUserSeek } from '../services/exclusiveSeekSignal';
 import { useStableActionSurface } from './useStableCallbacks';
 import { selectDisplayCoverUrl, selectDisplayDuration, selectDisplayLyrics, selectDisplayPlayerState, selectDisplaySong, usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAppChromeStore } from '../stores/useAppChromeStore';
@@ -85,6 +86,7 @@ type UseElectronPlaybackBridgeOptions = {
 
 const emptyPlaybackSyncBridgeStatus = (): ElectronPlaybackSyncBridgeStatus => ({
     remoteControlOpen: false,
+    miniLyricBarOpen: false,
     discordPresenceEnabled: false,
 });
 
@@ -479,7 +481,7 @@ export const useElectronPlaybackBridge = ({
     }, [isElectronWindow]);
 
     useEffect(() => {
-        if (!playbackSyncBridgeStatus.remoteControlOpen) {
+        if (!playbackSyncBridgeStatus.remoteControlOpen && !playbackSyncBridgeStatus.miniLyricBarOpen) {
             return;
         }
 
@@ -622,6 +624,7 @@ export const useElectronPlaybackBridge = ({
                 if (onRemoteTransitionSeek?.(nextTime)) {
                     // Handled: the re-play seeks the deck itself once it reloads.
                 } else if (audioElement) {
+                    markUserSeek();
                     audioElement.currentTime = nextTime;
                 } else if (activePlaybackContext === 'stage') {
                     syncStageLyricsClock?.(nextTime, duration, taskbarPlayerStateRef.current);
@@ -694,6 +697,7 @@ export const useElectronPlaybackBridge = ({
                     if (onRemoteTransitionSeek?.(nextTime)) {
                         // Handled: that path seeks the deck it kept.
                     } else if (audioRef.current) {
+                        markUserSeek();
                         audioRef.current.currentTime = nextTime;
                     } else if (activePlaybackContext === 'stage') {
                         syncStageLyricsClock?.(nextTime, duration, taskbarPlayerStateRef.current);

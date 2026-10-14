@@ -14,6 +14,7 @@ import ThemePark from './ThemePark';
 import LyricFilterSettingsModal from './LyricFilterSettingsModal';
 import type { LyricFilterDraft } from './LyricFilterSettingsModal';
 import GlobalLyricOffsetModal from './settings/GlobalLyricOffsetModal';
+import TitleNoiseFilterModal from './settings/TitleNoiseFilterModal';
 import { settingsCardClassFor, settingsToggleOffClassFor } from './settings/settingsCardClasses';
 import AppearanceSettingsSubview from './settings/AppearanceSettingsSubview';
 import DesktopSettingsSubview from './settings/DesktopSettingsSubview';
@@ -325,6 +326,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         lyricStaffMinDwellSeconds,
         lyricStaffAbsorbMode,
         lyricStaffPattern,
+        titleNoiseFilterEnabled,
+        titleNoiseFilterDefaultEnabled,
+        titleNoiseFilterCustomKeywords,
     } = useLyricSettingsStore(useShallow(selectLyricSettingsSnapshot));
     const {
         handleToggleDisableVisualizerVignette: onToggleDisableVisualizerVignette,
@@ -445,6 +449,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const [showVisPlayground, setShowVisPlayground] = useState(false);
     const [showThemePark, setShowThemePark] = useState(false);
     const [showLyricFilterSettings, setShowLyricFilterSettings] = useState(false);
+    const [showTitleNoiseFilterSettings, setShowTitleNoiseFilterSettings] = useState(false);
     const [showGlobalLyricOffset, setShowGlobalLyricOffset] = useState(false);
     const [showAiHelpPrompt, setShowAiHelpPrompt] = useState(false);
     const [showReleaseNotes, setShowReleaseNotes] = useState(false);
@@ -1145,6 +1150,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const isAnySubviewOpen = showVisPlayground
         || showThemePark
         || showLyricFilterSettings
+        || showTitleNoiseFilterSettings
         || showGlobalLyricOffset
         || showAiHelpPrompt
         || showReleaseNotes;
@@ -1157,6 +1163,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         setShowVisPlayground(false);
         setShowThemePark(false);
         setShowLyricFilterSettings(false);
+        setShowTitleNoiseFilterSettings(false);
         setShowGlobalLyricOffset(false);
         setShowAiHelpPrompt(false);
         setShowReleaseNotes(false);
@@ -1806,6 +1813,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 onAudioOutputDeviceChange={onAudioOutputDeviceChange}
                                                 onOpenGlobalLyricOffsetSettings={() => setShowGlobalLyricOffset(true)}
                                                 onOpenLyricFilterSettings={() => setShowLyricFilterSettings(true)}
+                                                onOpenTitleNoiseFilterSettings={() => setShowTitleNoiseFilterSettings(true)}
                                                 replayGainMode={replayGainMode}
                                                 onReplayGainModeChange={onReplayGainModeChange}
                                                 settingsCardClass={settingsCardClass}
@@ -2275,6 +2283,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 loadPreviewLyrics={loadLyricFilterPreview}
                 onClose={() => closeSubviewOrModal(() => setShowLyricFilterSettings(false))}
                 onSave={onSaveLyricFilterPattern}
+            />
+            <TitleNoiseFilterModal
+                isOpen={showTitleNoiseFilterSettings}
+                isDaylight={isDaylight}
+                currentSongTitle={currentSongTitle}
+                onClose={() => closeSubviewOrModal(() => setShowTitleNoiseFilterSettings(false))}
             />
             <GlobalLyricOffsetModal
                 isOpen={showGlobalLyricOffset}

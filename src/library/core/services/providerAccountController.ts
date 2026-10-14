@@ -286,15 +286,23 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
             return Promise.resolve({ status: 'unavailable', providerId: to, reason: selection.reason });
         }
         return new Promise<LibrarySwitchResult>(resolve => {
+            let requestId = 0;
             batch(() => {
                 // 同一时间最多一个待确认请求：旧的按 superseded 拒绝（沿用 App 的 prev?.resolve(false)）。
                 if (pending) settlePending({ status: 'declined', providerId: pending.request.to, reason: 'superseded' });
+                requestId = ++switchSeq;
                 pending = {
-                    request: { id: ++switchSeq, from, to, reason },
+                    request: { id: requestId, from, to, reason },
                     refreshAfterCommit: reason === 'switch',
                     resolve,
                 };
             });
+            // Host declared that switching does not require confirmation: bypass the prompt and immediately confirm (cleanup and refresh proceed normally).
+            if (switchCleanup.requiresConfirmation === false) {
+                queueMicrotask(() => {
+                    if (!disposed && pending?.request.id === requestId) void confirmSwitch(requestId);
+                });
+            }
         });
     };
 
@@ -426,6 +434,27 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                 sessionId: null,
             };
         });
+        if (auth.hasInteractiveLogin?.(providerId)) {
+            try {
+                const user = await auth.login?.(providerId);
+                if (attempt !== loginSeq || disposed) return { status: 'superseded', providerId };
+                batch(() => { login = null; });
+                if (user) {
+                    await providerAccounts.refresh(providerId);
+                    if (providerId !== activeProviderId()) {
+                        await openSwitchRequest(providerId, 'activate-after-login');
+                    }
+                    return { status: 'started', providerId, sessionId: attempt, step: 'qr' };
+                }
+                return { status: 'superseded', providerId };
+            } catch (error) {
+                log('warn', 'login:interactive-error', { providerId, ...describeLoginError(error) });
+                if (attempt === loginSeq && !disposed) {
+                    batch(() => { login = null; });
+                }
+                return { status: 'superseded', providerId };
+            }
+        }
         let methods: readonly QrLoginMethod[];
         try {
             methods = await auth.resolveQrLoginMethods(providerId);

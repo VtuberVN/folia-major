@@ -42,6 +42,9 @@ const readStoredGlobalLyricTimelineOffsetMs = (): number => {
 const PREFERRED_LYRIC_SOURCE_STORAGE_KEY_V2 = 'preferred_alternative_lyric_source_v2';
 
 export const LOCAL_LYRICS_PRIORITY_STORAGE_KEY = 'local_lyrics_priority';
+export const TITLE_NOISE_FILTER_ENABLED_KEY = 'title_noise_filter_enabled';
+export const TITLE_NOISE_FILTER_DEFAULT_ENABLED_KEY = 'title_noise_filter_default_enabled';
+export const TITLE_NOISE_FILTER_CUSTOM_KEYWORDS_KEY = 'title_noise_filter_custom_keywords';
 
 export const readStoredLocalLyricsPriority = (): LocalLyricsPriority => {
     if (typeof window === 'undefined') return 'local';
@@ -133,6 +136,9 @@ export type LyricSettingsState = {
     lyricStaffMinDwellSeconds: number;
     lyricStaffAbsorbMode: LyricStaffAbsorbMode;
     lyricStaffPattern: string;
+    titleNoiseFilterEnabled: boolean;
+    titleNoiseFilterDefaultEnabled: boolean;
+    titleNoiseFilterCustomKeywords: string;
     handleToggleAutoUseBestLyric: (enable: boolean) => void;
     handleSetPreferredAlternativeLyricSource: (source: LyricProviderSource) => void;
     handleSetLocalLyricsPriority: (priority: LocalLyricsPriority) => void;
@@ -144,6 +150,9 @@ export type LyricSettingsState = {
     handleSetLyricStaffMinDwellSeconds: (seconds: number) => void;
     handleSetLyricStaffAbsorbMode: (mode: LyricStaffAbsorbMode) => void;
     handleSetLyricStaffPattern: (pattern: string) => void;
+    handleSetTitleNoiseFilterEnabled: (enabled: boolean) => void;
+    handleSetTitleNoiseFilterDefaultEnabled: (enabled: boolean) => void;
+    handleSetTitleNoiseFilterCustomKeywords: (keywords: string) => void;
 };
 
 const initialLyricFilterPattern = readStoredLyricFilterPattern();
@@ -160,6 +169,9 @@ export const useLyricSettingsStore = create<LyricSettingsState>((set, get) => ({
     lyricStaffMinDwellSeconds: readStoredLyricStaffMinDwellSeconds(),
     lyricStaffAbsorbMode: readStoredLyricStaffAbsorbMode(),
     lyricStaffPattern: getStoredString('lyrics_staff_pattern', ''),
+    titleNoiseFilterEnabled: getStoredBoolean('title_noise_filter_enabled', true),
+    titleNoiseFilterDefaultEnabled: getStoredBoolean('title_noise_filter_default_enabled', true),
+    titleNoiseFilterCustomKeywords: getStoredString('title_noise_filter_custom_keywords', ''),
     handleToggleAutoUseBestLyric: (enable) => {
         setStoredBoolean('auto_use_best_lyric', enable);
         set({ autoUseBestLyric: enable });
@@ -261,6 +273,24 @@ export const useLyricSettingsStore = create<LyricSettingsState>((set, get) => ({
             localStorage.removeItem('lyrics_staff_pattern');
         }
     },
+    handleSetTitleNoiseFilterEnabled: (enabled) => {
+        setStoredBoolean(TITLE_NOISE_FILTER_ENABLED_KEY, enabled);
+        set({ titleNoiseFilterEnabled: enabled });
+    },
+    handleSetTitleNoiseFilterDefaultEnabled: (enabled) => {
+        setStoredBoolean(TITLE_NOISE_FILTER_DEFAULT_ENABLED_KEY, enabled);
+        set({ titleNoiseFilterDefaultEnabled: enabled });
+    },
+    handleSetTitleNoiseFilterCustomKeywords: (keywords) => {
+        set({ titleNoiseFilterCustomKeywords: keywords });
+        if (typeof window !== 'undefined') {
+            if (keywords) {
+                localStorage.setItem(TITLE_NOISE_FILTER_CUSTOM_KEYWORDS_KEY, keywords);
+            } else {
+                localStorage.removeItem(TITLE_NOISE_FILTER_CUSTOM_KEYWORDS_KEY);
+            }
+        }
+    },
 }));
 
 /** The lyric-sourcing half of the former settings snapshot. */
@@ -276,6 +306,9 @@ export const selectLyricSettingsSnapshot = (state: LyricSettingsState) => ({
     lyricStaffMinDwellSeconds: state.lyricStaffMinDwellSeconds,
     lyricStaffAbsorbMode: state.lyricStaffAbsorbMode,
     lyricStaffPattern: state.lyricStaffPattern,
+    titleNoiseFilterEnabled: state.titleNoiseFilterEnabled,
+    titleNoiseFilterDefaultEnabled: state.titleNoiseFilterDefaultEnabled,
+    titleNoiseFilterCustomKeywords: state.titleNoiseFilterCustomKeywords,
     handleToggleAutoUseBestLyric: state.handleToggleAutoUseBestLyric,
     handleSetPreferredAlternativeLyricSource: state.handleSetPreferredAlternativeLyricSource,
     handleSetLocalLyricsPriority: state.handleSetLocalLyricsPriority,
@@ -287,6 +320,9 @@ export const selectLyricSettingsSnapshot = (state: LyricSettingsState) => ({
     handleSetLyricStaffMinDwellSeconds: state.handleSetLyricStaffMinDwellSeconds,
     handleSetLyricStaffAbsorbMode: state.handleSetLyricStaffAbsorbMode,
     handleSetLyricStaffPattern: state.handleSetLyricStaffPattern,
+    handleSetTitleNoiseFilterEnabled: state.handleSetTitleNoiseFilterEnabled,
+    handleSetTitleNoiseFilterDefaultEnabled: state.handleSetTitleNoiseFilterDefaultEnabled,
+    handleSetTitleNoiseFilterCustomKeywords: state.handleSetTitleNoiseFilterCustomKeywords,
     lyricFilterPatternError: state.lyricFilterEnabled ? getLyricFilterError(state.lyricFilterPattern) : null,
     lyricStaffPatternError: getLyricStaffPatternError(state.lyricStaffPattern),
 });

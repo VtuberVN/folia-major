@@ -4,6 +4,7 @@ import type { MutableRefObject, RefObject } from 'react';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { setStatusMessage as setStatusMsg } from '../stores/useStatusMessageStore';
+import { onRecoverAudioOutput } from '../services/audioOutputRecovery';
 
 // src/hooks/useAudioOutputDevice.ts
 //
@@ -33,6 +34,7 @@ export const useAudioOutputDevice = ({
     const applyAudioOutputDevice = useCallback(async (
         targetDeviceId: string,
         reportError = true,
+        force = false,
     ) => {
         const audioElement = audioRef.current as (HTMLAudioElement & {
             setSinkId?: (sinkId: string) => Promise<void>;
@@ -52,7 +54,7 @@ export const useAudioOutputDevice = ({
         }
 
         const normalizedTargetDeviceId = targetDeviceId || '';
-        if (audioSinkTarget.sinkId === normalizedTargetDeviceId) {
+        if (!force && audioSinkTarget.sinkId === normalizedTargetDeviceId) {
             persistAudioOutputDeviceId(targetDeviceId);
             return true;
         }
@@ -151,6 +153,16 @@ export const useAudioOutputDevice = ({
             audioElement.removeEventListener('canplay', handleAudioDeviceRetry);
         };
     }, [applyAudioOutputDevice, audioOutputDeviceId, audioSrc]);
+
+    useEffect(() => {
+        return onRecoverAudioOutput(() => {
+            const audioContext = audioContextRef.current;
+            if (audioContext && audioContext.state === 'suspended') {
+                void audioContext.resume().catch(() => {});
+            }
+            void applyAudioOutputDevice(audioOutputDeviceId, false, true);
+        });
+    }, [applyAudioOutputDevice, audioContextRef, audioOutputDeviceId]);
 
     const handleAudioOutputDeviceChange = useCallback(async (deviceId: string) => (
         await applyAudioOutputDevice(deviceId, true)

@@ -85,6 +85,7 @@ packaging/windows/wallpaper-helper/target/
 # Local Rust Spout sender build artifacts.
 build/folia-spout-sender.exe
 packaging/windows/spout-sender/target/
+native/wasapi/target/
 
 # Python bytecode from the htdemucs runner, written beside it by the downloaded runtime.
 __pycache__/

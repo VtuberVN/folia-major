@@ -16,4 +16,8 @@ describe('audio quality information', () => {
     it('supports every app locale including the legacy Indonesian code', () => {
         for (const language of ['en', 'zh-CN', 'in', 'vi']) expect(formatAudioQualityInfo({ bitrate: 128000 }, language)).toBe('128 kbps');
     });
+    it('simplifies verbose codec names such as MPEG-4/AAC into compact acronyms', () => {
+        expect(formatAudioQualityInfo({ bitrate: 96000, sampleRate: 44100, bitDepth: 16, codec: 'MPEG-4/AAC' }, 'vi')).toBe('96 kbps · AAC · 44,1 kHz · 16-bit');
+        expect(formatAudioQualityInfo({ codec: 'MPEG 1 Layer 3' })).toBe('MP3');
+    });
 });

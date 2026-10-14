@@ -337,6 +337,7 @@ declare global {
     exportState: ElectronVideoExportState;
     isDaylight?: boolean;
     lyrics?: import('./types').LyricData | null;
+    lyricOffsetMs?: number;
     isLiked?: boolean;
     canLike?: boolean;
     likeUnavailableProvider?: string;
@@ -347,6 +348,7 @@ declare global {
 
   interface ElectronPlaybackSyncBridgeStatus {
     remoteControlOpen: boolean;
+    miniLyricBarOpen?: boolean;
     discordPresenceEnabled: boolean;
   }
 
@@ -836,6 +838,38 @@ declare global {
     memoryFile: string | null;
   }
 
+  interface WasapiDevice {
+    id: string;
+    name: string;
+  }
+
+  type WasapiSource =
+    | { filePath: string }
+    | { url: string }
+    | { kind: 'buffer'; name: string; bytes?: ArrayBuffer };
+
+  type WasapiEvent =
+    | {
+        type: 'started';
+        positionMs: number;
+        bitPerfect: boolean;
+        format?: {
+          sampleRate: number;
+          channels: number;
+          bitsPerSample: number;
+          codec?: string;
+          bitrate?: number;
+          openBits: number;
+          deviceId?: string;
+        };
+      }
+    | { type: 'position'; positionMs: number }
+    | { type: 'ended'; positionMs: number }
+    | { type: 'paused'; positionMs: number }
+    | { type: 'stopped' }
+    | { type: 'fallback'; message: string }
+    | { type: 'error'; message: string };
+
   interface Window {
     electron?: {
       webUtils?: {
@@ -930,6 +964,8 @@ declare global {
       onUpdateStatusChanged: (callback: (status: ElectronUpdateStatus) => void) => () => void;
       getAudioCache: (cacheKey: string) => Promise<ElectronAudioCacheEntry>;
       hasAudioCache: (cacheKey: string) => Promise<boolean>;
+      /** Absolute path of the cached audio file, or null. Used to feed WASAPI exclusive a real file. */
+      getAudioCachePath?: (cacheKey: string) => Promise<{ path: string } | null>;
       /** `limitBytes` is the cache ceiling to prune down to afterwards; 0 means no ceiling. */
       saveAudioCache: (cacheKey: string, data: ArrayBuffer, mimeType?: string, limitBytes?: number) => Promise<boolean>;
       getAudioCacheUsage: () => Promise<number>;
@@ -1050,6 +1086,15 @@ declare global {
       sendRemoteControlCommand: (command: ElectronRemoteControlCommand) => Promise<boolean>;
       onRemoteControlCommand: (callback: (command: ElectronRemoteControlCommand) => void) => () => void;
       onRemoteControlSnapshot: (callback: (snapshot: ElectronRemoteControlSnapshot) => void) => () => void;
+      openMiniLyricBar?: () => Promise<boolean>;
+      toggleMiniLyricBar?: () => Promise<boolean>;
+      closeMiniLyricBar?: () => Promise<boolean>;
+      getMiniLyricBarState?: () => Promise<{ isOpen: boolean; clickThrough: boolean; snapshot: ElectronRemoteControlSnapshot | null }>;
+      setMiniLyricBarClickThrough?: (enabled: boolean) => Promise<boolean>;
+      setMiniLyricBarMouseIgnore?: (ignore: boolean) => Promise<boolean>;
+      sendMiniLyricBarCommand?: (command: ElectronRemoteControlCommand) => Promise<boolean>;
+      onMiniLyricBarSnapshot?: (callback: (snapshot: ElectronRemoteControlSnapshot) => void) => () => void;
+      onMiniLyricBarClickThroughChanged?: (callback: (enabled: boolean) => void) => () => void;
       chooseVideoExportPath: (
         defaultName?: string,
         extension?: 'mp4' | 'webm',
@@ -1093,6 +1138,18 @@ declare global {
         onModsStateChanged: (callback: (mods: ModRuntimeInfo[]) => void) => () => void;
         onExportProgress: (callback: (progress: ModExportProgress) => void) => () => void;
         onModLog: (callback: (entry: ModLogEntry) => void) => () => void;
+      };
+      wasapi?: {
+        listDevices: () => Promise<WasapiDevice[]>;
+        play: (source: WasapiSource, startSec?: number) => Promise<unknown>;
+        pause: () => Promise<unknown>;
+        resume: (source: WasapiSource, startSec?: number) => Promise<unknown>;
+        seek: (source: WasapiSource, startSec?: number) => Promise<unknown>;
+        stop: () => Promise<unknown>;
+        setDevice: (deviceId: string) => Promise<unknown>;
+        setRendererMuted: (muted: boolean) => Promise<unknown>;
+        log?: (message: string) => void;
+        onEvent: (callback: (event: WasapiEvent) => void) => () => void;
       };
     };
   }

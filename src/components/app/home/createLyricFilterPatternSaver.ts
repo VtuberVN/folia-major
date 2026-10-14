@@ -15,6 +15,9 @@ export interface LyricFilterSaveDraft {
     staffMinDwellSeconds: number;
     staffAbsorbMode: LyricStaffAbsorbMode;
     staffPattern: string;
+    titleNoiseFilterEnabled?: boolean;
+    titleNoiseFilterDefaultEnabled?: boolean;
+    titleNoiseFilterCustomKeywords?: string;
 }
 
 type CreateLyricFilterPatternSaverParams = {
@@ -26,6 +29,9 @@ type CreateLyricFilterPatternSaverParams = {
     handleSetLyricStaffMinDwellSeconds: (seconds: number) => void;
     handleSetLyricStaffAbsorbMode: (mode: LyricStaffAbsorbMode) => void;
     handleSetLyricStaffPattern: (pattern: string) => void;
+    handleSetTitleNoiseFilterEnabled?: (enabled: boolean) => void;
+    handleSetTitleNoiseFilterDefaultEnabled?: (enabled: boolean) => void;
+    handleSetTitleNoiseFilterCustomKeywords?: (keywords: string) => void;
     loadCurrentSongLyricPreview: () => Promise<LyricData | null>;
     setLyrics: (lyrics: LyricData | null) => void;
 };
@@ -39,6 +45,9 @@ export const createLyricFilterPatternSaver = ({
     handleSetLyricStaffMinDwellSeconds,
     handleSetLyricStaffAbsorbMode,
     handleSetLyricStaffPattern,
+    handleSetTitleNoiseFilterEnabled,
+    handleSetTitleNoiseFilterDefaultEnabled,
+    handleSetTitleNoiseFilterCustomKeywords,
     loadCurrentSongLyricPreview,
     setLyrics,
 }: CreateLyricFilterPatternSaverParams) => {
@@ -49,6 +58,15 @@ export const createLyricFilterPatternSaver = ({
         handleSetLyricStaffMinDwellSeconds(draft.staffMinDwellSeconds);
         handleSetLyricStaffAbsorbMode(draft.staffAbsorbMode);
         handleSetLyricStaffPattern(draft.staffPattern);
+        if (typeof draft.titleNoiseFilterEnabled === 'boolean') {
+            handleSetTitleNoiseFilterEnabled?.(draft.titleNoiseFilterEnabled);
+        }
+        if (typeof draft.titleNoiseFilterDefaultEnabled === 'boolean') {
+            handleSetTitleNoiseFilterDefaultEnabled?.(draft.titleNoiseFilterDefaultEnabled);
+        }
+        if (typeof draft.titleNoiseFilterCustomKeywords === 'string') {
+            handleSetTitleNoiseFilterCustomKeywords?.(draft.titleNoiseFilterCustomKeywords);
+        }
 
         // 逐行过滤会在解析阶段生效并写进缓存，改了就必须重新取。
         // staff 策略只是显示层变换，缓存里的原始歌词依然有效——清掉反而会让离线时

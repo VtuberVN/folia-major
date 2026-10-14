@@ -55,6 +55,92 @@ const AWLRC_LINE_REGEX = /^\[(\d{1,3}(?::\d{1,3}){0,2})\.(\d{1,3})\](.*)$/;
 const AWLRC_WORD_REGEX = /<(\d+),(\d+)(?:,\d+)?>([^<]*)/g;
 export const INTERLUDE_FULL_TEXT = '......';
 
+// CJK Unified Ideographs, Hiragana, Katakana, Bopomofo, CJK Extension A-F, Compatibility Ideographs
+const CJK_OR_KANA_REGEX = /[\u4e00-\u9fa5\u3040-\u30ff\u3400-\u4dbf\uf900-\ufaff]/;
+
+// Latin (including English, Vietnamese with all diacritics, etc.), Cyrillic, Greek, or numbers
+const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
+
+// Standalone 1-letter words in Latin/Western and Vietnamese (e.g. 'a', 'I', or accented vowels 'ở', 'ý', 'à', 'ừ')
+const STANDALONE_SINGLE_LETTER_REGEX = /^[aAiI\u00C0-\u00C3\u00C8-\u00C9\u00CC-\u00CD\u00D2-\u00D5\u00D9-\u00DA\u00DD\u00E0-\u00E3\u00E8-\u00E9\u00EC-\u00ED\u00F2-\u00F5\u00F9-\u00FA\u00FD\u0102-\u0103\u0110-\u0111\u0128-\u0129\u0168-\u0169\u01A0-\u01A1\u01AF-\u01B0\u1EA0-\u1EF9]$/u;
+
+/**
+ * Determines whether a space should be inserted between two consecutive tokens when reconstructing
+ * full text and word streams from syllable-timed formats (KRC, QRC, YRC) that lack explicit inter-word spaces.
+ */
+export const shouldInsertSpaceBetweenTokens = (prevText: string, nextText: string): boolean => {
+    if (!prevText || !nextText) return false;
+    if (prevText.endsWith(' ') || nextText.startsWith(' ')) return false;
+
+    const trimmedPrev = prevText.trimEnd();
+    const trimmedNext = nextText.trimStart();
+    if (!trimmedPrev || !trimmedNext) return false;
+
+    const lastChar = trimmedPrev[trimmedPrev.length - 1];
+    const firstChar = trimmedNext[0];
+
+    // Never insert spaces between CJK characters or Japanese kana (e.g. "你" and "好", "か" and "ぜ")
+    if (CJK_OR_KANA_REGEX.test(lastChar) && CJK_OR_KANA_REGEX.test(firstChar)) {
+        return false;
+    }
+
+    // Never insert spaces around hyphens, contractions or apostrophes (e.g. "don't", "pre-")
+    if (/[-'’`]/.test(lastChar) || /[-'’`]/.test(firstChar)) {
+        return false;
+    }
+
+    // Do not insert spaces after opening punctuation or before closing punctuation
+    if (/[({\["'“‘]/.test(lastChar) || /[,\.!\?:;\)}\]"'”’]/.test(firstChar)) {
+        return false;
+    }
+
+    // Punctuation followed by word (e.g. "xuân," and "nào" -> "xuân, nào")
+    if (/[,;!?.]/.test(lastChar) && WORD_CHAR_REGEX.test(firstChar)) {
+        return true;
+    }
+
+    // Both are word-like non-CJK characters
+    if (WORD_CHAR_REGEX.test(lastChar) && WORD_CHAR_REGEX.test(firstChar)) {
+        // If either token is a single Latin letter that is NOT a valid standalone word (like "H", "e" in "<0,300,0>H<300,300,0>e<600,600,0>llo"),
+        // it represents a letter-by-letter or sub-word breakdown, not a word boundary.
+        if (trimmedPrev.length === 1 && !STANDALONE_SINGLE_LETTER_REGEX.test(trimmedPrev)) {
+            return false;
+        }
+        if (trimmedNext.length === 1 && !STANDALONE_SINGLE_LETTER_REGEX.test(trimmedNext)) {
+            return false;
+        }
+        // In Latin/Vietnamese/Western scripts, a standalone word must contain at least one vowel.
+        // A consonant cluster without vowels (e.g. "rld" in "Wo" + "rld" -> "World") is a sub-word syllable.
+        const VOWEL_REGEX = /[aeiouy\u00C0-\u00C3\u00C8-\u00C9\u00CC-\u00CD\u00D2-\u00D5\u00D9-\u00DA\u00DD\u00E0-\u00E3\u00E8-\u00E9\u00EC-\u00ED\u00F2-\u00F5\u00F9-\u00FA\u00FD\u0102-\u0103\u0128-\u0129\u0168-\u0169\u01A0-\u01A1\u01AF-\u01B0\u1EA0-\u1EF9]/i;
+        if (!VOWEL_REGEX.test(trimmedPrev) || !VOWEL_REGEX.test(trimmedNext)) {
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+};
+
+/**
+ * Smartly joins an array of string tokens (e.g. Kugou language tag lyricContent lines)
+ * inserting spaces only between non-CJK word tokens.
+ */
+export const smartJoinLyricTokens = (tokens: unknown[]): string => {
+    if (!Array.isArray(tokens)) return '';
+    let result = '';
+    for (let index = 0; index < tokens.length; index += 1) {
+        const token = String(tokens[index] ?? '').trim();
+        if (!token) continue;
+        if (result.length === 0) {
+            result = token;
+        } else {
+            const needsSpace = shouldInsertSpaceBetweenTokens(result, token);
+            result += needsSpace ? ` ${token}` : token;
+        }
+    }
+    return result;
+};
+
 const buildTimedWords = (text: string, startTime: number, endTime: number): Word[] => {
     const duration = Math.max(endTime - startTime, 0.1);
     const rawTokens = text.split(/\s+/).filter(token => token);
@@ -527,6 +613,14 @@ export const parseYRC = (
             const wordDurationMs = parseInt(wordMatch[2], 10);
             const text = wordMatch[4];
 
+            if (words.length > 0) {
+                const prevWord = words[words.length - 1];
+                if (shouldInsertSpaceBetweenTokens(prevWord.text, text)) {
+                    prevWord.text += ' ';
+                    fullText += ' ';
+                }
+            }
+
             words.push({
                 text,
                 startTime: wordStartMs / 1000,
@@ -657,6 +751,14 @@ export const parseQRC = (
 
             if (!text) {
                 continue;
+            }
+
+            if (words.length > 0) {
+                const prevWord = words[words.length - 1];
+                if (shouldInsertSpaceBetweenTokens(prevWord.text, text)) {
+                    prevWord.text += ' ';
+                    fullText += ' ';
+                }
             }
 
             words.push({
@@ -982,7 +1084,7 @@ export const parseKRC = (
                 if (!track || !Array.isArray(track.lyricContent)) return [];
                 return track.lyricContent.map((lines: any) => {
                     if (Array.isArray(lines)) {
-                        return lines.join('').trim();
+                        return smartJoinLyricTokens(lines);
                     }
                     return String(lines).trim();
                 });
@@ -1025,6 +1127,14 @@ export const parseKRC = (
 
             // Note: KRC word start offset is relative to the line start time.
             const wordStartMs = lineStartTimeMs + wordStartOffsetMs;
+
+            if (words.length > 0) {
+                const prevWord = words[words.length - 1];
+                if (shouldInsertSpaceBetweenTokens(prevWord.text, text)) {
+                    prevWord.text += ' ';
+                    fullText += ' ';
+                }
+            }
 
             words.push({
                 text,
@@ -1182,14 +1292,23 @@ export const parseAwlrc = (
         while ((wordMatch = AWLRC_WORD_REGEX.exec(lineMatch[3])) !== null) {
             const offsetMs = Math.max(parseInt(wordMatch[1], 10), cursorMs);
             const durationMs = Math.max(parseInt(wordMatch[2], 10), 1);
+            const wordText = wordMatch[3];
+
+            if (words.length > 0) {
+                const prevWord = words[words.length - 1];
+                if (shouldInsertSpaceBetweenTokens(prevWord.text, wordText)) {
+                    prevWord.text += ' ';
+                    fullText += ' ';
+                }
+            }
 
             words.push({
-                text: wordMatch[3],
+                text: wordText,
                 startTime: startTime + (offsetMs / 1000),
                 endTime: startTime + ((offsetMs + durationMs) / 1000)
             });
             cursorMs = offsetMs + durationMs;
-            fullText += wordMatch[3];
+            fullText += wordText;
         }
 
         if (words.length === 0 || !fullText.trim()) {

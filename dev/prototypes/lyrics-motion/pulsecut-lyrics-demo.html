@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Folia PulseCut — Pure Kinetic Typography Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Montserrat:ital,wght@0,700;0,800;0,900;1,800&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #08080b;
+  --panel: #111116;
+  --line: #22222a;
+  --muted: #888896;
+  --ink: #f7f7fb;
+  --accent: #dcff84;
+  --accent-pink: #ff3b7a;
+  --intensity: 1;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at 15% -10%, #1c1c26 0, transparent 40%), var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+button, select, input { font: inherit; color: var(--ink); }
+button, select {
+  background: #18181f;
+  border: 1px solid #31313c;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover, select:hover { border-color: #6a6a7c; background: #22222c; }
+button:active { transform: scale(0.98); }
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.app {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff3b7a, #799dff 65%, #dcff84);
+  display: grid;
+  place-items: center;
+  color: #0b0c10;
+  font-weight: 950;
+  font-size: 17px;
+  box-shadow: 0 0 20px rgba(220, 255, 132, 0.2);
+}
+.brand-name { font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
+.brand-name span { color: #88889a; font-weight: 500; }
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #88889a;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.top-meta { display: flex; align-items: center; gap: 8px; }
+.pill {
+  border: 1px solid #2e2e38;
+  background: #141419;
+  color: #adadb9;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.pill.live {
+  color: #dfff9e;
+  border-color: #617b3a;
+  background: #151d10;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.pill.live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dfff9e;
+  box-shadow: 0 0 8px #dfff9e;
+}
+
+/* Workspace Layout */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  align-items: start;
+}
+.preview-column { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #888898;
+}
+
+/* Stage Viewport (16:9 Clean Typography Canvas) */
+.stage-shell {
+  background: #111116;
+  border: 1px solid #282832;
+  padding: 6px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  min-height: 380px;
+  background: #0f1015;
+  border-radius: 11px;
+  --enter: 0;
+  --scale: 1;
+  --shake: 0px;
+  --flash: 0;
+  --slice: 0px;
+  --ticker: 0px;
+  --fade: 1;
+}
+
+/* Subtle Stage Background (Zero Character, Pure Atmosphere) */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: -15%;
+  z-index: -4;
+  background: 
+    radial-gradient(ellipse at 50% 50%, #1e1e28 0%, #0d0d12 60%, #050508 100%);
+  filter: blur(2px);
+}
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: #ffffff;
+  opacity: calc(var(--flash) * 0.45);
+  mix-blend-mode: screen;
+}
+
+/* Grid & Noise Pattern */
+.grid-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: 
+    linear-gradient(#ffffff 1px, transparent 1px),
+    linear-gradient(90deg, #ffffff 1px, transparent 1px);
+  background-size: 32px 32px;
+  z-index: -2;
+}
+
+/* Manga Speedlines */
+.speedlines {
+  position: absolute;
+  inset: -20%;
+  width: 140%;
+  height: 140%;
+  z-index: -1;
+  opacity: calc(var(--burst, 0) * 0.55);
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+/* Technical Corner Brackets */
+.frame-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(255, 255, 255, 0.4);
+  z-index: 7;
+}
+.frame-corner.tl { top: 6%; left: 4%; border-left: 1.5px solid; border-top: 1.5px solid; }
+.frame-corner.tr { top: 6%; right: 4%; border-right: 1.5px solid; border-top: 1.5px solid; }
+.frame-corner.bl { bottom: 6%; left: 4%; border-left: 1.5px solid; border-bottom: 1.5px solid; }
+.frame-corner.br { bottom: 6%; right: 4%; border-right: 1.5px solid; border-bottom: 1.5px solid; }
+
+.scene-label {
+  position: absolute;
+  left: 4%;
+  top: 6%;
+  z-index: 8;
+  font: 800 9px/1 'JetBrains Mono', monospace;
+  letter-spacing: 0.16em;
+  color: #fff;
+  background: rgba(20, 20, 26, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+.barcode {
+  position: absolute;
+  right: 5%;
+  bottom: 6%;
+  width: 48px;
+  height: 18px;
+  z-index: 7;
+  opacity: 0.45;
+  background: repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 3px, #fff 3px 5px, transparent 5px 7px, #fff 7px 8px, transparent 8px 10px);
+}
+.micro-left {
+  position: absolute;
+  left: 2%;
+  top: 40%;
+  z-index: 7;
+  color: rgba(255,255,255,0.4);
+  font: 8px/1.2 'JetBrains Mono', monospace;
+  letter-spacing: 0.18em;
+  writing-mode: vertical-rl;
+}
+
+/* PURE TYPOGRAPHY LAYER */
+.type-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 5.5% 8%;
+}
+
+/* Top Copy Line (Crown / Context) */
+.top-copy {
+  text-align: center;
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(14px, 2.2vw, 26px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  opacity: calc(0.35 + var(--enter) * 0.65);
+  transform: translateY(calc((1 - var(--enter)) * -14px));
+  transition: opacity 0.2s, transform 0.2s;
+  min-height: 1.2em;
+}
+
+/* Central Hero Word (The Punch) */
+.hero-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+.hero {
+  position: relative;
+  margin: 0;
+  font-family: 'Montserrat', 'Inter', sans-serif;
+  font-size: clamp(48px, 8.8vw, 116px);
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 
+    3px 4px 0 #000,
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    0 10px 30px rgba(0, 0, 0, 0.8);
+  transform: translateY(var(--shake)) scale(var(--scale));
+  opacity: var(--fade);
+  filter: drop-shadow(0 4px 18px rgba(0,0,0,0.6));
+  max-width: 100%;
+  overflow-wrap: break-word;
+  transition: letter-spacing 0.2s ease;
+}
+.hero::before, .hero::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.hero::before {
+  color: rgba(255, 59, 122, 0.7);
+  transform: translate(4px, 4px);
+  z-index: -1;
+}
+.hero::after {
+  color: #ffffff;
+  transform: translate(calc(var(--slice) * -1), 0);
+  clip-path: inset(42% 0 40% 0);
+  opacity: 0;
+}
+
+/* Bottom Copy Line (Chest / Foundation) */
+.bottom-copy {
+  text-align: center;
+  font-size: clamp(11px, 1.4vw, 18px);
+  letter-spacing: 0.25em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #e5e5ed;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  opacity: calc(0.4 + var(--enter) * 0.6);
+  transform: translateY(calc((1 - var(--enter)) * 14px));
+  min-height: 1.2em;
+}
+
+/* Ticker Marquee Banners */
+.ticker {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 24px;
+  background: #ffffff;
+  color: #0b0c10;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  opacity: var(--ticker-opacity, 0);
+  transform: translateX(var(--ticker));
+  transition: opacity 0.15s;
+}
+.ticker span { display: inline-block; padding-right: 32px; }
+.ticker.top { top: 22%; }
+.ticker.bottom { bottom: 22%; }
+
+/* Scanband Laser Line */
+.scanband {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 20px 4px rgba(255, 255, 255, 0.8);
+  z-index: 6;
+  opacity: var(--scan, 0);
+  pointer-events: none;
+}
+
+/* Real-Time Karaoke Line Indicator */
+.karaoke {
+  position: absolute;
+  z-index: 7;
+  bottom: 2.5%;
+  left: 10%;
+  right: 10%;
+  font-size: clamp(10px, 1.1vw, 14px);
+  color: #cfcfdc;
+  text-align: center;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+.karaoke b {
+  color: #0b0c10;
+  background: #ffffff;
+  padding: 3px 8px;
+  margin: 0 3px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font-weight: 800;
+}
+
+/* MODE SIGNATURES (Driven by song lifecycle) */
+.scene-impact .hero {
+  font-weight: 900;
+  letter-spacing: -0.07em;
+}
+.scene-impact .hero::before { opacity: 0.6; }
+
+.scene-decode .hero {
+  letter-spacing: -0.04em;
+  background: repeating-linear-gradient(0deg, #fff 0 3px, #9a9ab0 3px 4px, #fff 4px 7px);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.scene-decode .hero::after { opacity: 0.5; }
+
+.scene-ticker .ticker { --ticker-opacity: 0.98; }
+.scene-ticker .hero { font-style: italic; letter-spacing: -0.07em; }
+
+.scene-editorial .hero {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: none;
+  font-size: clamp(44px, 7.6vw, 106px);
+  text-shadow: 0 0 24px rgba(255,255,255,0.3), 3px 4px 0 #111;
+}
+
+.scene-manga .speedlines { opacity: 0.85; }
+.scene-manga .hero {
+  text-shadow: 4px 5px 0 #000, 7px 8px 0 rgba(0,0,0,0.5);
+}
+
+.scene-fragment .hero::before {
+  opacity: 0.65;
+  clip-path: inset(0 0 55% 0);
+  transform: translate(calc(var(--slice) * -0.8), -2px);
+  color: #fff;
+}
+.scene-fragment .hero::after {
+  opacity: 0.65;
+  clip-path: inset(50% 0 0 0);
+  transform: translateX(var(--slice));
+}
+
+/* Transport Bar (Playback Controls) */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+.transport button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+.transport .play-btn {
+  width: 48px;
+  background: var(--accent);
+  color: #0d0d12;
+  border-color: var(--accent);
+  font-weight: 900;
+  font-size: 16px;
+}
+.transport .play-btn:hover { background: #e8ffaa; }
+
+.timeline { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.timeline-top {
+  display: flex;
+  justify-content: space-between;
+  color: #88889a;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.seek {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Control Panel (Right Column) */
+.controls {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.controls-head {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.controls-head h2 { font-size: 13px; font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; }
+.controls-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.control-group { display: flex; flex-direction: column; gap: 6px; }
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #b0b0c0;
+}
+.control-label strong { color: #f0f0f8; font-weight: 700; }
+.control-note { font-size: 10px; color: #727282; line-height: 1.45; }
+.select { width: 100%; padding: 8px 10px; font-size: 12px; }
+.range { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+/* File Loader Row */
+.file-loader-box {
+  background: #16161d;
+  border: 1px dashed #32323f;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.file-btn {
+  font-size: 11px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #1f1f28;
+}
+
+.controls-foot {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  color: #727282;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .stage { min-height: 280px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">F</div>
+      <div>
+        <div class="brand-name">Folia <span>/ PulseCut Pure</span></div>
+        <div class="eyebrow" style="margin-top:2px;">Dynamic Kinetic Typography Engine</div>
+      </div>
+    </div>
+    <div class="top-meta">
+      <span class="pill live">Real Audio Sync</span>
+      <span class="pill">Zero Fake Text</span>
+      <span class="pill">Pure Typography</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Visualizer Stage -->
+    <section class="preview-column">
+      <div class="section-head">
+        <span class="eyebrow">Stage Viewport • 16:9 Canvas</span>
+        <span id="sceneCaption">IMPACT SPLIT • 00:00.0</span>
+      </div>
+
+      <div class="stage-shell">
+        <div class="stage scene-impact" id="stage">
+          <div class="grid-noise"></div>
+
+          <!-- Manga Speedlines SVG -->
+          <svg class="speedlines" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+            <g stroke="#ffffff" stroke-width="1.8" fill="none">
+              <path d="M0 70 L410 260 M10 120 L390 280 M0 185 L390 300 M0 245 L390 315 M50 0 L430 245 M170 0 L450 240 M290 0 L470 245"/>
+              <path d="M1000 50 L600 250 M1000 105 L615 275 M1000 180 L620 295 M1000 255 L620 315 M850 0 L585 245 M720 0 L565 242"/>
+              <path d="M0 500 L410 350 M55 600 L430 355 M180 600 L445 350 M1000 500 L605 355 M950 600 L590 350 M810 600 L570 350"/>
+            </g>
+          </svg>
+
+          <!-- Framing Accents -->
+          <span class="frame-corner tl"></span>
+          <span class="frame-corner tr"></span>
+          <span class="frame-corner bl"></span>
+          <span class="frame-corner br"></span>
+          <div class="scene-label" id="sceneLabel">SCENE 01 / IMPACT</div>
+          <div class="barcode"></div>
+          <div class="micro-left">FOLIA • KINETIC ENGINE • 60 FPS</div>
+
+          <!-- Scanband laser -->
+          <div class="scanband" id="scanband"></div>
+
+          <!-- PURE TYPOGRAPHY LAYER (NO DUMMY AVATAR) -->
+          <div class="type-layer">
+            <div class="top-copy" id="topCopy">MY RIVAL,</div>
+            <div class="hero-wrap">
+              <h1 class="hero" id="hero" data-text="IDOL">IDOL</h1>
+            </div>
+            <div class="bottom-copy" id="bottomCopy">MY IDOL</div>
+
+            <!-- Ticker Ribbon Banners -->
+            <div class="ticker top" id="tickerTop">
+              <span id="tickerTextTop">FOLIA / PULSECUT / KINETIC ENGINE / FOLIA / PULSECUT / KINETIC ENGINE /</span>
+            </div>
+            <div class="ticker bottom" id="tickerBottom">
+              <span id="tickerTextBottom">TEXT AS MOTION / ZERO BLOAT / SYNC / TEXT AS MOTION / ZERO BLOAT /</span>
+            </div>
+
+            <!-- Real-time Active Line Karaoke -->
+            <div class="karaoke" id="karaoke">MY RIVAL, <b>MY IDOL</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playback Transport Controls -->
+      <div class="transport">
+        <button id="restartBtn" title="Về đầu bài (Restart)">↺</button>
+        <button class="play-btn" id="playBtn" title="Phát / Dừng (Space)">▶</button>
+        <button id="nextBtn" title="Nhảy câu kế tiếp">↦</button>
+
+        <div class="timeline">
+          <div class="timeline-top">
+            <span id="timeNow">00:00.0</span>
+            <span id="songTitleDisplay">Set It Off - Partners in Crime</span>
+            <span id="timeEnd">00:28.8</span>
+          </div>
+          <input class="seek" id="seekSlider" type="range" min="0" max="28.87" value="0" step="0.02" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Art Direction & Real Assets Panel -->
+    <aside class="controls">
+      <div class="controls-head">
+        <div class="eyebrow">02 / Controller</div>
+        <h2>Điều Khiển & Nhập Dữ Liệu Thật</h2>
+      </div>
+
+      <div class="controls-body">
+        <div class="control-group">
+          <label class="control-label" for="modeSelect">
+            <strong>Chế độ Diễn hoạt (Mode)</strong>
+            <span>6 Kiểu</span>
+          </label>
+          <select class="select" id="modeSelect">
+            <option value="auto">Tự động (Theo bài hát)</option>
+            <option value="impact">Impact Split (Đập phách)</option>
+            <option value="decode">Scanline Decode (Sọc ngang)</option>
+            <option value="ticker">Ticker Ribbon (Băng chuyền)</option>
+            <option value="editorial">Editorial Echo (Serif tương phản)</option>
+            <option value="manga">Manga Burst (Tia tốc độ)</option>
+            <option value="fragment">Fragment Cut (Cắt lát glitch)</option>
+          </select>
+          <div class="control-note">Chế độ tự động đổi style theo cấu trúc đoạn bài hát (Verse, Chorus, Beat-drop).</div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="intensitySlider">
+            <strong>Cường độ rung chấn (Intensity)</strong>
+            <span id="intensityVal">75%</span>
+          </label>
+          <input class="range" id="intensitySlider" type="range" min="0" max="100" value="75" />
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="densitySlider">
+            <strong>Mật độ chi tiết (Density)</strong>
+            <span id="densityVal">60%</span>
+          </label>
+          <input class="range" id="densitySlider" type="range" min="0" max="100" value="60" />
+        </div>
+
+        <!-- Custom Audio / LRC Input Section -->
+        <div class="control-group">
+          <label class="control-label"><strong>Tải Nhạc & Lời Khác</strong></label>
+          <div class="file-loader-box">
+            <button class="file-btn" onclick="document.getElementById('audioFileInput').click()">
+              🎵 Chọn file Audio (.mp3/.flac)
+            </button>
+            <input type="file" id="audioFileInput" accept="audio/*" style="display:none" />
+
+            <button class="file-btn" onclick="document.getElementById('lrcFileInput').click()">
+              📄 Chọn file LRC (.lrc)
+            </button>
+            <input type="file" id="lrcFileInput" accept=".lrc,.txt" style="display:none" />
+          </div>
+          <div class="control-note">Mặc định đang chạy bài nhạc thật "Partners in Crime" kèm lời đồng bộ chính xác. Bạn có thể nạp bất kỳ bài nhạc & lời nào khác từ máy.</div>
+        </div>
+      </div>
+
+      <div class="controls-foot">
+        Động cơ diễn hoạt chữ dựa trên cơ chế phân rã ngữ nghĩa của Folia. Chữ Hero được trích xuất bằng thuật toán chấm điểm từ khóa, không hardcode.
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- REAL AUDIO ELEMENT -->
+<audio id="audioEl" preload="auto">
+  <source src="public/demo-lyrics-audio.mp3" type="audio/mp3">
+  <source src="demo-lyrics-audio.mp3" type="audio/mp3">
+</audio>
+
+<script>
+(() => {
+  'use strict';
+
+  // --- 1. REAL LYRICS PARSER & DATASET ---
+  // Default real song lyrics (LRC with true timestamps matching public/demo-lyrics-audio.mp3)
+  const DEFAULT_LRC = `
+[00:00.00]My rival, my idol
+[00:02.10]You got me suicidal
+[00:04.10]My love, your rage
+[00:05.60]Our dying claim to fame
+[00:07.40]Our battle legendary
+[00:09.20]Our fickle fraternizing
+[00:11.00]A war inside my heart
+[00:12.80]Until death do us part
+[00:14.80]Bang, bang, bang, bang, bang
+[00:16.50]'Till I take you
+[00:18.00]Down, down, down, down
+[00:20.50]I want you in the ground
+[00:22.00]Bang, bang, bang, bang, bang
+[00:24.00]'Till I take you
+[00:25.50]Down, down, down, down
+[00:27.50]I want you in the ground
+  `.trim();
+
+  // Parse standard LRC format into structured timeline lines
+  function parseLrc(lrcText) {
+    const lines = [];
+    const rawLines = lrcText.split('\n');
+    const timeRegex = /\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g;
+
+    for (const raw of rawLines) {
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      let match;
+      let text = trimmed.replace(timeRegex, '').trim();
+      if (!text) continue;
+
+      timeRegex.lastIndex = 0;
+      while ((match = timeRegex.exec(trimmed)) !== null) {
+        const mins = parseFloat(match[1]);
+        const secs = parseFloat(match[2]);
+        const startTime = mins * 60 + secs;
+        lines.push({ startTime, text });
+      }
+    }
+
+    lines.sort((a, b) => a.startTime - b.startTime);
+
+    // Compute end times and semantic structures
+    const result = [];
+    for (let i = 0; i < lines.length; i++) {
+      const cur = lines[i];
+      const next = lines[i + 1];
+      const endTime = next ? next.startTime : cur.startTime + 4.5;
+      
+      // Semantic layout extraction (Folia Style: Hero word, Top, Bottom)
+      const semantic = extractSemanticRoles(cur.text, i);
+      result.push({
+        start: cur.startTime,
+        end: endTime,
+        text: cur.text,
+        ...semantic
+      });
+    }
+    return result;
+  }
+
+  // Algorithm to extract Hero, Top copy, and Bottom copy from ANY lyric sentence without hardcoding
+  function extractSemanticRoles(lineText, index) {
+    // Clean words
+    const words = lineText.replace(/[,.!?“”—'"]/g, ' ').split(/\s+/).filter(Boolean);
+    if (words.length === 0) return { top: '', hero: lineText.toUpperCase(), bottom: '', mode: 'impact' };
+
+    // Find the Hero word based on length & phonetic strength
+    let bestWord = words[0];
+    let bestScore = -1;
+    for (const w of words) {
+      const upper = w.toUpperCase();
+      let score = upper.length * 1.5;
+      if (['SUICIDAL', 'LEGENDARY', 'IDOL', 'FAME', 'WAR', 'HEART', 'DEATH', 'BANG', 'GROUND', 'DOWN'].includes(upper)) {
+        score += 20;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestWord = w;
+      }
+    }
+
+    const hero = bestWord.toUpperCase();
+    const parts = lineText.split(new RegExp(`\\b${bestWord}\\b`, 'i'));
+    let top = (parts[0] || '').trim();
+    let bottom = (parts[1] || '').trim();
+
+    if (!top && !bottom) {
+      top = lineText;
+      bottom = '';
+    } else if (!top && bottom) {
+      top = bottom;
+      bottom = lineText;
+    }
+
+    // Auto assign animation modes based on line index and musical cadence
+    const modes = ['impact', 'decode', 'ticker', 'editorial', 'manga', 'fragment'];
+    const mode = modes[index % modes.length];
+
+    return { top: top.toUpperCase(), hero, bottom: bottom.toUpperCase(), mode };
+  }
+
+  // --- 2. ENGINE STATE & DOM BINDINGS ---
+  let songTimeline = parseLrc(DEFAULT_LRC);
+  let isPlaying = false;
+  let intensity = 0.75;
+  let density = 0.60;
+  let currentSceneIndex = -1;
+
+  const audioEl = document.getElementById('audioEl');
+  const stage = document.getElementById('stage');
+  const heroEl = document.getElementById('hero');
+  const topCopyEl = document.getElementById('topCopy');
+  const bottomCopyEl = document.getElementById('bottomCopy');
+  const tickerTop = document.getElementById('tickerTop');
+  const tickerBottom = document.getElementById('tickerBottom');
+  const tickerTextTop = document.getElementById('tickerTextTop');
+  const tickerTextBottom = document.getElementById('tickerTextBottom');
+  const karaokeEl = document.getElementById('karaoke');
+  const sceneCaption = document.getElementById('sceneCaption');
+  const sceneLabel = document.getElementById('sceneLabel');
+  const timeNow = document.getElementById('timeNow');
+  const timeEnd = document.getElementById('timeEnd');
+  const seekSlider = document.getElementById('seekSlider');
+  const playBtn = document.getElementById('playBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const modeSelect = document.getElementById('modeSelect');
+  const intensitySlider = document.getElementById('intensitySlider');
+  const densitySlider = document.getElementById('densitySlider');
+
+  // Math Helpers
+  const clamp = (val, min = 0, max = 1) => Math.min(max, Math.max(min, val));
+  const easeExpoOut = (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  const fmt = (t) => {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    const ms = Math.floor((t % 1) * 10);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;
+  };
+
+  // Find active line at timestamp
+  function getActiveLine(t) {
+    if (!songTimeline.length) return null;
+    return songTimeline.find(s => t >= s.start && t < s.end) || songTimeline[songTimeline.length - 1];
+  }
+
+  // Core Render Loop (Calculates exact frame at time t)
+  function render(t) {
+    const scene = getActiveLine(t);
+    if (!scene) return;
+
+    const progress = clamp((t - scene.start) / Math.max(0.01, scene.end - scene.start));
+    const mode = modeSelect.value === 'auto' ? scene.mode : modeSelect.value;
+
+    // High tension kinetic easing
+    const enter = easeExpoOut(clamp(progress / 0.16));
+    const punchPop = 0.78 + 0.3 * easeExpoOut(clamp(progress / 0.14)) - 0.05 * Math.exp(-progress * 15) * Math.cos(progress * 30) * intensity;
+    const flash = clamp((1 - progress / 0.08), 0, 1) * intensity * (mode === 'manga' || mode === 'impact' ? 0.35 : 0.12);
+    const slice = Math.sin(progress * 28) * 5 * intensity * (1 - progress);
+    const tickerShift = -((t * 55) % 400) * density;
+
+    // Apply CSS Properties to Stage Container
+    stage.className = `stage scene-${mode}`;
+    stage.style.setProperty('--enter', enter.toFixed(4));
+    stage.style.setProperty('--scale', punchPop.toFixed(4));
+    stage.style.setProperty('--shake', `${(Math.sin(t * 44) * intensity * (progress < 0.25 ? 2.5 : 0.4)).toFixed(2)}px`);
+    stage.style.setProperty('--flash', flash.toFixed(3));
+    stage.style.setProperty('--slice', `${slice.toFixed(2)}px`);
+    stage.style.setProperty('--ticker', `${tickerShift.toFixed(2)}px`);
+    stage.style.setProperty('--burst', String(mode === 'manga' ? 1 : 0.4 * density));
+    stage.style.setProperty('--scan', String(mode === 'decode' || mode === 'fragment' ? 0.7 * density : 0.15));
+    stage.style.setProperty('--fade', String(progress > 0.92 ? 1 - (progress - 0.92) / 0.08 : 1));
+
+    // Update Text Content (Only when scene changes or on frame 0)
+    const sceneIdx = songTimeline.indexOf(scene);
+    if (sceneIdx !== currentSceneIndex) {
+      currentSceneIndex = sceneIdx;
+      topCopyEl.textContent = scene.top || '';
+      heroEl.textContent = scene.hero;
+      heroEl.dataset.text = scene.hero;
+      bottomCopyEl.textContent = scene.bottom || '';
+
+      // Ticker tape texts
+      tickerTextTop.textContent = `${scene.text} • ${scene.text} • ${scene.text} • `;
+      tickerTextBottom.textContent = `FOLIA / PULSECUT / ${scene.hero} / FOLIA / PULSECUT / ${scene.hero} / `;
+
+      // Karaoke line with Hero highlighted
+      karaokeEl.innerHTML = scene.text.replace(new RegExp(`(${scene.hero})`, 'i'), '<b>$1</b>');
+
+      // Labels
+      sceneLabel.textContent = `SCENE ${String(sceneIdx + 1).padStart(2, '0')} / ${mode.toUpperCase()}`;
+    }
+
+    // Ticker ribbons visibility
+    tickerTop.style.setProperty('--ticker-opacity', mode === 'ticker' ? '0.98' : (mode === 'decode' ? '0.35' : '0'));
+    tickerBottom.style.setProperty('--ticker-opacity', mode === 'ticker' ? '0.96' : (mode === 'fragment' ? '0.35' : '0'));
+
+    // Meta displays
+    sceneCaption.textContent = `${mode.toUpperCase()} • ${fmt(t)}`;
+    timeNow.textContent = fmt(t);
+    seekSlider.value = t;
+  }
+
+  // Animation Frame Loop
+  function tick() {
+    if (isPlaying) {
+      const t = audioEl.currentTime;
+      render(t);
+      if (audioEl.ended) {
+        pausePlayback();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Transport Handlers
+  function startPlayback() {
+    audioEl.play().then(() => {
+      isPlaying = true;
+      playBtn.textContent = '⏸';
+    }).catch(err => {
+      console.warn('Audio play request blocked, fallback to timer loop:', err);
+      isPlaying = true;
+      playBtn.textContent = '⏸';
+    });
+  }
+
+  function pausePlayback() {
+    audioEl.pause();
+    isPlaying = false;
+    playBtn.textContent = '▶';
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (isPlaying) pausePlayback();
+    else startPlayback();
+  });
+
+  restartBtn.addEventListener('click', () => {
+    audioEl.currentTime = 0;
+    render(0);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const cur = getActiveLine(audioEl.currentTime);
+    if (cur) {
+      const idx = songTimeline.indexOf(cur);
+      const next = songTimeline[idx + 1] || songTimeline[0];
+      audioEl.currentTime = next.start;
+      render(next.start);
+    }
+  });
+
+  seekSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    audioEl.currentTime = val;
+    render(val);
+  });
+
+  audioEl.addEventListener('loadedmetadata', () => {
+    seekSlider.max = audioEl.duration || 28.87;
+    timeEnd.textContent = fmt(audioEl.duration || 28.87);
+  });
+
+  // Slider adjustments
+  intensitySlider.addEventListener('input', (e) => {
+    intensity = parseFloat(e.target.value) / 100;
+    document.getElementById('intensityVal').textContent = `${e.target.value}%`;
+    render(audioEl.currentTime);
+  });
+
+  densitySlider.addEventListener('input', (e) => {
+    density = parseFloat(e.target.value) / 100;
+    document.getElementById('densityVal').textContent = `${e.target.value}%`;
+    render(audioEl.currentTime);
+  });
+
+  modeSelect.addEventListener('change', () => render(audioEl.currentTime));
+
+  // Custom Audio File Loader
+  document.getElementById('audioFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      audioEl.src = url;
+      document.getElementById('songTitleDisplay').textContent = file.name.replace(/\.[^/.]+$/, "");
+      pausePlayback();
+      render(0);
+    }
+  });
+
+  // Custom LRC File Loader
+  document.getElementById('lrcFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const text = evt.target.result;
+        songTimeline = parseLrc(text);
+        currentSceneIndex = -1;
+        render(audioEl.currentTime);
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  // Spacebar toggle
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !['INPUT', 'SELECT', 'BUTTON'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      if (isPlaying) pausePlayback();
+      else startPlayback();
+    }
+  });
+
+  // Initial draw
+  render(0);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

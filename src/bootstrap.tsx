@@ -5,6 +5,7 @@ import './index.css';
 import App from './App';
 import AppSplashGate from './components/AppSplashGate';
 import RemoteControlApp from './components/remote/RemoteControlApp';
+import MiniLyricBarApp from './components/mini-lyric-bar/MiniLyricBarApp';
 import ObsBrowserSourceApp from './components/obs/ObsBrowserSourceApp';
 import ObsNowPlayingSourceApp from './components/obs/ObsNowPlayingSourceApp';
 import ObsPlayerCapSourceApp from './components/obs/ObsPlayerCapSourceApp';
@@ -18,7 +19,7 @@ import { installNativeDragGuard } from './utils/nativeDragGuard';
 import { bootNavidromeServerPreset } from './services/navidromeServerPreset';
 import { isNavidromeEnabled } from './services/navidromeService';
 import { setNavidromeEnabledState } from './stores/useLibraryStore';
-import { isMainAppSurface, isObsBrowserSourceSurface, isRemoteControlSurface, obsSourceKind } from './utils/appSurface';
+import { isMainAppSurface, isMiniLyricBarSurface, isObsBrowserSourceSurface, isRemoteControlSurface, obsSourceKind } from './utils/appSurface';
 // 副作用 import：store 在模块加载时就把 `<html data-reduce-motion>` 写好并保持同步。放在 bootstrap
 // 而不是 App 里，是因为下面按 URL 挂的根不止 App —— 远程控制窗口的进度辉光也读这个属性。
 import './stores/useMotionSettingsStore';
@@ -49,6 +50,7 @@ const isObsBrowserSource = isObsBrowserSourceSurface;
 const isNowPlayingObsSource = isObsBrowserSource && obsSourceKind === 'now-playing';
 const isPlayerCapObsSource = isObsBrowserSource && obsSourceKind === 'playercap';
 const isRemoteControl = isRemoteControlSurface;
+const isMiniLyricBar = isMiniLyricBarSurface;
 // Mod clients belong to the main app window only. The remote-control window
 // also has the Electron bridge, but mod state pushes only reach the main
 // window, so a client activated there would never be torn down.
@@ -64,7 +66,9 @@ const renderApp = () => root.render(
               ? <ObsBrowserSourceApp />
               : isRemoteControl
                 ? <RemoteControlApp />
-                : <App />}
+                : isMiniLyricBar
+                  ? <MiniLyricBarApp />
+                  : <App />}
       </AppSplashGate>
     </React.StrictMode>
   );

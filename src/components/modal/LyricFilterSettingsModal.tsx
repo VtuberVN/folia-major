@@ -115,8 +115,8 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
 
     const effectivePattern = isFilterEnabled ? draftPattern : '';
     const error = isFilterEnabled ? getLyricFilterError(draftPattern) : null;
-    // 只在自定义规则输入框可见时校验：切到「始终显示」后输入框和报错都会收起来，
-    // 再拿它禁用保存按钮，用户就只剩「切回去清空」这一条路。
+    // Only validate when custom rule input is visible: switching to 'Always show' collapses the input and errors,
+    // so using it to disable the save button would leave the user with 'switch back and clear' as the only option.
     const staffPatternError = draftStaffPolicy === 'keep' ? null : getLyricStaffPatternError(draftStaffPattern);
     const preview = useMemo(
         () => buildLyricFilterPreviewModel(previewLyrics, effectivePattern, {

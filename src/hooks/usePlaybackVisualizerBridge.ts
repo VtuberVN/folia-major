@@ -8,6 +8,7 @@ import { setCurrentLineIndex, setPlayerState } from '../stores/usePlaybackStore'
 import { selectDisplayLyrics, usePlaybackStore } from '../stores/usePlaybackStore';
 import { audioBands, audioPower, currentTime, lyricCurrentTime } from '../stores/motionSignals';
 import { useMainWindowRenderActivity } from './useMainWindowRenderActivity';
+import { isExclusiveClockRunning, getExclusiveClockSec } from '../services/exclusiveClock';
 
 // src/hooks/usePlaybackVisualizerBridge.ts
 
@@ -141,7 +142,9 @@ export function usePlaybackVisualizerBridge({
         }
 
         if (isActuallyPlaying && audioElement) {
-            const time = audioElement.currentTime;
+            const time = isExclusiveClockRunning()
+                ? getExclusiveClockSec()
+                : audioElement.currentTime;
             currentTime.set(time);
 
             const effectiveLyricTime = time - lyricTimelineOffsetMs / 1000;

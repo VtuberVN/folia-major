@@ -26,6 +26,7 @@ import { openAddToPlaylist, useAddToPlaylistStore } from '../stores/useAddToPlay
 import { usePlayerPanelTabShortcut } from '../hooks/usePlayerPanelTabShortcut';
 import { FOLIUM_PANEL_TAB_PREFIX, FoliumPanelTabBody, useFoliumPanelTabs } from '../mods/folium/registries/playerPanelTabs';
 import { countRender } from '../dev/renderCount';
+import { useGlass } from '../mods/useGlass';
 
 const TOUCH_GUIDE_DISPLAY_MS = 1400;
 
@@ -238,6 +239,7 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
         isDaylight,
         onToggleDaylight,
     } = account;
+    useGlass();
     const coverAreaRef = React.useRef<HTMLDivElement>(null);
     const [isCoverActionsVisible, setIsCoverActionsVisible] = React.useState(false);
     const [showGuideLine, setShowGuideLine] = React.useState(false);
@@ -631,6 +633,7 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             data-testid="unified-panel-surface"
+                            data-glass
                             className={`pointer-events-auto w-80 ${glassBg} backdrop-blur-3xl rounded-3xl shadow-2xl flex flex-col mb-16 md:mb-2 overflow-y-auto hide-scrollbar`}
                             style={{ color: theme.primaryColor, maxHeight: panelMaxHeight }}
                         >

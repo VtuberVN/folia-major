@@ -40,6 +40,15 @@ describe('buildLyricSearchQuery', () => {
         expect(buildLyricSearchQuery('See Tình (Official Music Video) [Karaoke Beat]', 'Hoàng Thùy Linh'))
             .toBe('See Tình - Hoàng Thùy Linh');
     });
+
+    it('normalizes YouTube Music titles with video tags and bracketed noise', () => {
+        expect(buildLyricSearchQuery('Rick Astley - Never Gonna Give You Up (Official Music Video)', 'Rick Astley'))
+            .toBe('Never Gonna Give You Up - Rick Astley');
+        expect(buildLyricSearchQuery('YOASOBI「夜に駆ける」 Official Music Video', 'YOASOBI'))
+            .toBe('夜に駆ける - YOASOBI');
+        expect(buildLyricSearchQuery('Billie Eilish - bad guy (Official Video)', 'Billie Eilish'))
+            .toBe('bad guy - Billie Eilish');
+    });
 });
 
 describe('buildKugouLyricSearchQuery', () => {

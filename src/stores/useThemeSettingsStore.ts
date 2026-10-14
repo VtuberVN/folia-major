@@ -13,6 +13,7 @@ import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
 import { setStatusMessage } from './useStatusMessageStore';
 
 export const FOLLOW_SYSTEM_THEME_STORAGE_KEY = 'follow_system_theme';
+export const ENABLE_LIQUID_GLASS_KEY = 'enable_liquid_glass';
 
 export const readSystemThemeIsDaylight = (): boolean | null => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -53,9 +54,11 @@ export type ThemeSettingsState = {
     disableHomeDynamicBackground: boolean;
     isDaylight: boolean;
     followSystemTheme: boolean;
+    enableLiquidGlass: boolean;
     handleToggleCoverColorBg: (enable: boolean) => void;
     handleToggleStaticMode: (enable: boolean) => void;
     handleToggleDisableHomeDynamicBackground: (disable: boolean) => void;
+    handleToggleLiquidGlass: (enable: boolean) => void;
     setDaylightPreference: (isDaylight: boolean) => void;
     setDaylightPreferenceFromSystem: (isDaylight: boolean) => void;
     setFollowSystemTheme: (enabled: boolean) => void;
@@ -67,6 +70,7 @@ export const useThemeSettingsStore = create<ThemeSettingsState>((set, get) => ({
     disableHomeDynamicBackground: readStoredDisableHomeDynamicBackground(),
     followSystemTheme: initialFollowSystemTheme,
     isDaylight: initialDaylight,
+    enableLiquidGlass: getStoredBoolean(ENABLE_LIQUID_GLASS_KEY, false),
     handleToggleCoverColorBg: (enable) => {
         setStoredBoolean('use_cover_color_bg', enable);
         set({ useCoverColorBg: enable });
@@ -89,6 +93,14 @@ export const useThemeSettingsStore = create<ThemeSettingsState>((set, get) => ({
         setStatusMessage({
             type: 'info',
             text: i18n.t('notifications.' + (disable ? 'homeBgDisabled' : 'homeBgEnabled')),
+        });
+    },
+    handleToggleLiquidGlass: (enable) => {
+        setStoredBoolean(ENABLE_LIQUID_GLASS_KEY, enable);
+        set({ enableLiquidGlass: enable });
+        setStatusMessage({
+            type: 'info',
+            text: i18n.t('options.' + (enable ? 'liquidGlassEnabled' : 'liquidGlassDisabled')),
         });
     },
     // System updates are kept separate from the manual setter so a user click can disable auto-follow.
@@ -141,12 +153,14 @@ export const selectThemeSettingsSnapshot = (state: ThemeSettingsState) => ({
     useCoverColorBg: state.useCoverColorBg,
     staticMode: state.staticMode,
     disableHomeDynamicBackground: state.disableHomeDynamicBackground,
+    enableLiquidGlass: state.enableLiquidGlass,
     setDaylightPreference: state.setDaylightPreference,
     setDaylightPreferenceFromSystem: state.setDaylightPreferenceFromSystem,
     setFollowSystemTheme: state.setFollowSystemTheme,
     handleToggleCoverColorBg: state.handleToggleCoverColorBg,
     handleToggleStaticMode: state.handleToggleStaticMode,
     handleToggleDisableHomeDynamicBackground: state.handleToggleDisableHomeDynamicBackground,
+    handleToggleLiquidGlass: state.handleToggleLiquidGlass,
 });
 
 // Seed Electron's native theme from the stored preference at startup. Lives here rather than in

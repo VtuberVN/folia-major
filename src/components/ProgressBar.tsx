@@ -1,6 +1,10 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import { MotionValue, useMotionValueEvent } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { FoliumControlButtonSlot, FoliumProgressLayers, useFoliumProgressContext } from '../mods/folium/registries/progress';
+import { useWasapiStatusStore } from '../stores/useWasapiStatusStore';
+import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import { markUserSeek } from '../services/exclusiveSeekSignal';
 
 // Folium public parts (mods/README.md): `data-folium-part` marks what mod CSS may
 // restyle — progress.root / track / fill / thumb / time / duration. Colors come
@@ -21,6 +25,7 @@ interface ProgressBarProps {
     edgeStyle?: 'rounded' | 'square';
     /** The collapsed floating capsule: mod buttons with hideWhenCollapsed stay out. */
     collapsed?: boolean;
+    showWasapiBadge?: boolean;
 }
 
 
@@ -43,7 +48,14 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     disabled = false,
     edgeStyle = 'rounded',
     collapsed = false,
+    showWasapiBadge = true,
 }) => {
+    const { t } = useTranslation();
+    const wasapiMode = useWasapiStatusStore(state => state.mode);
+    const wasapiExclusiveEnabled = useAudioSettingsStore(state => state.enableWasapiExclusive);
+    const toggleWasapiExclusive = useAudioSettingsStore(state => state.handleToggleWasapiExclusive);
+    const hasWasapi = typeof window !== 'undefined' && Boolean(window.electron?.wasapi);
+
     const progressRef = useRef<HTMLDivElement>(null);
     const thumbRef = useRef<HTMLDivElement>(null);
     const timeRef = useRef<HTMLSpanElement>(null);
@@ -103,6 +115,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             return;
         }
         const val = Number(e.currentTarget.value);
+        markUserSeek();
         updateUI(val, false, false, true);
         // iOS Safari bug: 点击的时候触发 pointerup 事件会早于 input 事件，导致点击失效
         // chromium：pointerdown → input → pointerup
@@ -115,6 +128,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
     const handleSeekStart = (e: React.PointerEvent<HTMLInputElement>) => {
         if (disabled) return;
+        markUserSeek();
         isDraggingRef.current = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         onSeekStart?.();
@@ -122,6 +136,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
     const handleSeekEnd = (e: React.PointerEvent<HTMLInputElement>) => {
         if (disabled) return;
+        markUserSeek();
         const value = Number(e.currentTarget.value);
         isDraggingRef.current = false;
         updateUI(value, true);
@@ -157,7 +172,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
             <span
                 ref={timeRef}
-                className="text-[10px] font-mono font-medium opacity-60 w-8 text-right text-[var(--folium-progress-text)]"
+                className="text-[10px] font-mono font-medium opacity-60 w-9 text-right shrink-0 text-[var(--folium-progress-text)]"
                 data-folium-part="progress.time"
             >
                 00:00
@@ -208,7 +223,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             </div>
 
             <span
-                className="text-[10px] font-mono font-medium opacity-60 w-8 text-[var(--folium-progress-text)]"
+                className="text-[10px] font-mono font-medium opacity-60 w-9 text-left shrink-0 text-[var(--folium-progress-text)]"
                 data-folium-part="progress.duration"
             >
                 {formatTime(duration)}

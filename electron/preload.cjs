@@ -120,6 +120,7 @@ contextBridge.exposeInMainWorld('electron', {
     },
     getAudioCache: (cacheKey) => ipcRenderer.invoke('get-audio-cache', cacheKey),
     hasAudioCache: (cacheKey) => ipcRenderer.invoke('has-audio-cache', cacheKey),
+    getAudioCachePath: (cacheKey) => ipcRenderer.invoke('get-audio-cache-path', cacheKey),
     saveAudioCache: (cacheKey, data, mimeType, limitBytes) => ipcRenderer.invoke('save-audio-cache', cacheKey, data, mimeType, limitBytes),
     getAudioCacheUsage: () => ipcRenderer.invoke('get-audio-cache-usage'),
     getAudioCacheStats: () => ipcRenderer.invoke('get-audio-cache-stats'),
@@ -282,6 +283,23 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('remote-control-snapshot', listener);
         return () => ipcRenderer.removeListener('remote-control-snapshot', listener);
     },
+    openMiniLyricBar: () => ipcRenderer.invoke('mini-lyric-bar-open'),
+    toggleMiniLyricBar: () => ipcRenderer.invoke('mini-lyric-bar-toggle'),
+    closeMiniLyricBar: () => ipcRenderer.invoke('mini-lyric-bar-close'),
+    getMiniLyricBarState: () => ipcRenderer.invoke('mini-lyric-bar-get-state'),
+    setMiniLyricBarClickThrough: (enabled) => ipcRenderer.invoke('mini-lyric-bar-set-click-through', enabled),
+    setMiniLyricBarMouseIgnore: (ignore) => ipcRenderer.invoke('mini-lyric-bar-set-mouse-ignore', ignore),
+    sendMiniLyricBarCommand: (command) => ipcRenderer.invoke('mini-lyric-bar-send-command', command),
+    onMiniLyricBarSnapshot: (callback) => {
+        const listener = (_event, snapshot) => callback(snapshot);
+        ipcRenderer.on('mini-lyric-bar-snapshot', listener);
+        return () => ipcRenderer.removeListener('mini-lyric-bar-snapshot', listener);
+    },
+    onMiniLyricBarClickThroughChanged: (callback) => {
+        const listener = (_event, enabled) => callback(enabled);
+        ipcRenderer.on('mini-lyric-bar-click-through-changed', listener);
+        return () => ipcRenderer.removeListener('mini-lyric-bar-click-through-changed', listener);
+    },
     chooseVideoExportPath: (defaultName, extension, displayName) => ipcRenderer.invoke('video-export-choose-path', defaultName, extension, displayName),
     reportDevicePixelRatio: (ratio) => ipcRenderer.invoke('report-device-pixel-ratio', ratio),
     getMainWindowCaptureSource: () => ipcRenderer.invoke('video-export-get-main-window-source'),
@@ -352,6 +370,22 @@ contextBridge.exposeInMainWorld('electron', {
             const listener = (_event, entry) => callback(entry);
             ipcRenderer.on('folia-mods:log', listener);
             return () => ipcRenderer.removeListener('folia-mods:log', listener);
+        },
+    },
+    wasapi: {
+        listDevices: () => ipcRenderer.invoke('wasapi-list-devices'),
+        play: (source, startSec) => ipcRenderer.invoke('wasapi-play', source, startSec),
+        pause: () => ipcRenderer.invoke('wasapi-pause'),
+        resume: (source, startSec) => ipcRenderer.invoke('wasapi-resume', source, startSec),
+        seek: (source, startSec) => ipcRenderer.invoke('wasapi-seek', source, startSec),
+        stop: () => ipcRenderer.invoke('wasapi-stop'),
+        setDevice: (deviceId) => ipcRenderer.invoke('wasapi-set-device', deviceId),
+        setRendererMuted: (muted) => ipcRenderer.invoke('wasapi-set-renderer-muted', muted),
+        log: (message) => ipcRenderer.send('wasapi-renderer-log', message),
+        onEvent: (callback) => {
+            const listener = (_event, event) => callback(event);
+            ipcRenderer.on('wasapi-event', listener);
+            return () => ipcRenderer.removeListener('wasapi-event', listener);
         },
     },
 });

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Theme } from '../../../types';
 import { useTransitionBorderCue } from './now-playing-toast/useTransitionBorderCue';
 import { usePlayerBottomBarBottomPx } from '../../../hooks/usePlayerBottomBarBottomPx';
+import { useGlass } from '../../../mods/useGlass';
 
 // src/components/app/overlays/NowPlayingToast.tsx
 // 播放器与 Lattice 左下角的 now playing 卡片（playing-toast 样式：圆角 2xl、44px 封面、底部滑入）。
@@ -64,6 +65,7 @@ const NowPlayingToast: React.FC<NowPlayingToastProps> = ({
     onActivate,
     activateLabel,
 }) => {
+    useGlass();
     const { t } = useTranslation();
 
     // 预览态内容收口：isNextUp 且给了 nextUp 时整卡展示下一首，否则常规
@@ -173,6 +175,7 @@ const NowPlayingToast: React.FC<NowPlayingToastProps> = ({
                         给了 onActivate 就渲染成真的 button：键盘和焦点环白送，而且外层那层
                         pointer-events-none 只在这一个元素上翻回来——描边和扫光都还是不吃鼠标的。 */}
                     <motion.button
+                        data-glass
                         data-toast-card=""
                         type="button"
                         layout="size"

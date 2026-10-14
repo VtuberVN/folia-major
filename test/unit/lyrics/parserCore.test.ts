@@ -393,6 +393,29 @@ describe('parserCore', () => {
         expect(lyrics.lines[1].fullText).toBe('World');
         expect(lyrics.lines[1].translation).toBe('World');
     });
+
+    it('properly inserts word spaces for Vietnamese and Western lyrics without glued words', () => {
+        // Vietnamese KRC line without spaces between word tags
+        const viKrc = '[1000,5000]<0,300,0>Vì<300,250,0>em<550,200,0>đã<750,300,0>trao<1050,250,0>cho<1300,200,0>anh<1500,250,0>hết<1750,200,0>cả<1950,400,0>thanh<2350,500,0>xuân';
+        const viLyrics = parseLyricsByFormat('krc', viKrc);
+        expect(viLyrics.lines).toHaveLength(1);
+        expect(viLyrics.lines[0].fullText).toBe('Vì em đã trao cho anh hết cả thanh xuân');
+        expect(viLyrics.lines[0].words.map(w => w.text).join('')).toBe('Vì em đã trao cho anh hết cả thanh xuân');
+
+        // English QRC line without spaces between word tags
+        const enQrc = '[1000,3000](1000,500)Because(1500,500)you(2000,500)loved(2500,500)me';
+        const enLyrics = parseLyricsByFormat('qrc', enQrc);
+        expect(enLyrics.lines).toHaveLength(1);
+        expect(enLyrics.lines[0].fullText).toBe('Because you loved me');
+        expect(enLyrics.lines[0].words.map(w => w.text).join('')).toBe('Because you loved me');
+
+        // Chinese QRC should remain without spaces
+        const zhQrc = '[1000,3000](1000,500)我(1500,500)要(2000,500)说';
+        const zhLyrics = parseLyricsByFormat('qrc', zhQrc);
+        expect(zhLyrics.lines).toHaveLength(1);
+        expect(zhLyrics.lines[0].fullText).toBe('我要说');
+        expect(zhLyrics.lines[0].words.map(w => w.text).join('')).toBe('我要说');
+    });
 });
 
 describe('findTranslationsForSortedStartTimes', () => {

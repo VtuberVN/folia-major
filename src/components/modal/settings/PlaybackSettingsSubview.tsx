@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AudioLines, ChevronRight, ListFilter, Monitor, PlayCircle, Radio, RefreshCw, Settings2, Timer } from 'lucide-react';
+import { AudioLines, ChevronRight, ListFilter, Monitor, PlayCircle, Radio, RefreshCw, Search, Settings2, Timer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import type { LocalLyricsPriority, QueueAddBehavior, ReplayGainMode, Theme } from '../../../types';
@@ -13,6 +13,7 @@ import { SettingsAnchor } from './navigation/SettingsAnchorContext';
 import SettingsSectionHeading from './navigation/SettingsSectionHeading';
 import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
+import { useWasapiStatusStore } from '../../../stores/useWasapiStatusStore';
 import { useSongUnlockSettingsStore } from '../../../stores/useSongUnlockSettingsStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { isNeteaseScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
@@ -29,6 +30,7 @@ type PlaybackSettingsSubviewProps = {
     onAudioOutputDeviceChange: (deviceId: string) => Promise<boolean> | boolean;
     onOpenGlobalLyricOffsetSettings: () => void;
     onOpenLyricFilterSettings: () => void;
+    onOpenTitleNoiseFilterSettings?: () => void;
     replayGainMode: ReplayGainMode;
     onReplayGainModeChange: (mode: ReplayGainMode) => void;
     settingsCardClass: string;
@@ -41,6 +43,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
     onAudioOutputDeviceChange,
     onOpenGlobalLyricOffsetSettings,
     onOpenLyricFilterSettings,
+    onOpenTitleNoiseFilterSettings,
     replayGainMode,
     onReplayGainModeChange,
     settingsCardClass,
@@ -51,20 +54,32 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
     const {
         audioOutputDeviceId,
         enableTranscodeFallback,
+        enableWasapiExclusive,
+        wasapiDeviceId,
+        showAudioSignalPath,
         neteaseScrobbleEnabled,
         playbackFadeEnabled,
         queueAddBehavior,
         onToggleTranscodeFallback,
+        onToggleWasapiExclusive,
+        onSetWasapiDeviceId,
+        onSetShowAudioSignalPath,
         onToggleNeteaseScrobble,
         onTogglePlaybackFade,
         onQueueAddBehaviorChange,
     } = useAudioSettingsStore(useShallow(state => ({
         audioOutputDeviceId: state.audioOutputDeviceId,
         enableTranscodeFallback: state.enableTranscodeFallback,
+        enableWasapiExclusive: state.enableWasapiExclusive,
+        wasapiDeviceId: state.wasapiDeviceId,
+        showAudioSignalPath: state.showAudioSignalPath,
         neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
         playbackFadeEnabled: state.playbackFadeEnabled,
         queueAddBehavior: state.queueAddBehavior,
         onToggleTranscodeFallback: state.handleToggleTranscodeFallback,
+        onToggleWasapiExclusive: state.handleToggleWasapiExclusive,
+        onSetWasapiDeviceId: state.handleSetWasapiDeviceId,
+        onSetShowAudioSignalPath: state.handleSetShowAudioSignalPath,
         onToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
         onTogglePlaybackFade: state.handleTogglePlaybackFade,
         onQueueAddBehaviorChange: state.handleSetQueueAddBehavior,
@@ -79,6 +94,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         preferredAlternativeLyricSource,
         localLyricsPriority,
         globalLyricTimelineOffsetMs,
+        titleNoiseFilterEnabled,
         onToggleAutoUseBestLyric,
         onPreferredAlternativeLyricSourceChange,
         onLocalLyricsPriorityChange,
@@ -87,6 +103,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         preferredAlternativeLyricSource: state.preferredAlternativeLyricSource,
         localLyricsPriority: state.localLyricsPriority,
         globalLyricTimelineOffsetMs: state.globalLyricTimelineOffsetMs,
+        titleNoiseFilterEnabled: state.titleNoiseFilterEnabled,
         onToggleAutoUseBestLyric: state.handleToggleAutoUseBestLyric,
         onPreferredAlternativeLyricSourceChange: state.handleSetPreferredAlternativeLyricSource,
         onLocalLyricsPriorityChange: state.handleSetLocalLyricsPriority,
@@ -114,6 +131,28 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         setErrorKey: setAudioOutputDevicesErrorKey,
     } = useAudioOutputDevices(audioOutputDeviceId);
     const [isSelectingAudioOutput, setIsSelectingAudioOutput] = useState(false);
+    const [wasapiDevices, setWasapiDevices] = useState<WasapiDevice[]>([]);
+    const wasapiMode = useWasapiStatusStore(state => state.mode);
+    const wasapiModeLabel = wasapiMode === 'exclusive'
+        ? t('options.wasapiModeExclusive', 'Exclusive')
+        : wasapiMode === 'shared'
+            ? t('options.wasapiModeShared', 'Shared')
+            : t('options.wasapiModeOff', 'Off');
+
+    React.useEffect(() => {
+        const wasapi = window.electron?.wasapi;
+        if (!enableWasapiExclusive || !wasapi) {
+            setWasapiDevices([]);
+            return;
+        }
+        let cancelled = false;
+        void wasapi.listDevices().then((devices) => {
+            if (!cancelled) setWasapiDevices(devices ?? []);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [enableWasapiExclusive]);
     const mediaDevicesWithAudioOutput = navigator.mediaDevices as MediaDevicesWithAudioOutput | undefined;
     const accentOutlineColor = theme?.accentColor || (isDaylight ? '#44403c' : '#f4f4f5');
     const toggleOffBackgroundClass = isDaylight ? 'bg-zinc-300/90' : 'bg-white/10';
@@ -403,7 +442,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                     <button
                         type="button"
                         onClick={onOpenLyricFilterSettings}
-                        className="w-full p-4 border-t text-left transition-colors hover:bg-white/8"
+                        className="w-full p-4 border-t text-left transition-colors hover:bg-white/8 cursor-pointer"
                         style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}
                     >
                         <div className="flex items-center justify-between gap-4">
@@ -417,6 +456,30 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                 </div>
                             </div>
                             <ChevronRight size={18} className="shrink-0 opacity-60" style={{ color: 'var(--text-primary)' }} />
+                        </div>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onOpenTitleNoiseFilterSettings}
+                        className="w-full p-4 border-t text-left transition-colors hover:bg-white/8 cursor-pointer"
+                        style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}
+                    >
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                    <Search size={14} />
+                                    {t('lyricFilter.titleNoiseFilterTitle')}
+                                </div>
+                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('lyricFilter.titleNoiseFilterDesc')}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${titleNoiseFilterEnabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-white/10 opacity-40'}`}>
+                                    {titleNoiseFilterEnabled ? t('options.enabled', 'Enabled') : t('options.disabled', 'Disabled')}
+                                </span>
+                                <ChevronRight size={18} className="shrink-0 opacity-60" style={{ color: 'var(--text-primary)' }} />
+                            </div>
                         </div>
                     </button>
                 </div>
@@ -483,6 +546,59 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             {renderToggle(enableTranscodeFallback, () => onToggleTranscodeFallback(!enableTranscodeFallback))}
                         </div>
                     )}
+                    {window.electron?.wasapi && (
+                        <div className="space-y-3 border-b border-current/10 pb-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                        {t('options.wasapiExclusive')}
+                                        {enableWasapiExclusive && (
+                                            <span
+                                                className="text-[10px] px-1.5 py-0.5 rounded-full border shrink-0"
+                                                style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.12))', color: 'var(--text-secondary)' }}
+                                            >
+                                                {wasapiModeLabel}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                        {t('options.wasapiExclusiveDesc')}
+                                    </div>
+                                </div>
+                                {renderToggle(enableWasapiExclusive, () => onToggleWasapiExclusive(!enableWasapiExclusive))}
+                            </div>
+                            {enableWasapiExclusive && (
+                                <div className="space-y-3">
+                                    <div className="space-y-2">
+                                        <div className="text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                            {t('options.wasapiDevice')}
+                                        </div>
+                                        <CustomSelect
+                                            value={wasapiDeviceId}
+                                            onChange={(val) => onSetWasapiDeviceId(val)}
+                                            options={[
+                                                { value: '', label: t('options.wasapiDeviceDefault') },
+                                                ...wasapiDevices.map((device) => ({ value: device.id, label: device.name })),
+                                            ]}
+                                            isDaylight={isDaylight}
+                                            theme={theme}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4">
+                        <div className="space-y-1">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {t('options.showSignalPath')}
+                            </div>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                {t('options.showSignalPathDesc')}
+                            </div>
+                        </div>
+                        {renderToggle(showAudioSignalPath, () => onSetShowAudioSignalPath(!showAudioSignalPath))}
+                    </div>
                     <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>

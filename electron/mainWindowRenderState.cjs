@@ -6,4 +6,5 @@ function readMainWindowRenderState(window, wallpaper) {
     wallpaper: Boolean(wallpaper),
   };
 }
+
 module.exports = { readMainWindowRenderState };

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveMissingTranslation } from '../../../src/i18n/missingTranslation';
 import { resolvePlayerControlSlot } from '../../../src/components/floating-player/playerControlSlotActions';
 import en from '../../../src/i18n/locales/en';
@@ -126,6 +126,34 @@ describe('player control slot loop action resolution', () => {
             canInvokeCommandById: () => true,
         });
         expect(slot.labelKey).toBe(expectedKey);
+    });
+
+    it('resolves lyrics-list slot action and triggers onToggleLyricsList', () => {
+        const onToggleLyricsList = vi.fn();
+        const slot = resolvePlayerControlSlot('lyrics-list', {
+            loopMode: 'off',
+            onToggleLoop: () => {},
+            canPrev: true,
+            canNext: true,
+            onPrev: () => {},
+            onNext: () => {},
+            onShuffle: () => {},
+            canShuffle: true,
+            onLike: () => {},
+            isLiked: false,
+            likeDisabled: false,
+            onToggleTimeline: () => {},
+            onToggleLyricsList,
+            isLyricsListOpen: false,
+            hasLyrics: true,
+            invokeCommandById: () => {},
+            canInvokeCommandById: () => true,
+        });
+
+        expect(slot.labelKey).toBe('options.playerControlSlotAction_lyricsList');
+        expect(slot.disabled).toBe(false);
+        slot.onActivate();
+        expect(onToggleLyricsList).toHaveBeenCalledOnce();
     });
 });
 

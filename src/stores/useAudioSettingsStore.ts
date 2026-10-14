@@ -29,6 +29,12 @@ export const AUTO_PLAY_ON_LAUNCH_KEY = 'folia_auto_play_on_launch';
 
 export const ENABLE_TRANSCODE_FALLBACK_KEY = 'folia_enable_transcode_fallback';
 
+export const ENABLE_WASAPI_EXCLUSIVE_KEY = 'folia_enable_wasapi_exclusive';
+
+export const WASAPI_DEVICE_ID_KEY = 'folia_wasapi_device_id';
+
+export const SHOW_AUDIO_SIGNAL_PATH_KEY = 'folia_show_audio_signal_path';
+
 /** Whether finished plays of online NetEase tracks are reported to the signed-in account. */
 export const NETEASE_SCROBBLE_KEY = 'folia_netease_scrobble';
 
@@ -140,6 +146,10 @@ export type AudioSettingsState = {
     autoPlayOnLaunch: boolean;
     /** Electron-only recovery for local and Navidrome formats Chromium cannot decode. */
     enableTranscodeFallback: boolean;
+    /** WASAPI exclusive bit-perfect audio engine (Windows only). Default off. */
+    enableWasapiExclusive: boolean;
+    wasapiDeviceId: string;
+    showAudioSignalPath: boolean;
     /** Report finished plays of online NetEase tracks to the signed-in account. Off by default. */
     neteaseScrobbleEnabled: boolean;
     /** Short fade when pausing and resuming instead of cutting the sound. On by default. */
@@ -156,6 +166,9 @@ export type AudioSettingsState = {
     handleSetQueueAddBehavior: (behavior: QueueAddBehavior) => void;
     handleToggleAutoPlayOnLaunch: (enable: boolean) => void;
     handleToggleTranscodeFallback: (enable: boolean) => void;
+    handleToggleWasapiExclusive: (enable: boolean) => void;
+    handleSetWasapiDeviceId: (deviceId: string) => void;
+    handleSetShowAudioSignalPath: (enable: boolean) => void;
     handleToggleNeteaseScrobble: (enable: boolean) => void;
     handleTogglePlaybackFade: (enable: boolean) => void;
     handleSetAudioOutputDeviceId: (deviceId: string) => void;
@@ -178,6 +191,12 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
         ENABLE_TRANSCODE_FALLBACK_KEY,
         typeof window !== 'undefined' && Boolean(window.electron?.requestTranscodeFallback),
     ),
+    enableWasapiExclusive: getStoredBoolean(
+        ENABLE_WASAPI_EXCLUSIVE_KEY,
+        false,
+    ),
+    wasapiDeviceId: (typeof window !== 'undefined' ? localStorage.getItem(WASAPI_DEVICE_ID_KEY) : null) ?? '',
+    showAudioSignalPath: getStoredBoolean(SHOW_AUDIO_SIGNAL_PATH_KEY, true),
     // Off unless asked for: it writes to the listener's music account, so it is never a default.
     neteaseScrobbleEnabled: getStoredBoolean(NETEASE_SCROBBLE_KEY, false),
     playbackFadeEnabled: getStoredBoolean(PLAYBACK_FADE_KEY, true),
@@ -225,6 +244,25 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
     handleToggleTranscodeFallback: (enable) => {
         setStoredBoolean(ENABLE_TRANSCODE_FALLBACK_KEY, enable);
         set({ enableTranscodeFallback: enable });
+    },
+    handleToggleWasapiExclusive: (enable) => {
+        setStoredBoolean(ENABLE_WASAPI_EXCLUSIVE_KEY, enable);
+        set({ enableWasapiExclusive: enable });
+    },
+    handleSetWasapiDeviceId: (deviceId) => {
+        set({ wasapiDeviceId: deviceId });
+        if (typeof window === 'undefined') {
+            return;
+        }
+        if (deviceId) {
+            localStorage.setItem(WASAPI_DEVICE_ID_KEY, deviceId);
+        } else {
+            localStorage.removeItem(WASAPI_DEVICE_ID_KEY);
+        }
+    },
+    handleSetShowAudioSignalPath: (enable) => {
+        setStoredBoolean(SHOW_AUDIO_SIGNAL_PATH_KEY, enable);
+        set({ showAudioSignalPath: enable });
     },
     handleToggleNeteaseScrobble: (enable) => {
         setStoredBoolean(NETEASE_SCROBBLE_KEY, enable);
@@ -315,6 +353,9 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     queueAddBehavior: state.queueAddBehavior,
     autoPlayOnLaunch: state.autoPlayOnLaunch,
     enableTranscodeFallback: state.enableTranscodeFallback,
+    enableWasapiExclusive: state.enableWasapiExclusive,
+    wasapiDeviceId: state.wasapiDeviceId,
+    showAudioSignalPath: state.showAudioSignalPath,
     neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
     playbackFadeEnabled: state.playbackFadeEnabled,
     audioOutputDeviceId: state.audioOutputDeviceId,
@@ -329,6 +370,9 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     handleSetQueueAddBehavior: state.handleSetQueueAddBehavior,
     handleToggleAutoPlayOnLaunch: state.handleToggleAutoPlayOnLaunch,
     handleToggleTranscodeFallback: state.handleToggleTranscodeFallback,
+    handleToggleWasapiExclusive: state.handleToggleWasapiExclusive,
+    handleSetWasapiDeviceId: state.handleSetWasapiDeviceId,
+    handleSetShowAudioSignalPath: state.handleSetShowAudioSignalPath,
     handleToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
     handleTogglePlaybackFade: state.handleTogglePlaybackFade,
     handleSetAudioOutputDeviceId: state.handleSetAudioOutputDeviceId,

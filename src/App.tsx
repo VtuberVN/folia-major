@@ -18,6 +18,7 @@ import { useSettingsDialogModel } from './components/app/dialogs/useSettingsDial
 import AppOverlays from './components/app/overlays/AppOverlays';
 import AutomixModelReminder from './components/modal/AutomixModelReminder';
 import PonderHost from './components/ponder/PonderHost';
+import { useGlass } from './mods/useGlass';
 // Lazy so animejs (~38KB gz) stays out of the bootstrap chunk: this overlay only ever draws when the
 // animation switch is on AND the mode is automix, both off by default, so it is mounted only then.
 const AutomixTransitionAnimation = lazy(() => import('./components/app/overlays/AutomixTransitionAnimation'));
@@ -104,6 +105,7 @@ import { usePlaybackUiEffects } from './hooks/usePlaybackUiEffects';
 import { useLibraryPlaybackController } from './hooks/useLibraryPlaybackController';
 import { useNavidromeScrobbleReporter } from './hooks/useNavidromeScrobbleReporter';
 import { useNeteaseScrobbleReporter } from './hooks/useNeteaseScrobbleReporter';
+import { useWasapiExclusive } from './hooks/useWasapiExclusive';
 import { usePlaybackQueueController } from './hooks/usePlaybackQueueController';
 import { usePlaybackTransportController } from './hooks/usePlaybackTransportController';
 import { useLocalLibraryCatalog } from './hooks/useLocalLibraryCatalog';
@@ -129,6 +131,7 @@ import { initializeSyncCoordinator } from './services/sync/syncCoordinator';
 import { applyLocalLibraryEntityDisplay } from './services/playbackAdapters';
 import { transitionCapabilities } from './services/automix/stems';
 import { buildLocalLibraryIndex } from './utils/localLibraryIndex';
+import { markUserSeek } from './services/exclusiveSeekSignal';
 import type { PlayerChromeVisibilityMode } from './types/remoteControl';
 import { setStatusMessage as setStatusMsg, useStatusMessage } from './stores/useStatusMessageStore';
 import { selectVisualizerSettingsSnapshot, useVisualizerSettingsStore } from './stores/useVisualizerSettingsStore';
@@ -260,6 +263,7 @@ export default function App() {
     // Queue
 
     // UI State
+    useGlass();
     const statusMsg = useStatusMessage();
     useElectronNeteaseApiStatus(t);
     // Watches the imported local folders and rescans them when their contents change.
@@ -455,6 +459,9 @@ export default function App() {
         handleSetLyricStaffMinDwellSeconds,
         handleSetLyricStaffAbsorbMode,
         handleSetLyricStaffPattern,
+        handleSetTitleNoiseFilterEnabled,
+        handleSetTitleNoiseFilterDefaultEnabled,
+        handleSetTitleNoiseFilterCustomKeywords,
     } = useLyricSettingsStore(useShallow(selectLyricSettingsSnapshot));
     const {
         visualizerMode,
@@ -1154,6 +1161,9 @@ export default function App() {
         handleSetLyricStaffMinDwellSeconds,
         handleSetLyricStaffAbsorbMode,
         handleSetLyricStaffPattern,
+        handleSetTitleNoiseFilterEnabled,
+        handleSetTitleNoiseFilterDefaultEnabled,
+        handleSetTitleNoiseFilterCustomKeywords,
         loadCurrentSongLyricPreview,
         setLyrics: setLyricsStable,
     }), [
@@ -1164,6 +1174,9 @@ export default function App() {
         handleSetLyricStaffPolicy,
         handleSetLyricStaffMinDwellSeconds,
         handleSetLyricStaffPattern,
+        handleSetTitleNoiseFilterEnabled,
+        handleSetTitleNoiseFilterDefaultEnabled,
+        handleSetTitleNoiseFilterCustomKeywords,
         loadCurrentSongLyricPreview,
         setLyricsStable,
     ]);
@@ -1596,6 +1609,7 @@ export default function App() {
         currentSong,
         activeDeck: automix.activeDeck,
     });
+    useWasapiExclusive(audioRef);
 
     const {
         mediaSessionPlayRef,
@@ -2227,6 +2241,7 @@ export default function App() {
             return;
         }
         if (audioRef.current) {
+            markUserSeek();
             audioRef.current.currentTime = time;
             if (audioRef.current.paused) {
                 void audioRef.current.play();

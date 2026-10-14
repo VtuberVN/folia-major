@@ -94,6 +94,7 @@
     ],
     "asarUnpack": [
       "electron/analysis/htdemucs_runner.py",
+      "electron/wasapi/folia_wasapi.node",
       "node_modules/@koromix/koffi-*/**/*.node"
     ],
     "extraResources": [

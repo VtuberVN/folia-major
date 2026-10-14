@@ -33,6 +33,8 @@ const { createQqAuthSessionRepository } = require('./qqAuthSessionRepository.cjs
 const { DEFAULT_DISCORD_APPLICATION_ID, createDiscordPresenceController, normalizeDiscordApplicationId } = require('./discordPresence.cjs');
 const { createVoiceInputPauseMonitor } = require('./voiceInputPause.cjs');
 const { createDisplaySleepBlocker } = require('./displaySleepBlocker.cjs');
+const { createWasapiEngine } = require('./wasapi/wasapiEngine.cjs');
+let wasapiEngine = null;
 const { createLyricApi } = require('./lyricApi.cjs');
 const { createLocalCoverAssetStore, getLocalCoverAssetDirectory } = require('./localCoverAssets.cjs');
 const {
@@ -1611,6 +1613,8 @@ const mainLocale = {
     trayHideWindow: 'Ẩn cửa sổ',
     trayOpenRemote: 'Cửa sổ điều khiển từ xa',
     trayUnlockRemote: 'Mở khóa cửa sổ điều khiển',
+    trayMiniLyricBar: 'Thanh lời bài hát Desktop (lia.lines)',
+    trayUnlockMiniLyricBar: 'Mở khóa thanh lời Desktop',
     trayTransparentBackground: 'Nền trong suốt',
     trayToggleClickThrough: 'Cho phép nhấp xuyên',
     trayAlwaysOnTop: 'Luôn ở trên cùng',
@@ -1633,6 +1637,8 @@ const mainLocale = {
     trayHideWindow: '隐藏窗口',
     trayOpenRemote: '遥控窗口',
     trayUnlockRemote: '解锁遥控窗口',
+    trayMiniLyricBar: '桌面歌词条 (lia.lines)',
+    trayUnlockMiniLyricBar: '解锁桌面歌词条',
     trayTransparentBackground: '透明背景',
     trayToggleClickThrough: '点击穿透',
     trayAlwaysOnTop: '窗口置顶',
@@ -1655,6 +1661,8 @@ const mainLocale = {
     trayHideWindow: 'Hide Window',
     trayOpenRemote: 'Remote Window',
     trayUnlockRemote: 'Unlock Remote Window',
+    trayMiniLyricBar: 'Desktop Lyric Bar (lia.lines)',
+    trayUnlockMiniLyricBar: 'Unlock Desktop Lyric Bar',
     trayTransparentBackground: 'Transparent Background',
     trayToggleClickThrough: 'Click-Through',
     trayAlwaysOnTop: 'Always on Top',
@@ -1677,6 +1685,8 @@ const mainLocale = {
     trayHideWindow: 'Sembunyikan Jendela',
     trayOpenRemote: 'Jendela Remote',
     trayUnlockRemote: 'Buka Kunci Jendela Remote',
+    trayMiniLyricBar: 'Bilah Lirik Desktop (lia.lines)',
+    trayUnlockMiniLyricBar: 'Buka Kunci Bilah Lirik Desktop',
     trayTransparentBackground: 'Latar Belakang Transparan',
     trayToggleClickThrough: 'Click-Through',
     trayAlwaysOnTop: 'Selalu di Atas',
@@ -1699,6 +1709,8 @@ const mainLocale = {
     trayHideWindow: 'Ẩn cửa sổ',
     trayOpenRemote: 'Cửa sổ điều khiển',
     trayUnlockRemote: 'Mở khóa cửa sổ điều khiển',
+    trayMiniLyricBar: 'Thanh lời bài hát Desktop (lia.lines)',
+    trayUnlockMiniLyricBar: 'Mở khóa thanh lời Desktop',
     trayTransparentBackground: 'Nền trong suốt',
     trayToggleClickThrough: 'Nhấp xuyên thấu',
     trayAlwaysOnTop: 'Luôn ghim trên cùng',
@@ -1846,6 +1858,9 @@ installCrashHandlers({
 let mainWindow = null;
 let modSystem = null;
 let remoteControlWindow = null;
+let miniLyricBarWindow = null;
+let miniLyricBarClickThroughEnabled = false;
+let miniLyricBarBoundsSaveTimer = null;
 let appTray = null;
 let latestRemoteControlSnapshot = null;
 let obsBrowserSourceServer = null;
@@ -1931,6 +1946,9 @@ const FOLIA_GITHUB_REPOSITORY = {
 };
 const WINDOWS_APP_USER_MODEL_ID = 'top.izuna.foliamajor';
 const REMOTE_CONTROL_WINDOW_TITLE = 'Folia Remote';
+const MINI_LYRIC_BAR_WINDOW_TITLE = 'Folia Mini Lyric Bar';
+const MINI_LYRIC_BAR_BOUNDS_SETTING_KEY = 'MINI_LYRIC_BAR_BOUNDS';
+const MINI_LYRIC_BAR_CLICK_THROUGH_SETTING_KEY = 'MINI_LYRIC_BAR_CLICK_THROUGH';
 const WINDOW_PLAYBACK_HANDOFF_REQUEST_TIMEOUT_MS = 800;
 const bundledAppIconPath = path.join(__dirname, '../build/icon.png');
 const extraResourceIconPath = path.join(process.resourcesPath, 'icon.png');
@@ -2118,6 +2136,7 @@ remoteControlSkipTaskbarEnabled = readStoredBoolean(REMOTE_CONTROL_SKIP_TASKBAR_
   remoteControlHideTitlebarEnabled = remoteWindowSettings.hideTitlebar;
   remoteControlClickThroughEnabled = remoteWindowSettings.clickThrough;
 }
+miniLyricBarClickThroughEnabled = readStoredBoolean(MINI_LYRIC_BAR_CLICK_THROUGH_SETTING_KEY, false);
 mainWindowAlwaysOnTop = readStoredBoolean(MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY, false);
 
 const stageApi = createStageApi({
@@ -2175,6 +2194,7 @@ const analysisHost = createAnalysisHost({ app, ipcMain, getModelsDirs: getModels
 function buildPlaybackSyncBridgeStatus() {
   return {
     remoteControlOpen: Boolean(remoteControlWindow && !remoteControlWindow.isDestroyed()),
+    miniLyricBarOpen: Boolean(miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()),
     discordPresenceEnabled: readStoredBoolean(DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY, false),
   };
 }
@@ -2713,6 +2733,30 @@ function refreshTrayMenu() {
         setRemoteControlClickThroughEnabled(false);
       },
     }] : []),
+    {
+      label: locale.trayMiniLyricBar,
+      type: 'checkbox',
+      checked: Boolean(miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()),
+      click: () => {
+        if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+          miniLyricBarWindow.close();
+        } else {
+          createMiniLyricBarWindow();
+        }
+      },
+    },
+    ...(miniLyricBarWindow && !miniLyricBarWindow.isDestroyed() && miniLyricBarClickThroughEnabled ? [{
+      label: locale.trayUnlockMiniLyricBar,
+      click: () => {
+        miniLyricBarClickThroughEnabled = false;
+        store.set(MINI_LYRIC_BAR_CLICK_THROUGH_SETTING_KEY, false);
+        applyMiniLyricBarMouseIgnore(miniLyricBarWindow, false);
+        if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+          miniLyricBarWindow.webContents.send('mini-lyric-bar-click-through-changed', false);
+        }
+        refreshTrayMenu();
+      },
+    }] : []),
     { type: 'separator' },
     {
       label: locale.trayDesktopLyricMode,
@@ -2923,6 +2967,15 @@ function isTrustedRemoteControlContents(webContents) {
     !remoteControlWindow.isDestroyed() &&
     webContents &&
     webContents.id === remoteControlWindow.webContents.id
+  );
+}
+
+function isTrustedMiniLyricBarContents(webContents) {
+  return Boolean(
+    miniLyricBarWindow &&
+    !miniLyricBarWindow.isDestroyed() &&
+    webContents &&
+    webContents.id === miniLyricBarWindow.webContents.id
   );
 }
 
@@ -3751,8 +3804,16 @@ async function openExternalUrl(url) {
     return false;
   }
 
-  await shell.openExternal(url.trim());
-  return true;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    await shell.openExternal(parsed.toString());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function scheduleStartupUpdateCheck() {
@@ -4338,7 +4399,29 @@ function isElectronDevRuntime() {
   return process.env.ELECTRON_DEV === 'true' || process.env.NODE_ENV === 'development';
 }
 
+function attachNavigationSecurity(win) {
+  if (!win || !win.webContents || win.__navSecurityAttached) return;
+  win.__navSecurityAttached = true;
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      void openExternalUrl(url);
+    }
+    return { action: 'deny' };
+  });
+
+  win.webContents.on('will-navigate', (event, targetUrl) => {
+    const isAllowedLocal = targetUrl.startsWith('file://') ||
+      (isElectronDevRuntime() && targetUrl.startsWith('http://localhost:3000'));
+    if (!isAllowedLocal) {
+      event.preventDefault();
+      void openExternalUrl(targetUrl);
+    }
+  });
+}
+
 function loadAppEntry(win, query = {}) {
+  attachNavigationSecurity(win);
   if (isElectronDevRuntime()) {
     const url = new URL('http://localhost:3000');
     Object.entries(query).forEach(([key, value]) => {
@@ -4860,6 +4943,163 @@ function createRemoteControlWindow() {
   return win;
 }
 
+function sendMiniLyricBarSnapshot(snapshot) {
+  if (!miniLyricBarWindow || miniLyricBarWindow.isDestroyed()) {
+    return false;
+  }
+
+  miniLyricBarWindow.webContents.send('mini-lyric-bar-snapshot', snapshot);
+  return true;
+}
+
+function applyMiniLyricBarMouseIgnore(win, clickThrough) {
+  if (!win || (typeof win.isDestroyed === 'function' && win.isDestroyed())) {
+    return false;
+  }
+
+  win.setIgnoreMouseEvents(Boolean(clickThrough), { forward: true });
+  return Boolean(clickThrough);
+}
+
+function createMiniLyricBarWindow() {
+  if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+    miniLyricBarWindow.setTitle(MINI_LYRIC_BAR_WINDOW_TITLE);
+    miniLyricBarWindow.setAlwaysOnTop(true, 'screen-saver');
+    applyMiniLyricBarMouseIgnore(miniLyricBarWindow, miniLyricBarClickThroughEnabled);
+    miniLyricBarWindow.show();
+    miniLyricBarWindow.focus();
+    broadcastPlaybackSyncBridgeStatus();
+    refreshTrayMenu();
+    return miniLyricBarWindow;
+  }
+
+  ensureWallpaperLayerHeldByMainWindow();
+
+  const defaultWidth = 680;
+  const defaultHeight = 60;
+  const storedBounds = store.get(MINI_LYRIC_BAR_BOUNDS_SETTING_KEY);
+  let x;
+  let y;
+  let width = defaultWidth;
+  let height = defaultHeight;
+
+  const displays = screen.getAllDisplays();
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const primaryWorkArea = primaryDisplay.workArea;
+
+  if (
+    storedBounds &&
+    typeof storedBounds.x === 'number' &&
+    typeof storedBounds.y === 'number' &&
+    typeof storedBounds.width === 'number' &&
+    typeof storedBounds.height === 'number'
+  ) {
+    const isVisibleOnAnyDisplay = displays.some((d) => {
+      const wa = d.workArea;
+      return (
+        storedBounds.x + storedBounds.width > wa.x + 50 &&
+        storedBounds.x < wa.x + wa.width - 50 &&
+        storedBounds.y + storedBounds.height > wa.y + 20 &&
+        storedBounds.y < wa.y + wa.height - 20
+      );
+    });
+
+    if (isVisibleOnAnyDisplay) {
+      x = storedBounds.x;
+      y = storedBounds.y;
+      width = Math.max(360, storedBounds.width);
+      height = Math.max(46, storedBounds.height);
+    }
+  }
+
+  if (x === undefined || y === undefined) {
+    x = Math.round(primaryWorkArea.x + (primaryWorkArea.width - width) / 2);
+    y = Math.round(primaryWorkArea.y + primaryWorkArea.height - height - 60);
+  }
+
+  const win = new BrowserWindow({
+    modal: false,
+    x,
+    y,
+    width,
+    height,
+    minWidth: 360,
+    minHeight: 46,
+    maxHeight: 120,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    title: MINI_LYRIC_BAR_WINDOW_TITLE,
+    name: 'folia-mini-lyric-bar',
+    autoHideMenuBar: true,
+    resizable: true,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    icon: APP_ICON_PATH,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      backgroundThrottling: false,
+    },
+  });
+
+  miniLyricBarWindow = win;
+  broadcastPlaybackSyncBridgeStatus();
+
+  win.on('page-title-updated', (event) => {
+    event.preventDefault();
+    win.setTitle(MINI_LYRIC_BAR_WINDOW_TITLE);
+  });
+
+  win.setAlwaysOnTop(true, 'screen-saver');
+  applyMiniLyricBarMouseIgnore(win, miniLyricBarClickThroughEnabled);
+  loadAppEntry(win, { miniLyric: '1', splash: '0' });
+
+  const scheduleSaveBounds = () => {
+    if (miniLyricBarBoundsSaveTimer) {
+      clearTimeout(miniLyricBarBoundsSaveTimer);
+    }
+    miniLyricBarBoundsSaveTimer = setTimeout(() => {
+      miniLyricBarBoundsSaveTimer = null;
+      if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+        store.set(MINI_LYRIC_BAR_BOUNDS_SETTING_KEY, miniLyricBarWindow.getBounds());
+      }
+    }, 400);
+  };
+
+  win.on('moved', scheduleSaveBounds);
+  win.on('resized', scheduleSaveBounds);
+
+  win.once('ready-to-show', () => {
+    win.setTitle(MINI_LYRIC_BAR_WINDOW_TITLE);
+    win.setAlwaysOnTop(true, 'screen-saver');
+    applyMiniLyricBarMouseIgnore(win, miniLyricBarClickThroughEnabled);
+    if (latestRemoteControlSnapshot) {
+      sendMiniLyricBarSnapshot(latestRemoteControlSnapshot);
+    }
+  });
+
+  win.on('closed', () => {
+    if (miniLyricBarBoundsSaveTimer) {
+      clearTimeout(miniLyricBarBoundsSaveTimer);
+      miniLyricBarBoundsSaveTimer = null;
+    }
+    if (miniLyricBarWindow === win) {
+      miniLyricBarWindow = null;
+    }
+    broadcastPlaybackSyncBridgeStatus();
+    refreshTrayMenu();
+  });
+
+  refreshTrayMenu();
+  return win;
+}
+
 function sanitizeVideoExportSize(size) {
   const width = Math.round(Number(size?.width));
   const height = Math.round(Number(size?.height));
@@ -5239,6 +5479,9 @@ function createWindow(options = {}) {
       if (remoteControlWindow && !remoteControlWindow.isDestroyed()) {
         remoteControlWindow.close();
       }
+      if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+        miniLyricBarWindow.close();
+      }
       refreshTrayMenu();
     }
   });
@@ -5408,6 +5651,44 @@ app.whenReady().then(async () => {
     await transcodeService.initialize();
   } catch (error) {
     console.warn('[TranscodeFallback] Initialization failed; playback fallback is unavailable', error);
+  }
+
+  // WASAPI exclusive-mode output (bit-perfect). Windows-only; the engine lazily spins up a
+  // worker thread that owns the native renderer and the FFmpeg decode feed.
+  if (process.platform === 'win32') {
+    try {
+      wasapiEngine = createWasapiEngine({ app });
+      wasapiEngine.setEventForwarder((event) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('wasapi-event', event);
+        }
+      });
+      ipcMain.handle('wasapi-list-devices', () => wasapiEngine.listDevices());
+      ipcMain.handle('wasapi-play', (_event, source, startSec) => wasapiEngine.play(source, startSec));
+      ipcMain.handle('wasapi-pause', () => wasapiEngine.pause());
+      ipcMain.handle('wasapi-resume', (_event, source, startSec) => wasapiEngine.resume(source, startSec));
+      ipcMain.handle('wasapi-seek', (_event, source, startSec) => wasapiEngine.seek(source, startSec));
+      ipcMain.handle('wasapi-stop', () => wasapiEngine.stop());
+      ipcMain.handle('wasapi-set-device', (_event, deviceId) => wasapiEngine.setDevice(deviceId));
+      ipcMain.handle('wasapi-set-renderer-muted', (_event, muted) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.setAudioMuted(Boolean(muted));
+        }
+        return true;
+      });
+      ipcMain.on('wasapi-renderer-log', (_event, message) => {
+        try {
+          fs.appendFileSync(
+            path.join(app.getPath('userData'), 'wasapi-debug.log'),
+            `[${new Date().toISOString()}] renderer ${String(message)}\n`,
+          );
+        } catch {
+          // Diagnostics are best effort.
+        }
+      });
+    } catch (error) {
+      console.warn('[WASAPI] Failed to initialize the WASAPI engine', error);
+    }
   }
 
   session.defaultSession.on('file-system-access-restricted', (event, details, callback) => {
@@ -5623,6 +5904,13 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   transcodeService.dispose();
+  if (wasapiEngine) {
+    void wasapiEngine.dispose();
+    wasapiEngine = null;
+  }
+  if (process.platform === 'win32' && !isAppQuitting) {
+    setTimeout(() => app.exit(0), 1500);
+  }
   isAppQuitting = true;
   clearPendingWindowPlaybackHandoffRequests();
   if (modSystem) {
@@ -5635,6 +5923,9 @@ app.on('before-quit', () => {
   spotify.stop();
   voiceInputPauseMonitor.stop();
   displaySleepBlocker.stop();
+  if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+    miniLyricBarWindow.close();
+  }
   // Detach (graceful) instead of killing: the helper un-parents the window from the WorkerW
   // and repaints the layer before the window is destroyed — a window torn down while still
   // parented leaves its last frame stuck on the desktop. killHelper() is the fallback for
@@ -6084,6 +6375,9 @@ ipcMain.handle('updates-open-release-page', (event, version) => {
 });
 
 ipcMain.handle('open-external-url', (event, url) => {
+  if (!isTrustedMainWindowContents(event.sender) && !isTrustedMiniLyricBarContents(event.sender)) {
+    return false;
+  }
   return openExternalUrl(url);
 });
 
@@ -6862,6 +7156,17 @@ ipcMain.handle('get-audio-cache', async (event, cacheKey) => {
   return readAudioCacheEntry(cacheKey);
 });
 
+ipcMain.handle('get-audio-cache-path', async (_event, cacheKey) => {
+  if (!cacheKey || typeof cacheKey !== 'string') return null;
+  const { dataPath } = getAudioCachePaths(cacheKey);
+  try {
+    await fsp.access(dataPath, fs.constants.F_OK);
+    return { path: dataPath };
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle('has-audio-cache', async (event, cacheKey) => {
   return hasAudioCacheEntry(cacheKey);
 });
@@ -7452,6 +7757,7 @@ ipcMain.handle('remote-control-publish-snapshot', (event, snapshot) => {
     : null;
   if (latestRemoteControlSnapshot) {
     sendRemoteControlSnapshot(latestRemoteControlSnapshot);
+    sendMiniLyricBarSnapshot(latestRemoteControlSnapshot);
   }
   return true;
 });
@@ -7506,6 +7812,96 @@ ipcMain.handle('remote-control-send-command', (event, command) => {
     }
     mainWindow.focus();
     return true;
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false;
+  }
+
+  mainWindow.webContents.send('remote-control-command', command);
+  return true;
+});
+
+ipcMain.handle('mini-lyric-bar-open', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to open the mini lyric bar window.');
+  }
+
+  createMiniLyricBarWindow();
+  return true;
+});
+
+ipcMain.handle('mini-lyric-bar-toggle', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to toggle the mini lyric bar window.');
+  }
+
+  if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+    miniLyricBarWindow.close();
+    return false;
+  }
+
+  createMiniLyricBarWindow();
+  return true;
+});
+
+ipcMain.handle('mini-lyric-bar-close', (event) => {
+  if (!isTrustedMiniLyricBarContents(event.sender) && !isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to close the mini lyric bar window.');
+  }
+
+  if (!miniLyricBarWindow || miniLyricBarWindow.isDestroyed()) {
+    return false;
+  }
+
+  miniLyricBarWindow.close();
+  return true;
+});
+
+ipcMain.handle('mini-lyric-bar-get-state', (event) => {
+  if (!isTrustedMiniLyricBarContents(event.sender) && !isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read mini lyric bar state.');
+  }
+
+  return {
+    isOpen: Boolean(miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()),
+    clickThrough: miniLyricBarClickThroughEnabled,
+    snapshot: latestRemoteControlSnapshot,
+  };
+});
+
+ipcMain.handle('mini-lyric-bar-set-click-through', (event, enabled) => {
+  if (!isTrustedMiniLyricBarContents(event.sender) && !isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to update mini lyric bar click-through state.');
+  }
+
+  miniLyricBarClickThroughEnabled = Boolean(enabled);
+  store.set(MINI_LYRIC_BAR_CLICK_THROUGH_SETTING_KEY, miniLyricBarClickThroughEnabled);
+  applyMiniLyricBarMouseIgnore(miniLyricBarWindow, miniLyricBarClickThroughEnabled);
+
+  if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+    miniLyricBarWindow.webContents.send('mini-lyric-bar-click-through-changed', miniLyricBarClickThroughEnabled);
+  }
+  refreshTrayMenu();
+  return miniLyricBarClickThroughEnabled;
+});
+
+ipcMain.handle('mini-lyric-bar-set-mouse-ignore', (event, ignore) => {
+  if (!isTrustedMiniLyricBarContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to update mini lyric bar mouse ignore.');
+  }
+
+  if (!miniLyricBarWindow || miniLyricBarWindow.isDestroyed()) {
+    return false;
+  }
+
+  miniLyricBarWindow.setIgnoreMouseEvents(Boolean(ignore), { forward: true });
+  return true;
+});
+
+ipcMain.handle('mini-lyric-bar-send-command', (event, command) => {
+  if (!isTrustedMiniLyricBarContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to send a mini lyric bar command.');
   }
 
   if (!mainWindow || mainWindow.isDestroyed()) {

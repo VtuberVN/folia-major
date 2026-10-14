@@ -172,6 +172,8 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
         handleToggleFollowSystemTheme: state.setFollowSystemTheme,
         handleToggleCoverColorBg: state.handleToggleCoverColorBg,
         handleToggleStaticMode: state.handleToggleStaticMode,
+        enableLiquidGlass: state.enableLiquidGlass,
+        handleToggleLiquidGlass: state.handleToggleLiquidGlass,
     })));
     const storePlayerChromeSettings = usePlayerChromeSettingsStore(useShallow(state => ({
         enablePlayerPageNativeBlur: state.enablePlayerPageNativeBlur,
@@ -726,6 +728,23 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 style={{ backgroundColor: autoHideCursorWithPlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                             >
                                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHideCursorWithPlayerChrome ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                    {t('options.liquidGlass')}
+                                </div>
+                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('options.liquidGlassDesc')}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => storeThemeSettings.handleToggleLiquidGlass(!storeThemeSettings.enableLiquidGlass)}
+                                className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!storeThemeSettings.enableLiquidGlass ? toggleOffBackgroundClass : ''}`}
+                                style={{ backgroundColor: storeThemeSettings.enableLiquidGlass ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
+                            >
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${storeThemeSettings.enableLiquidGlass ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
                         </div>
                     </div>

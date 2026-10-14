@@ -4,6 +4,7 @@ import type {
     OnlineProviderId,
     ProviderAccountSummary,
     ProviderCapabilities,
+    ProviderUser,
     QrLoginFailureKind,
     QrLoginMethod,
     QrLoginState,
@@ -306,6 +307,8 @@ export type LibraryAccountAuthPort = {
     /** 主动自检；没有可检查的对象时 resolve null，自检本身出错时 reject。 */
     runQrLoginSelfCheck(providerId: OnlineProviderId): Promise<LoginSelfCheckResult | null>;
     getProviderCapabilities(providerId: OnlineProviderId): Pick<ProviderCapabilities, 'auth'>;
+    login?(providerId: OnlineProviderId): Promise<ProviderUser | null>;
+    hasInteractiveLogin?(providerId: OnlineProviderId): boolean;
 };
 
 /**
@@ -339,10 +342,12 @@ export type LibraryProviderAccountPort = {
 };
 
 /**
- * 切换清理端口：用户确认切换后、写新的当前平台之前调用。宿主在这里清掉播放（automix 尾音、audio、队列、歌词、
- * prefetch、track profile）、搜索运行态与集合导航（现 App.tsx 的 handleConfirmProviderSwitch）。
+ * 切换清理端口：用户确认切换后、写新的当前平台之前调用。宿主在这里清掉上一个平台留下的运行态
+ * （搜索运行态、集合导航，必要时还有播放）。
+ * requiresConfirmation 为 false 时，切换请求一发出就直接确认，不弹确认框（宿主的清理不会丢东西时用）；省略等于 true。
  */
 export type LibraryProviderSwitchCleanupPort = {
+    requiresConfirmation?: boolean;
     resetForProviderSwitch(nextProviderId: OnlineProviderId, previousProviderId: OnlineProviderId): void | Promise<void>;
 };
 

@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folia Visualizer • Kinetic Typography Lyrics PV Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:ital,wght@0,300;0,500;0,700;0,800;0,900;1,400;1,700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --surface-glass: rgba(18, 20, 28, 0.72);
+            --surface-border: rgba(255, 255, 255, 0.12);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.65);
+            --accent-pink: #ff3b7a;
+            --accent-cyan: #00f2fe;
+            --accent-gold: #ffd166;
+            --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-serif: 'Cinzel', serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --stage-width: 450px;
+            --stage-height: 800px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: #08090d;
+            background-image: 
+                radial-gradient(circle at 50% 20%, rgba(255, 59, 122, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(0, 242, 254, 0.08) 0%, transparent 50%),
+                linear-gradient(180deg, #090a0f 0%, #040507 100%);
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Top Header (Folia Design Style) */
+        .app-header {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 12px 20px;
+            background: var(--surface-glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+        }
+
+        .brand-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--accent-pink);
+            box-shadow: 0 0 12px var(--accent-pink);
+            animation: pulse-dot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.25); }
+        }
+
+        .header-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            display: flex;
+            gap: 16px;
+        }
+
+        /* Workspace Grid */
+        .workspace {
+            display: flex;
+            gap: 28px;
+            align-items: flex-start;
+            max-width: 1100px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Phone Stage Box (9:16 Aspect) */
+        .stage-container {
+            position: relative;
+            width: var(--stage-width);
+            height: var(--stage-height);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 
+                0 25px 60px rgba(0, 0, 0, 0.8),
+                0 0 0 1px rgba(255, 255, 255, 0.15),
+                0 0 35px rgba(255, 59, 122, 0.15);
+            background: #fff;
+            transform-origin: center center;
+            transition: transform 0.15s ease-out;
+        }
+
+        .stage-container.shake {
+            animation: camera-shake 0.28s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        @keyframes camera-shake {
+            10%, 90% { transform: translate3d(-2px, 1px, 0) scale(1.01); }
+            20%, 80% { transform: translate3d(3px, -2px, 0) scale(1.02); }
+            30%, 50%, 70% { transform: translate3d(-3px, 2px, 0) scale(1.01); }
+            40%, 60% { transform: translate3d(2px, -1px, 0) scale(1.005); }
+        }
+
+        /* Viewport Canvas Background */
+        .stage-canvas-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 3D Echo Kinetic Typography Behind Character */
+        .stage-backdrop-text {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .echo-word {
+            position: absolute;
+            font-size: 130px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            color: transparent;
+            -webkit-text-stroke: 2.5px rgba(0, 0, 0, 0.18);
+            transform-origin: center center;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            white-space: nowrap;
+        }
+
+        /* Character Layer */
+        .stage-character-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .character-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center bottom;
+            transform-origin: bottom center;
+            animation: character-idle 4s ease-in-out infinite;
+            filter: contrast(1.04) brightness(1.01);
+        }
+
+        @keyframes character-idle {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-4px) scale(1.004); }
+        }
+
+        /* Speedlines Overlay (Manga Action Burst) */
+        .speedlines-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .speedlines-canvas.active {
+            opacity: 1;
+        }
+
+        /* Technical Camera Viewfinder & HUD Overlays */
+        .hud-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-bracket {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .hud-timecode {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+
+        .hud-barcode {
+            letter-spacing: -0.5px;
+            font-size: 11px;
+            font-weight: 700;
+            opacity: 0.65;
+        }
+
+        .hud-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        /* MAIN FOREGROUND TYPOGRAPHY ENGINE (Z-Index 6) */
+        .stage-lyrics-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .lyric-shot {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 38px 24px 34px 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.12s ease, visibility 0.12s ease;
+        }
+
+        .lyric-shot.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Typography Styling Classes (PV Replicas) */
+        .text-outline-strong {
+            color: #ffffff;
+            text-shadow: 
+                -2px -2px 0 #000,  
+                 2px -2px 0 #000,
+                -2px  2px 0 #000,
+                 2px  2px 0 #000,
+                -3px 0 0 #000,
+                 3px 0 0 #000,
+                 0 -3px 0 #000,
+                 0 3px 0 #000,
+                 0 4px 12px rgba(0, 0, 0, 0.65);
+        }
+
+        .text-line-ruler {
+            position: relative;
+            display: inline-block;
+        }
+        .text-line-ruler::before, .text-line-ruler::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 1.5px;
+            background: #000;
+        }
+        .text-line-ruler::before { top: -8px; }
+        .text-line-ruler::after { bottom: -8px; }
+
+        /* Specific Shot Layouts */
+        /* Shot 1: Rival & Idol */
+        .shot-rival-idol .top-line {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-transform: lowercase;
+            animation: tracking-expand 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .shot-rival-idol .bot-line {
+            font-size: 58px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-align: center;
+            font-family: var(--font-serif);
+            transform: scale(0.92);
+            animation: slam-impact 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Shot 2: You got me suicidal */
+        .shot-suicidal .top-line {
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+        .shot-suicidal .bot-line {
+            font-size: 54px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-align: center;
+            text-transform: lowercase;
+        }
+
+        /* Shot 3: My love, your rage */
+        .shot-my-love .top-line {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        .shot-my-love .watermark-stack {
+            position: absolute;
+            top: 22px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: rgba(0, 0, 0, 0.4);
+            font-weight: 600;
+        }
+        .shot-my-love .bot-line {
+            font-size: 42px;
+            font-weight: 900;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        /* Shot 4: Arched Glyph Index Numbers (1 2 3 4) */
+        .shot-arched-numbers .top-line {
+            position: relative;
+            text-align: center;
+            font-size: 34px;
+            font-weight: 800;
+        }
+        .indexed-char {
+            display: inline-block;
+            position: relative;
+            margin: 0 1px;
+        }
+        .indexed-char span.num {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: 700;
+            color: #000;
+            font-family: var(--font-mono);
+            text-shadow: none;
+        }
+        .shot-arched-numbers .bot-line {
+            font-size: 50px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        /* Shot 5: Legendary Battle */
+        .shot-legendary .top-line {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .shot-legendary .bot-line {
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        /* Shot 6: Fraternizing Tech */
+        .shot-fraternizing .top-line {
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .shot-fraternizing .bot-line {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-align: center;
+        }
+
+        /* Shot 7: Editorial War Inside */
+        .shot-war-inside .top-line {
+            font-size: 26px;
+            font-weight: 600;
+            font-style: italic;
+            text-align: center;
+            letter-spacing: 1px;
+            font-family: var(--font-serif);
+        }
+        .shot-war-inside .bot-line {
+            font-size: 36px;
+            font-weight: 700;
+            font-style: italic;
+            text-align: center;
+            font-family: var(--font-serif);
+        }
+
+        /* Shot 8: Until death do us part (Curved Halo) */
+        .shot-until-death .curved-halo-wrap {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 320px;
+            height: 120px;
+            pointer-events: none;
+        }
+        .shot-until-death .bot-line {
+            font-size: 40px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        /* Shot 9: BANG BANG BANG Beat Slam */
+        .shot-bang {
+            justify-content: center;
+            gap: 160px;
+        }
+        .shot-bang .bang-box {
+            text-align: center;
+            font-size: 44px;
+            font-weight: 900;
+            font-family: var(--font-serif);
+            letter-spacing: 2px;
+            transform-origin: center center;
+        }
+        .shot-bang .bang-box.kick {
+            animation: bang-bounce 0.22s ease-out;
+        }
+        @keyframes bang-bounce {
+            0% { transform: scale(1.35) rotate(-3deg); }
+            50% { transform: scale(0.95) rotate(2deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        /* Shot 10: Ticker Tape Ribbon ('Till I take you) */
+        .shot-ticker-ribbon {
+            justify-content: space-between;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .ticker-strip-wrap {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.9);
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            padding: 4px 0;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+        .ticker-text {
+            display: inline-block;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #000;
+            animation: marquee-left 3.5s linear infinite;
+        }
+        .ticker-text.reverse {
+            animation: marquee-right 3.5s linear infinite;
+        }
+        @keyframes marquee-left {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+        @keyframes marquee-right {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+        }
+
+        /* Shot 11: Down Down Down Cascade */
+        .shot-down-cascade {
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .cascade-line {
+            font-size: 38px;
+            font-weight: 900;
+            text-align: center;
+            letter-spacing: 1px;
+            font-family: var(--font-serif);
+        }
+        .cascade-line.faint-1 { opacity: 0.25; transform: scale(0.85); }
+        .cascade-line.faint-2 { opacity: 0.55; transform: scale(0.92); }
+        .cascade-line.hero { opacity: 1; font-size: 46px; }
+
+        /* Shot 12: In the ground */
+        .shot-ground .top-line {
+            font-size: 38px;
+            font-weight: 900;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .shot-ground .bot-line {
+            font-size: 48px;
+            font-weight: 900;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        /* General Keyframe Animations */
+        @keyframes tracking-expand {
+            0% { letter-spacing: 0px; opacity: 0.6; }
+            100% { letter-spacing: 5px; opacity: 1; }
+        }
+
+        @keyframes slam-impact {
+            0% { transform: scale(1.4); opacity: 0; filter: blur(6px); }
+            100% { transform: scale(1); opacity: 1; filter: blur(0); }
+        }
+
+        /* Side Control Panel (Folia App Inspector Style) */
+        .control-panel {
+            width: 480px;
+            background: var(--surface-glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--surface-border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 59, 122, 0.15);
+            color: var(--accent-pink);
+            border: 1px solid rgba(255, 59, 122, 0.3);
+            font-family: var(--font-mono);
+        }
+
+        /* Player Controls */
+        .playback-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .scrubber-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .time-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-pink);
+            box-shadow: 0 0 8px var(--accent-pink);
+            cursor: pointer;
+        }
+
+        .button-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            outline: none;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.18s ease;
+            font-family: var(--font-display);
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.16);
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-pink), #e11d48);
+            box-shadow: 0 4px 16px rgba(255, 59, 122, 0.35);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #ff4f8b, #f43f5e);
+            box-shadow: 0 6px 20px rgba(255, 59, 122, 0.5);
+        }
+
+        /* Shot Pill Timeline List */
+        .shot-list-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .shot-list-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+
+        .shots-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .shots-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+        .shots-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        .shot-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 11px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .shot-pill:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .shot-pill.current {
+            background: rgba(255, 59, 122, 0.14);
+            border-color: var(--accent-pink);
+            box-shadow: 0 0 10px rgba(255, 59, 122, 0.2);
+        }
+        .shot-pill strong {
+            font-size: 11px;
+            color: var(--text-primary);
+        }
+        .shot-pill span {
+            font-size: 9.5px;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+        }
+
+        /* Techniques Analysis Card */
+        .analysis-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .analysis-card h4 {
+            color: var(--accent-gold);
+            font-size: 12px;
+            margin-bottom: 6px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .analysis-card ul {
+            padding-left: 18px;
+            margin-top: 4px;
+        }
+
+        .analysis-card li {
+            margin-bottom: 3px;
+        }
+
+        .toggles-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-btn {
+            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .toggle-btn.active {
+            background: rgba(0, 242, 254, 0.15);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="app-header">
+        <div class="brand-pill">
+            <div class="brand-dot"></div>
+            <span>FOLIA VISUALIZER LAB</span>
+            <span style="opacity: 0.35;">/</span>
+            <span style="color: var(--accent-pink);">KINETIC TYPOGRAPHY PV ENGINE</span>
+        </div>
+        <div class="header-meta">
+            <span>CHOREOGRAPHY: 12 PATTERNS</span>
+            <span>SONG: PARTNERS IN CRIME (135 BPM)</span>
+            <span>FPS: 60 SYNC</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+        
+        <!-- Stage Viewport (Phone Screen 9:16) -->
+        <div class="stage-container" id="stageContainer">
+            
+            <!-- Background Canvas (Speedlines, Shockwaves, Geometric Grid) -->
+            <canvas class="stage-canvas-bg" id="bgCanvas"></canvas>
+
+            <!-- Layer 2: 3D Ghost Kinetic Typography Echo behind character -->
+            <div class="stage-backdrop-text" id="backdropTextLayer">
+                <div class="echo-word" id="echoWord">RIVAL</div>
+            </div>
+
+            <!-- Layer 3: Character Model -->
+            <div class="stage-character-layer">
+                <img src="public/demo-character.jpg" alt="Kiichan" class="character-img" id="characterImg" onerror="if(!this.retried){this.retried=true;this.src='demo-character.jpg';}else{this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';}">
+            </div>
+
+            <!-- Manga Speedlines Overlay -->
+            <canvas class="speedlines-canvas" id="speedlinesCanvas"></canvas>
+
+            <!-- Layer 5: Technical Camera Viewfinder HUD -->
+            <div class="hud-overlay" id="hudOverlay">
+                <div class="hud-top">
+                    <div>
+                        <div class="hud-bracket">[ + ]</div>
+                        <div class="hud-barcode">||||||||||||||| FOLIA_PV_REC</div>
+                    </div>
+                    <div class="hud-timecode">
+                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444;"></span>
+                        <span id="hudTimestamp">00:00:00:00</span>
+                    </div>
+                </div>
+                <div class="hud-bottom">
+                    <span style="opacity:0.6;">ISO 400 • F/1.8 • 1/250</span>
+                    <span class="hud-bracket">[ + ]</span>
+                </div>
+            </div>
+
+            <!-- Layer 6: Kinetic Foreground Lyrics Overlay -->
+            <div class="stage-lyrics-layer" id="lyricsLayer">
+                
+                <!-- Shot 1: 00.00s - 02.10s -->
+                <div class="lyric-shot shot-rival-idol text-outline-strong" data-start="0.0" data-end="2.1" data-echo="RIVAL">
+                    <div class="top-line text-line-ruler">my rival,</div>
+                    <div class="bot-line">my idol</div>
+                </div>
+
+                <!-- Shot 2: 02.10s - 04.10s -->
+                <div class="lyric-shot shot-suicidal text-outline-strong" data-start="2.1" data-end="4.1" data-echo="SUICIDAL">
+                    <div class="top-line">You got me</div>
+                    <div class="bot-line text-line-ruler">suicidal</div>
+                </div>
+
+                <!-- Shot 3: 04.10s - 05.60s -->
+                <div class="lyric-shot shot-my-love text-outline-strong" data-start="4.1" data-end="5.6" data-echo="MY LOVE">
+                    <div class="watermark-stack">my love, my love, my love, my love</div>
+                    <div class="top-line">My love,</div>
+                    <div class="bot-line">your rage</div>
+                </div>
+
+                <!-- Shot 4: 05.60s - 07.40s (Arched Indexed Numbers) -->
+                <div class="lyric-shot shot-arched-numbers text-outline-strong" data-start="5.6" data-end="7.4" data-echo="CLAIM">
+                    <div class="top-line">
+                        <div class="indexed-char"><span class="num">1</span>O</div>
+                        <div class="indexed-char"><span class="num">2</span>u</div>
+                        <div class="indexed-char"><span class="num">3</span>r</div>
+                        <div class="indexed-char" style="width: 8px;"></div>
+                        <div class="indexed-char"><span class="num">4</span>d</div>
+                        <div class="indexed-char"><span class="num">5</span>y</div>
+                        <div class="indexed-char"><span class="num">6</span>i</div>
+                        <div class="indexed-char"><span class="num">7</span>n</div>
+                        <div class="indexed-char"><span class="num">8</span>g</div>
+                    </div>
+                    <div class="bot-line">claim to fame</div>
+                </div>
+
+                <!-- Shot 5: 07.40s - 09.20s (Manga Burst Action) -->
+                <div class="lyric-shot shot-legendary text-outline-strong" data-start="7.4" data-end="9.2" data-echo="BATTLE">
+                    <div class="top-line">Our battle</div>
+                    <div class="bot-line">legendary</div>
+                </div>
+
+                <!-- Shot 6: 09.20s - 11.00s (Fraternizing HUD) -->
+                <div class="lyric-shot shot-fraternizing text-outline-strong" data-start="9.2" data-end="11.0" data-echo="FICKLE">
+                    <div class="top-line">Our fickle</div>
+                    <div class="bot-line text-line-ruler">fraternizing</div>
+                </div>
+
+                <!-- Shot 7: 11.00s - 12.80s (Editorial Italic Serif) -->
+                <div class="lyric-shot shot-war-inside text-outline-strong" data-start="11.0" data-end="12.8" data-echo="HEART">
+                    <div class="top-line">&gt; A war inside</div>
+                    <div class="bot-line">&gt; my heart</div>
+                </div>
+
+                <!-- Shot 8: 12.80s - 14.80s (Curved Head Halo) -->
+                <div class="lyric-shot shot-until-death text-outline-strong" data-start="12.8" data-end="14.8" data-echo="DEATH">
+                    <div class="curved-halo-wrap">
+                        <svg viewBox="0 0 320 100" width="100%" height="100%">
+                            <path id="haloPath" d="M 20 80 Q 160 10 300 80" fill="transparent" />
+                            <text fill="#ffffff" font-size="28" font-weight="900" letter-spacing="3" stroke="#000" stroke-width="2.5" paint-order="stroke fill">
+                                <textPath href="#haloPath" startOffset="50%" text-anchor="middle">
+                                    ★ Until death ★
+                                </textPath>
+                            </text>
+                        </svg>
+                    </div>
+                    <div class="bot-line">do us part</div>
+                </div>
+
+                <!-- Shot 9: 14.80s - 17.50s (Chorus Drop - BANG BANG BANG) -->
+                <div class="lyric-shot shot-bang text-outline-strong" data-start="14.8" data-end="17.5" data-echo="BANG">
+                    <div class="bang-box kick" id="bangBox1">“ bang, ”</div>
+                    <div class="bang-box kick" id="bangBox2">“ bang, bang ”</div>
+                </div>
+
+                <!-- Shot 10: 17.50s - 18.80s (Ticker Tape Marquee Ribbon) -->
+                <div class="lyric-shot shot-ticker-ribbon" data-start="17.5" data-end="18.8" data-echo="TAKE YOU">
+                    <div class="ticker-strip-wrap">
+                        <div class="ticker-text">'TILL TAKE YOU • 'TILL TAKE YOU • 'TILL TAKE YOU • 'TILL TAKE YOU • 'TILL TAKE YOU • 'TILL TAKE YOU •</div>
+                    </div>
+                    <div class="ticker-strip-wrap">
+                        <div class="ticker-text reverse">TAKE YOU DOWN • TAKE YOU DOWN • TAKE YOU DOWN • TAKE YOU DOWN • TAKE YOU DOWN • TAKE YOU DOWN •</div>
+                    </div>
+                </div>
+
+                <!-- Shot 11: 18.80s - 20.80s (Down Down Down Cascade) -->
+                <div class="lyric-shot shot-down-cascade text-outline-strong" data-start="18.8" data-end="20.8" data-echo="DOWN">
+                    <div class="cascade-line faint-1">Down, down</div>
+                    <div class="cascade-line faint-2">Down, down</div>
+                    <div class="cascade-line hero">down, down, down</div>
+                </div>
+
+                <!-- Shot 12: 20.80s - 28.80s (In the Ground) -->
+                <div class="lyric-shot shot-ground text-outline-strong" data-start="20.8" data-end="28.8" data-echo="GROUND">
+                    <div class="top-line">I want you</div>
+                    <div class="bot-line text-line-ruler">in the ground</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Side: Interactive Controls & Analysis Panel -->
+        <div class="control-panel">
+            <div class="panel-title">
+                <span>Trình Điều Khiển Hoạt Ảnh</span>
+                <span class="panel-badge">PV ENGINE 1.0</span>
+            </div>
+
+            <!-- Playback Scrubber & Transport -->
+            <div class="playback-box">
+                <div class="scrubber-row">
+                    <span id="currentTimeDisplay">00:00.0</span>
+                    <input type="range" class="time-slider" id="timeSlider" min="0" max="28.8" step="0.05" value="0">
+                    <span id="durationDisplay">00:28.8</span>
+                </div>
+                <div class="button-row">
+                    <button class="btn btn-primary" id="btnPlay">▶ Phát (Play)</button>
+                    <button class="btn" id="btnSlowMo">⏱ 0.5x Chậm</button>
+                    <button class="btn" id="btnLoop">🔁 Lặp lại: BẬT</button>
+                    <button class="btn" id="btnRestart">⏮ Đầu bài</button>
+                </div>
+            </div>
+
+            <!-- Toggles for Visualizer Layers -->
+            <div class="toggles-row">
+                <button class="toggle-btn active" id="toggleSpeedlines">Tia tốc độ (Speedlines)</button>
+                <button class="toggle-btn active" id="toggleShake">Rung chấn (Screen Shake)</button>
+                <button class="toggle-btn active" id="toggleHud">Giao diện HUD</button>
+                <button class="toggle-btn active" id="toggleEcho">Chữ nền 3D Echo</button>
+            </div>
+
+            <!-- Direct Shot Navigator -->
+            <div class="shot-list-box">
+                <div class="shot-list-label">Danh sách các mẫu hoạt ảnh (Click để nhảy tới)</div>
+                <div class="shots-grid" id="shotsGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Architectural Analysis Breakdown (Folia Guidelines) -->
+            <div class="analysis-card">
+                <h4>📐 Phân Tích Kỹ Thuật Hoạt Ảnh Lời (Anime PV Style)</h4>
+                <ul>
+                    <li><strong>1. Layering 2.5D (Text-Behind-Character):</strong> Chữ khổng lồ dập nổi sau lưng nhân vật (3D Echo) tạo chiều sâu sân khấu, phối hợp lời chính sắc nét phía trước.</li>
+                    <li><strong>2. High-Tension Easing (ExpoOut & Elastic):</strong> Sử dụng hàm <code>easeExpoOut</code> cho các từ đập mạnh (Impact Slam) và <code>easeElastic</code> cho các từ nảy theo nhịp trống ("bang!").</li>
+                    <li><strong>3. Manga Speed Lines & HUD Accents:</strong> Tia tốc độ tập trung vào nhân vật, kết hợp khung ngắm ống kính, mã vạch, timecode gợi nhớ các MV Vocaloid/Anime nổi tiếng.</li>
+                    <li><strong>4. Ticker Ribbon & Tracking Bloom:</strong> Dải chữ chạy ngang kiểu băng chuyền (Marquee) và hiệu ứng dãn khoảng cách chữ (Letter-spacing expand) trên các từ kéo dài âm tiết.</li>
+                </ul>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Audio Element (Loads extracted audio, or Web Audio API fallback) -->
+    <audio id="audioElement" src="public/demo-lyrics-audio.mp3" preload="auto"></audio>
+
+    <script>
+        // --- DATA TIMELINE SPECIFICATION (Matching the exact video timings) ---
+        const SHOTS_TIMELINE = [
+            { id: 1, title: "01. Rival & Idol", start: 0.0, end: 2.1, echo: "RIVAL", desc: "Split Impact + Scanline tracking" },
+            { id: 2, title: "02. Suicidal", start: 2.1, end: 4.1, echo: "SUICIDAL", desc: "Letter-spacing bloom + Ruler" },
+            { id: 3, title: "03. My Love & Rage", start: 4.1, end: 5.6, echo: "MY LOVE", desc: "Watermark stack + Viewfinder" },
+            { id: 4, title: "04. Claim to Fame", start: 5.6, end: 7.4, echo: "CLAIM", desc: "Numerical Indexing Arcs" },
+            { id: 5, title: "05. Battle Legendary", start: 7.4, end: 9.2, echo: "BATTLE", desc: "Speedline action burst" },
+            { id: 6, title: "06. Fraternizing", start: 9.2, end: 11.0, echo: "FICKLE", desc: "Cyber HUD + Barcode" },
+            { id: 7, title: "07. A War Inside", start: 11.0, end: 12.8, echo: "HEART", desc: "Editorial Italic Serif" },
+            { id: 8, title: "08. Until Death Halo", start: 12.8, end: 14.8, echo: "DEATH", desc: "Curved Head-Halo SVG" },
+            { id: 9, title: "09. BANG BANG BANG", start: 14.8, end: 17.5, echo: "BANG", desc: "Beat-drop bounce + Quotes" },
+            { id: 10, title: "10. 'Till Take You", start: 17.5, end: 18.8, echo: "TAKE YOU", desc: "Dual Marquee Ticker Ribbon" },
+            { id: 11, title: "11. Down Down Down", start: 18.8, end: 20.8, echo: "DOWN", desc: "Vertical Fade Cascade" },
+            { id: 12, title: "12. In the Ground", start: 20.8, end: 28.8, echo: "GROUND", desc: "Impact Finish + Boxed Frame" }
+        ];
+
+        // --- DOM REFERENCES ---
+        const stageContainer = document.getElementById('stageContainer');
+        const bgCanvas = document.getElementById('bgCanvas');
+        const speedlinesCanvas = document.getElementById('speedlinesCanvas');
+        const echoWord = document.getElementById('echoWord');
+        const lyricsLayer = document.getElementById('lyricsLayer');
+        const timeSlider = document.getElementById('timeSlider');
+        const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+        const hudTimestamp = document.getElementById('hudTimestamp');
+        const btnPlay = document.getElementById('btnPlay');
+        const btnSlowMo = document.getElementById('btnSlowMo');
+        const btnLoop = document.getElementById('btnLoop');
+        const btnRestart = document.getElementById('btnRestart');
+        const shotsGrid = document.getElementById('shotsGrid');
+        const audioElement = document.getElementById('audioElement');
+
+        // Toggle buttons
+        const toggleSpeedlines = document.getElementById('toggleSpeedlines');
+        const toggleShake = document.getElementById('toggleShake');
+        const toggleHud = document.getElementById('toggleHud');
+        const toggleEcho = document.getElementById('toggleEcho');
+
+        let isPlaying = false;
+        let playbackRate = 1.0;
+        let isLooping = true;
+        let currentTime = 0;
+        const totalDuration = 28.8;
+        let animationFrameId = null;
+        let lastTimestamp = performance.now();
+        let enableSpeedlines = true;
+        let enableShake = true;
+        let enableHud = true;
+        let enableEcho = true;
+
+        // Web Audio Synthesizer Fallback (Generates drum beat if audio file isn't loaded)
+        let audioCtx = null;
+        let synthKickTriggered = false;
+
+        function initWebAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+        }
+
+        function playSynthBeep(time, freq, type, decay) {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + decay);
+            } catch (e) {}
+        }
+
+        // --- CANVAS SETUP ---
+        const bgCtx = bgCanvas.getContext('2d');
+        const speedlinesCtx = speedlinesCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            const rect = stageContainer.getBoundingClientRect();
+            bgCanvas.width = rect.width * window.devicePixelRatio;
+            bgCanvas.height = rect.height * window.devicePixelRatio;
+            speedlinesCanvas.width = rect.width * window.devicePixelRatio;
+            speedlinesCanvas.height = rect.height * window.devicePixelRatio;
+            bgCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            speedlinesCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        // Draw Speedlines Burst Canvas
+        function drawSpeedlines(time, active) {
+            const w = stageContainer.clientWidth;
+            const h = stageContainer.clientHeight;
+            speedlinesCtx.clearRect(0, 0, w, h);
+            if (!active || !enableSpeedlines) return;
+
+            const cx = w / 2;
+            const cy = h * 0.45;
+            const lineCount = 38;
+            speedlinesCtx.save();
+            speedlinesCtx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+            speedlinesCtx.lineWidth = 2;
+
+            for (let i = 0; i < lineCount; i++) {
+                const angle = (i / lineCount) * Math.PI * 2 + (Math.sin(time * 20 + i) * 0.05);
+                const innerDist = 120 + (Math.sin(i * 13 + time * 15) * 20);
+                const outerDist = Math.max(w, h) * 0.8;
+                const x1 = cx + Math.cos(angle) * innerDist;
+                const y1 = cy + Math.sin(angle) * innerDist;
+                const x2 = cx + Math.cos(angle) * outerDist;
+                const y2 = cy + Math.sin(angle) * outerDist;
+
+                speedlinesCtx.beginPath();
+                speedlinesCtx.moveTo(x1, y1);
+                speedlinesCtx.lineTo(x2, y2);
+                speedlinesCtx.stroke();
+            }
+            speedlinesCtx.restore();
+        }
+
+        // Draw Background Subtle Grid & Particles
+        function drawBackground(time) {
+            const w = stageContainer.clientWidth;
+            const h = stageContainer.clientHeight;
+            bgCtx.clearRect(0, 0, w, h);
+
+            // Subtle moving tech grid lines
+            bgCtx.save();
+            bgCtx.strokeStyle = 'rgba(0, 0, 0, 0.04)';
+            bgCtx.lineWidth = 1;
+            const gridSpacing = 40;
+            const offsetY = (time * 15) % gridSpacing;
+
+            for (let y = offsetY; y < h; y += gridSpacing) {
+                bgCtx.beginPath();
+                bgCtx.moveTo(0, y);
+                bgCtx.lineTo(w, y);
+                bgCtx.stroke();
+            }
+            bgCtx.restore();
+        }
+
+        // Populate Shot Navigator Pills
+        function buildShotGrid() {
+            shotsGrid.innerHTML = '';
+            SHOTS_TIMELINE.forEach(shot => {
+                const pill = document.createElement('div');
+                pill.className = 'shot-pill';
+                pill.id = `shotPill-${shot.id}`;
+                pill.innerHTML = `
+                    <strong>${shot.title}</strong>
+                    <span>${shot.start.toFixed(1)}s - ${shot.end.toFixed(1)}s • ${shot.desc}</span>
+                `;
+                pill.addEventListener('click', () => {
+                    seekToTime(shot.start);
+                });
+                shotsGrid.appendChild(pill);
+            });
+        }
+        buildShotGrid();
+
+        // Seek function
+        function seekToTime(t) {
+            currentTime = Math.max(0, Math.min(totalDuration, t));
+            timeSlider.value = currentTime;
+            if (audioElement && audioElement.duration) {
+                audioElement.currentTime = currentTime;
+            }
+            updateStage(currentTime);
+        }
+
+        // Trigger Screen Shake
+        let lastShakeTime = 0;
+        function triggerShake() {
+            if (!enableShake) return;
+            stageContainer.classList.remove('shake');
+            void stageContainer.offsetWidth; // Force reflow
+            stageContainer.classList.add('shake');
+        }
+
+        // Main Stage Update (Frame by frame)
+        function updateStage(t) {
+            // Update time display
+            const mins = Math.floor(t / 60);
+            const secs = Math.floor(t % 60);
+            const tenths = Math.floor((t % 1) * 10);
+            currentTimeDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${tenths}`;
+            
+            // Format timecode for HUD
+            const frames = Math.floor((t % 1) * 30);
+            hudTimestamp.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}:${String(frames).padStart(2, '0')}:12`;
+
+            // Active shot detection
+            let currentShot = null;
+            const shots = document.querySelectorAll('.lyric-shot');
+
+            shots.forEach((shotEl, idx) => {
+                const s = parseFloat(shotEl.getAttribute('data-start'));
+                const e = parseFloat(shotEl.getAttribute('data-end'));
+                const shotInfo = SHOTS_TIMELINE[idx];
+
+                if (t >= s && t < e) {
+                    currentShot = shotInfo;
+                    if (!shotEl.classList.contains('active')) {
+                        shotEl.classList.add('active');
+                        // Shot entrance trigger
+                        if (shotInfo.id === 5 || shotInfo.id === 9) {
+                            triggerShake();
+                        }
+                    }
+                } else {
+                    shotEl.classList.remove('active');
+                }
+            });
+
+            // Update 3D Echo Backdrop Word
+            if (currentShot && enableEcho) {
+                echoWord.style.opacity = '1';
+                echoWord.textContent = currentShot.echo;
+                const progress = (t - currentShot.start) / Math.max(0.1, currentShot.end - currentShot.start);
+                const scale = 1.0 + progress * 0.18;
+                const translateY = Math.sin(t * 3) * 12;
+                echoWord.style.transform = `scale(${scale}) translateY(${translateY}px)`;
+            } else {
+                echoWord.style.opacity = '0';
+            }
+
+            // Update Speedlines (active on action shots 5, 9, 11)
+            const isSpeedlineShot = currentShot && (currentShot.id === 5 || currentShot.id === 9 || currentShot.id === 12);
+            drawSpeedlines(t, isSpeedlineShot);
+            drawBackground(t);
+
+            // Special Animation Hooks
+            // Shot 9: Bang Bang Bang bounce sync
+            if (currentShot && currentShot.id === 9) {
+                const relTime = t - currentShot.start;
+                const bang1 = document.getElementById('bangBox1');
+                const bang2 = document.getElementById('bangBox2');
+                if (bang1 && bang2) {
+                    if (relTime < 0.6) {
+                        bang1.style.transform = `scale(${1 + Math.sin(relTime * 18) * 0.12})`;
+                    } else {
+                        bang2.style.transform = `scale(${1 + Math.sin(relTime * 18) * 0.14})`;
+                    }
+                }
+            }
+
+            // Highlight Active Pill in navigator
+            SHOTS_TIMELINE.forEach(shot => {
+                const pill = document.getElementById(`shotPill-${shot.id}`);
+                if (pill) {
+                    if (currentShot && currentShot.id === shot.id) {
+                        pill.classList.add('current');
+                    } else {
+                        pill.classList.remove('current');
+                    }
+                }
+            });
+        }
+
+        // Animation Loop
+        function tick(now) {
+            const delta = (now - lastTimestamp) / 1000;
+            lastTimestamp = now;
+
+            if (isPlaying) {
+                currentTime += delta * playbackRate;
+                if (currentTime >= totalDuration) {
+                    if (isLooping) {
+                        currentTime = 0;
+                        if (audioElement) audioElement.currentTime = 0;
+                    } else {
+                        currentTime = totalDuration;
+                        isPlaying = false;
+                        btnPlay.textContent = '▶ Phát (Play)';
+                    }
+                }
+                timeSlider.value = currentTime;
+                updateStage(currentTime);
+            }
+
+            animationFrameId = requestAnimationFrame(tick);
+        }
+
+        // --- CONTROLS EVENT HANDLERS ---
+        btnPlay.addEventListener('click', () => {
+            initWebAudio();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                btnPlay.textContent = '⏸ Tạm dừng';
+                if (audioElement && audioElement.src) {
+                    audioElement.currentTime = currentTime;
+                    audioElement.playbackRate = playbackRate;
+                    audioElement.play().catch(() => {
+                        console.log('Audio file playback restricted, running in web-audio mode');
+                    });
+                }
+            } else {
+                btnPlay.textContent = '▶ Phát (Play)';
+                if (audioElement) audioElement.pause();
+            }
+        });
+
+        btnSlowMo.addEventListener('click', () => {
+            if (playbackRate === 1.0) {
+                playbackRate = 0.5;
+                btnSlowMo.textContent = '⏱ 1.0x Chuẩn';
+                btnSlowMo.style.background = 'rgba(0, 242, 254, 0.2)';
+            } else {
+                playbackRate = 1.0;
+                btnSlowMo.textContent = '⏱ 0.5x Chậm';
+                btnSlowMo.style.background = 'rgba(255, 255, 255, 0.08)';
+            }
+            if (audioElement) audioElement.playbackRate = playbackRate;
+        });
+
+        btnLoop.addEventListener('click', () => {
+            isLooping = !isLooping;
+            btnLoop.textContent = isLooping ? '🔁 Lặp lại: BẬT' : '🔁 Lặp lại: TẮT';
+        });
+
+        btnRestart.addEventListener('click', () => {
+            seekToTime(0);
+        });
+
+        timeSlider.addEventListener('input', (e) => {
+            seekToTime(parseFloat(e.target.value));
+        });
+
+        // Layer Toggles
+        toggleSpeedlines.addEventListener('click', () => {
+            enableSpeedlines = !enableSpeedlines;
+            toggleSpeedlines.classList.toggle('active', enableSpeedlines);
+        });
+
+        toggleShake.addEventListener('click', () => {
+            enableShake = !enableShake;
+            toggleShake.classList.toggle('active', enableShake);
+        });
+
+        toggleHud.addEventListener('click', () => {
+            enableHud = !enableHud;
+            toggleHud.classList.toggle('active', enableHud);
+            document.getElementById('hudOverlay').style.display = enableHud ? 'flex' : 'none';
+        });
+
+        toggleEcho.addEventListener('click', () => {
+            enableEcho = !enableEcho;
+            toggleEcho.classList.toggle('active', enableEcho);
+            document.getElementById('backdropTextLayer').style.display = enableEcho ? 'flex' : 'none';
+        });
+
+        // Sync Audio with Slider if playing
+        audioElement.addEventListener('error', () => {
+            if (!audioElement.triedFallback) {
+                audioElement.triedFallback = true;
+                audioElement.src = 'demo-lyrics-audio.mp3';
+            }
+        });
+
+        audioElement.addEventListener('timeupdate', () => {
+            if (isPlaying && Math.abs(audioElement.currentTime - currentTime) > 0.3) {
+                currentTime = audioElement.currentTime;
+                timeSlider.value = currentTime;
+                updateStage(currentTime);
+            }
+        });
+
+        // Start Loop
+        updateStage(0);
+        lastTimestamp = performance.now();
+        requestAnimationFrame(tick);
+    </script>
+</body>
+</html>

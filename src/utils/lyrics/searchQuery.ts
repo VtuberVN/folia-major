@@ -9,6 +9,10 @@ const normalizeArtistIdentity = (value: string): string => (
     normalizeLyricMatchText(value).replace(/\s+/gu, '')
 );
 
+const VIDEO_NOISE_REGEX = /[\(\[（【〔〈《「『]\s*(?:official\s*(?:music\s*)?video|official\s*audio|music\s*video|official|audio|mv|lyrics?|lyric\s*video|full\s*ver(?:sion)?|hd|4k|m\/v|clip\s*officiel)\s*[\)\]）】〕〉》」』]/giu;
+const TRAILING_NOISE_REGEX = /\s*[-–—|/]\s*(?:official\s*(?:music\s*)?video|official\s*audio|music\s*video|lyric\s*video|mv|audio)\s*$/giu;
+const TRAILING_VIDEO_TAG_REGEX = /\s+(?:official\s*(?:music\s*)?video|official\s*audio|music\s*video|lyric\s*video|mv)\s*$/giu;
+
 // Strips karaoke, beat, official video tags and common noise from video/song titles.
 export const cleanNoiseKeywordsForLyricSearch = (title: string): string => {
     let result = title;
@@ -24,30 +28,56 @@ export const cleanNoiseKeywordsForLyricSearch = (title: string): string => {
     return result.replace(/\s+/g, ' ').trim();
 };
 
-// Removes a duplicated "artist - title" prefix when the provider already supplies artists separately.
+import { cleanTitleWithRules, parseAndValidateFilterRules } from './titleNoiseFilter';
+import { useLyricSettingsStore } from '../../stores/useLyricSettingsStore';
+
+export const cleanTitleNoise = (title: string): string => {
+    try {
+        const state = useLyricSettingsStore.getState();
+        if (state.titleNoiseFilterEnabled === false) {
+            return title.trim();
+        }
+        const { validRules } = parseAndValidateFilterRules(state.titleNoiseFilterCustomKeywords || '');
+        return cleanTitleWithRules(title, {
+            useDefaultFilter: state.titleNoiseFilterDefaultEnabled !== false,
+            customRules: validRules,
+        });
+    } catch {
+        return cleanTitleWithRules(title);
+    }
+};
+
+// Removes a duplicated "artist - title" prefix when the provider already supplies artists separately,
+// and strips video/audio tags commonly found in online/YouTube titles.
 export const normalizeSongTitleForLyricSearch = (
     title?: string | null,
     artist?: string | null,
 ): string => {
     const rawTitle = title?.trim() || '';
     if (!rawTitle) return '';
-    const cleaned = cleanNoiseKeywordsForLyricSearch(rawTitle);
-    const candidateTitle = cleaned || rawTitle;
+
+    let candidate = cleanTitleNoise(rawTitle) || rawTitle;
 
     const trimmedArtist = artist?.trim() || '';
-    if (!trimmedArtist) return candidateTitle;
-
-    const separator = candidateTitle.match(/^(.+?)\s+-\s+(.+)$/u);
-    if (!separator) return candidateTitle;
-
-    const prefixNorm = normalizeArtistIdentity(separator[1]);
-    const artistNorm = normalizeArtistIdentity(trimmedArtist);
-
-    if (prefixNorm === artistNorm || (prefixNorm && artistNorm && (prefixNorm.includes(artistNorm) || artistNorm.includes(prefixNorm)))) {
-        return separator[2].trim();
+    if (trimmedArtist) {
+        // Check for "Artist「Title」" pattern
+        const cornerBracketMatch = candidate.match(/^(.+?)\s*[「『]([^」』]+)[」』]/u);
+        if (cornerBracketMatch && normalizeArtistIdentity(cornerBracketMatch[1]) === normalizeArtistIdentity(trimmedArtist)) {
+            candidate = cornerBracketMatch[2].trim();
+        } else {
+            const separator = candidate.match(/^(.+?)\s+-\s+(.+)$/u);
+            if (separator) {
+                const prefixNorm = normalizeArtistIdentity(separator[1]);
+                const artistNorm = normalizeArtistIdentity(trimmedArtist);
+                if (prefixNorm === artistNorm || (prefixNorm && artistNorm && (prefixNorm.includes(artistNorm) || artistNorm.includes(prefixNorm)))) {
+                    candidate = separator[2].trim();
+                }
+            }
+        }
     }
 
-    return candidateTitle;
+    const cleaned = cleanTitleNoise(candidate);
+    return cleaned || candidate;
 };
 
 // Keeps long anime/single album names useful for provider search by dropping catalog notes and credits first.
