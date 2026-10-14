@@ -13,6 +13,8 @@ interface FmTabProps {
     onNextTrack: () => void;
     onPrevTrack: () => void;
     onTrash: () => void;
+    /** provider 没有「不喜欢」时置灰（QQ、波点）。 */
+    trashDisabled?: boolean;
     onLike: () => void;
     isLiked: boolean;
     likeDisabled?: boolean;
@@ -29,6 +31,7 @@ const FmTab: React.FC<FmTabProps> = ({
     onNextTrack,
     onPrevTrack,
     onTrash,
+    trashDisabled = false,
     onLike,
     isLiked,
     likeDisabled = false,
@@ -95,11 +98,12 @@ const FmTab: React.FC<FmTabProps> = ({
                 {/* Trash Button */}
                 <button
                     onClick={onTrash}
-                    className={`flex flex-col items-center gap-2 group opacity-50 hover:opacity-100 transition-opacity`}
+                    disabled={trashDisabled}
+                    className={`flex flex-col items-center gap-2 group opacity-50 hover:opacity-100 transition-opacity disabled:cursor-not-allowed disabled:opacity-30`}
                     title={t('ui.trashDislike')}
                     style={{ color: 'var(--text-primary)' }}
                 >
-                    <div className={`p-3 rounded-full transition-colors ${btnBg} group-hover:bg-red-500/20 group-hover:text-red-500`}>
+                    <div className={`p-3 rounded-full transition-colors ${btnBg} ${trashDisabled ? '' : 'group-hover:bg-red-500/20 group-hover:text-red-500'}`}>
                         <Trash2 size={24} />
                     </div>
                 </button>

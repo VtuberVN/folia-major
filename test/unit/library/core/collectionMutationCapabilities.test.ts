@@ -19,6 +19,8 @@ import {
 
 const canEditCollectionTracks = (collection: any) => collection.providerId === 'editable';
 const canSubscribeCollection = (collection: any) => collection.providerId !== 'nosub';
+// 有日推却没有「不喜欢」的 provider（QQ）：管理推荐必定失败，不该给编辑。
+const canDislikeCollectionSongs = (collection: any) => collection.providerId !== 'nodislike';
 
 const toSourceActions = (port: LibraryMutationPort) => ({
     local: {
@@ -81,7 +83,7 @@ const gridViewReference = ({
     const canEditPlaylist = Boolean(
         canEditOwnedPlaylist
         || canEditProviderPlaylist
-        || (isDailyRecommendationsCollection && !selectedDailyRecommendationDate)
+        || (isDailyRecommendationsCollection && !selectedDailyRecommendationDate && canDislikeCollectionSongs(collection))
         || isLocalPlaylistCollection
         || isNavidromePlaylistCollection
     );
@@ -174,7 +176,7 @@ const DESCRIPTORS: LibraryCollectionDescriptor[] = [
     { source: 'navidrome', id: 'np2', name: 'Navi RO', type: 'playlist' },
     { source: 'navidrome', id: 'na', name: 'Navi Album', type: 'album' },
     { source: 'navidrome', id: 'random', name: 'Random', type: 'random' },
-    ...(['editable', 'readonly', 'nosub'] as const).flatMap((providerId): LibraryCollectionDescriptor[] => [
+    ...(['editable', 'readonly', 'nosub', 'nodislike'] as const).flatMap((providerId): LibraryCollectionDescriptor[] => [
         { source: 'online', providerId, id: 'pl', name: 'Mine', type: 'playlist', creator: { id: 'u1', nickname: 'me' } },
         { source: 'online', providerId, id: 'pl2', name: 'Theirs', type: 'playlist', creator: { id: 'u2', nickname: 'them' } },
         { source: 'online', providerId, id: 'pl3', name: 'Owned', type: 'playlist', isOwned: true },
@@ -224,6 +226,7 @@ const resolveFor = (
         currentUserId,
         canEditCollectionTracks: online ? canEditCollectionTracks(online) : false,
         canSubscribeCollection: online ? canSubscribeCollection(online) : false,
+        canDislikeCollectionSongs: online ? canDislikeCollectionSongs(online) : false,
         isCloudDrive: isCloudDriveCollection(descriptor),
         dailyDate,
         port,
@@ -286,6 +289,10 @@ describe('collection mutation branches match GridView', () => {
         const daily = DESCRIPTORS.find(d => d.source === 'online' && d.type === 'daily_recommendations')!;
         expect(resolveFor(daily).branches.canEditPlaylist).toBe(true);
         expect(resolveFor(daily, { dailyDate: '2024-01-01' }).branches.canEditPlaylist).toBe(false);
+        // 有日推、没有「不喜欢」（QQ）：管理推荐就是逐首不喜欢，给了按钮也只会失败。
+        const dailyWithoutDislike = DESCRIPTORS.find(d => d.source === 'online' && d.providerId === 'nodislike' && d.type === 'daily_recommendations')!;
+        expect(resolveFor(dailyWithoutDislike).branches.canEditPlaylist).toBe(false);
+        expect(resolveFor(dailyWithoutDislike).capabilities.removeEntry.supported).toBe(false);
 
         const favorites = DESCRIPTORS.find(d => d.source === 'local' && d.id === 'fav')!;
         // 收藏是虚拟歌单：不能改名、不能删，但能导出（与网格的按钮一致）。

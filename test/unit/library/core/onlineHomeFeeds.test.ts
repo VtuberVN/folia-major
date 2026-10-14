@@ -260,4 +260,24 @@ describe('online home feeds', () => {
         await feed.ensure();
         expect(feed.getSnapshot().data).toEqual({ personalFmCoverUrl: undefined, dailyCoverUrl: '', dailyCount: 0, recommended: [], supportsDailySongs: true });
     });
+
+    // 一块没读到时照常显示读到的部分，但不记成读过：下次进电台页再读，偶发的失败不会在整个会话里留下一张空卡。
+    it('shows a partial radio feed but reads it again on the next visit', async () => {
+        const recommended = [album('a', 9)];
+        const getHomeFeed = vi.fn()
+            .mockResolvedValueOnce({ personalFm: [], dailySongs: [], recommendedCollections: recommended, partial: true as const })
+            .mockResolvedValueOnce({ personalFm: [], dailySongs: [{ id: 'd-0' } as unknown as SongResult], recommendedCollections: recommended });
+        const feed = createRadioFeed({ getHomeFeed, songCoverUrl: song => (song ? String(song.id) : undefined) });
+        feed.setOwner({ providerId: 'a', userId: 1 });
+
+        await feed.ensure();
+        expect(feed.getSnapshot()).toMatchObject({ status: 'ready', loaded: false, data: { recommended, dailyCount: 0, partial: true } });
+
+        await feed.ensure();
+        expect(feed.getSnapshot()).toMatchObject({ status: 'ready', loaded: true, data: { dailyCount: 1, dailyCoverUrl: 'd-0' } });
+        expect(feed.getSnapshot().data).not.toHaveProperty('partial');
+
+        await feed.ensure();
+        expect(getHomeFeed).toHaveBeenCalledTimes(2);
+    });
 });

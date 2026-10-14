@@ -23,6 +23,9 @@ import { attemptChainDecision, attemptFromError, emptyAttempt, summarizePlayback
 import { collectLoginBackendDiagnostics } from './loginBackendDiagnostics';
 import { canRunLoginSelfCheck, runLoginSelfCheck } from './loginSelfCheck';
 import { formatDiagnosticClock } from '../../utils/qrLoginDiagnosticReport';
+import { getQqSongDetail, requestQqSongDetail } from './qqSongDetail';
+import { qqRecommendations } from './qqRecommendations';
+import { getQqSubscriptionStatus, qqMutations } from './qqMutations';
 
 // src/services/onlineMusic/qqProvider.ts
 
@@ -223,28 +226,6 @@ const getPlaylistTracks = async (
     };
 };
 
-const getSongDetail = async (id: MediaId) => {
-    const response = await requestQq<any>('song_info', { songmid: String(id) });
-    const track = response?.response?.songinfo?.data?.track_info;
-    if (!track || typeof track !== 'object') return null;
-    const song = normalizeQqSong(track);
-    return song.qqMid ? song : null;
-};
-
-const qqSongDetailRequests = new Map<string, Promise<UnifiedSong | null>>();
-
-// 同一首歌的专辑与歌手会各触发一次解析，两次落到同一个 songmid 上，去重掉重复请求。
-const requestQqSongDetail = (songmid: string): Promise<UnifiedSong | null> => {
-    const cached = qqSongDetailRequests.get(songmid);
-    if (cached) return cached;
-
-    const request = getSongDetail(songmid).finally(() => {
-        if (qqSongDetailRequests.get(songmid) === request) qqSongDetailRequests.delete(songmid);
-    });
-    qqSongDetailRequests.set(songmid, request);
-    return request;
-};
-
 const hasQqCatalogRefs = (song: UnifiedSong): boolean => Boolean(
     song.album?.catalogRef
     && song.artists.length > 0
@@ -292,6 +273,37 @@ const getResolvedQqAudioQualityInfo = (url: string) => {
     }
 };
 
+// 3.3.0 起拿不到链接的条目带 `restriction`：`codes` 是条目里的安全整数（含义未确认，只进诊断），
+// `hint.key` 是后端给人看的原因。只有 maybe-* 两种是按受控实测特征认出的「可能」原因，其余一律按未确认处理.
+const QQ_LIKELY_CAUSE_BY_HINT: Readonly<Record<string, 'membership' | 'region'>> = {
+    'playback.maybe-membership': 'membership',
+    'playback.maybe-region-restricted': 'region',
+};
+
+type QqPlayRestriction = { upstreamCode?: number; codes: string; hintKey?: string };
+
+const readPlayRestriction = (entry: any): QqPlayRestriction | null => {
+    const restriction = entry?.restriction;
+    if (!restriction || typeof restriction !== 'object') return null;
+    const codes = restriction.codes && typeof restriction.codes === 'object' ? restriction.codes : {};
+    const pairs = Object.entries(codes).filter((pair): pair is [string, number] => Number.isSafeInteger(pair[1]));
+    const primary = pairs.find(([key]) => key === 'result') ?? pairs[0];
+    const hintKey = typeof restriction.hint?.key === 'string' ? restriction.hint.key : undefined;
+    return {
+        ...(primary ? { upstreamCode: primary[1] } : {}),
+        codes: pairs.map(([key, value]) => `${key}=${value}`).join(' '),
+        ...(hintKey ? { hintKey } : {}),
+    };
+};
+
+// 诊断用的原文：后端的 `error` 串，后面接上提示键与数字码。
+const describeEmptyPlayEntry = (entry: any, restriction: QqPlayRestriction | null): string | undefined => {
+    const base = typeof entry?.error === 'string' ? entry.error : '';
+    const extra = [restriction?.hintKey, restriction?.codes].filter(Boolean).join('; ');
+    const text = extra ? `${base}${base ? ' ' : ''}[${extra}]` : base;
+    return text || undefined;
+};
+
 // `data.playUrl` 缺失、不是对象，或者里面找不到条目：有应答但形态不可用，记成 invalid-response 的一次尝试。
 const missingPlayUrlEntryAttempt = (resolvedQuality: AudioQualityPreference): ProviderPlaybackAttempt => ({
     stage: 'music_play',
@@ -323,13 +335,17 @@ const getAudioSource = async (song: SongResult, quality: AudioQualityPreference)
     // Correction: the backend (qrLogin.js:482-495, getMusicPlay.js:113-122) replaces every file's reason
     // with a fixed string, so an empty purl only proves "no link for this request" and is classified as
     // unknown. It must never be read as membership, region or takedown.
+    // 3.3.0：条目多了 `restriction.hint`。后端只在带会话的 m4a / 128 上、特征完整吻合时才说「可能是会员 / 地区」，
+    // 所以只认最后一档（标准音质）给的可能原因，结论仍是 unknown，界面只换一句带「可能」的话。
     let sawEmptyPlayLink = false;
+    let likelyCause: 'membership' | 'region' | undefined;
     const attempts: ProviderPlaybackAttempt[] = [];
     let lastError: unknown;
     // 只有没有会话、且上游确实回过空链接时，登录才「可能」有用；不能据此断定为 auth-required。
     const summarize = () => summarizePlaybackAttempts('qq', attempts, {
         lastError,
         signInMayHelp: !hasQqSession() && attempts.some(attempt => attempt.outcome === 'empty'),
+        likelyCause,
     });
 
     for (const candidate of QQ_QUALITY_FALLBACKS[quality]) {
@@ -355,14 +371,19 @@ const getAudioSource = async (song: SongResult, quality: AudioQualityPreference)
             }
             if (entry && typeof entry === 'object') {
                 sawEmptyPlayLink = true;
+                const restriction = readPlayRestriction(entry);
+                likelyCause = restriction?.hintKey ? QQ_LIKELY_CAUSE_BY_HINT[restriction.hintKey] : undefined;
                 attempts.push(emptyAttempt('music_play', {
                     quality: candidate.resolvedQuality,
-                    detail: typeof entry.error === 'string' ? entry.error : undefined,
+                    upstreamCode: restriction?.upstreamCode,
+                    detail: describeEmptyPlayEntry(entry, restriction),
                 }));
             } else {
+                likelyCause = undefined;
                 attempts.push(missingPlayUrlEntryAttempt(candidate.resolvedQuality));
             }
         } catch (error) {
+            likelyCause = undefined;
             if (error instanceof OnlineProviderError && error.code === 'auth-required') throw error;
             console.warn('[QQProvider] playback:quality-failed', {
                 requestedQuality: quality,
@@ -539,10 +560,11 @@ const getAvailability = (): ReturnType<typeof getQqTransportAvailability> => {
 // 二维码失效时用户看到的是可重试的「已过期」，而不是一个还在轮询的死码。
 const QQ_QR_TTL_MS = 175_000;
 
-// qq-music-api 在扫码失败时附带的结构化字段：失败阶段与原因、上游的 HTTP 状态与返回码、退避时长、上一次失败。
+// qq-music-api 在扫码失败时附带的结构化字段：失败阶段与原因、上游的 HTTP 状态与返回码、退避时长、上一次失败；
+// 3.3.0 起还有登记过的错误键、给人看的原因，以及 QQ 通道被再验证盖掉的换凭证结果（primaryFailure）。
 const QR_FAILURE_FIELDS = [
     'failureStage', 'failureReason', 'upstreamHttpStatus', 'upstreamCode', 'upstreamGlobalCode', 'upstreamSubCode',
-    'retryAfterMs', 'lastFailure',
+    'retryAfterMs', 'lastFailure', 'upstreamErrorKey', 'failureHint', 'primaryFailure', 'fallbackAttempted',
 ] as const;
 
 /** 失败响应的原始字段（原样进诊断时间线）。 */
@@ -564,15 +586,23 @@ const isQrNaturalExpiry = (response: any): boolean => (
 
 // QQ 音乐账号的登录设备数已达上限时凭据交换返回的上游码（与 .github/triage/login-playbook.json 的 qq-device-limit 同一条判定）。
 const QQ_DEVICE_LIMIT_UPSTREAM_CODE = 20279;
+// 3.3.0 给同一种失败登记的错误键；上游码与通道、步骤都对得上时才给。
+const QQ_DEVICE_LIMIT_ERROR_KEY = 'auth.device-limit';
+
+const reportsDeviceLimit = (failure: any): boolean => (
+    Number(failure?.upstreamCode) === QQ_DEVICE_LIMIT_UPSTREAM_CODE
+    || failure?.upstreamErrorKey === QQ_DEVICE_LIMIT_ERROR_KEY
+);
 
 // 最近一次要码的时刻：只认这之后的凭据交换记录，主进程环形记录里上一轮的结果不算。
 let qrKeyRequestedAt = 0;
 
 // 登录设备超限的判定。微信通道的凭据交换没有回退，20279 直接出现在响应的 upstreamCode 上。QQ 通道交换失败后
-// 后端会拿 MQTT 凭据再验一次，验证也被拒（code 1000）才失败在 credential-validation，响应里只剩后一次的码；
-// 20279 只在主进程钩子记下的 qq-auth.upstream-result 里，桌面版去那里找本轮最后一次凭据交换。网页版拿不到，按普通失败处理。
+// 后端会拿 MQTT 凭据再验一次，验证也被拒（code 1000）才失败在 credential-validation，顶层只剩后一次的码；
+// 3.3.0 起被盖掉的换凭证结果放在 primaryFailure 里，网页版也认得出来。更旧的后端没有这个字段，
+// 20279 只在主进程钩子记下的 qq-auth.upstream-result 里，桌面版再去那里找本轮最后一次凭据交换。
 const isQqDeviceLimit = async (response: any): Promise<boolean> => {
-    if (Number(response?.upstreamCode) === QQ_DEVICE_LIMIT_UPSTREAM_CODE) return true;
+    if (reportsDeviceLimit(response) || reportsDeviceLimit(response?.primaryFailure)) return true;
     if (response?.failureStage !== 'credential-validation') return false;
     const getSnapshot = typeof window === 'undefined' ? undefined : window.electron?.getLoginDiagnostics;
     if (!getSnapshot) return false;
@@ -843,8 +873,11 @@ export const qqProvider: OnlineMusicProvider = {
         playlists: true,
         albums: true,
         artists: true,
-        recommendations: false,
-        mutations: false,
+        // 推荐、歌单增删与收藏是 qq-music-api 3.3.0 的路由；红心与收藏专辑后端尚未开放，likeSong / subscribeAlbum 不实现。
+        recommendations: true,
+        mutations: true,
+        playlistTrackMutations: true,
+        playlistSubscription: true,
         wordByWordLyrics: true,
         likes: true,
         userAlbums: true,
@@ -858,7 +891,7 @@ export const qqProvider: OnlineMusicProvider = {
         },
     },
     search: { searchSongs },
-    playback: { getSongDetail, getAudioSource },
+    playback: { getSongDetail: getQqSongDetail, getAudioSource },
     lyrics: { getLyrics },
     auth: {
         getLoginStatus,
@@ -910,5 +943,8 @@ export const qqProvider: OnlineMusicProvider = {
         getArtistDetail,
         getArtistSongs,
         getArtistAlbums,
+        getSubscriptionStatus: getQqSubscriptionStatus,
     },
+    recommendations: qqRecommendations,
+    mutations: qqMutations,
 };

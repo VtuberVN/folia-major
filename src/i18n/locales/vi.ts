@@ -444,6 +444,8 @@ export default {
     songRegionRestricted: "Chỉ phát tại Trung Quốc đại lục. Kiểm tra kết nối mạng.",
     songTemporarilyUnavailable: "Tạm thời không thể phát bài hát này",
     songTemporarilyUnavailableSignInHint: "Tạm thời không thể phát bài hát này. Đăng nhập có thể giúp nghe được bài này.",
+    songTemporarilyUnavailableMaybeMembership: "Tạm thời không thể phát bài hát này. Có thể cần tài khoản VIP để nghe toàn bộ bài hát.",
+    songTemporarilyUnavailableMaybeRegion: "Tạm thời không thể phát bài hát này. Có thể bị giới hạn tại khu vực của bạn.",
     songNetworkFailed: "Không thể kết nối để tải bài hát. Vui lòng kiểm tra mạng và thử lại.",
     songRequestTimedOut: "Hết thời gian chờ khi tải bài hát. Vui lòng thử lại.",
     songRetrying: "Kết nối thất bại. Đang thử lại…",

@@ -37,6 +37,7 @@ import { isCloudDriveCollection } from '../model/collectionIdentity';
 export type CollectionMutationOmni = {
     canEditCollectionTracks(collection: OmniCollection): boolean;
     canSubscribeCollection(collection: OmniCollection): boolean;
+    canDislikeCollectionSongs(collection: OmniCollection): boolean;
     getSubscriptionStatus(collection: OmniCollection): Promise<boolean>;
     subscribe(collection: OmniCollection, subscribed: boolean): Promise<void>;
     likeSong(song: SongResult, liked: boolean): Promise<void>;
@@ -130,6 +131,7 @@ export const createCollectionMutationController = (
             currentUserId,
             canEditCollectionTracks: online ? omni.canEditCollectionTracks(online) : false,
             canSubscribeCollection: online ? omni.canSubscribeCollection(online) : false,
+            canDislikeCollectionSongs: online ? omni.canDislikeCollectionSongs(online) : false,
             isCloudDrive: isCloudDriveCollection(descriptor),
             dailyDate,
             port,

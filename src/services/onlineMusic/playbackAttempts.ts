@@ -185,7 +185,7 @@ const concludeAttempts = (attempts: readonly ProviderPlaybackAttempt[], lastErro
 export const summarizePlaybackAttempts = (
     providerId: OnlineProviderId,
     attempts: readonly ProviderPlaybackAttempt[],
-    options?: { lastError?: unknown; signInMayHelp?: boolean },
+    options?: { lastError?: unknown; signInMayHelp?: boolean; likelyCause?: OnlineProviderErrorDetails['likelyCause'] },
 ): OnlineProviderError => {
     const conclusion = concludeAttempts(attempts, options?.lastError);
     const details: OnlineProviderErrorDetails = compact({
@@ -193,6 +193,8 @@ export const summarizePlaybackAttempts = (
         attempts,
         auth: conclusion.auth,
         signInMayHelp: options?.signInMayHelp,
+        // 可能原因只修饰「没给链接」这一种结论；鉴权、限流、网络这类结论有自己的说法，不挂它。
+        likelyCause: conclusion.code === 'not-playable' ? options?.likelyCause : undefined,
         transient: conclusion.transient,
     });
     return new OnlineProviderError(

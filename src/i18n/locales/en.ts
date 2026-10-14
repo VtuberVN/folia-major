@@ -417,6 +417,8 @@ export default {
     "songRegionRestricted": "Playback is limited to mainland China. Please check your network connection.",
     "songTemporarilyUnavailable": "Can't play this song right now",
     "songTemporarilyUnavailableSignInHint": "Can't play this song right now. Signing in may help.",
+    "songTemporarilyUnavailableMaybeMembership": "Can't play this song right now. A membership may be required for the full track.",
+    "songTemporarilyUnavailableMaybeRegion": "Can't play this song right now. It may be restricted in your region.",
     "songNetworkFailed": "Couldn't connect to load this song. Check your network and try again.",
     "songRequestTimedOut": "Loading this song timed out. Please try again.",
     "songRetrying": "Connection failed. Retrying…",

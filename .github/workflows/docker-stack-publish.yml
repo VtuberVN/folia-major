@@ -32,6 +32,7 @@ jobs:
       major: ${{ steps.meta.outputs.major }}
       minor: ${{ steps.meta.outputs.minor }}
       created: ${{ steps.meta.outputs.created }}
+      should_publish: ${{ steps.meta.outputs.should_publish }}
 
     steps:
       - name: Check out repository
@@ -49,16 +50,17 @@ jobs:
             echo "Docker stable releases must run from main." >&2
             exit 1
           fi
+          if [[ -z "${IMAGE_NAMESPACE}" ]]; then
+            echo "DOCKERHUB_USERNAME is not configured; skipping docker-stack-publish on fork."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           VERSION="$(./deploy/docker/scripts/validate-version.sh)"
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             PREVIOUS_VERSION="$(git show HEAD^:deploy/docker/VERSION 2>/dev/null || true)"
             if [[ -n "${PREVIOUS_VERSION}" ]]; then
               ./deploy/docker/scripts/validate-version.sh deploy/docker/VERSION "${PREVIOUS_VERSION}" >/dev/null
             fi
-          fi
-          if [[ -z "${IMAGE_NAMESPACE}" ]]; then
-            echo "DOCKERHUB_USERNAME is not configured." >&2
-            exit 1
           fi
           if [[ "${FORCE_REPUBLISH}" != "true" ]]; then
             for image in folia-web folia-web-api folia-netease-api folia-kugou-api folia-qq-api; do
@@ -68,6 +70,7 @@ jobs:
               fi
             done
           fi
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "major=${VERSION%%.*}" >> "$GITHUB_OUTPUT"
           echo "minor=${VERSION%.*}" >> "$GITHUB_OUTPUT"
@@ -76,6 +79,7 @@ jobs:
   build:
     name: Build ${{ matrix.image }} (${{ matrix.arch }})
     needs: prepare
+    if: needs.prepare.outputs.should_publish == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -169,6 +173,7 @@ jobs:
   promote:
     name: Promote Docker stack tags
     needs: [prepare, build]
+    if: needs.prepare.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
 
     steps:

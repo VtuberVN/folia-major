@@ -98,6 +98,7 @@ const naviAlbum: NavidromeGridViewCollectionDescriptor = { source: 'navidrome', 
 const fakeOmni = (overrides: Partial<CollectionMutationOmni> = {}) => ({
     canEditCollectionTracks: vi.fn(() => true),
     canSubscribeCollection: vi.fn(() => true),
+    canDislikeCollectionSongs: vi.fn(() => true),
     getSubscriptionStatus: vi.fn(async () => false),
     subscribe: vi.fn(async () => {}),
     likeSong: vi.fn(async () => {}),

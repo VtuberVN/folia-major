@@ -1,6 +1,6 @@
 # QQ 音乐 API 服务（`qq-api`）
 
-`qq-api` 是 Web 堆栈里的 QQ 音乐后端，提供搜索、歌词、专辑、歌手、微信扫码和 QQ 扫码登录，以及登录后的账号歌单、我喜欢、收藏的专辑与播放链接。
+`qq-api` 是 Web 堆栈里的 QQ 音乐后端，提供搜索、歌词、专辑、歌手、微信扫码和 QQ 扫码登录，以及登录后的账号歌单、我喜欢、收藏的专辑、播放链接、推荐（每日 30 首、猜你喜欢、推荐歌单）、往自建歌单加歌删歌与收藏歌单。
 
 本文只说明 Docker 镜像、常驻 Node 服务、卷和状态文件。Vercel、Cloudflare、Durable Object 与面向普通用户的完整步骤见 [QQ 音乐部署指南](../../../docs/qq-music-deployment.md)。
 
@@ -9,7 +9,7 @@
 | 项 | 内容 |
 | --- | --- |
 | npm 包 | [`@yakult-green-tea/qq-music-api`](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api) |
-| 版本 | `3.1.4`，锁定在 [`package.json`](./package.json) 与 `package-lock.json` |
+| 版本 | `3.3.0`，锁定在 [`package.json`](./package.json) 与 `package-lock.json` |
 | 原始上游 | [Rain120/qq-music-api](https://github.com/Rain120/qq-music-api)，作者 Rain120 |
 | 许可证 | MIT；全文随包安装在 `node_modules/@yakult-green-tea/qq-music-api/LICENSE` |
 | 镜像定义 | [`images/qq-api.Dockerfile`](../images/qq-api.Dockerfile) |
@@ -196,6 +196,14 @@ Cloudflare 上可以用 Durable Object 补上它——DO 能跨调用持有那�
 3.1.3 起，扫码失败响应包含失败阶段、原因和上游状态；本地退避 `429` 保留前一次失败摘要，不包含登录凭证或响应正文。Folia 把这些字段原样写进扫码时间线，QQ 登录弹窗在失败后给出自检结论与诊断报告。
 
 3.1.4 起，`/getSongListDetail` 在请求带登录会话时，会用凭据重读匿名接口读不到（`code: 10`）的官方算法歌单（百万收藏、歌手漫游、新歌推荐等），回应形状不变；`/user/playlist` 给收藏歌单补上原封面，官方歌单改用第一首歌的专辑图。未登录时行为与之前相同。
+
+3.3.0 起：
+
+- 新增 `/user/daily-songs`、`/user/guess-you-like`、`/recommend/playlists`，Folia 的电台页用它们显示每日推荐、私人 FM 与推荐歌单；`POST /user/playlist/tracks`、`POST /user/playlist/subscribe` 与 `/user/subscription-status` 支持往自建歌单加歌删歌和收藏歌单。写入只送一次、不自动重试。`/login/channels` 的 `data.features` 按方法声明这些能力。
+- `/getMusicPlay` 拿不到链接的条目多一个 `restriction`（上游数字码与 `hint.key`）。Folia 把它写进播放诊断；只有后端按实测特征给出 `playback.maybe-membership` / `playback.maybe-region-restricted` 时，播放失败提示才换成带「可能」的说法，原因仍按未确认处理。
+- 扫码失败可能带 `upstreamErrorKey`、`failureHint` 和（手机 QQ 通道的）`primaryFailure`。登录设备超限（`20279`）因此在网页版也认得出来。
+- 常驻服务（本镜像、裸 Node、Electron）会在凭证到期前 6 小时内自动续期，`qqmusic_session` 不变；serverless 部署还没有这个能力。
+- 扫码失败后的冷却固定为 15 秒，上游明确说操作频繁时为 30 秒。
 
 排查时先看容器日志：
 
