@@ -55,6 +55,7 @@ const BravaisHome: React.FC<LibraryHomeSurfaceProps> = (props) => {
     const chrome = useBravaisHomeChrome({
         tab,
         tabs,
+        providerId: online.providerId,
         selectTab,
         scanPercent,
         scanning: Boolean(actionState.scan?.active),

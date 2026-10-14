@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, screen, dialog, shell, nativeImage, desktopCapturer, Menu, Tray, nativeTheme, powerSaveBlocker, safeStorage, protocol, crashReporter, net: electronNet } = require('electron');
+const { app, BrowserWindow, ipcMain, session, screen, dialog, shell, nativeImage, webContents: electronWebContents, Menu, Tray, nativeTheme, powerSaveBlocker, safeStorage, protocol, crashReporter, net: electronNet } = require('electron');
 const fs = require('fs');
 const { readMainWindowRenderState } = require('./mainWindowRenderState.cjs');
 const http = require('http');
@@ -27,6 +27,8 @@ const { createWindowsWallpaperTargetResolver } = require('./windowsWallpaperTarg
 const { createWindowsWallpaperMouseInjector } = require('./windowsWallpaperMouse.cjs');
 const macWallpaperModule = require('./macWallpaperController.cjs');
 const { createKugouApiBridge } = require('./kugouApiBridge.cjs');
+const { createExternalUrlOpener } = require('./externalUrlPolicy.cjs');
+const { createSenderGuardedHandler } = require('./ipcAccessGuard.cjs');
 const { createBodianApiBridge } = require('./bodianApiBridge.cjs');
 const { createBodianMediaPolicy } = require('./bodian/mediaCors.cjs');
 const { createQqAuthSessionRepository } = require('./qqAuthSessionRepository.cjs');
@@ -35,6 +37,8 @@ const { createVoiceInputPauseMonitor } = require('./voiceInputPause.cjs');
 const { createDisplaySleepBlocker } = require('./displaySleepBlocker.cjs');
 const { createWasapiEngine } = require('./wasapi/wasapiEngine.cjs');
 let wasapiEngine = null;
+const { createVideoExportFileWriter } = require('./videoExportFileWriter.cjs');
+const { finalizeVideoExportFile } = require('./videoExportMp4.cjs');
 const { createLyricApi } = require('./lyricApi.cjs');
 const { createLocalCoverAssetStore, getLocalCoverAssetDirectory } = require('./localCoverAssets.cjs');
 const {
@@ -1878,6 +1882,9 @@ let mainWindowClickThroughUnlockHover = false;
 let mainWindowClickThroughUnlockHoverTimer = null;
 let mainWindowSkipTaskbarEnabled = false;
 let videoExportWindowRestoreState = null;
+// Chromium's fragmented MP4 leaves the movie duration at the first fragment (#549); patch it
+// from the fragment timeline once recording ends.
+const videoExportFileWriter = createVideoExportFileWriter({ finalizeFile: finalizeVideoExportFile });
 let autoUpdater = null;
 // Backed by the settings store so a handoff survives a full process relaunch (wallpaper mode)
 const windowPlaybackHandoffStore = createWindowPlaybackHandoffStore({
@@ -3799,22 +3806,19 @@ async function openUpdateReleasePage(version) {
   return true;
 }
 
-async function openExternalUrl(url) {
-  if (typeof url !== 'string' || !url.trim()) {
-    return false;
-  }
-
-  try {
-    const parsed = new URL(url.trim());
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return false;
-    }
-    await shell.openExternal(parsed.toString());
-    return true;
-  } catch {
-    return false;
-  }
-}
+// External links are restricted to http(s) before reaching shell.openExternal: any other scheme
+// would be handed to the OS as a protocol launch (file:// opens local paths, ms-settings: reaches
+// system panes, anything else depends on what the machine has registered). Scope, stated plainly:
+// this limits what an untrusted URL can trigger once a renderer is compromised or a compromised
+// surface feeds strings here - it is not privilege escalation by itself, and the registered protocol
+// handlers decide the impact. Every in-app caller passes a plain https URL, so the allowlist costs
+// nothing. The validation and the opener live in externalUrlPolicy.cjs so both can be loaded and
+// tested without starting the app; this file wires the production shell into that factory.
+const openExternalUrl = createExternalUrlOpener({
+  openExternal: (resolved) => shell.openExternal(resolved),
+  // 不把被拒的字符串写进日志：它本身就是不可信内容。
+  onBlocked: () => console.warn('[main] blocked openExternal for a non-http(s) URL'),
+});
 
 function scheduleStartupUpdateCheck() {
   if (isDevUpdatePreviewEnabled()) {
@@ -5114,162 +5118,54 @@ function sanitizeVideoExportSize(size) {
   };
 }
 
-// Resize the main window so that its *bounds* (the area the capture source
-// actually records, which includes Windows' frameless-window DWM decoration)
-// yields a content physical size >= the requested export size. We use a snap
-// search around the ideal CSS size to find a value where getContentSize() * dpr
-// exceeds the preset (overshoot), then the frontend Canvas crops the excess
-// pixels with integer symmetric cropping — no scaling, no black bars.
-// After sizing, we enter a decoration-removal loop: if DWM adds asymmetric
-// borders that shift content off-center inside bounds, we grow the window by
-// 1px on each edge and retry until bounds == content (decoration eliminated).
+// Resize the main window so its content area renders exactly the requested export size in
+// physical pixels. Recording captures the main webContents itself (see
+// setupVideoExportDisplayMediaHandler), so only the content area matters: OS window
+// decoration, DWM borders and the window manager never reach the captured frames, and content
+// that extends past the screen edge is still rendered and captured. Content usually lands a
+// pixel or two above the preset (DPR rounding); the renderer's frame pipeline crops that off.
 function fitMainWindowBoundsToExportSize(exportSize) {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return null;
   }
 
   const exportDpr = mainWindow.__dpr && mainWindow.__dpr > 0 ? mainWindow.__dpr : 1;
-
-  // Size the window so its *bounds* (the area the capture source actually records —
-  // a whole-window capture includes the ~1px frameless-window DWM decoration) matches
-  // the preset in physical pixels exactly. If the bounds physical size differed from the
-  // preset, the capture source aspect ratio would mismatch the output and crop-and-scale
-  // would add black bars. We set the rounded CSS content size, then read back the bounds
-  // physical size and nudge by +/-1 CSS px until it equals the preset. The content area
-  // ends up ~decoration px smaller than the preset (a minor crop), but the recording has
-  // no scaling black bars and the output is exactly the requested resolution.
-  let cssWidth = Math.max(1, Math.round(exportSize.width / exportDpr));
-  let cssHeight = Math.max(1, Math.round(exportSize.height / exportDpr));
+  const cssWidth = Math.max(1, Math.round(exportSize.width / exportDpr));
+  const cssHeight = Math.max(1, Math.round(exportSize.height / exportDpr));
   mainWindow.setContentSize(cssWidth, cssHeight, false);
 
-  // Keep the window on whichever display it already lives on instead of forcing
-  // it to the primary display. getDisplayMatching resolves the display containing
-  // the window's current bounds, so the export stays put (no surprise jump).
+  // Keep the window on whichever display it already lives on and center it there. Windows
+  // larger than the work area are allowed to overflow it; the capture does not depend on it.
   const workArea = screen.getDisplayMatching(mainWindow.getBounds()).workArea;
-  // Center the window and snap its position to a whole physical pixel. Under a non-100% DPI
-  // the CSS position times dpr can land on a half-pixel, and Chromium's crop-and-scale
-  // capture derives its crop rect from the window's physical bounds; a half-pixel offset
-  // between the reported bounds and where the window is actually composited can leave a
-  // 1-2px black strip. Aligning the physical position to whole pixels removes that drift.
-  const center = (w, h) => {
-    let x = Math.round(workArea.x + (workArea.width - w) / 2);
-    let y = Math.round(workArea.y + (workArea.height - h) / 2);
-    if (!Number.isInteger(x * exportDpr)) x += (x % 2 === 0) ? 1 : -1;
-    if (!Number.isInteger(y * exportDpr)) y += (y % 2 === 0) ? 1 : -1;
-    mainWindow.setBounds({ x, y, width: w, height: h }, false);
-    return mainWindow.getBounds();
-  };
+  const bounds = mainWindow.getBounds();
+  // `| 0` folds Math.round's -0 (an overflowing window centered on an origin-0 display) into
+  // 0; Electron's integer conversion rejects -0.
+  mainWindow.setPosition(
+    Math.round(workArea.x + (workArea.width - bounds.width) / 2) | 0,
+    Math.round(workArea.y + (workArea.height - bounds.height) / 2) | 0,
+    false,
+  );
 
-  // The capture source is the *whole window* (bounds), which on a frameless transparent
-  // window on Windows carries a 1px DWM border (decoLeftCss = 1) and, after DWM snaps the
-  // window to its grid, can gain/lose a pixel on resize. So neither the rounded CSS size
-  // nor a single +/-1 nudge reliably yields boundsPhys == preset. We search a small CSS
-  // window around the rounded size, CENTERING THE WINDOW EACH TIME so we read the *final*
-  // boundsPhys (including DWM snapping), and pick the value whose *content* physical
-  // size (from getContentSize, NOT bounds) is >= preset + margin (so the Canvas crop
-  // can work in pure-crop mode without upscaling).
-  // Minimum overshoot (in device pixels) to guarantee pure-crop mode without upscaling.
-  // This is a hard lower bound, NOT a per-resolution guess: regardless of DPR or DWM decoration
-  // size, snap() only ensures contentPhys >= preset + CROP_MARGIN_PX, and the actual crop amount is
-  // always derived from (video.videoWidth/videoHeight - preset) at runtime. Do not retune per resolution.
-  const CROP_MARGIN_PX = 6; // Minimum extra pixels for pure crop (no scaling)
-  const snap = (base, axis, otherCss) => {
-    base = Math.max(1, base);
-    let bestCss = base;
-    let bestErr = Infinity;
-    let bestContentPhys = 0;
-    // Target contentPhys must be >= preset + margin to allow pure crop in Canvas
-    const target = (axis === 'w' ? exportSize.width : exportSize.height) + CROP_MARGIN_PX;
-    const presetVal = axis === 'w' ? exportSize.width : exportSize.height;
-    let probe = '';
-    // Fixed search radius around the rounded CSS size. This is an exploration window to absorb
-    // 1px DWM-snap jitter, NOT a hand-tuned value for a specific resolution: we always test every
-    // delta and pick the one whose measured contentPhys is closest to (preset + CROP_MARGIN_PX).
-    for (let delta = -3; delta <= 5; delta++) { // Extended search range for overshoot
-      const tryCss = base + delta;
-      if (tryCss < 1) continue;
-      if (axis === 'w') mainWindow.setContentSize(tryCss, otherCss, false);
-      else mainWindow.setContentSize(otherCss, tryCss, false);
-      const b = center(axis === 'w' ? tryCss : otherCss, axis === 'w' ? otherCss : tryCss);
-      // Compare CONTENT physical size (not bounds) because the Canvas crop operates
-      // on the content area after excluding DWM decoration pixels.
-      const [cW, cH] = mainWindow.getContentSize();
-      const cPhys = axis === 'w'
-        ? Math.round(cW * exportDpr)
-        : Math.round(cH * exportDpr);
-      const bPhys = axis === 'w'
-        ? Math.round(b.width * exportDpr)
-        : Math.round(b.height * exportDpr);
-      probe += ` [${axis} tryCss=${tryCss} boundsPhys=${bPhys} contentPhys=${cPhys}]`;
-      const err = Math.abs(cPhys - target);
-      if (cPhys >= presetVal && err <= bestErr) {
-        // Accept any value where contentPhys >= preset, prefer closest to target (=preset+margin)
-        if (err < bestErr || (err === bestErr && cPhys > bestContentPhys)) {
-          bestErr = err; bestCss = tryCss; bestContentPhys = cPhys;
-        }
-      } else if (bestContentPhys < presetVal && cPhys > bestContentPhys) {
-        // Fallback: if no valid overshoot found yet, keep the largest undershoot
-        bestErr = err; bestCss = tryCss; bestContentPhys = cPhys;
-      }
-    }
-    return bestCss;
-  };
-
-  cssWidth = snap(cssWidth, 'w', cssHeight);
-  let bounds = center(cssWidth, cssHeight);
-
-  // A frameless transparent window on Windows keeps a 1px DWM border (decoLeftCss = 1,
-  // sometimes also bottom). That border makes the captured whole-window source wider/taller
-  // than the content, so its aspect ratio can never exactly equal the preset and crop-and-scale
-  // pads black bars. Force the content rect to fill the whole window so bounds == content;
-  // retry a few times because a single setContentBounds can race with DWM. Once the decoration
-  // is gone, boundsPhys equals contentPhys and the source aspect ratio matches the preset.
-  for (let i = 0; i < 4; i++) {
-    mainWindow.setContentBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
-    const cb = mainWindow.getContentBounds();
-    const b2 = mainWindow.getBounds();
-    const dl = cb.x - b2.x, dt = cb.y - b2.y;
-    const dr = (b2.x + b2.width) - (cb.x + cb.width);
-    const db = (b2.y + b2.height) - (cb.y + cb.height);
-    if (dl === 0 && dt === 0 && dr === 0 && db === 0) break;
-    bounds = b2;
-  }
-  bounds = mainWindow.getBounds();
-
-  // With the decoration removed, bounds == content, so snapping the height now targets the
-  // real content height: a CSS height of round(600/1.5)=400 yields boundsPhys==600 exactly.
-  cssHeight = snap(cssHeight, 'h', cssWidth);
-  bounds = center(cssWidth, cssHeight);
-
-  let boundsPhysW = Math.round(bounds.width * exportDpr);
-  let boundsPhysH = Math.round(bounds.height * exportDpr);
-
-  return {
-    exportDpr, cssWidth, cssHeight, bounds, boundsPhysW, boundsPhysH,
-  };
+  return { exportDpr, cssWidth, cssHeight };
 }
 
-async function getMainWindowCaptureSource() {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return null;
-  }
+// Video export records the main window's own webContents (Chromium tab capture) instead of
+// picking an OS window out of desktopCapturer. Matching that window by id or title is
+// unreliable — under Wayland the portal returns nameless sources whose ids never match
+// getMediaSourceId() (#632) — and a window capture also drags in DWM decoration. Tab capture
+// needs no OS capture permission, keeps rendering when the window is covered, and its frames
+// are exactly the content area. Requests are granted only to the main window while an export
+// has prepared the window, so nothing else can silently capture the player.
+function setupVideoExportDisplayMediaHandler() {
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    const requester = request.frame ? electronWebContents.fromFrame(request.frame) : null;
+    if (!videoExportWindowRestoreState || !isTrustedMainWindowContents(requester)) {
+      callback({});
+      return;
+    }
 
-  const mediaSourceId = typeof mainWindow.getMediaSourceId === 'function'
-    ? mainWindow.getMediaSourceId()
-    : null;
-  const title = mainWindow.getTitle();
-  const sources = await desktopCapturer.getSources({
-    types: ['window'],
-    thumbnailSize: { width: 0, height: 0 },
+    callback({ video: mainWindow.webContents.mainFrame });
   });
-
-  const source =
-    (mediaSourceId && sources.find(item => item.id === mediaSourceId)) ||
-    sources.find(item => item.name === title && item.name !== REMOTE_CONTROL_WINDOW_TITLE) ||
-    sources.find(item => item.name.toLowerCase().includes('folia') && item.name !== REMOTE_CONTROL_WINDOW_TITLE) ||
-    null;
-
-  return source ? { id: source.id, name: source.name } : null;
 }
 
 function createWindow(options = {}) {
@@ -5643,6 +5539,7 @@ app.whenReady().then(async () => {
   }
 
   setupFileSystemAccessPermissionHandlers();
+  setupVideoExportDisplayMediaHandler();
   setupCorsBypassHandlers();
   localCoverAssetStore.registerProtocolHandler(protocol, electronNet);
   // Transcode fallback is an optional degradation path; a failure preparing it must never keep
@@ -5904,6 +5801,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   transcodeService.dispose();
+  videoExportFileWriter.disposeSync();
   if (wasapiEngine) {
     void wasapiEngine.dispose();
     wasapiEngine = null;
@@ -5975,6 +5873,9 @@ ipcMain.handle('window-set-native-theme', (event, themeSource) => {
 // expressed in physical pixels (see resize-main-window / video-export-prepare-window).
 ipcMain.handle('report-device-pixel-ratio', (event, ratio) => {
   if (!isTrustedMainWindowContents(event.sender)) return;
+  // Tab capture may raise the captured page's device scale factor while recording; that is a
+  // capture artifact, not the monitor's DPR, so it must not leak into window sizing.
+  if (videoExportWindowRestoreState) return;
   const dpr = Number(ratio);
   if (Number.isFinite(dpr) && dpr > 0) {
     mainWindow.__dpr = dpr;
@@ -7247,8 +7148,31 @@ registerLoginBackendIpc({
   qqBackend,
 });
 
-ipcMain.handle('kugou-api-status', () => kugouApiBridge.getStatus());
-ipcMain.handle('kugou-api-request', (_event, operation, params) => kugouApiBridge.request(operation, params));
+// Both channels reach the embedded KuGou API. `kugou-api-request` forwards the renderer's operation
+// and params verbatim, so it is a write-capable surface rather than a read-only one; the bridge keeps
+// its own operation allowlist, so what this guard adds is the caller surface. Trusted here means the
+// two first-party windows - the main window and the remote-control window, which runs the same app
+// and therefore the same online providers. `bodian-api-request` below gates the same way.
+//
+// Boundary, stated plainly: comparing webContents identity rejects other windows (a popup opened with
+// window.open carries the same preload). It cannot stop script already running inside a trusted
+// window - that is the CSP and preload layer's job, not this check's.
+const isFirstPartyWindowContents = (event) => (
+  isTrustedMainWindowContents(event.sender) || isTrustedRemoteControlContents(event.sender)
+);
+
+ipcMain.handle('kugou-api-status', createSenderGuardedHandler({
+  channel: 'kugou-api-status',
+  // 只回传可用性、登录状态与错误：拒绝时给一个「没有这个能力」的取值，让调用方走 unavailable 分支。
+  isTrusted: isFirstPartyWindowContents,
+  onUntrusted: () => null,
+  handler: () => kugouApiBridge.getStatus(),
+}));
+ipcMain.handle('kugou-api-request', createSenderGuardedHandler({
+  channel: 'kugou-api-request',
+  isTrusted: isFirstPartyWindowContents,
+  handler: (_event, operation, params) => kugouApiBridge.request(operation, params),
+}));
 ipcMain.handle('bodian-api-request', (event, operation, params) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     return { ok: false, error: { code: 'unavailable', message: 'Untrusted Bodian request' } };
@@ -7441,9 +7365,17 @@ ipcMain.handle('window-set-always-on-top', (event, enabled) => {
   return setMainWindowAlwaysOnTop(enabled);
 });
 
-ipcMain.handle('obs-browser-source-get-status', () => {
-  return buildObsBrowserSourceStatus();
-});
+ipcMain.handle('obs-browser-source-get-status', createSenderGuardedHandler({
+  channel: 'obs-browser-source-get-status',
+  // 主窗才有浏览器源这张设置页；远控窗用不到它，所以这里只认主窗。
+  isTrusted: (event) => isTrustedMainWindowContents(event.sender),
+  handler: () => buildObsBrowserSourceStatus(),
+}));
+// On the payload: it carries the browser-source token and the full push URL. That token only feeds
+// the local browser-source overlay - display content, no account permissions, no secrets - so this
+// is not a credential-leak fix and it is not a merge blocker on its own. The three handlers beside it
+// (set-enabled / regenerate-token / publish-config) all gate on the sender; this one was the odd one
+// out, and gating it keeps the response surface uniform.
 
 ipcMain.handle('obs-browser-source-set-enabled', async (event, enabled) => {
   if (!isTrustedMainWindowContents(event.sender)) {
@@ -7943,14 +7875,6 @@ ipcMain.handle('video-export-choose-path', async (event, defaultName, extension,
   };
 });
 
-ipcMain.handle('video-export-get-main-window-source', async (event) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to read the main window capture source.');
-  }
-
-  return getMainWindowCaptureSource();
-});
-
 ipcMain.handle('video-export-prepare-window', (event, size) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     throw new Error('Untrusted renderer attempted to resize the main window for export.');
@@ -7959,6 +7883,13 @@ ipcMain.handle('video-export-prepare-window', (event, size) => {
   const exportSize = sanitizeVideoExportSize(size);
   if (!mainWindow || mainWindow.isDestroyed() || !exportSize) {
     return false;
+  }
+
+  // The renderer sends its DPR at the moment of export; the mount-time report can be missing
+  // or stale, and sizing with the wrong DPR renders the content at the wrong physical size.
+  const reportedDpr = Number(size?.dpr);
+  if (Number.isFinite(reportedDpr) && reportedDpr > 0) {
+    mainWindow.__dpr = reportedDpr;
   }
 
   if (!videoExportWindowRestoreState) {
@@ -8014,17 +7945,32 @@ ipcMain.handle('video-export-restore-window', (event) => {
   return true;
 });
 
-ipcMain.handle('video-export-write-file', async (event, filePath, data) => {
+// The export file is written chunk by chunk while recording (see videoExportFileWriter.cjs);
+// a whole-file write would need the entire video in memory and in a single IPC message.
+const assertTrustedVideoExportWriter = (event) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     throw new Error('Untrusted renderer attempted to write a video export file.');
   }
+};
 
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('Missing video export path.');
-  }
+ipcMain.handle('video-export-open-file', (event, filePath) => {
+  assertTrustedVideoExportWriter(event);
+  return videoExportFileWriter.open(filePath);
+});
 
-  await fsp.writeFile(filePath, Buffer.from(data));
-  return true;
+ipcMain.handle('video-export-append-chunk', (event, sessionId, data) => {
+  assertTrustedVideoExportWriter(event);
+  return videoExportFileWriter.append(sessionId, data);
+});
+
+ipcMain.handle('video-export-finish-file', (event, sessionId) => {
+  assertTrustedVideoExportWriter(event);
+  return videoExportFileWriter.finish(sessionId);
+});
+
+ipcMain.handle('video-export-abort-file', (event, sessionId) => {
+  assertTrustedVideoExportWriter(event);
+  return videoExportFileWriter.abort(sessionId);
 });
 
 ipcMain.handle('debug-get-rendered-fonts', async (event, selector) => {

@@ -57,6 +57,8 @@ export type BravaisHomeTool = {
     shortLabel?: string;
     /** 此刻正在用它（舞台：宿主的 stageIsActive；与 grid 一样只标在 data-stage-active 上，不画选中态）。 */
     active?: boolean;
+    /** 图标右上角的提示点及其说明（设置：发现新版本）；说明并进 aria-label 与 title。 */
+    badge?: string;
     run: () => void;
 };
 

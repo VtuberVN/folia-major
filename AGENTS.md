@@ -75,6 +75,10 @@ skill 只负责地图和编译器都推不出来的东西：口头术语到名�
   路径：`skills/prepare-folia-release/SKILL.md`
   用于进入稳定版本发布流程：汇总上个稳定版本以来的用户可感知变化，更新新功能介绍、桌面与 Docker 版本元数据，并生成可手动粘贴的 Markdown release note。
 
+- `run-desktop`
+  路径：`skills/run-desktop/SKILL.md`
+  用于启动并驱动 Electron 桌面版（隔离 profile，后台驱动 + 单条命令客户端：截图、点击、填表、页面与主进程求值、读日志），在真实桌面构建里验证主进程、preload IPC 和桌面专属设置的改动。
+
 全局沟通规则：
 
 - 不需要使用skills的时候，不要读取它们。

@@ -292,6 +292,13 @@
     display: none;
 }
 
+/* 拼贴的磁贴不垫自己的整张封面：拼贴用的是大图，到得比磁贴自己那档晚，垫着就会先闪一下每格一样的封面再变成拼贴。
+ * 大图到之前拼贴层自己垫着一张糊的（海报封面那档放大，BravaisTile 的 artStandIn，--bravais-art-image 的第二层）。
+ * 内联的 backgroundImage 只能用 !important 压；聚焦卡不画拼贴（没有 data-bravais-art），照常是整张封面。 */
+.bravais-root.has-album-wall .bravais-tile-face[data-bravais-art="mosaic"] {
+    background-image: none !important;
+}
+
 .bravais-root.has-album-wall .bravais-tile-art {
     position: absolute;
     inset: 0;

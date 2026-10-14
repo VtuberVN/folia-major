@@ -3,7 +3,9 @@ import { WallTitle } from '../../../components/wall/WallTitle';
 import { useWallPosterArtwork } from '../../../components/wall/useWallPosterArtwork';
 import { parseWallSlotKey } from '../../../components/wall/wallSlots';
 import { countRender } from '../../../dev/renderCount';
+import { getSizedCoverUrl } from '../../../utils/coverUrl';
 import {
+    BRAVAIS_ALBUM_COVER_PX,
     BRAVAIS_METRICS,
     BRAVAIS_REDUCED_FADE_MS,
     BRAVAIS_TILE_FLIP_IN_MS,
@@ -288,6 +290,9 @@ function BravaisTile({
         art?.url,
         (art?.mode === 'mosaic' ? BRAVAIS_ALBUM_MOSAIC_PX : Math.max(rect.width, rect.height) * 2.75) * pixelScale,
     );
+    // 拼贴的大图到之前垫一张海报封面那档（已经在缓存里，放大后是糊的）：两层背景，大图解码完就盖住它。
+    const artStandIn = art?.mode === 'mosaic' ? getSizedCoverUrl(art.url, BRAVAIS_ALBUM_COVER_PX) : '';
+    const artImage = artStandIn && artStandIn !== artUrl ? `url("${artUrl}"), url("${artStandIn}")` : `url("${artUrl}")`;
     const artPlacement = !art || !display
         ? null
         : art.mode === 'mosaic' ? mosaicPlacement(rect, parseWallSlotKey(slotKey) ?? { column: 0, row: 0 }) : artSpots ? shardPlacement(artSpots, display.key, rect) : null;
@@ -339,6 +344,7 @@ function BravaisTile({
                 ref={faceRef}
                 className={`lattice-poster bravais-tile-face${display ? '' : isWindow ? ' is-window' : ' is-wall'}${face.seeThrough ? ' is-see-through' : ''}${isExpanded ? ' is-expanded' : ''}${keyboardFocused ? ' is-focused' : ''}${isCurrent ? ' is-current' : ''}${display?.unavailable ? ' is-unavailable' : ''}${linked && display ? ' is-linked' : ''}${display?.dimmed ? ' is-dimmed' : ''}${display?.selected ? ' is-selected' : ''}${isStack ? ' is-stack' : ''}${isPortrait ? ' is-portrait' : ''}`}
                 style={display && !face.seeThrough ? { backgroundImage: cover } : undefined}
+                data-bravais-art={art?.mode}
                 role={display ? (isExpanded ? 'group' : 'button') : undefined}
                 aria-label={display ? `${display.title} · ${display.subtitle}${display.trackCountLabel ? ` · ${display.trackCountLabel}` : ''}` : undefined}
                 aria-expanded={isTrack ? isExpanded : undefined}
@@ -362,7 +368,7 @@ function BravaisTile({
                                 className="bravais-tile-art"
                                 data-bravais-art={art.mode}
                                 style={{
-                                    '--bravais-art-image': `url("${artUrl}")`,
+                                    '--bravais-art-image': artImage,
                                     '--bravais-art-size': `${artPlacement.size.toFixed(1)}px`,
                                     '--bravais-art-x': `${artPlacement.x.toFixed(1)}px`,
                                     '--bravais-art-y': `${artPlacement.y.toFixed(1)}px`,

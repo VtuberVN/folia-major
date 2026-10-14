@@ -60,6 +60,12 @@ export const BRAVAIS_TILE_FLIP_IN_MS = 210;
  */
 export const BRAVAIS_REDUCED_FADE_MS = 180;
 
+/**
+ * 专辑海报上封面取的尺寸。专辑墙的拼贴在大图到之前拿同一个尺寸垫着（放大后是糊的），专辑页打开时海报已经在取它，
+ * 两边共用一份缓存。
+ */
+export const BRAVAIS_ALBUM_COVER_PX = 512;
+
 /** 聚焦卡 / 键盘焦点让相机露出一个矩形时保留的屏幕边距。 */
 export const BRAVAIS_REVEAL_PAD_PX = 24;
 /** 缝内容底部在「播放条安全区」之上再多留的距离（设计稿 §5：底距 + 80 + 8）。 */

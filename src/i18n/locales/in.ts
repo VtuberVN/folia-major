@@ -2506,6 +2506,7 @@ export default {
     "openaiApiKey": "Kunci API OpenAI",
     "aiApiKeySavedPlaceholder": "Tersimpan (kosongkan untuk mempertahankan)",
     "aiApiKeySavedDesc": "Kunci disimpan terenkripsi di perangkat ini dan tidak ditampilkan lagi. Masukkan kunci baru lalu simpan untuk menggantinya.",
+    "aiApiKeyEndpointMismatchDesc": "Kunci tersimpan hanya dikirim ke {{endpoint}}. Masukkan kunci lagi untuk memakai alamat lain.",
     "aiApiKeyClear": "Hapus",
     "openaiApiUrl": "URL API OpenAI",
     "openaiApiModel": "Model OpenAI",
@@ -3101,6 +3102,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "Playlist Pribadi QQ Music",
         "description": "Setelah masuk, playlist pribadi buatan Anda kini dapat memuat lagu dengan paging sungguhan. Backend yang di-host sendiri harus memakai qq-music-api 3.1.2 atau lebih baru; backend lama beralih otomatis, dan playlist yang tidak dapat dibaca kini menjelaskan bahwa playlist itu tidak publik, alih-alih tampil kosong tanpa keterangan."
+      }
+    },
+    "v0_7_19": {
+      "intro": "0.7.19 mengubah halaman artis dan album di Bravais menjadi poster bergaya Tempera. Saat lagu online gagal diputar, Folia kini menyebutkan alasan sebenarnya, tidak lagi selalu menyebutnya dihapus; visualizer per kata seperti Tempera memotong lirik Tionghoa dan Jepang dengan lebih wajar; dan versi web kembali bisa dibuka tanpa jaringan.",
+      "artistPoster": {
+        "title": "Halaman Artis Menjadi Poster",
+        "description": "Strip info lengkap di halaman artis Bravais kini digambar sebagai poster bergaya Tempera yang tersemat di kiri dinding. Tata letaknya tetap untuk tiap artis, warnanya diambil dari tiga album terpopuler artis tersebut, dan nama menyesuaikan lebar tanpa meluap. Dinding album di kanan ikut miring, dan Anda tetap bisa menyeret dan menggulir saat dinding miring."
+      },
+      "albumPoster": {
+        "title": "Poster Album dan Mozaik Sampul",
+        "description": "Halaman album juga mendapat poster: sampul ditempel di atas kertas bertitik, judul besar dengan bayangan berlapis, serta artis, tahun, dan jumlah lagu, lengkap dengan animasi masuk. Buka album dari halaman artis dan sampulnya terbang dari ubin yang Anda klik ke poster, lalu terbang kembali saat Anda kembali. Di dinding sebelahnya, album dengan satu sampul disusun menjadi satu sampul besar di seluruh lagu; jika album bercampur sampul single, sampul yang berulang dipotong menjadi pecahan yang kembali berwarna penuh saat diarahkan kursor atau sedang diputar."
+      },
+      "playbackFailure": {
+        "title": "Kegagalan Putar Kini Ada Alasannya",
+        "description": "Lagu online yang gagal diputar tidak lagi selalu ditandai \"lagu dihapus\". Folia kini membedakan lagu yang dihapus, jaringan terputus atau waktu habis, gangguan layanan atau batas permintaan, lagu yang memerlukan login, keanggotaan, atau pembelian, serta pembatasan wilayah. Hanya lagu yang benar-benar dihapus yang menghitung mundur ke lagu berikutnya dan mencari versi lain; saat jaringan terputus, pemutaran berhenti dan antrean tetap utuh sehingga Anda bisa mencoba lagi atau melewati; kasus login, keanggotaan, dan pembelian hanya ditampilkan tanpa dicoba berulang kali. Berlaku untuk NetEase, QQ Music, KuGou, dan Bodian."
+      },
+      "lyricSegmenter": {
+        "title": "Pemotongan Kata Tionghoa dan Jepang Lebih Wajar",
+        "description": "Tempera, Sonnet, dan mode lain yang menata lirik per kata kini memakai pemotong kata bawaan baru, icu-folia. Bahasa Tionghoa tidak lagi terpotong-potong (idiom dan kata tetap utuh, partikel seperti 的 dan 了 menempel pada kata sebelumnya), dan bahasa Jepang dipotong per frasa yang wajar. Tempera juga tidak lagi menyebar kata pendek yang seharusnya bersama ke bidikan yang berbeda. Pemotongan kata yang Anda simpan sendiri tetap diutamakan, dan kamusnya hanya dimuat saat diperlukan."
+      },
+      "offlineStartup": {
+        "title": "Versi Web Bisa Dibuka Tanpa Jaringan",
+        "description": "Memperbaiki versi web / PWA yang gagal dimuat saat disegarkan tanpa koneksi jaringan. Sampul lokal juga tampil saat offline, dan pada kunjungan pertama tidak lagi menunggu cache latar selesai diunduh. Ikon yang dipakai tema kini dimuat sesuai kebutuhan, sehingga lebih sedikit yang diunduh saat aplikasi dimulai."
+      },
+      "stabilityFixes": {
+        "title": "Lebih Stabil di Segala Sisi",
+        "description": "Di Android, membuka Opsi atau lapisan lain di dinding Bravais atau Lattice tidak lagi memperlihatkan kilasan dinding di bawahnya. Memperbaiki crash sesekali saat mengubah ukuran jendela ketika Tempera sedang diputar. Latar Sora berhenti menggambar saat dijeda, dan bintangnya diam dalam mode statis. Jendela catatan rilis yang muncul saat aplikasi dimulai kini bisa ditutup dengan Esc."
       }
     },
     "v0_7_18": {

@@ -222,7 +222,15 @@ test.describe('[bravais-only] home', () => {
         await page.evaluate(() => window.__homeProbe!.clearLog());
         await input.fill('blue train');
         await input.press('Enter');
-        await expect.poll(async () => (await calls(page, 'searchCommitted')).map(call => [call.text, call.key])).toEqual([['blue train', 'playlist']]);
+        // 在线页签的来源是当前 provider，不是页签名；提交前先真的搜过一次（搜索 store 里有这次的结果），
+        // 否则历史恢复查不到缓存，搜索页永远显示无结果。
+        await expect.poll(async () => (await calls(page, 'searchCommitted')).map(call => [call.text, call.key])).toEqual([['blue train', PROBE_PROVIDER_A]]);
+        expect(await page.evaluate(async () => {
+            const modulePath = '/src/stores/useSearchNavigationStore.ts';
+            const { useSearchNavigationStore } = await import(/* @vite-ignore */ modulePath);
+            const state = useSearchNavigationStore.getState();
+            return { query: state.searchQuery, source: state.searchSourceTab, results: state.searchResults };
+        })).toEqual({ query: 'blue train', source: PROBE_PROVIDER_A, results: [] });
         await expect(seam(page)).toHaveAttribute('data-bravais-seam', 'home');
 
         await seam(page).locator('[data-bravais-seam-action="search"]').click();

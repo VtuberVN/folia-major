@@ -1,5 +1,4 @@
-import { getSizedCoverUrl } from '../../../utils/coverUrl';
-import { normalizeCoverUrl } from './bravaisAlbumWall';
+import { getCoverIdentity, getSizedCoverUrl } from '../../../utils/coverUrl';
 
 // src/library/suites/bravais/bravaisCoverFlight.ts
 // 歌手页 ↔ 专辑页的封面飞行：点开专辑时，被点的那张专辑磁贴的封面飞到专辑海报上封面的位置（连同墙的倾斜，落到海报
@@ -296,7 +295,7 @@ export const takeCoverFlightSource = (coverUrl: string | undefined): Source | nu
     source = null;
     if (!taken || !coverUrl || reducedMotion()) return null;
     if (performance.now() - taken.at > SOURCE_TTL_MS) return null;
-    return normalizeCoverUrl(taken.coverUrl) === normalizeCoverUrl(coverUrl) ? taken : null;
+    return getCoverIdentity(taken.coverUrl) === getCoverIdentity(coverUrl) ? taken : null;
 };
 
 /** 从起点飞到海报上的封面（每帧量它）；落地时 onLand 同步让海报露出自己的封面。 */

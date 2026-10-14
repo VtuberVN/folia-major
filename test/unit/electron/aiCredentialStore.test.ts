@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+import { openAIEndpointOf as rendererOpenAIEndpointOf } from '../../../src/utils/openAIEndpoint';
 
 // test/unit/electron/aiCredentialStore.test.ts
 
 const {
     createAiCredentialStore,
     isReservedAiCredentialKey,
+    openAIEndpointOf,
 } = require('../../../electron/aiCredentialStore.cjs') as {
     createAiCredentialStore: (options: Record<string, unknown>) => {
         get: (key: string) => unknown;
@@ -16,6 +18,11 @@ const {
         settingsView: { get: (key: string) => unknown };
     };
     isReservedAiCredentialKey: (key: string) => boolean;
+    openAIEndpointOf: (rawUrl: unknown) => string;
+};
+
+const { runAiJsonCompletion } = require('../../../electron/aiTextClient.cjs') as {
+    runAiJsonCompletion: (options: Record<string, unknown>) => Promise<string>;
 };
 
 function createStore(initial: Record<string, unknown> = {}) {
@@ -72,6 +79,8 @@ describe('AI credential store', () => {
     it('gives the renderer only which keys are saved, never the keys or their ciphertext', () => {
         const store = createStore({ OPENAI_API_KEY: 'sk-legacy-plain', AI_PROVIDER: 'openai' });
         const credentials = createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32' });
+        // Startup order: migrate() runs before any window can ask for settings.
+        credentials.migrate();
         credentials.set('GEMINI_API_KEY', 'gemini-key');
 
         const settings = credentials.toPublicSettings(Object.fromEntries(store.values));
@@ -124,6 +133,7 @@ describe('AI credential store', () => {
         expect(isReservedAiCredentialKey('GEMINI_API_KEY_SEALED')).toBe(true);
         expect(isReservedAiCredentialKey('OPENAI_API_KEY_SEALED')).toBe(true);
         expect(isReservedAiCredentialKey('AI_API_KEYS_CONFIGURED')).toBe(true);
+        expect(isReservedAiCredentialKey('OPENAI_API_KEY_ENDPOINT')).toBe(true);
         expect(isReservedAiCredentialKey('OPENAI_API_KEY')).toBe(false);
         expect(isReservedAiCredentialKey('OPENAI_API_URL')).toBe(false);
     });
@@ -197,7 +207,9 @@ describe('AI credential store', () => {
 
     it('falls back to a plaintext copy when the sealed blob cannot be decrypted', () => {
         const warn = vi.fn();
-        const store = createStore({ OPENAI_API_KEY_SEALED: 'Ym9ndXM=', OPENAI_API_KEY: 'sk-plain' });
+        const store = createStore({
+            OPENAI_API_KEY_SEALED: 'Ym9ndXM=', OPENAI_API_KEY: 'sk-plain', OPENAI_API_KEY_ENDPOINT: 'https://api.openai.com',
+        });
         const credentials = createAiCredentialStore({
             store, safeStorage: createSafeStorage({ available: false }), platform: 'linux', warn,
         });
@@ -212,5 +224,151 @@ describe('AI credential store', () => {
         const credentials = createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32' });
 
         expect(credentials.settingsView.get('OPENAI_API_URL')).toBe('https://api.deepseek.com');
+    });
+});
+
+// Issue #643: OPENAI_API_URL is renderer-writable, so the saved key must not follow it to another host.
+describe('OpenAI-compatible key endpoint binding', () => {
+    const savedFor = (url: string) => {
+        const store = createStore({ AI_PROVIDER: 'openai', OPENAI_API_URL: url });
+        const credentials = createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32', warn: vi.fn() });
+        credentials.set('OPENAI_API_KEY', 'sk-saved');
+        return { store, credentials };
+    };
+
+    it('stops handing out the key once OPENAI_API_URL points at another host, and keeps it', () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+
+        // What saveSettings('OPENAI_API_URL', ...) from the renderer does.
+        store.set('OPENAI_API_URL', 'http://127.0.0.1:9999/collect');
+
+        expect(credentials.get('OPENAI_API_KEY')).toBe('');
+        expect(credentials.settingsView.get('OPENAI_API_KEY')).toBe('');
+        expect(credentials.isConfigured('OPENAI_API_KEY')).toBe(false);
+        expect(credentials.toPublicSettings({}).AI_API_KEYS_CONFIGURED).toEqual({ GEMINI_API_KEY: false, OPENAI_API_KEY: false });
+        expect(store.values.get('OPENAI_API_KEY_SEALED')).toEqual(expect.any(String));
+
+        store.set('OPENAI_API_URL', 'https://api.example.com/v1');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('sk-saved');
+    });
+
+    it('keeps the key for another path on the same server', () => {
+        const { store, credentials } = savedFor('https://api.deepseek.com');
+
+        for (const url of ['https://api.deepseek.com/', 'https://api.deepseek.com/v1', 'https://API.deepseek.com:443/beta']) {
+            store.set('OPENAI_API_URL', url);
+            expect(credentials.get('OPENAI_API_KEY')).toBe('sk-saved');
+        }
+        for (const url of ['http://api.deepseek.com', 'https://api.deepseek.com:8443', 'https://deepseek.com']) {
+            store.set('OPENAI_API_URL', url);
+            expect(credentials.get('OPENAI_API_KEY')).toBe('');
+        }
+    });
+
+    it('binds an empty URL to the default endpoint it resolves to', () => {
+        const { store, credentials } = savedFor('');
+
+        store.set('OPENAI_API_URL', 'https://api.openai.com/v1');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('sk-saved');
+    });
+
+    it('never sends the key from the real request path to a rewritten endpoint', async () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+        store.set('OPENAI_API_URL', 'http://127.0.0.1:9999/collect');
+        const customFetch = vi.fn();
+
+        await expect(runAiJsonCompletion({
+            store: credentials.settingsView,
+            systemPrompt: 'sys',
+            sourcePrompt: 'src',
+            customFetch,
+            maxTokens: 64,
+        })).rejects.toThrow(/OPENAI_API_KEY is not configured/);
+        expect(customFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not let the connection test reuse the saved key after the URL was rewritten', () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+        store.set('OPENAI_API_URL', 'http://127.0.0.1:9999/collect');
+
+        expect(credentials.resolveTestApiKey('openai', '', 'http://127.0.0.1:9999/collect').apiKey).not.toBe('sk-saved');
+        expect(credentials.resolveTestApiKey('openai', '', 'https://api.example.com/v1').apiKey).not.toBe('sk-saved');
+    });
+
+    it('rebinds when a key is saved again for the new endpoint', () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+        store.set('OPENAI_API_URL', 'https://api.deepseek.com');
+
+        credentials.set('OPENAI_API_KEY', 'sk-deepseek');
+
+        expect(store.values.get('OPENAI_API_KEY_ENDPOINT')).toBe('https://api.deepseek.com');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('sk-deepseek');
+        expect(credentials.resolveTestApiKey('openai', '', 'https://api.deepseek.com/v1')).toEqual({ apiKey: 'sk-deepseek' });
+    });
+
+    it('drops the binding together with the key', () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+
+        credentials.set('OPENAI_API_KEY', '');
+
+        expect(store.values.has('OPENAI_API_KEY_ENDPOINT')).toBe(false);
+    });
+
+    it('treats a key without a binding as unusable until migrate() binds it', () => {
+        const store = createStore({ OPENAI_API_URL: 'https://api.example.com/v1' });
+        createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32' }).set('OPENAI_API_KEY', 'sk-old');
+        // A key saved by a build that predates the binding.
+        store.values.delete('OPENAI_API_KEY_ENDPOINT');
+
+        const credentials = createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32', warn: vi.fn() });
+        expect(credentials.get('OPENAI_API_KEY')).toBe('');
+
+        credentials.migrate();
+        expect(store.values.get('OPENAI_API_KEY_ENDPOINT')).toBe('https://api.example.com');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('sk-old');
+    });
+
+    it('binds legacy plaintext keys even where the OS cannot encrypt them', () => {
+        const store = createStore({ OPENAI_API_KEY: 'sk-plain', OPENAI_API_URL: 'https://api.example.com/v1' });
+        const credentials = createAiCredentialStore({
+            store, safeStorage: createSafeStorage({ backend: 'basic_text' }), platform: 'linux', warn: vi.fn(),
+        });
+
+        credentials.migrate();
+
+        expect(store.values.get('OPENAI_API_KEY')).toBe('sk-plain');
+        expect(store.values.get('OPENAI_API_KEY_ENDPOINT')).toBe('https://api.example.com');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('sk-plain');
+    });
+
+    it('does not move an existing binding on migrate', () => {
+        const { store } = savedFor('https://api.example.com/v1');
+        store.set('OPENAI_API_URL', 'http://127.0.0.1:9999/collect');
+
+        const credentials = createAiCredentialStore({ store, safeStorage: createSafeStorage(), platform: 'win32', warn: vi.fn() });
+        credentials.migrate();
+
+        expect(store.values.get('OPENAI_API_KEY_ENDPOINT')).toBe('https://api.example.com');
+        expect(credentials.get('OPENAI_API_KEY')).toBe('');
+    });
+
+    it('shows the renderer which endpoint the key is bound to, still without the key', () => {
+        const { store, credentials } = savedFor('https://api.example.com/v1');
+
+        const settings = credentials.toPublicSettings(Object.fromEntries(store.values));
+
+        expect(settings.OPENAI_API_KEY_ENDPOINT).toBe('https://api.example.com');
+        expect(JSON.stringify(settings)).not.toContain('sk-saved');
+    });
+
+    it('matches the renderer copy used for the settings warning', () => {
+        const urls = [
+            undefined, '', '  ', 'https://api.openai.com/v1', 'https://api.deepseek.com', 'https://api.deepseek.com/',
+            'http://localhost:11434/v1', 'https://API.Example.com:443/v1/', 'http://[::1]:8080', 'api.example.com/v1/',
+            'not a url', 'https://user:pass@api.example.com/v1',
+        ];
+        for (const url of urls) {
+            expect(rendererOpenAIEndpointOf(url)).toBe(openAIEndpointOf(url));
+        }
     });
 });

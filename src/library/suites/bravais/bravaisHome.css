@@ -321,6 +321,43 @@
 .bravais-seam-tools .bravais-seam-icon.is-wide svg { width: 16px; height: 16px; flex: none; }
 .bravais-seam-tools .bravais-seam-icon.is-wide .is-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .bravais-seam-home.is-compact .bravais-seam-tools .bravais-seam-icon.is-wide { width: 36px; padding: 0; }
+/* 提示点（设置：发现新版本，只在书脊上画）：图标右上角一个强调色的点，落在图标外框与图形之间的空白里，不压图形。 */
+.bravais-seam-tools .bravais-seam-icon[data-bravais-badge] { position: relative; }
+.bravais-seam-tools .bravais-seam-icon .is-badge {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--text-accent, #f59e0b);
+    pointer-events: none;
+}
+.bravais-seam-home.is-compact .bravais-seam-tools .bravais-seam-icon .is-badge { top: 6px; right: 6px; }
+/* 窄缝里工具格下方的说明（设置：发现新版本）：一颗强调色的点 + 短字，可点（等同点设置格）。
+   前缀 .bravais-seam：压过 .bravais-seam button 的 font: inherit。 */
+.bravais-seam .bravais-seam-notice {
+    display: inline-flex;
+    max-width: 100%;
+    margin-top: 10px;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.bravais-seam .bravais-seam-notice:hover {
+    border-color: color-mix(in srgb, currentColor 26%, transparent);
+    background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.bravais-seam-notice .is-dot { width: 6px; height: 6px; flex: none; border-radius: 999px; background: var(--text-accent, #f59e0b); }
+.bravais-seam-notice .is-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* fb8（用户实测：菜单像是透明的，后面的账户入口透出来、字叠在一起）：根因是层级——fb4 起账户位 position: relative +
    z-index: 3，工具格没有层级，菜单的 z-index 只在窄缝这一层里和账户位比，被账户入口盖住（菜单底色本身一直不透明，
