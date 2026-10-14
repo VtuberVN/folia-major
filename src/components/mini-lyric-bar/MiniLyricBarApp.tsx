@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, motionValue, useTransform, type MotionValue } from 'framer-motion';
 import {
     Lock,
     Music,
@@ -18,8 +19,9 @@ import { buildMonetDisplayTokens, type MonetDisplayToken } from '../visualizer/m
 // src/components/mini-lyric-bar/MiniLyricBarApp.tsx
 // High-performance Desktop Mini Lyric Bar.
 // Runs in an independent transparent, frameless, always-on-top window.
-// Uses two-layer GPU-accelerated hardware clip-path text sweeping, continuous monotonic rate governor,
-// dynamic responsive album art, and floating overlay toolbar so no lyrics are ever cut off.
+// Uses Framer Motion MotionValue pipeline for compositor-thread text sweep rendering,
+// continuous monotonic rate governor, dynamic responsive album art,
+// and floating overlay toolbar so no lyrics are ever cut off.
 
 export const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
 
@@ -98,6 +100,94 @@ export const calculateClockSyncOnSnapshot = (
     };
 };
 
+// ─── Compositor-thread word sweep via Framer Motion MotionValue pipeline ───────
+// Each timed word creates its own useTransform subscriber chain.
+// MotionValue.set() → subscriber runs transform → sets DOM style directly.
+// Zero React re-renders per frame. Same architecture as MonetRailTokens.tsx.
+
+const MiniWordSweep: React.FC<{
+    text: string;
+    startTime: number;
+    endTime: number;
+    lyricTime: MotionValue<number>;
+    nodeRef?: (el: HTMLSpanElement | null) => void;
+}> = ({ text, startTime, endTime, lyricTime, nodeRef }) => {
+    const clipPath = useTransform(lyricTime, (latest: number) => {
+        if (latest <= startTime) return 'inset(0 100% 0 0)';
+        if (latest >= endTime) return 'inset(0 0% 0 0)';
+        const progress = (latest - startTime) / Math.max(0.001, endTime - startTime);
+        return `inset(0 ${(1 - progress) * 100}% 0 0)`;
+    });
+
+    return (
+        <span
+            ref={nodeRef}
+            className="relative inline-block whitespace-pre select-none"
+        >
+            {/* Inactive base text */}
+            <span className="text-white/60 select-none">{text}</span>
+            {/* Active highlighted text overlay — clipPath driven by MotionValue on compositor thread */}
+            <motion.span
+                aria-hidden
+                className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                style={{ clipPath }}
+            >
+                <span className="inline-block whitespace-pre select-none">{text}</span>
+            </motion.span>
+        </span>
+    );
+};
+
+const MiniDelimiterToken: React.FC<{
+    text: string;
+    precedingEndTime: number | null;
+    lyricTime: MotionValue<number>;
+    nodeRef?: (el: HTMLSpanElement | null) => void;
+}> = ({ text, precedingEndTime, lyricTime, nodeRef }) => {
+    const color = useTransform(lyricTime, (latest: number) => {
+        if (precedingEndTime !== null && latest >= precedingEndTime) return '#38bdf8';
+        return 'rgba(255, 255, 255, 0.6)';
+    });
+
+    return (
+        <motion.span
+            ref={nodeRef}
+            className="inline-block whitespace-pre select-none"
+            style={{ color }}
+        >
+            {text}
+        </motion.span>
+    );
+};
+
+const MiniSingleLineSweep: React.FC<{
+    text: string;
+    startTime: number;
+    endTime: number;
+    lyricTime: MotionValue<number>;
+}> = ({ text, startTime, endTime, lyricTime }) => {
+    const duration = endTime > startTime ? endTime - startTime : 3.5;
+
+    const clipPath = useTransform(lyricTime, (latest: number) => {
+        const progress = Math.max(0, Math.min(100, ((latest - startTime) / duration) * 100));
+        return `inset(0 ${100 - progress}% 0 0)`;
+    });
+
+    return (
+        <span className="relative inline-block whitespace-pre select-none">
+            <span className="text-white/60 select-none">{text}</span>
+            <motion.span
+                aria-hidden
+                className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                style={{ clipPath }}
+            >
+                <span className="inline-block whitespace-pre select-none">{text}</span>
+            </motion.span>
+        </span>
+    );
+};
+
+
 export default function MiniLyricBarApp() {
     const { t } = useTranslation();
     const [snapshot, setSnapshot] = useState<RemoteControlSnapshot | null>(null);
@@ -121,12 +211,15 @@ export default function MiniLyricBarApp() {
         isInitialized: false,
     });
 
-    // DOM node refs for direct GPU styling without React reconciliation
+    // Framer Motion MotionValue — the single source of truth for lyric time.
+    // rAF loop sets this once per frame; all MiniWordSweep/MiniDelimiterToken
+    // components subscribe via useTransform → DOM updates bypass React entirely.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const lyricTime = useMemo(() => motionValue(0), []);
+
+    // DOM node refs for scroll measurement (NOT for style mutation)
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const wordWrapperNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
-    const activeTokenNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
-    const singleLineWrapperRef = useRef<HTMLSpanElement | null>(null);
-    const singleLineActiveRef = useRef<HTMLSpanElement | null>(null);
     const scrollMetricsRef = useRef({ containerWidth: 0, maxScroll: 0 });
     const targetScrollRef = useRef<number>(0);
 
@@ -145,7 +238,6 @@ export default function MiniLyricBarApp() {
     useEffect(() => {
         displayTokensRef.current = displayTokens;
         wordWrapperNodesRef.current = [];
-        activeTokenNodesRef.current = [];
     }, [displayTokens]);
 
     useEffect(() => {
@@ -177,53 +269,10 @@ export default function MiniLyricBarApp() {
         return () => window.removeEventListener('resize', handleResize);
     }, [measureScrollTargets, displayTokens]);
 
-    // Direct DOM text gradient updates (runs on every rAF frame at 60fps/144fps)
-    const updateLineProgress = useCallback((time: number) => {
-        const line = displayRef.current.currentLine;
-        if (!line) return;
-
-        const tokens = displayTokensRef.current;
-        const timedTokens = tokens.filter(t => t.timed && t.startTime !== null && t.endTime !== null);
-
-        if (timedTokens.length > 0) {
-            for (let i = 0; i < tokens.length; i++) {
-                const token = tokens[i];
-                if (token.timed && token.startTime !== null && token.endTime !== null) {
-                    const activeNode = activeTokenNodesRef.current[i];
-                    if (!activeNode) continue;
-
-                    const progress = token.endTime > token.startTime
-                        ? clampProgress(((time - token.startTime) / (token.endTime - token.startTime)) * 100)
-                        : (time >= token.startTime ? 100 : 0);
-
-                    // GPU hardware-accelerated clip path (zero CPU font repaints)
-                    activeNode.style.clipPath = `inset(0 ${100 - progress}% 0 0)`;
-                } else {
-                    // Delimiter token (space, punctuation): highlight if preceding word passed
-                    const wrapperNode = wordWrapperNodesRef.current[i];
-                    if (!wrapperNode) continue;
-
-                    let isPassed = false;
-                    for (let j = i - 1; j >= 0; j--) {
-                        const prev = tokens[j];
-                        if (prev.timed && prev.endTime !== null) {
-                            isPassed = time >= prev.endTime;
-                            break;
-                        }
-                    }
-                    wrapperNode.style.color = isPassed ? '#38bdf8' : 'rgba(255, 255, 255, 0.6)';
-                }
-            }
-            return;
-        }
-
-        // Plain LRC fallback for single line
-        if (singleLineActiveRef.current) {
-            const duration = line.endTime > line.startTime ? line.endTime - line.startTime : 3.5;
-            const progress = clampProgress(((time - line.startTime) / duration) * 100);
-            singleLineActiveRef.current.style.clipPath = `inset(0 ${100 - progress}% 0 0)`;
-        }
-    }, []);
+    // NOTE: updateLineProgress has been REMOVED.
+    // All per-frame text sweep rendering is now handled by Framer Motion MotionValue
+    // pipeline in MiniWordSweep / MiniDelimiterToken / MiniSingleLineSweep components.
+    // The rAF loop only needs to call lyricTime.set() once per frame.
 
     // Smooth focal-point horizontal autoscroll (tracks current singing word across long sentences)
     const updateScroll = useCallback((time: number) => {
@@ -306,10 +355,9 @@ export default function MiniLyricBarApp() {
             setDisplay(nextDisplay);
             requestAnimationFrame(() => {
                 measureScrollTargets();
-                updateLineProgress(time);
             });
         }
-    }, [measureScrollTargets, updateLineProgress]);
+    }, [measureScrollTargets]);
 
     // Apply snapshot with monotonic clock governor
     const applySnapshot = useCallback((next: unknown) => {
@@ -408,10 +456,16 @@ export default function MiniLyricBarApp() {
                 clockSyncStateRef.current.currentTime = currentTimeRef.current;
             }
 
-            const lyricTime = currentTimeRef.current;
-            updateDisplay(lyricTime);
-            updateLineProgress(lyricTime);
-            updateScroll(lyricTime);
+            const time = currentTimeRef.current;
+
+            // Drive the Framer Motion MotionValue — this single .set() call
+            // propagates to ALL useTransform subscribers in MiniWordSweep,
+            // MiniDelimiterToken, and MiniSingleLineSweep components.
+            // They update DOM styles directly, bypassing React VDOM entirely.
+            lyricTime.set(time);
+
+            updateDisplay(time);
+            updateScroll(time);
 
             frameId = requestAnimationFrame(tick);
         };
@@ -420,7 +474,7 @@ export default function MiniLyricBarApp() {
         return () => {
             if (frameId !== null) cancelAnimationFrame(frameId);
         };
-    }, [updateDisplay, updateLineProgress, updateScroll]);
+    }, [lyricTime, updateDisplay, updateScroll]);
 
     // Send playback commands to main window
     const handleCommand = useCallback((command: RemoteControlCommand) => {
@@ -501,59 +555,44 @@ export default function MiniLyricBarApp() {
                                     displayTokens.map((token, idx) => {
                                         if (token.timed && token.startTime !== null && token.endTime !== null) {
                                             return (
-                                                <span
+                                                <MiniWordSweep
                                                     key={token.key}
-                                                    ref={el => { wordWrapperNodesRef.current[idx] = el; }}
-                                                    className="relative inline-block whitespace-pre select-none"
-                                                >
-                                                    {/* Inactive base text */}
-                                                    <span className="text-white/60 select-none">
-                                                        {token.text}
-                                                    </span>
-                                                    {/* Active highlighted text overlay clipped on GPU */}
-                                                    <span
-                                                        ref={el => { activeTokenNodesRef.current[idx] = el; }}
-                                                        aria-hidden
-                                                        className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-                                                        style={{ clipPath: 'inset(0 100% 0 0)' }}
-                                                    >
-                                                        <span className="inline-block whitespace-pre select-none">
-                                                            {token.text}
-                                                        </span>
-                                                    </span>
-                                                </span>
+                                                    text={token.text}
+                                                    startTime={token.startTime}
+                                                    endTime={token.endTime}
+                                                    lyricTime={lyricTime}
+                                                    nodeRef={el => { wordWrapperNodesRef.current[idx] = el; }}
+                                                />
                                             );
                                         }
 
+                                        // Delimiter token: find preceding timed word's endTime
+                                        let precedingEndTime: number | null = null;
+                                        for (let j = idx - 1; j >= 0; j--) {
+                                            const prev = displayTokens[j];
+                                            if (prev.timed && prev.endTime !== null) {
+                                                precedingEndTime = prev.endTime;
+                                                break;
+                                            }
+                                        }
+
                                         return (
-                                            <span
+                                            <MiniDelimiterToken
                                                 key={token.key}
-                                                ref={el => { wordWrapperNodesRef.current[idx] = el; }}
-                                                className="inline-block whitespace-pre select-none text-white/60"
-                                            >
-                                                {token.text}
-                                            </span>
+                                                text={token.text}
+                                                precedingEndTime={precedingEndTime}
+                                                lyricTime={lyricTime}
+                                                nodeRef={el => { wordWrapperNodesRef.current[idx] = el; }}
+                                            />
                                         );
                                     })
                                 ) : (
-                                    <span
-                                        ref={singleLineWrapperRef}
-                                        className="relative inline-block whitespace-pre select-none"
-                                    >
-                                        <span className="text-white/60 select-none">
-                                            {currentLine.fullText}
-                                        </span>
-                                        <span
-                                            ref={singleLineActiveRef}
-                                            aria-hidden
-                                            className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-                                            style={{ clipPath: 'inset(0 100% 0 0)' }}
-                                        >
-                                            <span className="inline-block whitespace-pre select-none">
-                                                {currentLine.fullText}
-                                            </span>
-                                        </span>
-                                    </span>
+                                    <MiniSingleLineSweep
+                                        text={currentLine.fullText}
+                                        startTime={currentLine.startTime}
+                                        endTime={currentLine.endTime}
+                                        lyricTime={lyricTime}
+                                    />
                                 )}
                             </div>
 
