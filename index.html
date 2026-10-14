@@ -294,6 +294,22 @@
           // 字体轮盘失败就保持静态词标。
         }
       })();
+
+      // 安全兜底：如果 React 挂载失败或脚本异常，至多 6 秒后自动淡出遮罩，避免界面永远被挡住。
+      (function () {
+        setTimeout(function () {
+          var splash = document.getElementById('app-splash');
+          if (splash && !splash.classList.contains('is-hiding')) {
+            console.warn('[Splash] Safety timeout reached (6s), dismissing splash overlay');
+            splash.classList.add('is-hiding');
+            setTimeout(function () {
+              if (splash && splash.parentNode) {
+                splash.remove();
+              }
+            }, 320);
+          }
+        }, 6000);
+      })();
     </script>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
