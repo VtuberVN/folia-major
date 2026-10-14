@@ -3,6 +3,9 @@
 // build/beforePack.cjs
 // Stages native runtimes for electron-builder's target platform and architecture.
 
+const fs = require('fs');
+const path = require('path');
+
 const ARCH_NAMES = ["ia32", "x64", "armv7l", "arm64", "universal"];
 
 exports.default = async (context) => {
@@ -11,6 +14,16 @@ exports.default = async (context) => {
     throw new Error(
       `Unsupported electron-builder architecture ordinal: ${context.arch}`,
     );
+
+  const distIndexPath = path.join(context.packager.projectDir, 'dist', 'index.html');
+  if (fs.existsSync(distIndexPath)) {
+    const htmlContent = fs.readFileSync(distIndexPath, 'utf8');
+    if (htmlContent.includes('src="/assets/') || htmlContent.includes('href="/assets/')) {
+      throw new Error(
+        '[beforePack] dist/index.html contains absolute asset paths ("src=/assets"). Electron packaging requires relative asset paths. Please run `vite build` with ELECTRON=true.',
+      );
+    }
+  }
   const { prepareBundledFfmpeg } = await import(
     "../packaging/ffmpeg/fetch-ffmpeg.mjs"
   );

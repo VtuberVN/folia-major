@@ -74,12 +74,27 @@ const renderApp = () => root.render(
 // like the mod commands below). A clashing execute shortcut throws here, at startup.
 if (isMainApp) installLibrarySuiteChromeCommands();
 
+const FOLIUM_BOOT_TIMEOUT_MS = 1500;
+
 const bootFolium = async () => {
     if (!isMainApp) return;
     installFoliumCommandPaletteSync();
     installFoliumHostEvents();
     await initFoliumClients();
     restoreSavedFoliumSelections();
+};
+
+const bootFoliumWithTimeout = async () => {
+    if (!isMainApp) return;
+    await Promise.race([
+        bootFolium(),
+        new Promise<void>((resolve) => {
+            setTimeout(() => {
+                console.warn('[Bootstrap] Folium boot reached timeout fallback (3000ms), continuing render');
+                resolve();
+            }, FOLIUM_BOOT_TIMEOUT_MS);
+        }),
+    ]);
 };
 
 // Docker 预置的 Navidrome 凭据要在渲染前落进 localStorage（原因见 services/navidromeServerPreset.ts）。
@@ -92,7 +107,7 @@ const bootNavidrome = async () => {
 };
 
 // allSettled：mod 加载失败也要等预置写完再渲染，失败原因单独打出来，不吞掉。
-void Promise.allSettled([bootFolium(), bootNavidrome()])
+void Promise.allSettled([bootFoliumWithTimeout(), bootNavidrome()])
     .then(([folium, navidrome]) => {
         if (folium.status === 'rejected') console.error('[Bootstrap] Folium boot failed:', folium.reason);
         if (navidrome.status === 'rejected') console.warn('[Navidrome] Server preset boot failed:', navidrome.reason);
