@@ -13,19 +13,41 @@
 // Linux without a real keyring selects `basic_text`, which "encrypts" with a hardcoded key. Unlike
 // the KuGou/QQ/Bodian sessions, an API key is something the user typed in by hand, so dropping it on
 // every restart would be a regression; in that case the key stays in plaintext, as before.
+//
+// The OpenAI-compatible key is also bound to the endpoint it was saved for (issue #643). The renderer
+// can rewrite OPENAI_API_URL, so without the binding one save-settings call would point every later
+// AI request, saved key included, at any host. Binding is by origin: a different path on the same
+// server is still the server the user gave the key to.
 
 const { normalizeOpenAIChatCompletionsUrl } = require('./aiTextClient.cjs');
 
 const AI_CREDENTIAL_KEYS = Object.freeze(['GEMINI_API_KEY', 'OPENAI_API_KEY']);
 const AI_API_KEYS_CONFIGURED_KEY = 'AI_API_KEYS_CONFIGURED';
+const OPENAI_API_KEY_ENDPOINT_KEY = 'OPENAI_API_KEY_ENDPOINT';
 const SEALED_SUFFIX = '_SEALED';
 
 const sealedKeyOf = (key) => `${key}${SEALED_SUFFIX}`;
 const isAiCredentialKey = (key) => AI_CREDENTIAL_KEYS.includes(key);
-// Names the renderer may never write through save-settings: the ciphertext and the derived status.
+// Names the renderer may never write through save-settings: the ciphertext, the derived status and
+// the endpoint the OpenAI-compatible key is bound to.
 const isReservedAiCredentialKey = (key) => key === AI_API_KEYS_CONFIGURED_KEY
+  || key === OPENAI_API_KEY_ENDPOINT_KEY
   || AI_CREDENTIAL_KEYS.some((name) => sealedKeyOf(name) === key);
 const credentialKeyForProvider = (provider) => (provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY');
+
+/**
+ * Where an OPENAI_API_URL value sends requests, reduced to scheme and host (the raw value if it is
+ * not a URL). src/utils/openAIEndpoint.ts mirrors this for the settings form's warning.
+ */
+const openAIEndpointOf = (rawUrl) => {
+  const url = normalizeOpenAIChatCompletionsUrl(rawUrl);
+  try {
+    const { protocol, host } = new URL(url);
+    return `${protocol}//${host}`;
+  } catch {
+    return url;
+  }
+};
 
 /**
  * Wraps an electron-store instance so AI API keys are read and written through safeStorage.
@@ -76,10 +98,7 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
     return typeof sealed === 'string' ? sealed : '';
   };
 
-  const get = (key) => {
-    if (!isAiCredentialKey(key)) {
-      return store.get(key);
-    }
+  const readCredential = (key) => {
     if (cache.has(key)) {
       return cache.get(key);
     }
@@ -105,6 +124,33 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
     return plainValue;
   };
 
+  // A saved OpenAI-compatible key counts only while OPENAI_API_URL still points at the endpoint it
+  // was saved for. Checked on every read, outside the cache, because the URL can change at any time.
+  const isBoundToCurrentEndpoint = (key) => {
+    if (key !== 'OPENAI_API_KEY') {
+      return true;
+    }
+    const bound = store.get(OPENAI_API_KEY_ENDPOINT_KEY);
+    return typeof bound === 'string' && bound === openAIEndpointOf(store.get('OPENAI_API_URL'));
+  };
+
+  /**
+   * The only way key material leaves this module. An OpenAI-compatible key whose endpoint has
+   * changed reads as missing (and is kept, so pointing the URL back restores it); the UI then asks
+   * for the key again, and AI requests refuse to run instead of sending it to the new host.
+   */
+  const get = (key) => {
+    if (!isAiCredentialKey(key)) {
+      return store.get(key);
+    }
+    const value = readCredential(key);
+    if (value && !isBoundToCurrentEndpoint(key)) {
+      warnOnce(`endpoint:${key}`, `[AiCredentials] ${key} was saved for another endpoint; re-enter it in settings`);
+      return '';
+    }
+    return value;
+  };
+
   /**
    * Whether a usable key is saved. A blob that cannot be decrypted right now counts as missing, so
    * the UI asks for the key again instead of offering AI features that would fail; typing a new
@@ -123,7 +169,14 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
     if (!value) {
       remove(key);
       remove(sealedKeyOf(key));
+      if (key === 'OPENAI_API_KEY') {
+        remove(OPENAI_API_KEY_ENDPOINT_KEY);
+      }
       return;
+    }
+    if (key === 'OPENAI_API_KEY') {
+      // Whoever supplies the key itself may choose where it goes; the form saves OPENAI_API_URL first.
+      store.set(OPENAI_API_KEY_ENDPOINT_KEY, openAIEndpointOf(store.get('OPENAI_API_URL')));
     }
     if (canEncrypt()) {
       try {
@@ -140,8 +193,16 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
     remove(sealedKeyOf(key));
   };
 
-  /** Re-saves any plaintext key left by older versions so it gets sealed. Call after app ready. */
+  /**
+   * Upgrades keys saved by older versions: binds an OpenAI-compatible key saved before endpoint
+   * binding existed to the current URL, then re-saves plaintext keys so they get sealed. Call after
+   * app ready and before any window loads, so the binding reflects the URL the user saved.
+   */
   const migrate = () => {
+    const hasOpenAIKey = Boolean(readPlain('OPENAI_API_KEY') || readSealed('OPENAI_API_KEY'));
+    if (hasOpenAIKey && typeof store.get(OPENAI_API_KEY_ENDPOINT_KEY) !== 'string') {
+      store.set(OPENAI_API_KEY_ENDPOINT_KEY, openAIEndpointOf(store.get('OPENAI_API_URL')));
+    }
     if (!canEncrypt()) {
       return;
     }
@@ -169,9 +230,9 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
   /**
    * Key for the "test connection" button: the one typed in the form, or the saved one for that
    * provider when the field was left empty (the renderer no longer has the saved key to send).
-   * The saved OpenAI-compatible key only goes to the saved endpoint; otherwise an edited URL (or a
-   * mod calling testAiConnection) would get the key sent to a host the user never saved it for.
-   * Resolves to `{ apiKey }` or `{ error }`.
+   * The saved OpenAI-compatible key only goes to the endpoint it is bound to; otherwise an edited
+   * URL (or a mod calling testAiConnection) would get the key sent to a host the user never saved
+   * it for. Resolves to `{ apiKey }` or `{ error }`.
    */
   const resolveTestApiKey = (provider, typedKey, apiUrl) => {
     const typed = typeof typedKey === 'string' ? typedKey.trim() : '';
@@ -179,8 +240,7 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
       return { apiKey: typed };
     }
     const saved = get(credentialKeyForProvider(provider));
-    if (saved && provider === 'openai'
-      && normalizeOpenAIChatCompletionsUrl(apiUrl) !== normalizeOpenAIChatCompletionsUrl(store.get('OPENAI_API_URL'))) {
+    if (saved && provider === 'openai' && openAIEndpointOf(apiUrl) !== store.get(OPENAI_API_KEY_ENDPOINT_KEY)) {
       return { error: 'Enter the API key to test an endpoint other than the saved one.' };
     }
     return { apiKey: saved };
@@ -202,7 +262,9 @@ function createAiCredentialStore({ store, safeStorage, platform = process.platfo
 module.exports = {
   AI_API_KEYS_CONFIGURED_KEY,
   AI_CREDENTIAL_KEYS,
+  OPENAI_API_KEY_ENDPOINT_KEY,
   createAiCredentialStore,
   isAiCredentialKey,
   isReservedAiCredentialKey,
+  openAIEndpointOf,
 };

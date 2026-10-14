@@ -2,7 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { BLOCK_COLS, BLOCK_ROWS } from '../../../components/wall/blockTemplates';
 import { getPitch } from '../../../components/wall/layout';
 import { loadImagePixels } from '../../../utils/colorExtractor';
-import { getSizedCoverUrl } from '../../../utils/coverUrl';
+import { getCoverIdentity, getSizedCoverUrl } from '../../../utils/coverUrl';
 import { BRAVAIS_METRICS } from './bravaisConstants';
 import type { BravaisCoverArt, BravaisItem } from './bravaisLayer';
 import { createRandom, hashPosterSeed } from './bravaisPosterComposition';
@@ -15,6 +15,7 @@ import { createRandom, hashPosterSeed } from './bravaisPosterComposition';
 //   封面上「有内容的地方」切下来的碎片（放大 2–3.5 倍，切点由曲目键定死），套海报的双色调与网点，悬停与正在播放时还原。
 // 「有内容的地方」：封面缩到 50×50 读像素（colorExtractor 的 loadImagePixels），按亮度梯度找出细节最多的几块
 // （findCoverSpots），结果按封面缓存；读不到像素（没有 CORS 头）时切点落在中心附近。
+// 「同一张封面」按 getCoverIdentity 比：尺寸参数、网易云的 p1/p2 主机、QQ/酷狗/酷我写在路径里的尺寸都不算区别。
 // 曲目顺序不动。
 
 const PITCH = getPitch(BRAVAIS_METRICS);
@@ -28,13 +29,10 @@ const SHARD_ZOOM = [2, 3.5] as const;
 const SPOT_COUNT = 6;
 const SAMPLE_COVER_PX = 128;
 
-/** 封面地址去掉查询串与片段（同一张图的不同尺寸算同一张）。 */
-export const normalizeCoverUrl = (url: string | undefined) => (url ?? '').split(/[?#]/)[0];
-
 /** 给专辑墙上的曲目定封面画法（纯投影，不改顺序）。albumCoverUrl 是专辑本身的封面。 */
 export const assignAlbumCoverArt = (items: readonly BravaisItem[], albumCoverUrl: string | undefined): readonly BravaisItem[] => {
-    const album = normalizeCoverUrl(albumCoverUrl);
-    const covers = new Set(items.map(item => normalizeCoverUrl(item.coverUrl)).filter(Boolean));
+    const album = getCoverIdentity(albumCoverUrl);
+    const covers = new Set(items.map(item => getCoverIdentity(item.coverUrl)).filter(Boolean));
     const single = covers.size === 0 || (covers.size === 1 && (!album || covers.has(album)));
     if (single) {
         const url = albumCoverUrl || items.find(item => item.coverUrl)?.coverUrl;
@@ -44,7 +42,7 @@ export const assignAlbumCoverArt = (items: readonly BravaisItem[], albumCoverUrl
     }
     const seen = new Set<string>();
     return items.map((item) => {
-        const cover = normalizeCoverUrl(item.coverUrl);
+        const cover = getCoverIdentity(item.coverUrl);
         if (!cover) return albumCoverUrl ? { ...item, coverUrl: albumCoverUrl, coverArt: { mode: 'shard', url: albumCoverUrl } } : item;
         if (!seen.has(cover)) {
             seen.add(cover);
@@ -164,7 +162,7 @@ const NO_SUBSCRIPTION = () => () => { };
 
 /** 一张封面的切点；还没取到时是 undefined（碎片先不画，露出底下的整张封面）。 */
 export const useBravaisCoverSpots = (url: string | undefined): readonly BravaisCoverSpot[] | undefined => {
-    const key = normalizeCoverUrl(url) ? url! : '';
+    const key = getCoverIdentity(url) ? url! : '';
     const subscribe = useCallback((listener: () => void) => (key ? subscribeSpots(key, listener) : NO_SUBSCRIPTION()), [key]);
     const spots = useSyncExternalStore(subscribe, () => (key ? spotsByUrl.get(key) : undefined));
     useEffect(() => {

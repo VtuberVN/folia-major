@@ -295,11 +295,6 @@ declare global {
     error: string | null;
   }
 
-  interface ElectronWindowCaptureSource {
-    id: string;
-    name: string;
-  }
-
   interface ElectronSaveDialogResult {
     canceled: boolean;
     filePath: string | null;
@@ -1056,11 +1051,15 @@ declare global {
         displayName?: string,
       ) => Promise<ElectronSaveDialogResult>;
       reportDevicePixelRatio: (ratio: number) => Promise<void>;
-      getMainWindowCaptureSource: () => Promise<ElectronWindowCaptureSource | null>;
       // Returns `false` when the resize could not be prepared, otherwise the resolved DPR.
-      prepareVideoExportWindow: (size: { width: number; height: number }) => Promise<false | { success: boolean; dpr: number }>;
+      prepareVideoExportWindow: (size: { width: number; height: number; dpr?: number }) => Promise<false | { success: boolean; dpr: number }>;
       restoreVideoExportWindow: () => Promise<boolean>;
-      writeVideoExportFile: (filePath: string, data: ArrayBuffer) => Promise<boolean>;
+      // Chunked export file writing: open returns a session id, chunks are appended in order,
+      // finish renames the partial file onto the chosen path, abort deletes it.
+      openVideoExportFile: (filePath: string) => Promise<string>;
+      appendVideoExportChunk: (sessionId: string, data: ArrayBuffer) => Promise<number>;
+      finishVideoExportFile: (sessionId: string) => Promise<{ filePath: string; bytesWritten: number; finalized: boolean }>;
+      abortVideoExportFile: (sessionId: string) => Promise<boolean>;
       getStageStatus: () => Promise<StageStatus>;
       setStageEnabled: (enabled: boolean) => Promise<StageStatus>;
       setStageSource: (source: StageSource) => Promise<StageStatus>;

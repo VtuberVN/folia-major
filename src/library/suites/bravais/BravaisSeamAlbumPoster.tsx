@@ -9,6 +9,7 @@ import BravaisSeamAbout from './BravaisSeamAbout';
 import { BravaisSeamFlipText } from './BravaisSeamFlip';
 import BravaisSeamCrumbs from './BravaisSeamCrumbs';
 import { openBravaisFilter } from './useBravaisSeamFilter';
+import { BRAVAIS_ALBUM_COVER_PX } from './bravaisConstants';
 import { resolveAlbumComposition } from './bravaisPosterComposition';
 import { splitHeroWord } from './BravaisSeamPoster';
 import {
@@ -49,7 +50,6 @@ const titleColumns = (title: string) => {
     return Math.max(2, longestWord, columnsOf(title) / TITLE_LINES);
 };
 
-const COVER_PX = 512;
 /** 入场（封面飞来或落下、倾斜）放完的时刻，之后海报封面不再动。 */
 const COVER_SETTLE_MS = 1300;
 
@@ -64,7 +64,7 @@ const BravaisSeamAlbumPoster: React.FC<{ layer: BravaisLayer; actions: BravaisSe
     const ghost = [...(hero ?? title)].slice(-1).join('');
     const composition = useMemo(() => resolveAlbumComposition(layer.key), [layer.key]);
     const fold = useMemo(() => ({ label: t('libraryBravais.seamFoldStrip'), run: () => actions.setLevel('hidden') }), [actions, t]);
-    const coverUrl = album?.coverUrl ? getSizedCoverUrl(album.coverUrl, COVER_PX) : undefined;
+    const coverUrl = album?.coverUrl ? getSizedCoverUrl(album.coverUrl, BRAVAIS_ALBUM_COVER_PX) : undefined;
     const style = {
         '--bravais-album-title-columns': titleColumns(title),
         // 海报高度的百分比写成 cqh：纸往上延伸进出血后框变高了，百分比会跟着变，cqh 不会。

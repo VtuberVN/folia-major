@@ -29,6 +29,7 @@ import { useLibraryHomeListRegistration, useLibraryHomeTabsRegistration } from '
 import { useLibraryAccountProviders } from '../../../core/bindings/useLibraryAccount';
 import { resolveProviderSelectLabel } from '../../../core/model/accountRules';
 import { cycleIndex, translateHomeMessage } from '../../../core/model/homeSources';
+import { useUpdateIndicator } from '../../../../hooks/useUpdateIndicator';
 
 // src/library/suites/grid/home/Grid3D.tsx
 // Glassmorphic interactive desktop home view replacing the legacy 3D carousel.
@@ -180,40 +181,7 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [scanDetailsExpanded, setScanDetailsExpanded] = useState(false);
 
-    const [updateStatus, setUpdateStatus] = useState<any>(null);
-
-    useEffect(() => {
-        if (!window.electron?.getUpdateStatus) {
-            return;
-        }
-
-        let disposed = false;
-
-        window.electron.getUpdateStatus().then((status) => {
-            if (!disposed) {
-                setUpdateStatus(status);
-            }
-        }).catch(() => {
-            if (!disposed) {
-                setUpdateStatus(null);
-            }
-        });
-
-        const unsubscribe = window.electron.onUpdateStatusChanged?.((status) => {
-            setUpdateStatus(status);
-        });
-
-        return () => {
-            disposed = true;
-            unsubscribe?.();
-        };
-    }, []);
-
-    const showUpdateIndicator = Boolean(
-        updateStatus?.updateCheckEnabled &&
-        updateStatus.availableVersion &&
-        !updateStatus.updateSeen
-    );
+    const showUpdateIndicator = useUpdateIndicator();
 
     // Reset focused index when switching tabs.
     useEffect(() => {

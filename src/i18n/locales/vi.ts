@@ -2680,6 +2680,7 @@ export default {
     openaiApiKey: "Khóa API OpenAI",
     aiApiKeySavedPlaceholder: "Đã lưu (để trống để giữ nguyên)",
     aiApiKeySavedDesc: "Khóa được lưu mã hóa an toàn trên thiết bị này và sẽ không hiển thị lại. Nhập khóa mới và lưu để thay thế.",
+    aiApiKeyEndpointMismatchDesc: "Khóa đã lưu chỉ được gửi đến {{endpoint}}. Nhập lại khóa để sử dụng địa chỉ khác.",
     aiApiKeyClear: "Xóa",
     openaiApiUrl: "URL API OpenAI",
     openaiApiModel: "Mô hình OpenAI",
@@ -2989,6 +2990,33 @@ export default {
     lyricMatchPriorityDesc: "Khi nhiều nguồn lời đều có kết quả khớp độ tin cậy cao, ưu tiên nguồn này trước.",
   },
   releaseNotes: {
+    v0_7_19: {
+      intro: "Phiên bản 0.7.19 biến trang nghệ sĩ và album trong Bravais thành các poster phong cách Tempera sống động. Khi một bài hát trực tuyến không phát được, Folia giờ đây hiển thị lý do thực tế thay vì luôn báo bài hát bị gỡ; các hiệu ứng thị giác từng từ như Tempera phân tách lời tiếng Trung và tiếng Nhật tự nhiên hơn; và bản web đã có thể khởi động ngoại tuyến trở lại.",
+      artistPoster: {
+        title: "Trang nghệ sĩ trở thành Poster phong cách",
+        description: "Dải thông tin đầy đủ trên trang nghệ sĩ Bravais giờ đây được vẽ như một tấm poster phong cách Tempera ghim ở bên trái không gian tường. Bố cục được tối ưu riêng theo từng nghệ sĩ, màu sắc lấy từ ba album phổ biến nhất của nghệ sĩ, và tên tự động co giãn vừa vặn thay vì tràn viền. Bức tường album bên phải nghiêng nhẹ để kết nối, và bạn vẫn có thể kéo cuộn mượt mà ngay cả khi tường đang nghiêng.",
+      },
+      albumPoster: {
+        title: "Poster Album và Tranh ghép ảnh bìa",
+        description: "Trang album cũng được trang bị poster riêng: ảnh bìa dán băng keo trên nền giấy chấm, tiêu đề lớn với bóng đổ phân lớp, cùng nghệ sĩ, năm phát hành và số lượng bài hát, tất cả đi kèm hiệu ứng chuyển động xuất hiện ấn tượng. Mở một album từ trang nghệ sĩ, ảnh bìa sẽ bay từ ô bạn nhấp vào thẳng lên poster và bay trở lại khi bạn quay về. Trên bức tường bên cạnh, album có bìa đơn được ghép thành một bức ảnh bìa khổ lớn trải dài qua các bài hát; khi album có nhiều bìa đơn lẻ, các bìa lặp lại sẽ được cắt thành từng mảnh ghép và hiển thị màu sắc đầy đủ khi rê chuột hoặc đang phát.",
+      },
+      playbackFailure: {
+        title: "Thông báo chi tiết nguyên nhân lỗi phát nhạc",
+        description: "Một bài hát trực tuyến phát thất bại không còn luôn hiển thị \"bài hát đã bị xóa\". Folia giờ đây phân biệt rõ ràng giữa bài hát bị gỡ, mất kết nối mạng hoặc hết thời gian chờ, lỗi máy chủ hoặc giới hạn tần suất, bài hát yêu cầu đăng nhập, tài khoản VIP hoặc cần mua gói, và giới hạn vùng lãnh thổ. Chỉ những bài hát thực sự bị xóa mới đếm ngược chuyển bài tiếp theo và tìm phiên bản thay thế; khi mất mạng, trình phát sẽ tạm dừng và giữ nguyên hàng đợi để bạn thử lại hoặc bỏ qua; các trường hợp yêu cầu đăng nhập, VIP hoặc mua bản quyền sẽ được báo rõ ràng mà không thử lại liên tục. Hỗ trợ NetEase, QQ Music, KuGou và Bodian.",
+      },
+      lyricSegmenter: {
+        title: "Phân tách từ tiếng Trung và tiếng Nhật tự nhiên hơn",
+        description: "Tempera, Sonnet và các chế độ hiển thị lời theo từng từ giờ đây sử dụng bộ phân đoạn mặc định mới icu-folia. Tiếng Trung không còn bị chia vụn (thành ngữ và từ vựng được giữ nguyên vẹn, các trợ từ như 的 và 了 đi liền với từ đứng trước), và tiếng Nhật được ngắt thành các cụm từ tự nhiên. Tempera cũng không còn tách các từ ngắn đi liền nhau ra nhiều khung hình riêng biệt. Các phân đoạn từ bạn tự lưu vẫn được ưu tiên hàng đầu, và từ điển chỉ tải khi thực sự cần thiết.",
+      },
+      offlineStartup: {
+        title: "Bản Web khởi động khi không có mạng",
+        description: "Sửa lỗi bản web / PWA không tải được khi làm mới trang lúc không có kết nối internet. Ảnh bìa nội bộ cũng hiển thị ngoại tuyến, và trong lần truy cập đầu tiên sẽ không còn phải đợi bộ nhớ đệm nền tải xong. Các biểu tượng được sử dụng theo chủ đề giờ đây tải theo nhu cầu (on-demand), giúp giảm đáng kể dung lượng cần tải khi khởi động.",
+      },
+      stabilityFixes: {
+        title: "Tối ưu hóa độ ổn định toàn diện",
+        description: "Trên Android, việc mở Tùy chọn hoặc các bảng điều khiển lớp phủ trên tường Bravais hoặc Lattice không còn làm chớp nháy bức tường bên dưới. Sửa lỗi thỉnh thoảng bị dừng đột ngột khi thay đổi kích thước cửa sổ trong lúc Tempera đang phát. Hình nền Sora dừng vẽ hoàn toàn khi tạm dừng nhạc, và các ngôi sao giữ nguyên vị trí ở chế độ tĩnh. Cửa sổ ghi chú phát hành hiển thị lúc khởi động giờ đây có thể đóng nhanh bằng phím Esc.",
+      },
+    },
     v0_7_18: {
       intro: "Phiên bản 0.7.18 bổ sung hàng đợi phát trực tiếp ngay trên công cụ không gian tường trong Bravais và Lattice, đồng thời cả hai không gian tường giờ đây dùng chung một bảng công cụ. Nhiều hiệu ứng thị giác lời bài hát tiêu tốn ít tài nguyên hơn, chuyển bài nội bộ mượt mà hơn, đăng nhập mã QR QQ Music hướng dẫn xử lý khi đạt giới hạn thiết bị, và ứng dụng máy tính lưu khóa AI mã hóa an toàn.",
       queueIsland: {

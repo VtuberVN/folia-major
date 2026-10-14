@@ -43,6 +43,13 @@ Nếu bạn muốn sử dụng trên thiết bị di động hoặc trải nghi�
 
 ---
 
+## Tải về nhanh
+
+> [!TIP]
+> - **GitHub**: [Bản phát hành mới nhất](https://github.com/VtuberVN/folia-major/releases/latest), cung cấp gói cài đặt cho Windows / macOS / Linux (bao gồm cả bộ cài Setup và bản nén giải nén Portable Zip).
+> - **Bản gốc Upstream**: [Release Upstream](https://github.com/chthollyphile/folia-major/releases/latest).
+> - Xem thêm các cách tải và cài đặt khác (Web, Docker, AUR, Flatpak) tại phần [Cách cài đặt và sử dụng](#cách-cài-đặt-và-sử-dụng).
+
 ## Trình diễn
 
 ![visualizer](./img/visualizer.png)

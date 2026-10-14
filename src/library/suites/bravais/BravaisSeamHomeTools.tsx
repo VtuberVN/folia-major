@@ -39,6 +39,8 @@ import { bravaisPopMotion } from './bravaisSeamMotion';
 // 3 + 2：窄缝只有约 100px 宽，三格 40px 放不下；五格两列会剩一个空洞、「⋯」的位置也会变。舞台与 grid 首页那一排的
 // 「舞台」一样是「去哪儿」，所以带字。正在用舞台播放（stageIsActive）时与 grid 一样只标 data-stage-active，不画选中态
 // （它不是开关，点它总是打开舞台）。
+// 工具带 badge（设置：发现新版本）时说明拼进 aria-label / title；窄缝里工具格下方另起一行可点的说明文字（点它与点那一格相同），
+// 书脊上放不下文字，改在图标右上角画一个强调色的点。
 
 const TOOL_ICONS: Record<BravaisHomeToolId, React.ComponentType<{ 'aria-hidden'?: boolean; className?: string }>> = {
     search: Search,
@@ -78,6 +80,7 @@ const BravaisSeamHomeTools: React.FC<{
     const moreRef = useRef<HTMLButtonElement>(null);
     const request = useBravaisHomeUiStore(state => state.openRequest);
     const { dock, page, app } = splitHomeTools(home.tools);
+    const notice = dock.find(tool => tool.badge);
     const local = home.menu ?? [];
     const jumps = menuShortcuts ?? [];
     const hasMenu = jumps.length > 0 || page.length > 0 || local.length > 0 || app.length > 0;
@@ -177,6 +180,7 @@ const BravaisSeamHomeTools: React.FC<{
                 {dock.map((tool) => {
                     const Icon = TOOL_ICONS[tool.id];
                     const wide = tool.id === 'stage';
+                    const label = tool.badge ? `${tool.label} · ${tool.badge}` : tool.label;
                     return (
                         <button
                             key={tool.id}
@@ -184,14 +188,16 @@ const BravaisSeamHomeTools: React.FC<{
                             className={`bravais-seam-icon${tool.pressed ? ' is-pressed' : ''}${wide ? ' is-wide' : ''}`}
                             data-bravais-seam-action={tool.id}
                             data-stage-active={wide ? String(Boolean(tool.active)) : undefined}
-                            aria-label={tool.label}
+                            data-bravais-badge={tool.badge ? 'true' : undefined}
+                            aria-label={label}
                             aria-pressed={tool.pressed}
-                            title={tool.label}
+                            title={label}
                             disabled={tool.disabled}
                             onClick={tool.run}
                         >
                             <Icon aria-hidden className={tool.busy ? 'animate-spin' : undefined} />
                             {wide && !compact && tool.shortLabel && <span className="is-label" aria-hidden>{tool.shortLabel}</span>}
+                            {tool.badge && compact && <span className="is-badge" aria-hidden />}
                         </button>
                     );
                 })}
@@ -203,6 +209,13 @@ const BravaisSeamHomeTools: React.FC<{
                     </button>
                 )}
             </div>
+            {notice && !compact && (
+                <button type="button" className="bravais-seam-notice" data-bravais-seam-action={`${notice.id}-notice`}
+                    title={notice.badge} onClick={notice.run}>
+                    <span className="is-dot" aria-hidden />
+                    <span className="is-text">{notice.badge}</span>
+                </button>
+            )}
         </div>
     );
 };

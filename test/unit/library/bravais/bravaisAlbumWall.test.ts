@@ -20,6 +20,16 @@ describe('album cover art', () => {
         expect(items.map(item => item.coverArt)).toEqual(Array(3).fill({ mode: 'mosaic', url: 'c.jpg?param=512y512' }));
     });
 
+    it('makes a mosaic when Netease hands the same cover out from different pN hosts', () => {
+        // 专辑 2992200：25 首在 p2，第 17 首在 p1，路径一样。
+        const path = '.music.126.net/A8cekRECAnzfAG1TbKWoew==/109951171002613452.jpg';
+        const items = assignAlbumCoverArt(
+            [track('a', `https://p2${path}`), track('b', `https://p1${path}?param=128y128`), track('c', `http://p2${path}`)],
+            `https://p2${path}?param=512y512`,
+        );
+        expect(items.map(item => item.coverArt?.mode)).toEqual(['mosaic', 'mosaic', 'mosaic']);
+    });
+
     it('keeps the first of each cover, shards the repeats and the coverless, and keeps the order', () => {
         const items = assignAlbumCoverArt(
             [track('a', 'album.jpg'), track('b', 'single.jpg'), track('c', 'album.jpg'), track('d'), track('e', 'single.jpg?x=1')],

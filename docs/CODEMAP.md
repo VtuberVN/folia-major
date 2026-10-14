@@ -20,9 +20,9 @@
 | utils | 128+ |
 | backend/electron | 64+ |
 | hooks | 64+ |
+| 其他 | 64+ |
 | src (其他) | 32+ |
 | stores | 32+ |
-| 其他 | 32+ |
 | types | 16+ |
 | i18n | 8+ |
 | workers | 4+ |
@@ -61,6 +61,7 @@
 | 32+ | `src/stores/useAudioSettingsStore.ts` |
 | 32+ | `src/stores/useThemeSettingsStore.ts` |
 | 32+ | `src/types/localLibrary.ts` |
+| 32+ | `src/utils/coverUrl.ts` |
 | 32+ | `src/utils/fontStacks.ts` |
 | 32+ | `src/utils/lyrics/graphemeTiming.ts` |
 | 32+ | `src/utils/lyrics/parserCore.ts` |
