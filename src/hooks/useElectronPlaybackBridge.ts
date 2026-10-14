@@ -232,7 +232,10 @@ export const useElectronPlaybackBridge = ({
         // position here would show the outgoing song's title against the incoming song's clock.
         const audioElement = getDisplayAudioElement?.() ?? audioRef.current;
         const isCurrentAudioSource = isAudioElementUsingCurrentSource();
-        const currentTimeSec = audioElement?.currentTime ?? currentTime.get();
+        const motionTime = currentTime.get();
+        const currentTimeSec = (typeof motionTime === 'number' && Number.isFinite(motionTime))
+            ? motionTime
+            : (audioElement?.currentTime ?? 0);
         const stagePositionSec = resolveStagePlayerPositionSec({
             activePlaybackContext,
             isExternalPlaybackSourceActive: isNowPlayingStageActive,

@@ -18,8 +18,8 @@ import { buildMonetDisplayTokens, type MonetDisplayToken } from '../visualizer/m
 // src/components/mini-lyric-bar/MiniLyricBarApp.tsx
 // High-performance Desktop Mini Lyric Bar.
 // Runs in an independent transparent, frameless, always-on-top window.
-// Uses direct DOM manipulation in requestAnimationFrame to decouple 60fps/144fps gradient animation
-// from React component reconciliation, and soft slew drift correction to prevent 500ms IPC clock snapping.
+// Uses two-layer GPU-accelerated hardware clip-path text sweeping, continuous monotonic rate governor,
+// dynamic responsive album art, and floating overlay toolbar so no lyrics are ever cut off.
 
 export const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
 
@@ -51,6 +51,7 @@ export const resolveDisplayLines = (lyrics: LyricData | null | undefined, time: 
 
 export interface MiniLyricClockSyncState {
     currentTime: number;
+    playbackRate: number;
     lastTrackKey: string | null;
     lastPlayerState: PlayerState;
     isInitialized: boolean;
@@ -60,12 +61,12 @@ export const calculateClockSyncOnSnapshot = (
     state: MiniLyricClockSyncState,
     snapshot: RemoteControlSnapshot,
     nowWallMs: number,
-): number => {
+): { nextTime: number; nextPlaybackRate: number } => {
     const rawTime = snapshot.currentTime;
     const offsetSec = (snapshot.lyricOffsetMs || 0) / 1000;
     const baseTime = rawTime - offsetSec;
 
-    // Compensate for IPC / event-loop transit latency
+    // Compensate for transit latency across IPC
     const transitLatencySec = (typeof snapshot.updatedAt === 'number' && snapshot.updatedAt > 0 && nowWallMs >= snapshot.updatedAt)
         ? Math.min(0.5, (nowWallMs - snapshot.updatedAt) / 1000)
         : 0;
@@ -78,13 +79,23 @@ export const calculateClockSyncOnSnapshot = (
     const isStateChange = state.lastPlayerState !== snapshot.playerState;
     const drift = targetTime - state.currentTime;
 
-    // Hard jump on init, track change, play/pause change, or user seek (|drift| > 0.35s)
-    if (!state.isInitialized || isTrackChange || isStateChange || Math.abs(drift) > 0.35) {
-        return targetTime;
+    // Hard snap on init, track change, pause/play toggle, or user seek (|drift| > 0.4s)
+    if (!state.isInitialized || isTrackChange || isStateChange || Math.abs(drift) > 0.4) {
+        return {
+            nextTime: targetTime,
+            nextPlaybackRate: 1.0,
+        };
     }
 
-    // Soft slew during continuous playback: gently correct 15% of the drift per snapshot
-    return state.currentTime + drift * 0.15;
+    // Monotonic soft governor: if actively playing and drift is small,
+    // adjust clock rate by ±5% to seamlessly eliminate drift without ANY retrograde jumping!
+    const rateDelta = (drift / 0.5) * 0.5;
+    const nextRate = Math.max(0.92, Math.min(1.08, 1.0 + rateDelta));
+
+    return {
+        nextTime: state.currentTime,
+        nextPlaybackRate: nextRate,
+    };
 };
 
 export default function MiniLyricBarApp() {
@@ -97,12 +108,14 @@ export default function MiniLyricBarApp() {
     const [display, setDisplay] = useState<MiniLyricDisplay>({ currentLine: null, nextLine: null });
     const displayRef = useRef<MiniLyricDisplay>(display);
 
-    // Refs for continuous 60fps/144fps interpolation
+    // Refs for continuous monotonic 60fps/144fps interpolation
     const latestSnapshotRef = useRef<RemoteControlSnapshot | null>(null);
     const currentTimeRef = useRef<number>(0);
+    const playbackRateRef = useRef<number>(1.0);
     const lastTickTimeRef = useRef<number>(performance.now());
     const clockSyncStateRef = useRef<MiniLyricClockSyncState>({
         currentTime: 0,
+        playbackRate: 1.0,
         lastTrackKey: null,
         lastPlayerState: PlayerState.PAUSED,
         isInitialized: false,
@@ -110,9 +123,10 @@ export default function MiniLyricBarApp() {
 
     // DOM node refs for direct GPU styling without React reconciliation
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-    const tokenNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
-    const singleLineNodeRef = useRef<HTMLSpanElement | null>(null);
-    const tokenCentersRef = useRef<number[]>([]);
+    const wordWrapperNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
+    const activeTokenNodesRef = useRef<(HTMLSpanElement | null)[]>([]);
+    const singleLineWrapperRef = useRef<HTMLSpanElement | null>(null);
+    const singleLineActiveRef = useRef<HTMLSpanElement | null>(null);
     const scrollMetricsRef = useRef({ containerWidth: 0, maxScroll: 0 });
     const targetScrollRef = useRef<number>(0);
 
@@ -130,7 +144,8 @@ export default function MiniLyricBarApp() {
     const displayTokensRef = useRef<MonetDisplayToken[]>(displayTokens);
     useEffect(() => {
         displayTokensRef.current = displayTokens;
-        tokenNodesRef.current = [];
+        wordWrapperNodesRef.current = [];
+        activeTokenNodesRef.current = [];
     }, [displayTokens]);
 
     useEffect(() => {
@@ -141,7 +156,6 @@ export default function MiniLyricBarApp() {
     const measureScrollTargets = useCallback(() => {
         const container = scrollContainerRef.current;
         if (!container) {
-            tokenCentersRef.current = [];
             scrollMetricsRef.current = { containerWidth: 0, maxScroll: 0 };
             return;
         }
@@ -149,9 +163,6 @@ export default function MiniLyricBarApp() {
         const containerWidth = container.clientWidth;
         const maxScroll = Math.max(0, container.scrollWidth - containerWidth);
         scrollMetricsRef.current = { containerWidth, maxScroll };
-        tokenCentersRef.current = tokenNodesRef.current.map(child =>
-            child ? child.offsetLeft + child.offsetWidth / 2 : 0
-        );
 
         if (maxScroll <= 0) {
             container.scrollLeft = 0;
@@ -172,19 +183,26 @@ export default function MiniLyricBarApp() {
         if (!line) return;
 
         const tokens = displayTokensRef.current;
-        if (tokens.length > 0) {
+        const timedTokens = tokens.filter(t => t.timed && t.startTime !== null && t.endTime !== null);
+
+        if (timedTokens.length > 0) {
             for (let i = 0; i < tokens.length; i++) {
                 const token = tokens[i];
-                const node = tokenNodesRef.current[i];
-                if (!node) continue;
-
                 if (token.timed && token.startTime !== null && token.endTime !== null) {
+                    const activeNode = activeTokenNodesRef.current[i];
+                    if (!activeNode) continue;
+
                     const progress = token.endTime > token.startTime
                         ? clampProgress(((time - token.startTime) / (token.endTime - token.startTime)) * 100)
                         : (time >= token.startTime ? 100 : 0);
-                    node.style.backgroundImage = `linear-gradient(to right, #38bdf8 ${progress}%, #f1f5f9 ${progress}%)`;
+
+                    // GPU hardware-accelerated clip path (zero CPU font repaints)
+                    activeNode.style.clipPath = `inset(0 ${100 - progress}% 0 0)`;
                 } else {
                     // Delimiter token (space, punctuation): highlight if preceding word passed
+                    const wrapperNode = wordWrapperNodesRef.current[i];
+                    if (!wrapperNode) continue;
+
                     let isPassed = false;
                     for (let j = i - 1; j >= 0; j--) {
                         const prev = tokens[j];
@@ -193,21 +211,21 @@ export default function MiniLyricBarApp() {
                             break;
                         }
                     }
-                    node.style.color = isPassed ? '#38bdf8' : '#f1f5f9';
+                    wrapperNode.style.color = isPassed ? '#38bdf8' : 'rgba(255, 255, 255, 0.6)';
                 }
             }
             return;
         }
 
         // Plain LRC fallback for single line
-        if (singleLineNodeRef.current) {
+        if (singleLineActiveRef.current) {
             const duration = line.endTime > line.startTime ? line.endTime - line.startTime : 3.5;
             const progress = clampProgress(((time - line.startTime) / duration) * 100);
-            singleLineNodeRef.current.style.backgroundImage = `linear-gradient(to right, #38bdf8 ${progress}%, #f1f5f9 ${progress}%)`;
+            singleLineActiveRef.current.style.clipPath = `inset(0 ${100 - progress}% 0 0)`;
         }
     }, []);
 
-    // Smooth horizontal autoscroll centering the currently sung word
+    // Smooth focal-point horizontal autoscroll (tracks current singing word across long sentences)
     const updateScroll = useCallback((time: number) => {
         const container = scrollContainerRef.current;
         const line = displayRef.current.currentLine;
@@ -221,23 +239,46 @@ export default function MiniLyricBarApp() {
 
         let targetScroll = 0;
         const tokens = displayTokensRef.current;
-        if (tokens.length > 0) {
+        const timedTokens = tokens.filter(t => t.timed && t.startTime !== null && t.endTime !== null);
+
+        if (timedTokens.length > 1) {
+            // Multi-word line: track active singing word focal point
             const activeIdx = tokens.findIndex(t => t.timed && t.startTime !== null && t.endTime !== null && time >= t.startTime && time <= t.endTime);
             if (activeIdx !== -1) {
-                targetScroll = (tokenCentersRef.current[activeIdx] ?? 0) - containerWidth / 2;
+                const token = tokens[activeIdx];
+                const node = wordWrapperNodesRef.current[activeIdx];
+                if (node && token.startTime !== null && token.endTime !== null) {
+                    const wordProgress = clampProgress(((time - token.startTime) / Math.max(0.001, token.endTime - token.startTime)) * 100) / 100;
+                    const focalX = node.offsetLeft + wordProgress * node.offsetWidth;
+                    targetScroll = focalX - containerWidth * 0.35;
+                }
             } else {
-                const lastTimed = [...tokens].reverse().find(t => t.timed && t.endTime !== null);
+                // Past end of line
+                const lastTimed = timedTokens[timedTokens.length - 1];
                 if (lastTimed && lastTimed.endTime !== null && time >= lastTimed.endTime) {
                     targetScroll = maxScroll;
                 } else {
-                    const firstTimed = tokens.find(t => t.timed && t.startTime !== null);
+                    const firstTimed = timedTokens[0];
                     if (firstTimed && firstTimed.startTime !== null && time < firstTimed.startTime) {
                         targetScroll = 0;
+                    } else {
+                        // In-between words: keep preceding word in view
+                        const nextIdx = tokens.findIndex(t => t.timed && t.startTime !== null && time < t.startTime);
+                        if (nextIdx > 0) {
+                            const prevNode = wordWrapperNodesRef.current[nextIdx - 1];
+                            if (prevNode) {
+                                targetScroll = prevNode.offsetLeft + prevNode.offsetWidth - containerWidth * 0.35;
+                            }
+                        }
                     }
                 }
             }
-        } else if (line.endTime > line.startTime && time >= line.startTime) {
-            targetScroll = ((time - line.startTime) / (line.endTime - line.startTime)) * maxScroll;
+        } else {
+            // Plain LRC line (or single token): scroll proportionally from 0 to maxScroll
+            const duration = line.endTime > line.startTime ? line.endTime - line.startTime : 3.5;
+            const lineProgress = clampProgress(((time - line.startTime) / duration) * 100) / 100;
+            const focalX = lineProgress * (containerWidth + maxScroll);
+            targetScroll = focalX - containerWidth * 0.35;
         }
 
         const bounded = Math.max(0, Math.min(maxScroll, targetScroll));
@@ -245,7 +286,7 @@ export default function MiniLyricBarApp() {
 
         const diff = bounded - container.scrollLeft;
         if (Math.abs(diff) > 0.2) {
-            container.scrollLeft += diff * 0.14;
+            container.scrollLeft += diff * 0.12;
         } else {
             container.scrollLeft = bounded;
         }
@@ -270,17 +311,19 @@ export default function MiniLyricBarApp() {
         }
     }, [measureScrollTargets, updateLineProgress]);
 
-    // Apply snapshot with soft drift slew
+    // Apply snapshot with monotonic clock governor
     const applySnapshot = useCallback((next: unknown) => {
         if (!next) return;
         const nextSnapshot = next as unknown as RemoteControlSnapshot;
         latestSnapshotRef.current = nextSnapshot;
 
         const syncState = clockSyncStateRef.current;
-        const nextTime = calculateClockSyncOnSnapshot(syncState, nextSnapshot, Date.now());
+        const { nextTime, nextPlaybackRate } = calculateClockSyncOnSnapshot(syncState, nextSnapshot, Date.now());
 
         currentTimeRef.current = nextTime;
+        playbackRateRef.current = nextPlaybackRate;
         syncState.currentTime = nextTime;
+        syncState.playbackRate = nextPlaybackRate;
         syncState.lastTrackKey = nextSnapshot.trackKey;
         syncState.lastPlayerState = nextSnapshot.playerState;
         syncState.isInitialized = true;
@@ -355,8 +398,13 @@ export default function MiniLyricBarApp() {
             const isPlaying = currentSnapshot?.playerState === PlayerState.PLAYING;
 
             if (isPlaying) {
+                // Gently relax adaptive playback rate back to 1.0
+                const currentRate = playbackRateRef.current;
+                playbackRateRef.current += (1.0 - currentRate) * 0.02;
+
                 const duration = currentSnapshot?.duration || Number.POSITIVE_INFINITY;
-                currentTimeRef.current = Math.min(duration, currentTimeRef.current + dt);
+                // Strict monotonic advancement: dt * rate > 0 always!
+                currentTimeRef.current = Math.min(duration, currentTimeRef.current + dt * playbackRateRef.current);
                 clockSyncStateRef.current.currentTime = currentTimeRef.current;
             }
 
@@ -423,94 +471,122 @@ export default function MiniLyricBarApp() {
                     cursor: isClickThrough ? 'default' : 'move',
                 } as React.CSSProperties}
             >
-                {/* Left: Album cover / music icon */}
+                {/* Left: Dynamic responsive Album cover that grows with window height */}
                 <div
-                    className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-sm mr-3"
+                    className="flex-shrink-0 flex items-center justify-center h-full aspect-square max-h-[84px] min-h-[36px] min-w-[36px] rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-md mr-3.5 select-none"
                     style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 >
                     {snapshot?.coverUrl ? (
                         <img
                             src={snapshot.coverUrl}
                             alt=""
-                            className="w-full h-full object-cover select-none pointer-events-none"
+                            className="w-full h-full object-cover select-none pointer-events-none rounded-xl"
                             draggable={false}
                         />
                     ) : (
-                        <Music size={16} className="text-white/60 animate-pulse" />
+                        <Music className="w-1/2 h-1/2 text-white/60 animate-pulse" />
                     )}
                 </div>
 
-                {/* Center: Synced Lyrics display */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
+                {/* Center: Synced Lyrics display (takes full width with zero cut-off from hidden buttons) */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden pr-2">
                     {currentLine ? (
                         <div className="flex flex-col justify-center">
-                            {/* Primary lyric line with word-level or line progress fill and smooth autoscroll */}
+                            {/* Primary lyric line with two-layer GPU text clipping and focal-point autoscroll */}
                             <div
                                 ref={scrollContainerRef}
-                                className="text-sm sm:text-base font-bold tracking-wide overflow-x-hidden whitespace-nowrap text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] leading-tight select-none"
+                                className="text-sm sm:text-base md:text-lg font-bold tracking-wide overflow-x-hidden whitespace-nowrap drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] leading-tight select-none"
                             >
                                 {displayTokens.length > 0 ? (
-                                    displayTokens.map((token, idx) => (
-                                        <span
-                                            key={token.key}
-                                            ref={el => { tokenNodesRef.current[idx] = el; }}
-                                            className="inline-block whitespace-pre select-none"
-                                            style={token.timed && token.startTime !== null && token.endTime !== null ? {
-                                                backgroundImage: 'linear-gradient(to right, #38bdf8 0%, #f1f5f9 0%)',
-                                                WebkitBackgroundClip: 'text',
-                                                WebkitTextFillColor: 'transparent',
-                                                willChange: 'background-image',
-                                            } : {
-                                                color: '#f1f5f9',
-                                            }}
-                                        >
-                                            {token.text}
-                                        </span>
-                                    ))
+                                    displayTokens.map((token, idx) => {
+                                        if (token.timed && token.startTime !== null && token.endTime !== null) {
+                                            return (
+                                                <span
+                                                    key={token.key}
+                                                    ref={el => { wordWrapperNodesRef.current[idx] = el; }}
+                                                    className="relative inline-block whitespace-pre select-none"
+                                                >
+                                                    {/* Inactive base text */}
+                                                    <span className="text-white/60 select-none">
+                                                        {token.text}
+                                                    </span>
+                                                    {/* Active highlighted text overlay clipped on GPU */}
+                                                    <span
+                                                        ref={el => { activeTokenNodesRef.current[idx] = el; }}
+                                                        aria-hidden
+                                                        className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                                                        style={{ clipPath: 'inset(0 100% 0 0)' }}
+                                                    >
+                                                        <span className="inline-block whitespace-pre select-none">
+                                                            {token.text}
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                            );
+                                        }
+
+                                        return (
+                                            <span
+                                                key={token.key}
+                                                ref={el => { wordWrapperNodesRef.current[idx] = el; }}
+                                                className="inline-block whitespace-pre select-none text-white/60"
+                                            >
+                                                {token.text}
+                                            </span>
+                                        );
+                                    })
                                 ) : (
                                     <span
-                                        ref={singleLineNodeRef}
-                                        className="inline-block whitespace-pre select-none"
-                                        style={{
-                                            backgroundImage: 'linear-gradient(to right, #38bdf8 0%, #f1f5f9 0%)',
-                                            WebkitBackgroundClip: 'text',
-                                            WebkitTextFillColor: 'transparent',
-                                            willChange: 'background-image',
-                                        }}
+                                        ref={singleLineWrapperRef}
+                                        className="relative inline-block whitespace-pre select-none"
                                     >
-                                        {currentLine.fullText}
+                                        <span className="text-white/60 select-none">
+                                            {currentLine.fullText}
+                                        </span>
+                                        <span
+                                            ref={singleLineActiveRef}
+                                            aria-hidden
+                                            className="absolute inset-0 overflow-hidden text-sky-400 select-none pointer-events-none drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                                            style={{ clipPath: 'inset(0 100% 0 0)' }}
+                                        >
+                                            <span className="inline-block whitespace-pre select-none">
+                                                {currentLine.fullText}
+                                            </span>
+                                        </span>
                                     </span>
                                 )}
                             </div>
 
                             {/* Secondary translation or romanization subtitle */}
                             {secondaryText && (
-                                <div className="text-[11px] text-white/70 font-medium truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 select-none">
+                                <div className="text-[11px] sm:text-xs text-white/70 font-medium truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 select-none">
                                     {secondaryText}
                                 </div>
                             )}
                         </div>
                     ) : snapshot?.hasTrack ? (
                         <div className="flex flex-col justify-center">
-                            <span className="text-sm font-semibold text-white/90 truncate drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                            <span className="text-sm sm:text-base font-semibold text-white/90 truncate drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
                                 {snapshot.title || t('ui.waitingForMusic')}
                             </span>
-                            <span className="text-[11px] text-white/50 truncate">
+                            <span className="text-[11px] sm:text-xs text-white/50 truncate">
                                 {snapshot.artist || 'Folia Major'}
                             </span>
                         </div>
                     ) : (
-                        <div className="text-xs text-white/50 font-medium tracking-wide truncate">
+                        <div className="text-xs sm:text-sm text-white/50 font-medium tracking-wide truncate">
                             {t('ui.noTrack', 'Folia Major')}
                         </div>
                     )}
                 </div>
 
-                {/* Right: Floating control toolbar or Lock icon */}
+                {/* Right: Floating control toolbar (floats over right edge on hover, taking 0 flex space when idle) */}
                 {!isClickThrough ? (
                     <div
-                        className={`flex items-center space-x-1 ml-2 transition-opacity duration-200 ${
-                            isHovered ? 'opacity-100' : 'opacity-0'
+                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-neutral-950/85 backdrop-blur-2xl border border-white/20 shadow-2xl transition-all duration-200 z-20 ${
+                            isHovered
+                                ? 'opacity-100 scale-100 pointer-events-auto'
+                                : 'opacity-0 scale-95 pointer-events-none'
                         }`}
                         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                     >
@@ -521,7 +597,7 @@ export default function MiniLyricBarApp() {
                             title={t('ui.previousTrack')}
                             className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
                         >
-                            <SkipBack size={14} />
+                            <SkipBack size={15} />
                         </button>
 
                         {/* Play / Pause */}
@@ -531,7 +607,7 @@ export default function MiniLyricBarApp() {
                             title={isPlaying ? t('ui.pause') : t('ui.play')}
                             className="p-1.5 rounded-lg text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all shadow-sm"
                         >
-                            {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                            {isPlaying ? <Pause size={15} /> : <Play size={15} />}
                         </button>
 
                         {/* Next track */}
@@ -541,7 +617,7 @@ export default function MiniLyricBarApp() {
                             title={t('ui.nextTrack')}
                             className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
                         >
-                            <SkipForward size={14} />
+                            <SkipForward size={15} />
                         </button>
 
                         {/* Lock Click-Through Toggle */}
@@ -551,7 +627,7 @@ export default function MiniLyricBarApp() {
                             title={t('ui.miniLyricBarLock')}
                             className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
                         >
-                            <Unlock size={14} />
+                            <Unlock size={15} />
                         </button>
 
                         {/* Close window */}
@@ -561,14 +637,16 @@ export default function MiniLyricBarApp() {
                             title={t('ui.close')}
                             className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-red-500/80 active:scale-95 transition-all"
                         >
-                            <X size={14} />
+                            <X size={15} />
                         </button>
                     </div>
                 ) : (
-                    /* Locked mode: only lock icon shown on hover to unlock, action buttons hidden */
+                    /* Locked mode: only lock icon shown on hover to unlock */
                     <div
-                        className={`flex items-center ml-2 transition-opacity duration-200 ${
-                            isHovered ? 'opacity-100' : 'opacity-0'
+                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center transition-all duration-200 z-20 ${
+                            isHovered
+                                ? 'opacity-100 scale-100 pointer-events-auto'
+                                : 'opacity-0 scale-95 pointer-events-none'
                         }`}
                         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                         onMouseEnter={() => {
@@ -586,7 +664,7 @@ export default function MiniLyricBarApp() {
                             title={t('ui.miniLyricBarUnlock')}
                             className="p-1.5 rounded-lg text-amber-400 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 shadow-md transition-all active:scale-95"
                         >
-                            <Lock size={14} />
+                            <Lock size={15} />
                         </button>
                     </div>
                 )}

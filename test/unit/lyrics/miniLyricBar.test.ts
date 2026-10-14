@@ -221,18 +221,21 @@ describe('Desktop Mini Lyric Bar', () => {
         it('snaps immediately on first initialization', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 0,
+                playbackRate: 1.0,
                 lastTrackKey: null,
                 lastPlayerState: PlayerState.PAUSED,
                 isInitialized: false,
             };
 
             const result = calculateClockSyncOnSnapshot(state, baseSnapshot, 1000000);
-            expect(result).toBe(20.0);
+            expect(result.nextTime).toBe(20.0);
+            expect(result.nextPlaybackRate).toBe(1.0);
         });
 
         it('compensates for IPC transit latency using updatedAt', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 0,
+                playbackRate: 1.0,
                 lastTrackKey: null,
                 lastPlayerState: PlayerState.PAUSED,
                 isInitialized: false,
@@ -240,44 +243,51 @@ describe('Desktop Mini Lyric Bar', () => {
 
             // 50ms transit latency between main window and miniLyricBar window
             const result = calculateClockSyncOnSnapshot(state, baseSnapshot, 1000050);
-            expect(result).toBeCloseTo(20.05, 3);
+            expect(result.nextTime).toBeCloseTo(20.05, 3);
+            expect(result.nextPlaybackRate).toBe(1.0);
         });
 
-        it('softly slews small drifts without jerky clock jumps', () => {
+        it('softly slews small drifts monotonically without jerky clock jumps', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 20.0,
+                playbackRate: 1.0,
                 lastTrackKey: 'song-1',
                 lastPlayerState: PlayerState.PLAYING,
                 isInitialized: true,
             };
 
-            // Snapshot arrives indicating 20.10s (drift = +0.10s, which is <= 0.35s)
-            const snapshot = { ...baseSnapshot, currentTime: 20.10, updatedAt: 1000000 };
+            // Snapshot arrives indicating 20.05s (drift = +0.05s, which is <= 0.40s)
+            const snapshot = { ...baseSnapshot, currentTime: 20.05, updatedAt: 1000000 };
             const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
 
-            // Slews 15% of the 0.10s drift: 20.0 + 0.015 = 20.015s (smooth, no jerky snap)
-            expect(result).toBeCloseTo(20.015, 3);
+            // Maintains monotonic time at 20.0, gently nudges rate to 1.05 to catch up seamlessly
+            expect(result.nextTime).toBe(20.0);
+            expect(result.nextPlaybackRate).toBeGreaterThan(1.0);
+            expect(result.nextPlaybackRate).toBeLessThanOrEqual(1.08);
         });
 
         it('snaps immediately on large drift (user seeked / scrubbed)', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 20.0,
+                playbackRate: 1.0,
                 lastTrackKey: 'song-1',
                 lastPlayerState: PlayerState.PLAYING,
                 isInitialized: true,
             };
 
-            // User seeks to 55.0s (drift = +35s, > 0.35s)
+            // User seeks to 55.0s (drift = +35s, > 0.40s)
             const snapshot = { ...baseSnapshot, currentTime: 55.0, updatedAt: 1000000 };
             const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
 
             // Jumps immediately to seek target
-            expect(result).toBe(55.0);
+            expect(result.nextTime).toBe(55.0);
+            expect(result.nextPlaybackRate).toBe(1.0);
         });
 
         it('snaps immediately on track change', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 175.0,
+                playbackRate: 1.0,
                 lastTrackKey: 'song-1',
                 lastPlayerState: PlayerState.PLAYING,
                 isInitialized: true,
@@ -287,12 +297,14 @@ describe('Desktop Mini Lyric Bar', () => {
             const snapshot = { ...baseSnapshot, trackKey: 'song-2', currentTime: 0.0, updatedAt: 1000000 };
             const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
 
-            expect(result).toBe(0.0);
+            expect(result.nextTime).toBe(0.0);
+            expect(result.nextPlaybackRate).toBe(1.0);
         });
 
         it('snaps immediately on player state change (pause -> play)', () => {
             const state: MiniLyricClockSyncState = {
                 currentTime: 15.0,
+                playbackRate: 1.0,
                 lastTrackKey: 'song-1',
                 lastPlayerState: PlayerState.PAUSED,
                 isInitialized: true,
@@ -301,7 +313,8 @@ describe('Desktop Mini Lyric Bar', () => {
             const snapshot = { ...baseSnapshot, playerState: PlayerState.PLAYING, currentTime: 15.0, updatedAt: 1000000 };
             const result = calculateClockSyncOnSnapshot(state, snapshot, 1000000);
 
-            expect(result).toBe(15.0);
+            expect(result.nextTime).toBe(15.0);
+            expect(result.nextPlaybackRate).toBe(1.0);
         });
     });
 });
