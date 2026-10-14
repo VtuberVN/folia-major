@@ -29,6 +29,7 @@ dist-ssr
 dev-dist/
 example/
 release/
+dist-release*/
 packaging/aur/folia-major-bin/FIRST_RELEASE.md
 packaging/aur/folia-major-bin/README.md
 .codex
