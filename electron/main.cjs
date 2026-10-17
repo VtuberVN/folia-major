@@ -1969,6 +1969,31 @@ const mainLocale = {
     crashOpenFolder: 'Buka Folder Log',
     crashClose: 'Tutup',
   },
+  vi: {
+    trayShowWindow: 'Hiện cửa sổ',
+    trayHideWindow: 'Ẩn cửa sổ',
+    trayOpenRemote: 'Cửa sổ điều khiển',
+    trayUnlockRemote: 'Mở khóa cửa sổ điều khiển',
+    trayTransparentBackground: 'Nền trong suốt',
+    trayToggleClickThrough: 'Nhấp xuyên qua',
+    trayAlwaysOnTop: 'Luôn trên cùng',
+    trayHideTaskbar: 'Ẩn biểu tượng thanh tác vụ',
+    trayDesktopLyricMode: 'Lời bài hát màn hình chính',
+    trayToggleWallpaperMode: 'Chế độ hình nền',
+    trayWallpaperDisplay: 'Màn hình hiển thị hình nền',
+    trayWallpaperDisplayAuto: 'Tự động',
+    trayWallpaperDisplayPrimary: 'Màn hình chính',
+    trayResetWindow: 'Đặt lại cửa sổ',
+    trayQuit: 'Thoát',
+    dialogImportTitle: 'Không thể nhập thư mục này',
+    dialogImportMessage: 'Không thể nhập trực tiếp thư mục hệ thống hoặc thư mục người dùng thông thường.\nVui lòng chọn một thư mục chuyên lưu nhạc.',
+    dialogChooseOther: 'Chọn thư mục khác',
+    dialogCancel: 'Hủy',
+    crashTitle: 'Folia đã gặp sự cố',
+    crashMessage: 'Ứng dụng đã gặp sự cố và tệp nhật ký đã được lưu. Gửi nhật ký cho nhà phát triển sẽ giúp giải quyết vấn đề.',
+    crashOpenFolder: 'Mở thư mục nhật ký',
+    crashClose: 'Đóng',
+  },
 };
 
 // Maps an arbitrary BCP 47 tag onto one of the four locales the main process ships.
@@ -1981,6 +2006,9 @@ function normalizeMainLocaleKey(value) {
   const lowered = value.toLowerCase();
   if (lowered === 'in' || lowered.startsWith('id')) {
     return 'in';
+  }
+  if (lowered === 'vi' || lowered.startsWith('vi')) {
+    return 'vi';
   }
   // Same script/region split the renderer applies in src/i18n/config.ts: an explicit
   // Hant / TW / HK / MO subtag means traditional, a bare `zh` stays simplified.
@@ -2031,7 +2059,7 @@ function detectSystemLocaleKey() {
 // modules with their own dialog copy (the mod loader) can ask for the key.
 function getMainLocaleKey() {
   const stored = store.get(APP_LOCALE_KEY);
-  if (stored === 'zh-CN' || stored === 'zh-TW' || stored === 'en' || stored === 'in') {
+  if (stored === 'zh-CN' || stored === 'zh-TW' || stored === 'en' || stored === 'in' || stored === 'vi') {
     return stored;
   }
   return detectSystemLocaleKey();
@@ -5957,7 +5985,7 @@ ipcMain.handle('playback-display-sleep-set-active', (event, active) => {
 });
 
 ipcMain.handle('set-app-locale', (event, localeKey) => {
-  if (localeKey === 'zh-CN' || localeKey === 'zh-TW' || localeKey === 'en' || localeKey === 'in') {
+  if (localeKey === 'zh-CN' || localeKey === 'zh-TW' || localeKey === 'en' || localeKey === 'in' || localeKey === 'vi') {
     store.set(APP_LOCALE_KEY, localeKey);
     refreshTrayMenu();
   }
