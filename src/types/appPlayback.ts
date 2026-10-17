@@ -48,8 +48,6 @@ export type UnavailableReplacementRequest = {
     options: PlaybackNavigationOptions;
 };
 
-export type SkipPromptMessageKey = 'status.songUnavailablePrompt' | 'status.playbackErrorPrompt';
-
 export type PlaybackSnapshot = {
     currentSong: SongResult | null;
     lyrics: LyricData | null;

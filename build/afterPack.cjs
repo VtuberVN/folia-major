@@ -86,8 +86,41 @@ async function warnIfTargetHasNoBinary(binariesDir, targetPlatform, keptArchitec
   );
 }
 
+const LIBRESPOT_PREBUILDS_RELATIVE_PATH = path.join(
+  'app.asar.unpacked',
+  'node_modules',
+  '@lox-audioserver',
+  'node-librespot',
+  'prebuilds',
+);
+
+// The Spotify playback component ships one native build per system, each in a folder named
+// `<platform>-<arch>` with an optional suffix (`win32-x64-msvc`). Only the target's is kept.
+// It has none for some targets (darwin-x64 in 0.5.1): Spotify cannot be played in that package,
+// and the app says so when a track is asked for.
+async function pruneLibrespotBinaries(context) {
+  const prebuildsDir = path.join(context.packager.getResourcesDir(context.appOutDir), LIBRESPOT_PREBUILDS_RELATIVE_PATH);
+  if (!(await pathExists(prebuildsDir))) return;
+  const targetArch = ARCH_NAMES[context.arch];
+  if (!targetArch) {
+    console.warn(`[afterPack] unknown Arch ordinal ${context.arch}, keeping every node-librespot build`);
+    return;
+  }
+  const kept = (targetArch === 'universal' ? ['x64', 'arm64'] : [targetArch]).map(arch => `${context.electronPlatformName}-${arch}`);
+  let left = 0;
+  for (const entry of await fs.readdir(prebuildsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (kept.some(name => entry.name === name || entry.name.startsWith(`${name}-`))) left += 1;
+    else await fs.rm(path.join(prebuildsDir, entry.name), { recursive: true, force: true });
+  }
+  if (left < kept.length) {
+    console.warn(`[afterPack] node-librespot ships no build for ${kept.join(', ')} - Spotify cannot be played in this package`);
+  }
+}
+
 exports.default = async (context) => {
   await pruneOnnxRuntimeBinaries(context);
+  await pruneLibrespotBinaries(context);
   if (context.electronPlatformName === 'darwin') {
     const { verifyBundledKoffi } = await import('../packaging/macos/prepare-koffi.mjs');
     await verifyBundledKoffi({

@@ -304,11 +304,11 @@ describe('zingProvider', () => {
         expect(result?.items[0].name).toBe('Top 100 Nhạc Trẻ');
     });
 
-    it('returns empty array for getLikedSongs when unauthenticated', async () => {
+    it('returns empty array for getLikedSongIds when unauthenticated', async () => {
         const { setStoredZingCookie } = zingApi;
         setStoredZingCookie('');
-        const liked = await zingProvider.library?.getLikedSongs?.('zing_user');
-        expect(liked).toEqual([]);
+        const liked = await zingProvider.library?.getLikedSongIds?.('zing_user');
+        expect(liked).toEqual({ ids: [], whole: true });
     });
 
     it('fetches personal liked songs when authenticated', async () => {
@@ -323,9 +323,8 @@ describe('zingProvider', () => {
             },
         ];
         vi.spyOn(zingApi, 'getZingLikedSongs').mockResolvedValue(mockLikedSongs);
-        const liked = await zingProvider.library?.getLikedSongs?.('zing_user');
-        expect(liked).toHaveLength(1);
-        expect(liked?.[0].name).toBe('Lạc Trôi');
+        const liked = await zingProvider.library?.getLikedSongIds?.('zing_user');
+        expect(liked?.ids).toEqual(['ZW78DIEO']);
     });
 
     it('fetches user personal playlists and falls back to home playlists', async () => {

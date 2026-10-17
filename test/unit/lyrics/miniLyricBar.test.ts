@@ -213,6 +213,7 @@ describe('Desktop Mini Lyric Bar', () => {
             mainWindowBorderVisible: false,
             playerChromeHidden: false,
             playerChromeVisibilityMode: 'auto-hide',
+            subtitleContentMode: 'translation',
             exportState: { state: 'idle' } as any,
             lyricOffsetMs: 0,
             updatedAt: 1000000,

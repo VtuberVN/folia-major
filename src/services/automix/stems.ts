@@ -1,9 +1,11 @@
 import type { SongResult } from '../../types';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { onAudioCached } from '../audioCache';
+import { hasProviderKeptSongAudio } from '../onlineMusic/providerRegistry';
 import { getCachedSongAudioBlob } from '../onlineMusic/resourceCache';
 import { getSongResourceCacheKey } from '../onlineMusic/resourceKeys';
 import { getPlaybackAnalysisKey, getPlaybackRepresentation } from '../playbackRecovery/representationRegistry';
+import { whyNotTheSong } from '../wholeSongCheck';
 import { canRunBeatThis } from './beatThis';
 import { modelCanRun, noteModelFailed } from './modelAvailability';
 import { profilesSettled } from './profileService';
@@ -260,7 +262,7 @@ const parked = new Map<string, StemRequest>();
 
 // Subscribed at module scope. The listener has to be in place before the first request can park,
 // and the first request parks inside the first call to `ensureStems` - there is no earlier hook.
-onAudioCached((cacheKey) => {
+onAudioCached((cacheKey, keptUrl) => {
     for (const [key, request] of [...parked]) {
         if (getSongResourceCacheKey('audio', request.song) !== cacheKey) continue;
         parked.delete(key);
@@ -268,7 +270,9 @@ onAudioCached((cacheKey) => {
         // was parked. The check in there sits after the decode, which is tens of megabytes spent to
         // learn something already known at this line.
         if (request.stillWanted && !request.stillWanted()) continue;
-        void ensureStems(request);
+        // A song its provider keeps is read by its URL, and the request may have parked before
+        // the song had one (the next song is asked for as soon as the current one starts).
+        void ensureStems(keptUrl ? { ...request, audioUrl: keptUrl } : request);
     }
 });
 
@@ -414,16 +418,30 @@ const readLocalBytes = async (request: StemRequest): Promise<ArrayBuffer | null>
         }
     }
     const cached = await getCachedSongAudioBlob(song);
-    if (cached) return cached.arrayBuffer();
+    if (cached) {
+        // A copy under half the song (a clip a version before wholeSongCheck.ts kept) is not
+        // separated: its window is not the song's. The request waits as for no copy, and the song's
+        // own file wakes it when it is stored. A marked clip never reaches the media cache, and its
+        // URL is an online one, which is never read here.
+        const notTheSong = await whyNotTheSong(song, null, cached);
+        if (!notTheSong) return cached.arrayBuffer();
+        explainOnce(`${keyOf(song, request.role)}:not-the-song`, `[Automix] not separating the ${request.role} of "${song.name}": the copy in the media cache is ${notTheSong}`);
+        return null;
+    }
 
     // A local URL already in hand: the outgoing track plays from a blob: URL, so its tail reads
-    // straight off that. An online URL is left alone - separation never downloads.
+    // straight off that. An online URL is left alone - separation never downloads - unless its
+    // provider keeps the file on this machine itself: reading that URL is then a read of the kept
+    // file, not a download.
     if (audioUrl) {
         const isLocalUrl = audioUrl.startsWith('blob:') || audioUrl.startsWith('file:')
             || getPlaybackSourceRef(song).kind !== 'online';
-        if (!isLocalUrl) return null;
+        if (!isLocalUrl && !await hasProviderKeptSongAudio(song, audioUrl)) return null;
         try {
-            return await (await fetch(audioUrl)).arrayBuffer();
+            const response = await fetch(audioUrl);
+            // A URL the provider no longer honours answers with a status and no audio.
+            if (!isLocalUrl && !response.ok) return null;
+            return await response.arrayBuffer();
         } catch {
             return null;
         }

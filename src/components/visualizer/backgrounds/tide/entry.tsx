@@ -15,35 +15,40 @@ export default defineVisualizerBackground({
     order: 45,
     labelKey: 'options.visualizerBackgroundModeTide',
     labelFallback: 'Tide',
-    render: ({
-        config,
-        theme,
-        isDaylight,
-        paused,
-        staticMode,
-        stageRef,
-        lines,
-        currentLineIndex,
-        currentTime,
-        audioPower,
-        audioBands,
-    }) => (
-        <div className="absolute inset-0 z-0" style={{ backgroundColor: isDaylight ? '#ffffff' : '#000000' }}>
-            <TideBackground
-                theme={theme}
-                isDaylight={isDaylight}
-                staticMode={staticMode}
-                paused={paused}
-                tuning={config?.tide?.tuning ?? DEFAULT_TIDE_BACKGROUND_TUNING}
-                stageRef={stageRef}
-                lines={lines}
-                currentLineIndex={currentLineIndex}
-                currentTime={currentTime}
-                audioPower={audioPower}
-                audioBands={audioBands}
-            />
-        </div>
-    ),
+    render: (props) => {
+        const {
+            config,
+            theme,
+            isDaylight,
+            paused,
+            staticMode,
+            audioPower,
+            audioBands,
+        } = props;
+        const extra = props as unknown as {
+            stageRef?: { readonly current: HTMLElement | null };
+            lines?: any[];
+            currentLineIndex?: number;
+            currentTime?: any;
+        };
+        return (
+            <div className="absolute inset-0 z-0" style={{ backgroundColor: isDaylight ? '#ffffff' : '#000000' }}>
+                <TideBackground
+                    theme={theme}
+                    isDaylight={isDaylight}
+                    staticMode={staticMode}
+                    paused={paused}
+                    tuning={config?.tide?.tuning ?? DEFAULT_TIDE_BACKGROUND_TUNING}
+                    stageRef={extra.stageRef}
+                    lines={extra.lines}
+                    currentLineIndex={extra.currentLineIndex}
+                    currentTime={extra.currentTime}
+                    audioPower={audioPower}
+                    audioBands={audioBands}
+                />
+            </div>
+        );
+    },
     renderSettingsPanel: ({ config, actions, t, isDaylight, theme, controlCardBg, rangeInputClass, onSliderPointerDown, onSliderCommit }) => (
         <TideBackgroundSettingsCard
             t={t}

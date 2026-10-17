@@ -1,5 +1,4 @@
 import React from 'react';
-import { DEFAULT_SONNET_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
 import SonnetSettingsPanel from './SonnetSettingsPanel';
 
@@ -17,7 +16,18 @@ export default defineVisualizer({
     labelFallback: '商籁',
     previewSeed: 'sonnet',
     previewStartOffset: 0,
-    tuningKind: 'sonnet',
+    // 商籁：海报式边框与角标
+    glyph: (
+        <>
+            <path d="M4 7V4.5h2.5M17.5 4.5H20V7M20 17v2.5h-2.5M6.5 19.5H4V17" />
+            <path d="M8.5 12h7" opacity="0.6" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Sonnet',
+        description: 'Switch to Sonnet visualizer',
+        keywords: ['sonnet', '商籁', '文字 pv', 'mg pv', 'vocaloid'],
+    },
     usesWordSegmentation: true,
     // Folium tunables read by createSonnetPixiRuntime's mod(key). Names are public API.
     foliumTunables: {
@@ -38,8 +48,5 @@ export default defineVisualizer({
     // context away mid-transition and leave the frame empty for the whole rebuild.
     render: props => <VisualizerSonnet {...props} />,
     renderSettingsPanel: props => <SonnetSettingsPanel {...props} />,
-    resetSettings: ({ resetSonnetTuning, setDraftSonnetTuning }) => {
-        setDraftSonnetTuning?.(DEFAULT_SONNET_TUNING);
-        resetSonnetTuning?.();
-    },
+    ownFontSizeNoticeKey: 'options.sonnetFontSizeAutoNotice',
 });

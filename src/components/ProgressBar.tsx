@@ -1,9 +1,6 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import { MotionValue, useMotionValueEvent } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
-import { FoliumControlButtonSlot, FoliumProgressLayers, useFoliumProgressContext } from '../mods/folium/registries/progress';
-import { useWasapiStatusStore } from '../stores/useWasapiStatusStore';
-import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import { FoliumProgressButtons, FoliumProgressLayers, useFoliumProgressContext } from '../mods/folium/registries/progress';
 import { markUserSeek } from '../services/exclusiveSeekSignal';
 
 // Folium public parts (mods/README.md): `data-folium-part` marks what mod CSS may
@@ -48,14 +45,8 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     disabled = false,
     edgeStyle = 'rounded',
     collapsed = false,
-    showWasapiBadge = true,
+    showWasapiBadge: _showWasapiBadge = true,
 }) => {
-    const { t } = useTranslation();
-    const wasapiMode = useWasapiStatusStore(state => state.mode);
-    const wasapiExclusiveEnabled = useAudioSettingsStore(state => state.enableWasapiExclusive);
-    const toggleWasapiExclusive = useAudioSettingsStore(state => state.handleToggleWasapiExclusive);
-    const hasWasapi = typeof window !== 'undefined' && Boolean(window.electron?.wasapi);
-
     const progressRef = useRef<HTMLDivElement>(null);
     const thumbRef = useRef<HTMLDivElement>(null);
     const timeRef = useRef<HTMLSpanElement>(null);
@@ -168,7 +159,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                 '--folium-progress-text': secondaryColor,
             } as React.CSSProperties}
         >
-            <FoliumControlButtonSlot slot="progress.leading" ctx={foliumCtx} collapsed={collapsed} />
+            <FoliumProgressButtons slot="progress.leading" ctx={foliumCtx} collapsed={collapsed} />
 
             <span
                 ref={timeRef}
@@ -229,7 +220,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                 {formatTime(duration)}
             </span>
 
-            <FoliumControlButtonSlot slot="progress.trailing" ctx={foliumCtx} collapsed={collapsed} />
+            <FoliumProgressButtons slot="progress.trailing" ctx={foliumCtx} collapsed={collapsed} />
         </div>
     );
 };

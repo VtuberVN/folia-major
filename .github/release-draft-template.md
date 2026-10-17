@@ -1,10 +1,8 @@
-## Folia {{TAG}} - Bản phát hành tiếng Việt và tích hợp đa nền tảng
-
-Bản phát hành chính thức cho hệ điều hành Windows, macOS và Linux, hợp nhất trực tiếp tính năng YouTube Music vào nhân ứng dụng, bổ sung 4 nền tảng âm nhạc mới (Zing MP3, NhacCuaTui, YouTube Music, Spotify Local), đồng bộ thư viện cá nhân Zing MP3 và cập nhật các cải tiến mới nhất từ nhánh phát triển gốc.
+Bản phát hành chính thức cho hệ điều hành Windows, macOS và Linux, bổ sung tiếng Việt, hỗ trợ chính thức Spotify & YouTube Music từ upstream v0.7.20, bổ sung 2 nền tảng âm nhạc Việt Nam (Zing MP3, NhacCuaTui), đồng bộ thư viện cá nhân và cập nhật toàn bộ cải tiến mới nhất từ nhánh phát triển gốc.
 
 ---
 
-### 1. Bổ sung 4 nền tảng âm nhạc mới
+### 1. Bổ sung nền tảng âm nhạc mới và Tiếng Việt
 
 Phiên bản này mở rộng thêm 4 nguồn phát và đồng bộ âm nhạc trực tiếp bên cạnh 4 nền tảng có sẵn từ nhánh gốc (NetEase Cloud Music, QQ Music, KuGou Music, Bodian Music):
 

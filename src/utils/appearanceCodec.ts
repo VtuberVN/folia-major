@@ -646,6 +646,8 @@ export const compressConfig = (config: any): string => {
     if (config.subtitleFontFallbackFamilies?.length) minified.sfff = config.subtitleFontFallbackFamilies;
 
     if (config.visualizerTunings) minified.vt = config.visualizerTunings;
+    // Frozen: the 13 lyric-style tunings below predate the visualizerTunings bundle, which carries any
+    // new style. Do not add a lyric style here.
     if (config.classicTuning) minified.ct = compressClassic(config.classicTuning);
     if (config.cadenzaTuning) minified.cat = compressCadenza(config.cadenzaTuning);
     if (config.partitaTuning) minified.pt = compressPartita(config.partitaTuning);
@@ -784,6 +786,8 @@ export const decompressConfig = (str: string): any => {
         if (parsed.sff) decompressed.subtitleFontFamily = parsed.sff;
         if (parsed.sfff) decompressed.subtitleFontFallbackFamilies = parsed.sfff;
 
+        // Frozen: the 13 lyric-style tunings below predate the visualizerTunings bundle, which carries any
+        // new style. Do not add a lyric style here.
         if (parsed.ct) decompressed.classicTuning = decompressClassic(parsed.ct);
         if (parsed.vt) decompressed.visualizerTunings = parsed.vt;
         if (parsed.cat) decompressed.cadenzaTuning = decompressCadenza(parsed.cat);
@@ -821,6 +825,8 @@ export const decompressConfig = (str: string): any => {
 
         return decompressed;
     } else {
+        // Frozen: the 13 lyric-style tunings in this list predate the visualizerTunings bundle, which carries any
+        // new style. Do not add a lyric style here.
         const validKeys = [
             'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'visualizerBackgroundMode', 'backgroundOpacity',
             'useCoverColorBg', 'disableVisualizerGeometricBackground', 'disableVisualizerVignette', 'staticMode',

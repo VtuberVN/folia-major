@@ -14,7 +14,8 @@ export type PlayerControlSlotActionId =
     | 'volume'
     | 'queue'
     | 'song-wall'
-    | 'sleep-timer';
+    | 'sleep-timer'
+    | 'locate';
 
 export const PLAYER_CONTROL_SLOT_ACTION_IDS: readonly PlayerControlSlotActionId[] = [
     'loop',
@@ -28,6 +29,7 @@ export const PLAYER_CONTROL_SLOT_ACTION_IDS: readonly PlayerControlSlotActionId[
     'queue',
     'song-wall',
     'sleep-timer',
+    'locate',
 ];
 
 /** Default: loop mode + lyrics timeline. */

@@ -23,6 +23,7 @@ interface SoraBackgroundProps {
   tuning?: SoraBackgroundTuning;
   audioBands?: AudioBands;
   audioPower?: MotionValue<number>;
+  blendMs?: number;
 }
 
 const SHOOTING_PALETTES: Record<SoraShootingPalette, string[]> = {

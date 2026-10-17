@@ -1,21 +1,16 @@
 import type { LyricProviderSource } from '../../types';
+import { LYRIC_SOURCE_IDS, isLyricProviderSource } from './lyricSources';
 
 // src/utils/lyrics/sourcePriority.ts
 
 export const DEFAULT_PREFERRED_LYRIC_SOURCE: LyricProviderSource = 'qq';
-
-const BASE_LYRIC_SOURCE_ORDER: readonly LyricProviderSource[] = ['netease', 'amll', 'qq', 'kugou', 'zing', 'nct'];
-
-export const isLyricProviderSource = (value: unknown): value is LyricProviderSource => (
-    value === 'netease' || value === 'amll' || value === 'qq' || value === 'kugou' || value === 'zing' || value === 'nct'
-);
 
 // Places the user preference first while retaining every fallback source exactly once.
 export const buildLyricSourceOrder = (
     preferredSource: LyricProviderSource = DEFAULT_PREFERRED_LYRIC_SOURCE,
 ): LyricProviderSource[] => [
     preferredSource,
-    ...BASE_LYRIC_SOURCE_ORDER.filter(source => source !== preferredSource),
+    ...LYRIC_SOURCE_IDS.filter(source => source !== preferredSource),
 ];
 
 export const migratePreferredLyricSource = (

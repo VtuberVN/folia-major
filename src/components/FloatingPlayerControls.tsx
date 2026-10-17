@@ -21,6 +21,7 @@ import { PLAYER_BOTTOM_BAR_BASE_OFFSET_PX, clampPlayerBottomBarOffset, resolvePl
 import type { PlayerControlSlotActionId, PlayerControlSlotContext } from './floating-player/playerControlSlotActions';
 import { useGlass } from '../mods/useGlass';
 import SignalPath from './audio/SignalPath';
+import { usePlayerOverlayObstacle } from '../hooks/usePlayerOverlayLayout';
 
 export interface TrackNavigation {
     /** Stable identity for the current track to detect genuine song changes */
@@ -126,6 +127,7 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
 }) => {
     useGlass();
     const { t } = useTranslation();
+    const { ref: layoutRef, invalidate: invalidateLayout } = usePlayerOverlayObstacle('player-controls', 'playback', !isHidden);
     // const isDaylight = theme?.name === 'Daylight Default'; // Deprecated, passed as prop
     const glassBgExpanded = isDaylight ? 'bg-white/60 border border-white/20 shadow-xl' : 'bg-black/40 border border-white/5';
     const glassBgCollapsed = isDaylight ? 'bg-white/40 border border-white/20 shadow-lg hover:bg-white/50' : 'bg-black/20 border border-white/5 hover:bg-black/30';
@@ -348,9 +350,11 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                         ? 'max-w-[calc(100vw-120px)] md:max-w-[min(calc(32rem_+_var(--folium-player-bar-extra,0px)),calc(100vw-120px))]'
                         : 'max-w-[min(calc(32rem_+_var(--folium-player-bar-extra,0px)),100vw)] px-4'}`}
                 style={{ bottom: bottomBarBottomPx }}
+                onUpdate={invalidateLayout}
             >
             <motion.div
                 className="w-full flex justify-center transition-all duration-300 pointer-events-none"
+                onUpdate={invalidateLayout}
                 initial={false}
                 animate={{
                     opacity: isHidden ? 0 : 1,
@@ -384,6 +388,9 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                     )}
                     <motion.div
                         data-glass
+                        ref={layoutRef}
+                        onUpdate={invalidateLayout}
+                        onLayoutAnimationComplete={invalidateLayout}
                         layout
                         transition={{ layout: CONTROL_LAYOUT_SPRING }}
                         onClick={handleClick}

@@ -6,7 +6,7 @@ import type { Line } from '../../../types';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
 import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
 import type { VisualizerSharedProps } from '../definition';
-import { useVisualizerPixiHost } from '../pixiRuntimeHost';
+import { useVisualizerPixiHost } from '../pixi/pixiRuntimeHost';
 import { useVisualizerRuntime } from '../runtime';
 import { useVisualizerSongCommit } from '../songHandover';
 import { useFoliumTunings } from '@/mods/folium/registries/tunings';
@@ -128,12 +128,14 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         label: 'Sonnet',
         // Only inputs that genuinely need a new WebGL context. The song is handed to the live
         // runtime instead - see SonnetPixiRuntime.swapSong.
-        // Of the tuning, only what shapes the canvas or the icon textures; the rest goes through
-        // setTuning, which rebuilds the scenes on the live context.
+        // Of the tuning, only what shapes the canvas or the icon textures (post-processing decides
+        // whether the canvas is antialiased); the rest goes through setTuning, which rebuilds the
+        // scenes on the live context.
         rebuildKey: [
             currentTime,
             lyricsFontScale,
             sonnetTuning.textureResolution,
+            sonnetTuning.postProcessEnabled,
             sonnetTuning.showOnlyText,
             sonnetTuning.showBackgroundDecor,
             staticMode,

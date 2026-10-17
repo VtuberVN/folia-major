@@ -5,11 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const requestMock = vi.hoisted(() => vi.fn());
 const clearSessionMock = vi.hoisted(() => vi.fn());
 const writeSessionValueMock = vi.hoisted(() => vi.fn());
-const searchQQLyricsMock = vi.hoisted(() => vi.fn());
+const searchQQSongsMock = vi.hoisted(() => vi.fn());
 const fetchQQLyricsMock = vi.hoisted(() => vi.fn());
 const transportState = vi.hoisted(() => ({ hasSession: true }));
 
-vi.mock('@/services/onlineMusic/qqTransport', () => ({
+vi.mock('@/services/onlineMusic/qq/qqTransport', async importOriginal => ({
+    ...await importOriginal<typeof import('@/services/onlineMusic/qq/qqTransport')>(),
     getQqTransportAvailability: () => ({ configured: true }),
     getQqRemoteApiBase: () => 'https://qq.example.test',
     hasQqSession: () => transportState.hasSession,
@@ -21,13 +22,16 @@ vi.mock('@/services/onlineMusic/providerStorage', () => ({
     writeProviderSessionValue: writeSessionValueMock,
 }));
 
-vi.mock('@/utils/lyrics/providers/qqLyricProvider', () => ({
-    searchQQLyrics: searchQQLyricsMock,
+vi.mock('@/services/onlineMusic/qq/qqLyricProvider', () => ({
+    searchQQSongs: searchQQSongsMock,
     fetchQQLyrics: fetchQQLyricsMock,
 }));
 
-import { qqProvider, resetQqProviderRuntimeCache } from '@/services/onlineMusic/qqProvider';
-import { normalizeQqCollection, normalizeQqSong, normalizeQqUser } from '@/services/onlineMusic/qqNormalize';
+import { qqProvider, resetQqProviderRuntimeCache } from '@/services/onlineMusic/qq/qqProvider';
+import { normalizeQqCollection, normalizeQqSong, normalizeQqUser } from '@/services/onlineMusic/qq/qqNormalize';
+import { describeQqFailure } from '@/services/onlineMusic/qq/qqFailure';
+import { QQ_API_BASE_MISSING, QQ_ONLINE_REQUEST_LIMIT_MS } from '@/services/onlineMusic/qq/qqTransport';
+import { OnlineRequestTimeout } from '@/services/onlineMusic/failure/onlineRequestLimit';
 import { OnlineProviderError } from '@/types/onlineMusic';
 
 // Field shape of the verified `music.search.SearchCgiService` item consumed by the existing QQ search;
@@ -160,14 +164,14 @@ describe('qqProvider', () => {
         requestMock.mockReset();
         clearSessionMock.mockReset();
         writeSessionValueMock.mockReset();
-        searchQQLyricsMock.mockReset();
+        searchQQSongsMock.mockReset();
         fetchQQLyricsMock.mockReset();
         transportState.hasSession = true;
         resetQqProviderRuntimeCache();
     });
 
-    // 3.3.0 开放了推荐、歌单增删与收藏歌单；红心、收藏专辑、不喜欢与历史日推后端还没有，不能冒出来。
-    it('declares the 3.3.0 recommendations and mutations without the ones the backend lacks', () => {
+    // 3.3.0 开放了推荐、歌单增删与收藏歌单，3.3.1 补上红心与收藏专辑；不喜欢与历史日推后端还没有，不能冒出来。
+    it('declares the 3.3.1 recommendations and mutations without the ones the backend lacks', () => {
         expect(qqProvider.capabilities).toMatchObject({
             userLibrary: true,
             playlists: true,
@@ -181,7 +185,9 @@ describe('qqProvider', () => {
         expect(qqProvider.capabilities.personalFmModes).toBeFalsy();
         expect(qqProvider.capabilities.historyRecommendations).toBeFalsy();
         expect(Object.keys(qqProvider.recommendations ?? {}).sort()).toEqual(['getDailySongs', 'getPersonalFm', 'getRecommendedCollections']);
-        expect(Object.keys(qqProvider.mutations ?? {}).sort()).toEqual(['canAddToPlaylist', 'canEditPlaylistTracks', 'subscribePlaylist', 'updatePlaylistTracks']);
+        expect(Object.keys(qqProvider.mutations ?? {}).sort()).toEqual([
+            'canAddToPlaylist', 'canEditPlaylistTracks', 'likeSong', 'subscribeAlbum', 'subscribePlaylist', 'updatePlaylistTracks',
+        ]);
         expect(qqProvider.catalog?.getSubscriptionStatus).toBeTypeOf('function');
     });
 
@@ -357,55 +363,32 @@ describe('qqProvider', () => {
                 retryAfterMs: 31000,
             });
 
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({ state: 'waiting' });
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({ state: 'scanned' });
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({ state: 'confirmed' });
-        // 自然过期只认结构化字段：不带失败字段的 800，或 failureReason=qr-timeout。
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({ state: 'expired' });
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({ state: 'expired' });
-        // 上游拒绝不是过期：原样交出后端的字段，冷却照样交出，界面据此暂缓重试。
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'waiting' });
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'scanned' });
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'confirmed' });
+        // 自然过期：不带失败字段的 800，或 failureReason=qr-timeout；后端要等多久再给码一并交出。
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'expired' });
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'expired', failure: { retryAfterMs: 30000 } });
+        // An upstream rejection is not an expired code. The safety number is handed on as a fact for
+        // the sign-in dialog, still unnamed, with the wait the upstream asked for.
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({
             state: 'error',
             message: 'code 800: QR login failed',
-            retryAfterMs: 31000,
-            detail: { code: 800, message: 'QR login failed', upstreamCode: 50006, retryAfterMs: 31000 },
+            failure: { case: 'retry-later', code: '800', message: 'QR login failed', upstreamCode: '50006', retryAfterMs: 31000 },
         });
 
         expect(requestMock).toHaveBeenCalledWith('login_qr_check', { key: 'qr-key' });
         expect(writeSessionValueMock).toHaveBeenCalledExactlyOnceWith('qq', 'cookie', 'qqmusic_session=opaque-token');
     });
 
-    it('hands a login canceled on the phone to core as a structured reason with the backend cooldown', async () => {
+    // 3.1.3 起后端用 failureReason 说停在哪里：手机上取消、在那里拒绝，都是这一边结束了这个码。
+    it('reads a login canceled or turned down on the phone as the code ending, with the backend\'s wait', async () => {
         requestMock
-            .mockResolvedValueOnce({
-                code: 800,
-                message: 'QR code expired',
-                failureStage: 'qr-event',
-                failureReason: 'user-canceled',
-                retryAfterMs: 30000,
-            })
-            .mockResolvedValueOnce({
-                code: 800,
-                message: 'QR code expired',
-                failureStage: 'qr-event',
-                failureReason: 'login-rejected',
-                retryAfterMs: 30000,
-            });
+            .mockResolvedValueOnce({ code: 800, message: 'QR code expired', failureStage: 'qr-event', failureReason: 'user-canceled', retryAfterMs: 30000 })
+            .mockResolvedValueOnce({ code: 800, message: 'QR code expired', failureStage: 'qr-event', failureReason: 'login-rejected', retryAfterMs: 30000 });
 
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({
-            state: 'error',
-            message: 'code 800: QR code expired (stage qr-event, reason user-canceled)',
-            reason: 'canceled-on-device',
-            retryAfterMs: 30000,
-        });
-        // 只有手机上取消才给结构化原因；其余被拒仍是普通失败，冷却照样交出。
-        const rejected = await qqProvider.auth!.checkQr!('qr-key');
-        expect(rejected).toEqual({
-            state: 'error',
-            message: 'code 800: QR code expired (stage qr-event, reason login-rejected)',
-            retryAfterMs: 30000,
-            detail: { code: 800, message: 'QR code expired', failureStage: 'qr-event', failureReason: 'login-rejected', retryAfterMs: 30000 },
-        });
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'expired', failure: { retryAfterMs: 30000 } });
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({ state: 'expired', failure: { retryAfterMs: 30000 } });
     });
 
     describe('device limit (upstream 20279)', () => {
@@ -427,7 +410,12 @@ describe('qqProvider', () => {
         };
         const requestKey = async () => {
             requestMock.mockResolvedValueOnce({ data: { unikey: 'qr-key' } });
-            await qqProvider.auth!.getQrKey!();
+            await qqProvider.auth!.startLogin!();
+        };
+        // The case the check hands the sign-in window.
+        const caseOfCheck = async () => {
+            const checked = await qqProvider.auth!.checkLogin!('qr-key');
+            return checked.state === 'error' ? checked.failure?.case : undefined;
         };
 
         afterEach(() => {
@@ -437,7 +425,7 @@ describe('qqProvider', () => {
         // 微信通道的凭据交换没有回退：20279 直接在响应上。
         it('reads the device limit straight off the response', async () => {
             requestMock.mockResolvedValueOnce({ ...validationFailure, failureStage: 'credential-exchange', upstreamCode: 20279 });
-            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+            expect(await caseOfCheck()).toBe('device-limit');
         });
 
         // QQ 通道：响应里只剩验证那一步的 1000，20279 在主进程记下的本轮凭据交换里。
@@ -446,7 +434,7 @@ describe('qqProvider', () => {
             const getLoginDiagnostics = stubDesktop([exchangeResult(Date.now() + 1000, 20279)]);
             requestMock.mockResolvedValueOnce(validationFailure);
 
-            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+            expect(await caseOfCheck()).toBe('device-limit');
             expect(getLoginDiagnostics).toHaveBeenCalledWith('qq');
         });
 
@@ -454,11 +442,11 @@ describe('qqProvider', () => {
             await requestKey();
             stubDesktop([exchangeResult(1, 20279)]);
             requestMock.mockResolvedValueOnce(validationFailure);
-            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+            expect(await caseOfCheck()).not.toBe('device-limit');
 
             stubDesktop([exchangeResult(Date.now() + 1000, 20279), exchangeResult(Date.now() + 2000, 50006)]);
             requestMock.mockResolvedValueOnce(validationFailure);
-            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+            expect(await caseOfCheck()).not.toBe('device-limit');
         });
 
         // 3.3.0：QQ 通道被再验证盖掉的换凭证结果在 primaryFailure 里，网页版也认得出来，不必问主进程。
@@ -470,68 +458,49 @@ describe('qqProvider', () => {
                 primaryFailure: { failureStage: 'credential-exchange', failureReason: 'upstream-rejected', upstreamCode: 20279, upstreamErrorKey: 'auth.device-limit' },
             });
 
-            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+            expect(await caseOfCheck()).toBe('device-limit');
             expect(getLoginDiagnostics).not.toHaveBeenCalled();
         });
 
         // 登记过的错误键与上游码等价：后端只在通道、步骤、码都对得上时才给。
         it('takes the registered error key as the device limit', async () => {
             requestMock.mockResolvedValueOnce({ ...validationFailure, failureStage: 'credential-exchange', upstreamCode: undefined, upstreamErrorKey: 'auth.device-limit' });
-            await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({ state: 'error', reason: 'device-limit' });
+            expect(await caseOfCheck()).toBe('device-limit');
 
             requestMock.mockResolvedValueOnce({
                 ...validationFailure,
                 primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 50006 },
                 failureHint: { key: 'login.wrong-scan-app', message: 'Use mobile QQ to scan' },
             });
-            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+            expect(await caseOfCheck()).not.toBe('device-limit');
         });
 
         // 网页版没有主进程可问；取快照失败也只是少了这条提示。
         it('falls back to a plain failure without a desktop snapshot', async () => {
             requestMock.mockResolvedValueOnce(validationFailure);
-            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+            expect(await caseOfCheck()).not.toBe('device-limit');
 
             vi.stubGlobal('window', { electron: { getLoginDiagnostics: vi.fn().mockRejectedValue(new Error('ipc closed')) } });
             requestMock.mockResolvedValueOnce(validationFailure);
-            expect(await qqProvider.auth!.checkQr!('qr-key')).not.toHaveProperty('reason');
+            expect(await caseOfCheck()).not.toBe('device-limit');
         });
     });
 
-    it('passes every backend failure field through as written, including categories it does not know yet', async () => {
+    it('says where the backend stopped in the line it logs, also for stages and reasons it does not know yet', async () => {
         requestMock.mockResolvedValueOnce({
             code: 800,
             message: 'QR login failed',
             failureStage: 'some-future-stage',
             failureReason: 'some-future-reason',
             upstreamHttpStatus: 503,
-            upstreamGlobalCode: -1,
             retryAfterMs: 30000,
-            lastFailure: { failureStage: 'device-bootstrap', failureReason: 'upstream-rejected', upstreamCode: -30002 },
-            upstreamErrorKey: 'auth.some-future-key',
             failureHint: { key: 'login.some-future-hint', message: 'Something new' },
-            primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 12345 },
-            fallbackAttempted: true,
         });
 
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toMatchObject({
             state: 'error',
             message: 'code 800: QR login failed (stage some-future-stage, reason some-future-reason)',
-            retryAfterMs: 30000,
-            detail: {
-                code: 800,
-                message: 'QR login failed',
-                failureStage: 'some-future-stage',
-                failureReason: 'some-future-reason',
-                upstreamHttpStatus: 503,
-                upstreamGlobalCode: -1,
-                retryAfterMs: 30000,
-                lastFailure: { failureStage: 'device-bootstrap', failureReason: 'upstream-rejected', upstreamCode: -30002 },
-                upstreamErrorKey: 'auth.some-future-key',
-                failureHint: { key: 'login.some-future-hint', message: 'Something new' },
-                primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 12345 },
-                fallbackAttempted: true,
-            },
+            failure: { code: '800', message: 'QR login failed', retryAfterMs: 30000 },
         });
     });
 
@@ -540,24 +509,24 @@ describe('qqProvider', () => {
             .mockResolvedValueOnce({ code: 800, message: 'QR login failed', failureStage: 'credential-exchange' })
             .mockResolvedValueOnce({ code: 500, message: 'Internal Server Error' });
 
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toMatchObject({
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toMatchObject({
             state: 'error',
             message: 'code 800: QR login failed (stage credential-exchange, reason unknown)',
         });
-        await expect(qqProvider.auth!.checkQr!('qr-key')).resolves.toEqual({
+        await expect(qqProvider.auth!.checkLogin!('qr-key')).resolves.toEqual({
             state: 'error',
             message: 'code 500: Internal Server Error',
-            detail: { code: 500, message: 'Internal Server Error' },
+            failure: { code: '500', message: 'Internal Server Error' },
         });
     });
 
     it('asks for the QR with the chosen channel and fails instead of handing out an empty key or image', async () => {
         requestMock.mockResolvedValueOnce({ code: 200, data: { unikey: 'qr-key' } });
-        await expect(qqProvider.auth!.getQrKey!('wechat')).resolves.toBe('qr-key');
+        await expect(qqProvider.auth!.startLogin!('wechat')).resolves.toBe('qr-key');
         expect(requestMock).toHaveBeenLastCalledWith('login_qr_key', { channel: 'wechat' });
 
         requestMock.mockResolvedValueOnce({ code: 200, data: {} });
-        await expect(qqProvider.auth!.getQrKey!('qq')).rejects.toMatchObject({
+        await expect(qqProvider.auth!.startLogin!('qq')).rejects.toMatchObject({
             code: 'invalid-response',
             message: 'QQMusicApi login_qr_key returned no key',
             cause: { code: 200, data: {} },
@@ -572,16 +541,19 @@ describe('qqProvider', () => {
 
     it('hands a transport failure of the QR requests on unchanged, with its HTTP status, body and cooldown', async () => {
         const body = { code: 429, message: 'QR login is temporarily backed off', failureStage: 'qr-key', failureReason: 'local-backoff', retryAfterMs: 30000 };
-        const error = new OnlineProviderError('network', 'QQMusicApi login_qr_key failed: HTTP 429 (QR login is temporarily backed off)', 'qq', body, 429, 30000);
+        const error = new OnlineProviderError('network', 'QQMusicApi request failed: 429', 'qq', body, 429, 30000);
         requestMock.mockRejectedValueOnce(error);
 
-        await expect(qqProvider.auth!.getQrKey!('qq')).rejects.toBe(error);
+        await expect(qqProvider.auth!.startLogin!('qq')).rejects.toBe(error);
+    });
+
+    it('keeps the QR code for the lifetime QQ gives it', () => {
+        expect(qqProvider.auth!.getLoginTtlMs!()).toBe(175_000);
     });
 
     it('describes its side of the session and the last account check for the report', async () => {
-        const lines = await qqProvider.auth!.getQrLoginDiagnostics!();
-        expect(lines).toEqual([
-            'runtime: web (remote API https://qq.example.test)',
+        const texts = async () => (await qqProvider.auth!.getLoginDiagnostics!()).map(line => line.text);
+        expect(await texts()).toEqual([
             'session: backend session stored=yes',
             'login channels: not declared by the backend',
             'last account check: none',
@@ -589,7 +561,7 @@ describe('qqProvider', () => {
 
         transportState.hasSession = false;
         await expect(qqProvider.auth!.getLoginStatus()).resolves.toBeNull();
-        expect((await qqProvider.auth!.getQrLoginDiagnostics!())[3]).toMatch(/^last account check: \d\d:\d\d:\d\d\.\d{3} no backend session stored$/);
+        expect((await texts())[2]).toMatch(/^last account check: \d\d:\d\d:\d\d\.\d{3} no backend session stored$/);
     });
 
     it.each([
@@ -609,18 +581,18 @@ describe('qqProvider', () => {
         info.mockRestore();
         warn.mockRestore();
 
-        expect((await qqProvider.auth!.getQrLoginDiagnostics!())[3]).toContain(expected);
+        expect((await qqProvider.auth!.getLoginDiagnostics!())[2].text).toContain(expected);
     });
 
     it('cancels one QR session by key and never lets the failure reach the caller', async () => {
         requestMock.mockResolvedValueOnce({ code: 200 });
-        await expect(qqProvider.auth!.cancelQr!('qr-key')).resolves.toBeUndefined();
+        await expect(qqProvider.auth!.cancelLogin!('qr-key')).resolves.toBeUndefined();
         expect(requestMock).toHaveBeenCalledExactlyOnceWith('login_qr_cancel', { key: 'qr-key' });
 
         // 调用方在关窗时 fire-and-forget，抛出去只会让 UI 卡在一个用户无从处理的错误上。
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
         requestMock.mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi request failed: 503', 'qq'));
-        await expect(qqProvider.auth!.cancelQr!('qr-key')).resolves.toBeUndefined();
+        await expect(qqProvider.auth!.cancelLogin!('qr-key')).resolves.toBeUndefined();
         expect(warn).toHaveBeenCalledOnce();
         warn.mockRestore();
     });
@@ -765,8 +737,16 @@ describe('qqProvider', () => {
         expect(clearSessionMock).toHaveBeenCalledTimes(2);
     });
 
+    // 网页上的单曲页按 songmid 定位，与网易云的 `getSongPageUrl` 同一份契约：拿不到 songmid 就不给链接。
+    it('links a song to its QQ Music web page by songmid', () => {
+        expect(qqProvider.getSongPageUrl?.(normalizeQqSong(SEARCH_ITEM))).toBe('https://y.qq.com/n/ryqq/songDetail/003rJSwm3TechU');
+        expect(qqProvider.getSongPageUrl?.(normalizeQqSong({ ...SEARCH_ITEM, mid: '' }))).toBeNull();
+    });
+
     it('routes search and lyrics through the existing QQ modules', async () => {
-        searchQQLyricsMock.mockResolvedValue([{
+        // 没有会话时搜索走匿名直连；带会话的路径见 qqSearch.test.ts。
+        transportState.hasSession = false;
+        searchQQSongsMock.mockResolvedValue([{
             id: 5105918,
             name: '海阔天空',
             artists: [{ id: 4558, name: 'Beyond' }],
@@ -777,8 +757,9 @@ describe('qqProvider', () => {
         fetchQQLyricsMock.mockResolvedValue({ lines: [], isWordByWord: true });
 
         const page = await qqProvider.search!.searchSongs('海阔天空', 20, 20);
-        expect(searchQQLyricsMock).toHaveBeenCalledWith('海阔天空', 2, 20);
-        expect(page).toMatchObject({ hasMore: false, nextOffset: 21 });
+        expect(searchQQSongsMock).toHaveBeenCalledWith('海阔天空', 2, 20);
+        expect(requestMock).not.toHaveBeenCalled();
+        expect(page).toMatchObject({ hasMore: false, nextOffset: 40 });
         expect(page.items[0]?.sourceRef).toMatchObject({ providerId: 'qq', mediaId: '003rJSwm3TechU' });
 
         // The lyric module needs the numeric song id, which only lives in provider data after normalization.
@@ -803,7 +784,6 @@ describe('qqProvider', () => {
             url: 'https://audio.example.test/song.mp3',
             fetchedAt: expect.any(Number),
             quality: 'high',
-            audioQualityInfo: { codec: 'mp3' },
         });
         expect(requestMock.mock.calls).toEqual([
             ['song_info', { songmid: '003rJSwm3TechU' }],
@@ -812,36 +792,17 @@ describe('qqProvider', () => {
         ]);
     });
 
-    it('uses the returned audio format without inventing bitrate from a quality preference', async () => {
-        requestMock.mockResolvedValueOnce({ data: { playUrl: {
-            '003rJSwm3TechU': { url: 'https://audio.example.test/F000actual.flac?vkey=secret' },
-        } } });
-        const source = await qqProvider.playback!.getAudioSource(normalizeQqSong(SEARCH_ITEM), 'standard');
-        expect(source?.audioQualityInfo).toEqual({ codec: 'flac' });
-        expect(source?.audioQualityInfo?.bitrate).toBeUndefined();
-    });
-
-    it('keeps ambiguous containers and extensionless URLs unknown instead of claiming AAC or a bitrate', async () => {
-        for (const path of ['song.m4a', 'stream']) {
-            requestMock.mockResolvedValueOnce({ data: { playUrl: {
-                '003rJSwm3TechU': { url: 'https://audio.example.test/' + path },
-            } } });
-            const source = await qqProvider.playback!.getAudioSource(normalizeQqSong(SEARCH_ITEM), 'high');
-            expect(source?.audioQualityInfo).toBeUndefined();
-        }
-    });
-
+    // Which error getAudioSource throws when no level gives a URL; what it means is said in qqFailure.ts.
     describe('audio source failures', () => {
         const SONG = normalizeQqSong(SEARCH_ITEM);
         // 后端把每个文件的原因都换成了这一句固定文案（qrLogin.js:482-495），它证明不了会员、地区或下架。
         const EMPTY_PLAY_LINK = { data: { playUrl: { '003rJSwm3TechU': { url: '', error: '暂无播放链接' } } } };
         const PLAYABLE = { data: { playUrl: { '003rJSwm3TechU': { url: 'https://audio.example.test/song.mp3' } } } };
 
-        const rejectionOf = async (promise: Promise<unknown>): Promise<OnlineProviderError> => {
-            const error = await promise.then(() => null, (failure: unknown) => failure);
-            expect(error).toBeInstanceOf(OnlineProviderError);
-            return error as OnlineProviderError;
-        };
+        const rejectionOf = async (promise: Promise<unknown>): Promise<unknown> => (
+            promise.then(() => { throw new Error('the request did not fail'); }, (failure: unknown) => failure)
+        );
+        const caseOf = async (promise: Promise<unknown>) => describeQqFailure('audio', await rejectionOf(promise));
 
         beforeEach(() => {
             vi.spyOn(console, 'warn').mockImplementation(() => { });
@@ -851,53 +812,25 @@ describe('qqProvider', () => {
             vi.restoreAllMocks();
         });
 
-        it('summarizes three empty play links as not-playable with one attempt per quality', async () => {
+        it('says no audio after three empty play links, one request per level', async () => {
             requestMock.mockResolvedValue(EMPTY_PLAY_LINK);
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
-            expect(error).toMatchObject({ code: 'not-playable', providerId: 'qq' });
-            expect(error.details?.attempts).toEqual([
-                { stage: 'music_play', quality: 'lossless', outcome: 'empty', detail: '暂无播放链接' },
-                { stage: 'music_play', quality: 'high', outcome: 'empty', detail: '暂无播放链接' },
-                { stage: 'music_play', quality: 'standard', outcome: 'empty', detail: '暂无播放链接' },
-            ]);
-            expect(error.details?.signInMayHelp).toBe(false);
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toEqual({ case: 'no-audio' });
             expect(requestMock).toHaveBeenCalledTimes(3);
         });
 
-        it('hints that signing in may help only when there is no session and the backend issued empty links', async () => {
+        // Only a hint: no session, and the backend issued empty links. Never a sign-in that ended.
+        it('says signing in may help only when there is no session and the backend issued empty links', async () => {
             transportState.hasSession = false;
             requestMock.mockResolvedValue(EMPTY_PLAY_LINK);
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'high'))).toEqual({ case: 'no-audio', likelyCause: 'sign-in' });
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
-
-            expect(error).toMatchObject({ code: 'not-playable', details: { signInMayHelp: true } });
-            // 只是提示，不能断定为鉴权失败。
-            expect(error.code).not.toBe('auth-required');
-        });
-
-        it('treats a playUrl without any entry as an invalid response', async () => {
-            transportState.hasSession = false;
-            requestMock.mockResolvedValue({ data: { playUrl: {} } });
-
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
-            expect(error).toMatchObject({ code: 'invalid-response', providerId: 'qq' });
-            expect(error.details?.attempts).toHaveLength(3);
-            expect(error.details?.attempts?.every(attempt => attempt.code === 'invalid-response')).toBe(true);
             // 形态坏掉的应答不是「没给链接」，登录提示无从谈起。
-            expect(error.details?.signInMayHelp).toBe(false);
-        });
-
-        it('treats a missing or non-object playUrl as an invalid response', async () => {
+            requestMock.mockReset();
             requestMock
                 .mockResolvedValueOnce({ data: {} })
                 .mockResolvedValueOnce({ data: { playUrl: 'https://audio.example.test/song.mp3' } });
-
-            await expect(qqProvider.playback!.getAudioSource(SONG, 'high')).rejects.toMatchObject({
-                code: 'invalid-response',
-            });
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'high'))).toEqual({ case: 'no-audio' });
             expect(requestMock).toHaveBeenCalledTimes(2);
         });
 
@@ -916,36 +849,16 @@ describe('qqProvider', () => {
             expect(requestMock).not.toHaveBeenCalled();
         });
 
-        it('stops at the first throttled request and keeps its cooldown', async () => {
-            const throttled = new OnlineProviderError(
-                'network', 'QQMusicApi music_play failed: HTTP 429', 'qq', { code: 429 }, 429, 25_000,
-            );
-            requestMock.mockRejectedValue(throttled);
+        it.each([
+            ['the backend asks to wait', () => new OnlineProviderError('network', 'QQMusicApi request failed: 429', 'qq', { retryAfterMs: 25_000 }, 429, 25_000)],
+            ['the web build has no backend address', () => new OnlineProviderError('unavailable', QQ_API_BASE_MISSING, 'qq')],
+            // QQ has no other endpoint, and the next level would wait as long again.
+            ['the request was not answered in time', () => new OnlineRequestTimeout(QQ_ONLINE_REQUEST_LIMIT_MS)],
+        ])('stops at the first request where %s', async (_label, thrown) => {
+            const error = thrown();
+            requestMock.mockRejectedValue(error);
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
-            expect(error).toMatchObject({ code: 'rate-limited', httpStatus: 429, retryAfterMs: 25_000, cause: throttled });
-            expect(requestMock).toHaveBeenCalledTimes(1);
-        });
-
-        it('stops at the first request when the backend is unavailable', async () => {
-            requestMock.mockRejectedValue(new OnlineProviderError(
-                'unavailable', 'VITE_QQ_API_BASE is not configured', 'qq',
-                undefined, undefined, undefined, { stage: 'config', transient: false },
-            ));
-
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
-            expect(error).toMatchObject({ code: 'unavailable', details: { transient: false } });
-            expect(requestMock).toHaveBeenCalledTimes(1);
-        });
-
-        it('stops at the first timed-out request because QQ has no alternative endpoint', async () => {
-            requestMock.mockRejectedValue(new OnlineProviderError('timeout', 'QQMusicApi music_play timed out', 'qq'));
-
-            await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).rejects.toMatchObject({
-                code: 'timeout',
-            });
+            await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).rejects.toBe(error);
             expect(requestMock).toHaveBeenCalledTimes(1);
         });
 
@@ -954,7 +867,7 @@ describe('qqProvider', () => {
                 .mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi music_play unreachable: Failed to fetch', 'qq'))
                 .mockResolvedValueOnce(PLAYABLE);
 
-            await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).resolves.toMatchObject({
+            await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).resolves.toEqual({
                 url: 'https://audio.example.test/song.mp3',
                 fetchedAt: expect.any(Number),
                 quality: 'high',
@@ -974,51 +887,29 @@ describe('qqProvider', () => {
             expect(requestMock).toHaveBeenCalledTimes(2);
         });
 
-        it('lets a 500 outrank the empty links that follow it', async () => {
-            const serverError = new OnlineProviderError(
-                'network', 'QQMusicApi music_play failed: HTTP 500 (get-music-play failed)', 'qq', { error: 'get-music-play failed' }, 500,
-            );
+        // The backend's answer says more than a request that failed beside it.
+        it('says no audio where a level answered with an empty link after another failed with 500', async () => {
             requestMock
-                .mockRejectedValueOnce(serverError)
+                .mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi request failed: 500', 'qq', { error: 'get-music-play failed' }, 500))
                 .mockResolvedValue(EMPTY_PLAY_LINK);
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
-            // 暂时性失败优先于「没给链接」：结论是服务异常级别（汇总把严重度规整成 service-unavailable，保留那次的 500），提示重试。
-            expect(error).toMatchObject({ code: 'service-unavailable', httpStatus: 500, cause: serverError });
-            expect(error.details?.attempts).toEqual([
-                expect.objectContaining({ quality: 'lossless', outcome: 'error', code: 'network', httpStatus: 500 }),
-                expect.objectContaining({ quality: 'high', outcome: 'empty' }),
-                expect.objectContaining({ quality: 'standard', outcome: 'empty' }),
-            ]);
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toEqual({ case: 'no-audio' });
             expect(requestMock).toHaveBeenCalledTimes(3);
         });
 
-        // 后端把上游业务拒绝（QqProtocolError）包成 500，transport 据正文认出后不带 httpStatus、带上游码：
-        // 每档都这样时结论是「没给可播放音源」（unknown），不是服务异常，也就不会触发 provider 冷却。
-        it('reads upstream business refusals on every quality as not playable rather than a service outage', async () => {
-            const refusal = () => new OnlineProviderError(
-                'network', 'QQMusicApi music_play failed: HTTP 500 (get-music-play failed (HTTP 200, global=0, code=104003))', 'qq',
-                { error: 'get-music-play failed (HTTP 200, global=0, code=104003)' }, undefined, undefined,
-                { stage: 'upstream', upstreamCode: 104003 },
-            );
-            requestMock.mockImplementation(async () => { throw refusal(); });
+        // 后端把上游业务拒绝（QqProtocolError）包成 500：QQ 音乐其实答了话，是拒绝，不是服务异常。
+        it('reads an upstream business refusal on every quality as a refusal, with its code', async () => {
+            requestMock.mockImplementation(async () => {
+                throw new OnlineProviderError(
+                    'network', 'QQMusicApi request failed: 500', 'qq', { error: 'get-music-play failed (HTTP 200, global=0, code=104003)' }, 500,
+                );
+            });
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'));
-
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toMatchObject({ case: 'refused', code: '104003', httpStatus: 500 });
             expect(requestMock).toHaveBeenCalledTimes(3);
-            expect(error.code).toBe('not-playable');
-            expect(error.httpStatus).toBeUndefined();
-            expect(error.details?.attempts).toEqual([
-                expect.objectContaining({ quality: 'lossless', outcome: 'error', code: 'network', upstreamCode: 104003 }),
-                expect.objectContaining({ quality: 'high', outcome: 'error', code: 'network', upstreamCode: 104003 }),
-                expect.objectContaining({ quality: 'standard', outcome: 'error', code: 'network', upstreamCode: 104003 }),
-            ]);
-            const { classifyPlaybackError } = await import('@/services/playbackRecovery/onlinePlaybackFailure');
-            expect(classifyPlaybackError(error, { stage: 'resolve-url', providerId: 'qq' }).reason).toBe('unknown');
         });
 
-        // 3.3.0 的 restriction：数字码只进诊断，hint.key 只有 maybe-* 两种算「可能」原因，而且只认最后一档（标准音质）的。
+        // 3.3.0 的 restriction：数字码只进日志，hint.key 只有 maybe-* 两种算「可能」原因，而且只认最后一档（标准音质）的。
         const restricted = (hintKey: string, codes: Record<string, number> = { result: 104003, subcode: 1 }) => ({
             data: { playUrl: { '003rJSwm3TechU': {
                 url: '',
@@ -1027,62 +918,38 @@ describe('qqProvider', () => {
             } } },
         });
 
-        it('keeps the restriction codes and hint key as diagnostics on each empty attempt', async () => {
+        it('gives no possible cause for a restriction whose hint confirms nothing', async () => {
             requestMock.mockResolvedValue(restricted('playback.reason-unconfirmed'));
-
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
-
-            expect(error.code).toBe('not-playable');
-            expect(error.details?.attempts).toEqual([
-                { stage: 'music_play', quality: 'high', outcome: 'empty', upstreamCode: 104003, detail: '暂无播放链接 [playback.reason-unconfirmed; result=104003 subcode=1]' },
-                { stage: 'music_play', quality: 'standard', outcome: 'empty', upstreamCode: 104003, detail: '暂无播放链接 [playback.reason-unconfirmed; result=104003 subcode=1]' },
-            ]);
-            expect(error.details?.likelyCause).toBeUndefined();
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'high'))).toEqual({ case: 'no-audio' });
         });
 
         it.each([
-            ['playback.maybe-membership', 'membership', 'status.songTemporarilyUnavailableMaybeMembership'],
-            ['playback.maybe-region-restricted', 'region', 'status.songTemporarilyUnavailableMaybeRegion'],
-        ] as const)('turns %s on the standard tier into a possible cause, never a definite reason', async (hintKey, cause, messageKey) => {
+            ['playback.maybe-membership', 'subscription'],
+            ['playback.maybe-region-restricted', 'region'],
+        ] as const)('turns %s on the standard tier into a possible cause, never a definite reason', async (hintKey, cause) => {
             requestMock
                 .mockResolvedValueOnce(restricted('playback.reason-unconfirmed'))
                 .mockResolvedValueOnce(restricted(hintKey));
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
-
-            expect(error).toMatchObject({ code: 'not-playable', details: { likelyCause: cause } });
-            const { classifyPlaybackError } = await import('@/services/playbackRecovery/onlinePlaybackFailure');
-            const { getPlaybackFailureMessage } = await import('@/services/playbackRecovery/playbackFailurePolicy');
-            const failure = classifyPlaybackError(error, { stage: 'resolve-url', providerId: 'qq' });
-            expect(failure.reason).toBe('unknown');
-            expect(getPlaybackFailureMessage(failure).key).toBe(messageKey);
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'high'))).toEqual({ case: 'no-audio', likelyCause: cause });
         });
 
-        // 可能原因只看最后一档：最后一档是网络错误时，前面档位的提示不能代表这次失败。
-        // 最后一档用不算暂时性的失败：结论仍是 not-playable，可能原因要靠 adapter 自己清掉，汇总不会替它挡。
+        // 可能原因只看最后一档：最后一档失败了，前面档位的提示不能代表这次失败。
         it.each([
-            ['throws a non-transient error', () => requestMock.mockRejectedValueOnce(new OnlineProviderError('invalid-response', 'QQMusicApi music_play body unreadable', 'qq'))],
+            ['throws', () => requestMock.mockRejectedValueOnce(new OnlineProviderError('invalid-response', 'QQMusicApi music_play body unreadable', 'qq'))],
             ['answers without an entry', () => requestMock.mockResolvedValueOnce({ data: { playUrl: {} } })],
         ])('drops a possible cause when the last tier %s', async (_label, failLastTier) => {
             requestMock.mockResolvedValueOnce(restricted('playback.maybe-membership'));
             failLastTier();
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'high'));
-
-            expect(error.code).toBe('not-playable');
-            expect(error.details?.likelyCause).toBeUndefined();
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'high'))).toEqual({ case: 'no-audio' });
         });
 
-        it('never turns an empty play link into a takedown, membership, region or preview reason', async () => {
+        it('never turns an empty play link into a takedown, a refusal of this song or a preview', async () => {
             transportState.hasSession = false;
             requestMock.mockResolvedValue(EMPTY_PLAY_LINK);
 
-            const error = await rejectionOf(qqProvider.playback!.getAudioSource(SONG, 'hires'));
-
-            expect([
-                'taken-down', 'membership-required', 'purchase-required', 'entitlement-required',
-                'region-restricted', 'preview-only',
-            ]).not.toContain(error.code);
+            expect((await caseOf(qqProvider.playback!.getAudioSource(SONG, 'hires')))?.case).toBe('no-audio');
             // QQ 不声明歌曲级的静态可用性，运行时失败也不会回写到那里。
             expect(qqProvider.playback?.getAvailability).toBeUndefined();
         });
@@ -1102,7 +969,7 @@ describe('qqProvider', () => {
             nextOffset: 1,
             items: [expect.objectContaining({ qqMid: '003rJSwm3TechU' })],
         });
-        await expect(qqProvider.library!.getLikedSongIds!(123)).resolves.toEqual(['003rJSwm3TechU']);
+        await expect(qqProvider.library!.getLikedSongIds!(123)).resolves.toEqual({ ids: ['003rJSwm3TechU'], whole: true });
         await expect(qqProvider.catalog!.getPlaylistTracks!(7, 50, 0, normalizeQqCollection(PLAYLIST_ITEM))).resolves.toMatchObject({
             total: 1,
             hasMore: false,
@@ -1114,6 +981,35 @@ describe('qqProvider', () => {
             ['user_liked_songs', { offset: 0, limit: 100 }],
             ['user_liked_songs', { offset: 0, limit: 50 }],
         ]);
+    });
+
+    // 读不出来的一页不能当成“没有喜欢的歌”，没读到底的列表不能当成整份。
+    it('fails the liked-song read on an answer without the list, and says a list that stops short is not whole', async () => {
+        requestMock.mockResolvedValueOnce({ code: 200 });
+        await expect(qqProvider.library!.getLikedSongIds!(123)).rejects.toMatchObject({ code: 'invalid-response' });
+
+        // QQ counts three songs and gives one, then nothing.
+        requestMock
+            .mockResolvedValueOnce({ code: 200, songs: [SEARCH_ITEM], total: 3, more: false })
+            .mockResolvedValueOnce({ code: 200, songs: [], total: 3, more: false });
+        await expect(qqProvider.library!.getLikedSongIds!(123)).resolves.toEqual({ ids: ['003rJSwm3TechU'], whole: false });
+
+        // A full page with no count and no word of more: the list may go on.
+        requestMock.mockResolvedValueOnce({ code: 200, songs: Array.from({ length: 100 }, () => SEARCH_ITEM) });
+        await expect(qqProvider.library!.getLikedSongIds!(123)).resolves.toMatchObject({ whole: false });
+
+        // A short page with no count ends the list.
+        requestMock.mockResolvedValueOnce({ code: 200, songs: [SEARCH_ITEM] });
+        await expect(qqProvider.library!.getLikedSongIds!(123)).resolves.toEqual({ ids: ['003rJSwm3TechU'], whole: true });
+    });
+
+    it('counts the liked songs by the count the first page of the list gives, and gives none where QQ names none', async () => {
+        requestMock.mockResolvedValueOnce({ code: 200, songs: [SEARCH_ITEM], total: 37, more: false });
+        await expect(qqProvider.library!.getLikedSongCount!(123)).resolves.toBe(37);
+        expect(requestMock.mock.calls).toEqual([['user_liked_songs', { offset: 0, limit: 100 }]]);
+
+        requestMock.mockResolvedValueOnce({ code: 200, songs: [SEARCH_ITEM] });
+        await expect(qqProvider.library!.getLikedSongCount!(123)).resolves.toBeNull();
     });
 
     // 「歌单读不到」和「歌单是空的」必须分开，判据是 `dissname` 在不在。
@@ -1317,7 +1213,7 @@ describe('qqProvider', () => {
         expect(normalizeQqCollection(album, album.type)).toEqual(album);
     });
 
-    // `omni.normalizeCachedCollection` 会把已正规化的缓存再喂回来，第二遍若有损耗，
+    // 读账号的地方（`account/accountRead.ts` 的 `keptAccount`）会把已正规化的缓存再喂回来，第二遍若有损耗，
     // 曲库水合出来的就是被洗空的专辑而不是缓存里的那份。
     it('keeps album and artist collections stable when the cached copy is normalized again', () => {
         const album = normalizeQqCollection(SINGER_ALBUM_ITEM, 'album');
@@ -1325,7 +1221,7 @@ describe('qqProvider', () => {
 
         expect(normalizeQqCollection(album, 'album')).toEqual(album);
         expect(normalizeQqCollection(artist, 'artist')).toEqual(artist);
-        // useQqLibrary 用 `collection.type` 再正规化一次，走的是同一个分支。
+        // 读账号时（account/accountRead.ts）用 `collection.type` 再正规化一次，走的是同一个分支。
         expect(normalizeQqCollection(album, album.type)).toEqual(album);
         expect(normalizeQqCollection(artist, artist.type)).toEqual(artist);
         // 缓存条目也要能扛住默认的 `playlist` 类型参数。

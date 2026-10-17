@@ -2,7 +2,9 @@ import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SheetButton } from '../shared/Sheet';
 import ThemedDialog from '../shared/ThemedDialog';
+import { settingsAnchorSubview } from './settings/navigation/settingsAnchorModel';
 import { useAutomixSettingsStore } from '../../stores/useAutomixSettingsStore';
 import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 
@@ -20,9 +22,6 @@ import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 // mirrors each, and a progress bar that lives over there - starting one blind from a dialog would put the
 // listener somewhere they cannot see it go wrong.
 
-/** Matches the `id` on the models block in AutomixModelsSection. */
-const MODELS_BLOCK_ID = 'automix-models';
-
 const AutomixModelReminder: React.FC<{ isDaylight: boolean }> = ({ isDaylight }) => {
     const { t } = useTranslation();
     const openSettings = useSettingsModalStore(state => state.openSettings);
@@ -33,20 +32,11 @@ const AutomixModelReminder: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
 
     if (!isOpen) return null;
 
-    const buttonClass = isDaylight
-        ? 'rounded-xl border border-black/10 px-4 py-2 text-sm text-zinc-900 hover:bg-black/[0.04]'
-        : 'rounded-xl border border-white/10 px-4 py-2 text-sm text-white hover:bg-white/[0.06]';
-
     const goDownload = () => {
         dismiss(false);
-        openSettings('options', 'playback');
-        // Two frames, not one: the modal mounts on the first and lays its scroll container out on the
-        // second, and an element scrolled into a container that has no height yet does not move. Guarded
-        // rather than assumed - the block only renders on desktop builds.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-            document.getElementById(MODELS_BLOCK_ID)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }));
+        // Lands on the folded models group of the playback page: the settings open it and scroll to
+        // it once it is on the page (it is drawn only in the desktop app, after its status loaded).
+        openSettings('options', settingsAnchorSubview('automixModels'), null, 'automixModels');
     };
 
     return (
@@ -56,30 +46,29 @@ const AutomixModelReminder: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
             isDaylight={isDaylight}
             title={t('options.modelReminderTitle')}
             description={t('options.modelReminderDesc')}
-        >
-            <div className="flex flex-wrap items-center justify-end gap-2">
-                {/* Left of the two dismissals and visually quieter than both: it is the answer
-                    that cannot be taken back from this dialog, so it should not be the easy one. */}
+            // Left of the two dismissals and visually quieter than both: it is the answer
+            // that cannot be taken back from this dialog, so it should not be the easy one.
+            footerNote={(
                 <button
                     type="button"
                     onClick={() => dismiss(true)}
-                    className={`mr-auto text-sm underline opacity-50 hover:opacity-80 ${isDaylight ? 'text-zinc-900' : 'text-white'}`}
+                    className="st-t-fast rounded-md underline transition-colors hover:text-[color:var(--st-t1)]"
                 >
                     {t('options.modelReminderNever')}
                 </button>
-                <button type="button" onClick={() => dismiss(false)} className={buttonClass}>
-                    {t('options.modelReminderLater')}
-                </button>
-                <button
-                    type="button"
-                    onClick={goDownload}
-                    className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-white/90 flex items-center gap-1.5"
-                >
-                    <Download size={14} />
-                    {t('options.modelReminderDownload')}
-                </button>
-            </div>
-        </ThemedDialog>
+            )}
+            footer={(
+                <>
+                    <SheetButton onClick={() => dismiss(false)}>
+                        {t('options.modelReminderLater')}
+                    </SheetButton>
+                    <SheetButton variant="primary" onClick={goDownload}>
+                        <Download size={14} />
+                        {t('options.modelReminderDownload')}
+                    </SheetButton>
+                </>
+            )}
+        />
     );
 };
 

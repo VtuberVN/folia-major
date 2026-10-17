@@ -1,6 +1,7 @@
 import { parseBlob } from 'music-metadata';
 import { repairFlacMetadata } from '../utils/flacMetadataRepair';
-import { hasLegacyId3Tags, repairMojibakeText, repairTagText } from '../utils/legacyTagTextRepair';
+import { hasLegacyId3Tags, repairLatin1DecodedGbkText } from '../utils/legacyTagTextRepair';
+import { formatLrcTimestamp } from '../utils/lyrics/lrcTimestamp';
 
 interface ParsedLyricLine {
     text?: string;
@@ -54,14 +55,6 @@ async function hashCoverBytes(bytes: BufferSource): Promise<string | undefined> 
     if (!crypto?.subtle) return undefined;
     const digest = await crypto.subtle.digest('SHA-256', bytes);
     return `sha256:${toHex(new Uint8Array(digest))}`;
-}
-
-function formatLrcTimestamp(timestampMs: number): string {
-    const safeTimestamp = Math.max(0, Math.floor(timestampMs));
-    const minutes = Math.floor(safeTimestamp / 60000);
-    const seconds = Math.floor((safeTimestamp % 60000) / 1000);
-    const centiseconds = Math.floor((safeTimestamp % 1000) / 10);
-    return `[${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}]`;
 }
 
 function syncTextToLrc(syncText: ParsedLyricLine[] | undefined, timeStampFormat?: number): string | undefined {
@@ -237,15 +230,15 @@ async function extractEmbeddedMetadata(file: File, includeCover = false): Promis
         : undefined;
     const coverAssetId = picture ? await hashCoverBytes(Uint8Array.from(picture.data)) : undefined;
 
-    const repair = hasLegacyId3Tags(parsed.format.tagTypes)
-        ? (text: string | undefined) => (text ? repairTagText(text) : text)
-        : (text: string | undefined) => (text ? repairMojibakeText(text) : text);
+    const repairTagText = hasLegacyId3Tags(parsed.format.tagTypes)
+        ? (text: string | undefined) => (text ? repairLatin1DecodedGbkText(text) : text)
+        : (text: string | undefined) => text;
 
     return {
-        title: repair(parsed.common.title),
-        artist: repair(parsed.common.artist),
-        artists: parsed.common.artists?.map(artist => repair(artist) ?? artist),
-        album: repair(parsed.common.album),
+        title: repairTagText(parsed.common.title),
+        artist: repairTagText(parsed.common.artist),
+        artists: parsed.common.artists?.map(artist => repairTagText(artist) ?? artist),
+        album: repairTagText(parsed.common.album),
         trackNumber: parsed.common.track.no ?? undefined,
         discNumber: parsed.common.disk.no ?? undefined,
         cover,

@@ -234,7 +234,7 @@ Docker / NAS、HTTPS、反向代理和本地镜像验证见 [Docker 全栈部署
 mkdir qq-api
 cd qq-api
 npm init -y
-npm install @yakult-green-tea/qq-music-api@^3.3.0
+npm install @yakult-green-tea/qq-music-api@^3.3.1
 ```
 
 macOS / Linux：
@@ -265,7 +265,7 @@ VITE_QQ_API_BASE=https://你的-qq-api-域名
 
 常驻 Node 服务同时支持 QQ 扫码和微信扫码两种登录方式。`QQ_AUTH_STATE_PATH` 保存非凭证的设备标识；`QQ_AUTH_SESSION_PATH` 保存使用 `QQ_SESSION_SECRET` 加密后的登录态。不要让多个实例共用同一份状态文件。
 
-Folia 的每日推荐、私人 FM、推荐歌单、往自建歌单加歌删歌和收藏歌单用到 3.3.0 新增的接口。已经部署的旧版本服务请升级到 3.3.0 或更高版本，否则这些入口照样显示，但内容是空的，加歌、收藏会提示失败。3.3.0 起常驻服务会在登录凭证到期前自动续期，不用再隔几天重新扫码；Vercel、Cloudflare 这类 serverless 部署暂时没有这个能力。
+Folia 的每日推荐、私人 FM、推荐歌单、往自建歌单加歌删歌和收藏歌单用到 3.3.0 新增的接口，红心和收藏专辑用到 3.3.1 新增的接口。已经部署的旧版本服务请升级到 3.3.1 或更高版本，否则这些入口照样显示，但内容是空的，加歌、收藏、红心会提示失败。3.3.0 起常驻服务会在登录凭证到期前自动续期，不用再隔几天重新扫码；Vercel、Cloudflare 这类 serverless 部署暂时没有这个能力。
 
 ## 部署后接入 Folia
 
@@ -308,7 +308,8 @@ QQ 扫码失败后，登录界面与其它平台一样在二维码旁边给出�
 | 自建歌单打不开，提示不是公开歌单 | 后端版本过旧，缺少带凭据的 `/user/playlist-detail` 路由；升级 `@yakult-green-tea/qq-music-api` 后即可读取不公开的自建歌单 |
 | 收藏的「百万收藏」「歌手漫游」等官方歌单打不开，报 `code 10` | 后端低于 3.1.4，或 serverless 部署未设置 `QQ_SESSION_SECRET`；这类歌单只能带登录会话读取 |
 | 扫码后上游返回 `20279` | 先在 QQ 音乐账号中清理旧登录设备，再重新扫码。serverless 部署换一次 `QQ_SESSION_SECRET` 或换一个部署，对 QQ 来说就是一台新设备 |
-| 电台页的每日推荐、私人 FM、推荐歌单都是空的，加歌、收藏歌单按钮点了提示失败 | 后端低于 3.3.0，缺少这些接口（Folia 不按后端版本隐藏这些入口）；内置的 Vercel、Cloudflare、Docker 入口已经是 3.3.0，自行部署的 Node 服务需要升级 |
+| 电台页的每日推荐、私人 FM、推荐歌单都是空的，加歌、收藏歌单按钮点了提示失败 | 后端低于 3.3.0，缺少这些接口（Folia 不按后端版本隐藏这些入口）；内置的 Vercel、Cloudflare、Docker 入口已经是 3.3.1，自行部署的 Node 服务需要升级 |
+| QQ 的歌点红心、专辑点收藏提示失败，其他功能正常 | 后端低于 3.3.1，缺少 `/user/song/like`、`/user/album/subscribe`；升级到 3.3.1 或更高版本 |
 | 网页版个别歌曲提示「暂时无法播放」，桌面版同一账号能播 | serverless 由平台机房向 QQ 取链接，QQ 看到的是机房的网络；这是部署形态的限制，想让能播的歌最多就用 Docker、Node 或桌面版 |
 | 修改 `VITE_QQ_API_BASE` 后仍请求旧地址 | 该变量在构建时写入前端，必须重新构建；同时检查 `.env.local` 是否覆盖平台配置 |
 | 关闭二维码后仍担心计费 | 查看日志是否出现取消请求，以及 Durable Object 的 `/open`、`/close` 是否成对出现 |

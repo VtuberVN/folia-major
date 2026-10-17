@@ -10,20 +10,19 @@ import type { LyricExportFormat } from '../../services/lyricExport/types';
 import { hasExportableLyrics } from '../../utils/lyrics/exportableLyrics';
 import { LYRIC_EXPORT_COMMAND_ID } from '../command-palette/commands/lyricExportCommands';
 import LyricFileDialog from './LyricFileDialog';
+import { PanelButton } from './shell/PanelButton';
 
 // src/components/panelTab/LyricFileButton.tsx
 // The lyric-file controls in the lyrics row of the player panel's source tab (local, Navidrome
 // and online share it). Hosts the Desktop Mini Lyric Bar toggle and the lyric import/export dialog trigger.
 
 type LyricFileButtonProps = {
-    /** Each tab styles its row icons differently; the trigger matches its neighbours. */
-    buttonClassName: string;
     isDaylight: boolean;
-    /** The tab's existing file-input handler. Left out where the source cannot take an imported file. */
-    onImportChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Takes the text of the chosen file. Left out where the source cannot take an imported file. */
+    onImportLyrics?: (content: string, fileName: string) => void;
 };
 
-const LyricFileButton: React.FC<LyricFileButtonProps> = ({ buttonClassName, isDaylight, onImportChange }) => {
+const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportLyrics }) => {
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
@@ -53,8 +52,20 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ buttonClassName, isDa
     const close = useCallback(() => setIsOpen(false), []);
 
     const handleImportChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        onImportChange?.(event);
+        const file = event.target.files?.[0];
+        // Emptied, so that choosing the same file again is a change too.
+        event.target.value = '';
         close();
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const content = reader.result as string | null;
+            if (content) {
+                onImportLyrics?.(content, file.name);
+            }
+        };
+        reader.readAsText(file);
     };
 
     const exportCurrent = async (format: LyricExportFormat) => {
@@ -93,32 +104,30 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ buttonClassName, isDa
     return (
         <>
             {electron?.toggleMiniLyricBar && (
-                <button
-                    type="button"
+                <PanelButton
+                    icon={Captions}
                     onClick={() => void handleToggleMiniLyricBar()}
-                    className={`${buttonClassName} ${isMiniLyricOpen ? 'text-emerald-400 opacity-100' : 'opacity-70 hover:opacity-100'}`}
                     title={t('ui.miniLyricBar', 'Desktop Mini Lyric Bar')}
                     aria-label={t('ui.miniLyricBar', 'Desktop Mini Lyric Bar')}
+                    style={isMiniLyricOpen ? { color: '#34d399' } : undefined}
                 >
-                    <Captions size={14} />
-                </button>
+                    {t('ui.miniLyricBarShort', 'Mini Bar')}
+                </PanelButton>
             )}
-            <button
-                type="button"
+            <PanelButton
+                grow
+                icon={ArrowDownUp}
                 data-ponder-panel-source-lyrics-file
                 onClick={() => setIsOpen(true)}
-                className={buttonClassName}
-                title={t('lyricFile.button')}
-                aria-label={t('lyricFile.button')}
                 aria-haspopup="dialog"
             >
-                <ArrowDownUp size={14} />
-            </button>
+                {t('lyricFile.button')}
+            </PanelButton>
             <LyricFileDialog
                 isOpen={isOpen}
                 onClose={close}
                 isDaylight={isDaylight}
-                onImportChange={onImportChange ? handleImportChange : undefined}
+                onImportChange={onImportLyrics ? handleImportChange : undefined}
                 canExportCurrent={canExportCurrent}
                 isExporting={isExporting}
                 onExportCurrent={format => void exportCurrent(format)}

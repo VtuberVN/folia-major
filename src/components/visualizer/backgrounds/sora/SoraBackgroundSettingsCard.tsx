@@ -1,3 +1,4 @@
+import React from 'react';
 import {
     DEFAULT_SORA_BACKGROUND_TUNING,
     SORA_CLASSIC_TUNING,
@@ -9,13 +10,52 @@ import {
     type Theme,
 } from '../../../../types';
 import { colorWithAlpha } from '../../colorMix';
-import BackgroundToggleRow from '../BackgroundToggleRow';
 import {
     SoraPillGroup,
     type SoraPillOption,
     SoraSectionLabel,
     SoraSliderRow,
 } from './soraSettingsRows';
+
+interface BackgroundToggleRowProps {
+    label: string;
+    description?: string;
+    checked: boolean;
+    onChange?: (checked: boolean) => void;
+    theme: Theme;
+}
+
+const BackgroundToggleRow: React.FC<BackgroundToggleRowProps> = ({
+    label,
+    description,
+    checked,
+    onChange,
+    theme,
+}) => (
+    <div className="flex items-center justify-between gap-4">
+        <div className="space-y-1">
+            <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>{label}</div>
+            {description && (
+                <div className="max-w-[320px] text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                    {description}
+                </div>
+            )}
+        </div>
+        <button
+            type="button"
+            aria-pressed={checked}
+            disabled={!onChange}
+            onClick={() => onChange?.(!checked)}
+            className="h-6 w-12 shrink-0 rounded-full p-1 transition-colors disabled:opacity-45"
+            style={{ backgroundColor: checked ? theme.secondaryColor : colorWithAlpha(theme.secondaryColor, 0.18) }}
+        >
+            <div
+                className={`h-4 w-4 rounded-full shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}
+                style={{ backgroundColor: theme.primaryColor }}
+            />
+        </button>
+    </div>
+);
 
 // src/components/visualizer/backgrounds/sora/SoraBackgroundSettingsCard.tsx
 // Comprehensive settings card for the Sora 3D Celestial Engine:
@@ -171,7 +211,7 @@ const SoraBackgroundSettingsCard: React.FC<SoraBackgroundSettingsCardProps> = ({
                 label={t('options.soraBlank')}
                 description={t('options.soraBlankDesc')}
                 checked={resolved.blank}
-                onChange={blank => onTuningChange?.({ blank })}
+                onChange={(blank: boolean) => onTuningChange?.({ blank })}
                 theme={theme}
             />
 
@@ -184,7 +224,7 @@ const SoraBackgroundSettingsCard: React.FC<SoraBackgroundSettingsCardProps> = ({
                             label={t('options.soraAutoCinematicCam')}
                             description={t('options.soraAutoCinematicCamDesc')}
                             checked={resolved.autoCinematicCam}
-                            onChange={autoCinematicCam => onTuningChange?.({ autoCinematicCam })}
+                            onChange={(autoCinematicCam: boolean) => onTuningChange?.({ autoCinematicCam })}
                             theme={theme}
                         />
                         <SoraSliderRow
@@ -356,7 +396,7 @@ const SoraBackgroundSettingsCard: React.FC<SoraBackgroundSettingsCardProps> = ({
                             label={t('options.soraShowGalaxy')}
                             description={t('options.soraShowGalaxyDesc')}
                             checked={resolved.showGalaxy}
-                            onChange={showGalaxy => onTuningChange?.({ showGalaxy })}
+                            onChange={(showGalaxy: boolean) => onTuningChange?.({ showGalaxy })}
                             theme={theme}
                         />
                         {resolved.showGalaxy && (
@@ -552,7 +592,7 @@ const SoraBackgroundSettingsCard: React.FC<SoraBackgroundSettingsCardProps> = ({
                             label={t('options.soraEnableShootingStars')}
                             description={t('options.soraEnableShootingStarsDesc')}
                             checked={resolved.enableShootingStars}
-                            onChange={enableShootingStars => onTuningChange?.({ enableShootingStars })}
+                            onChange={(enableShootingStars: boolean) => onTuningChange?.({ enableShootingStars })}
                             theme={theme}
                         />
                         {resolved.enableShootingStars && (

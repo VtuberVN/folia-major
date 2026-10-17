@@ -1,11 +1,14 @@
 import type { SongResult } from '../../types';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
-import { saveAudioBlob } from '../audioCache';
+import { notifyAudioCached, onAudioCached, saveAudioBlob } from '../audioCache';
 import { getFromCache, saveToCache } from '../db';
-import { getCachedSongAudioBlob } from '../onlineMusic/resourceCache';
+import { omni } from '../onlineMusic/omni';
+import { hasProviderKeptSongAudio, keepProviderSongAudio, keepsOwnSongAudio } from '../onlineMusic/providerRegistry';
+import { getCachedSongAudioBlob, hasCachedSongAudio, saveSongAudioLevel } from '../onlineMusic/resourceCache';
 import { getSongResourceCacheKey } from '../onlineMusic/resourceKeys';
 import { isCacheableAudioResponse } from '../playbackRecovery/mediaCacheGuard';
 import { getPlaybackAnalysisKey, getPlaybackRepresentation } from '../playbackRecovery/representationRegistry';
+import { mayStoreSongAudio, whyNotTheSong, whyNotTheSongPlayed, whyPreviewClip } from '../wholeSongCheck';
 import { analyseTrackOffThread, melSpectrogramOffThread } from './analysisOffThread';
 import { analyseBeatGrid, canRunBeatThis } from './beatThis';
 import {
@@ -39,6 +42,29 @@ const inFlight = new Set<string>();
 const skipped = new Map<string, string>();
 /** Same order of magnitude as the prefetch cache; each entry is a couple of hundred bytes. */
 const MAX_PROFILES = 200;
+
+/**
+ * Files found this session not to be their song (wholeSongCheck.ts), with why: a download by the
+ * song and its URL, a copy in the media cache by the song's audio key. Without them every prefetch
+ * pass (one per song start) downloaded the whole file again, or read the whole copy and its header
+ * again, to learn the same thing. A URL names one file; a copy is forgotten when the song's audio
+ * is written (a new copy) or is found gone (playback deleted it). Any other skip stays retryable.
+ */
+const notTheSongDownloads = new Map<string, string>();
+const notTheSongCopies = new Map<string, string>();
+onAudioCached(cacheKey => { notTheSongCopies.delete(cacheKey); });
+
+/** Remembers why `key` is not the song, as many as there are profiles, and answers with the why. */
+const noteNotTheSong = (notTheSong: Map<string, string>, key: string, why: string): string => {
+    notTheSong.delete(key);
+    notTheSong.set(key, why);
+    while (notTheSong.size > MAX_PROFILES) {
+        const oldest = notTheSong.keys().next().value;
+        if (oldest === undefined) break;
+        notTheSong.delete(oldest);
+    }
+    return why;
+};
 
 /** One at a time: decoding a track allocates tens of megabytes, and two at once is the spike. */
 let queue: Promise<unknown> = Promise.resolve();
@@ -210,6 +236,25 @@ const readPrefix = async (audioUrl: string): Promise<BytesResult> => {
     return { bytes: await response.arrayBuffer(), partial: true };
 };
 
+/**
+ * For a song whose provider keeps its audio in a cache of its own. With `store` the provider is
+ * asked to keep the file (a download, when it is not there); without, only whether it holds one.
+ * A kept file is announced like a media-cache write, with the URL it is read by: that wakes a
+ * separation waiting for the song, and gives it the URL if it was asked before the song had one.
+ *
+ * Called on every way through `ensureTrackProfile`, not only before a read. A song measured
+ * earlier is never read here again, and its file may not be kept (measured before files were
+ * kept, or dropped by the cache's size limit since); a separation asked before the URL existed
+ * has to hear of a file that was kept all along.
+ */
+const keepWithProvider = async (song: SongResult, audioUrl: string | null | undefined, store: boolean): Promise<boolean> => {
+    // A clip its provider marked is not the song, and is not kept as it (wholeSongCheck.ts).
+    if (!audioUrl || whyPreviewClip(audioUrl) || !keepsOwnSongAudio(song)) return false;
+    const kept = await (store ? keepProviderSongAudio : hasProviderKeptSongAudio)(song, audioUrl);
+    if (kept) notifyAudioCached(getSongResourceCacheKey('audio', song), audioUrl);
+    return kept;
+};
+
 const readBytes = async (
     { song, audioUrl, enableMediaCache }: ProfileRequest,
     /** A head-only profile is already stored, so there is nothing a second range request buys. */
@@ -228,17 +273,44 @@ const readBytes = async (
             return { skipped: 'the playback representation could not be read' };
         }
     }
+    // Nothing measured from a file that is not the song is kept as the song's (wholeSongCheck.ts):
+    // a stored profile is read before anything is measured again, so a clip's would stand in for
+    // the song for good. Not measured at all, also for the play now: a profile in memory is as
+    // final for this session (see the top of `ensureTrackProfile`), and a blend without one falls
+    // back to the live measurement of the deck, as for a track nothing could be read of. Skipped
+    // rather than failed, so the song is measured once its own file can be had; and remembered
+    // (`notTheSongCopies`, `notTheSongDownloads`), so the same file is not read again meanwhile.
+    const copyKey = getSongResourceCacheKey('audio', song);
+    const knownCopy = notTheSongCopies.get(copyKey);
+    if (knownCopy && await hasCachedSongAudio(song)) return { skipped: knownCopy };
+    notTheSongCopies.delete(copyKey);
     const cached = await getCachedSongAudioBlob(song);
-    if (cached) return { bytes: await cached.arrayBuffer(), partial: false };
+    if (cached) {
+        const notTheSong = await whyNotTheSong(song, null, cached);
+        if (notTheSong) return { skipped: noteNotTheSong(notTheSongCopies, copyKey, `the copy in the media cache is ${notTheSong}`) };
+        return { bytes: await cached.arrayBuffer(), partial: false };
+    }
 
     if (!audioUrl) return { skipped: 'not cached yet and no URL to read it from' };
+    // Before any read: a clip its provider marked is not downloaded only to be refused.
+    const previewClip = whyPreviewClip(audioUrl);
+    if (previewClip) return { skipped: `its URL is ${previewClip}` };
+    const downloadKey = `${getPlaybackSongKey(song)} ${audioUrl}`;
+    const knownDownload = notTheSongDownloads.get(downloadKey);
+    if (knownDownload) return { skipped: knownDownload };
     // A blob: or file: URL is already on this machine, so reading it is free whatever the setting
     // says. Anything else is a real download and needs a reason.
     const isLocal = audioUrl.startsWith('blob:') || audioUrl.startsWith('file:')
         || getPlaybackSourceRef(song).kind !== 'online';
 
     try {
-        if (!isLocal && !enableMediaCache) {
+        // A provider with a cache of its own is asked to keep the file before it is read, so the
+        // read below is of the kept copy and the track comes down once. With song caching off
+        // nothing is kept, but a file kept earlier is as free to read as any cached one.
+        const ownCache = !isLocal && keepsOwnSongAudio(song);
+        const kept = ownCache && await keepWithProvider(song, audioUrl, enableMediaCache);
+
+        if (!isLocal && !enableMediaCache && !kept) {
             // Song caching is off, so the full file would be bandwidth nobody agreed to. Take the
             // front of it instead: less than the transition is worth, and it still answers the
             // questions about how this track STARTS - which is what the chooser needs from the
@@ -248,9 +320,11 @@ const readBytes = async (
         }
 
         const response = await fetch(audioUrl);
+        // An error page is a body too: without this check it is saved below as the track's audio.
+        if (!response.ok) throw new Error(`audio request failed with status ${response.status}`);
         const blob = await response.blob();
-        // An error page, a JSON refusal or a truncated body is not audio: cached, it would stand in
-        // for the real track on every later play, and decoded, it would be remembered as a permanent
+        // A JSON refusal or a truncated body is not audio either: cached, it would stand in for the
+        // real track on every later play, and decoded, it would be remembered as a permanent
         // "unsupported" verdict for a track that merely failed to download this once.
         if (!isCacheableAudioResponse(response, blob)) {
             console.warn('[Automix] the download for analysis does not look like audio', {
@@ -260,10 +334,24 @@ const readBytes = async (
             });
             return { skipped: 'the download was not audio' };
         }
-        if (!isLocal) {
-            // The same write the audio bridge would have done after playback. Fetching once and
-            // feeding both is the whole reason a full read is allowed here at all.
+        if (!isLocal && !ownCache) {
+            // The same write the audio bridge would have done after playback, under the same check
+            // (wholeSongCheck.ts: a preview clip, or a file under half the song, is not stored).
+            // Fetching once and feeding both is the whole reason a full read is allowed here at all.
+            // The song has no copy (read above), so this never writes over one.
+            // A file not stored is not the song (under half of it: a marked clip never gets here),
+            // so it is not measured either.
+            const level = omni.levelOfAudioSource(audioUrl);
+            const check = await mayStoreSongAudio(song, audioUrl, blob, false);
+            if (!check.store) {
+                console.log(`[Automix] "${song.name}" not saved to the media cache from the analysis read, the file fetched at ${level ?? 'an unknown level'} is ${check.why}`);
+                return { skipped: noteNotTheSong(notTheSongDownloads, downloadKey, `the file fetched is ${check.why}`) };
+            }
             await saveAudioBlob(getSongResourceCacheKey('audio', song), blob);
+            // With the level this URL was fetched at, so that playback can tell the copy from one of
+            // the level the quality option asks for later.
+            await saveSongAudioLevel(song, level);
+            console.log(`[Automix] "${song.name}" saved to the media cache from the analysis read, fetched at ${level ?? 'an unknown level'}`);
         }
         return { bytes: await blob.arrayBuffer(), partial: false };
     } catch (error) {
@@ -281,7 +369,12 @@ const readBytes = async (
 export const ensureTrackProfile = async (request: ProfileRequest): Promise<void> => {
     const songKey = getPlaybackAnalysisKey(request.song);
     if (inFlight.has(songKey)) return;
-    if (profiles.has(songKey) && !needsGrid(request, profiles.get(songKey))) return;
+    if (profiles.has(songKey) && !needsGrid(request, profiles.get(songKey))) {
+        // Only asked, never stored from here: this runs on every track change, ahead of the
+        // queue that drops the songs a listener skips past, and a download cannot be taken back.
+        void keepWithProvider(request.song, request.audioUrl, false);
+        return;
+    }
     inFlight.add(songKey);
 
     queue = queue.then(async () => {
@@ -292,7 +385,15 @@ export const ensureTrackProfile = async (request: ProfileRequest): Promise<void>
             if (!wanted.has(songKey)) return;
 
             const stored = await getFromCache<TrackProfile>(storageKey(songKey));
-            const usable = stored?.version === TRACK_PROFILE_VERSION ? stored : null;
+            // A whole-file profile names the length of the file it measured. One under half the
+            // song was made from a clip (a version before the check above kept them): it is not
+            // used, and the song is measured again; a new profile takes its place. A head-only one
+            // names only the length of the head, which says nothing.
+            const madeFromClip = stored && !stored.partial ? whyNotTheSongPlayed(request.song, null, stored.duration) : null;
+            if (madeFromClip) {
+                console.log(`[Automix] the stored profile of "${request.song.name}" is not used, the file it measured is ${madeFromClip}`);
+            }
+            const usable = stored?.version === TRACK_PROFILE_VERSION && !madeFromClip ? stored : null;
             // A complete profile is the end of it. A head-only one is worth revisiting: the track
             // may have finished playing since and be sitting in the media cache now, in which case
             // the tail - the half that decides most transitions - is finally readable.
@@ -307,6 +408,7 @@ export const ensureTrackProfile = async (request: ProfileRequest): Promise<void>
                     + ` ${usable.bpm ? `${Math.round(usable.bpm)} BPM` : 'no tempo'}`
                     + `${usable.gridless === false ? ' (Beat This!)' : ''}`
                     + `, ${usable.loudness.toFixed(1)} LUFS`);
+                void keepWithProvider(request.song, request.audioUrl, request.enableMediaCache);
                 return;
             }
 
@@ -439,10 +541,15 @@ export const recordPlayedTail = (
     hopSec: number,
     /** The track's real length, to check these readings actually span it. */
     duration: number,
+    /** What the deck played from. */
+    src: string | null,
 ): void => {
     const songKey = getPlaybackSongKey(song);
     const known = profiles.get(songKey);
     if (!known || !known.partial) return;
+    // What the deck played was not the song (a clip): how it ended is not how the song ends, and it
+    // is not kept as the song's (wholeSongCheck.ts).
+    if (whyNotTheSongPlayed(song, src, duration)) return;
     // One test for both ways this can be the wrong track's shape: too little played means it was
     // skipped or seeked forward, too much means it was seeked back and some of it counted twice.
     // Either way a level series that does not span the file describes an ending it never had.
@@ -485,6 +592,8 @@ export const clearTrackProfileRuntime = () => {
     profiles.clear();
     inFlight.clear();
     skipped.clear();
+    notTheSongDownloads.clear();
+    notTheSongCopies.clear();
     // Nothing is in range until a prefetch pass says so again, which is what a cleared session means.
     wanted = new Set();
 };

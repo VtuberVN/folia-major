@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // test/unit/onlineMusic/qqLoginMethod.test.ts
-// 登录方式选择走 omni 的泛型契约：UI 只认 QrLoginMethod，不认识任何 QQ 内部概念。
+// 登录方式选择走 omni 的泛型契约：UI 只认 LoginMethod，不认识任何 QQ 内部概念。
 
 const requestMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/onlineMusic/qqTransport', () => ({
+vi.mock('@/services/onlineMusic/qq/qqTransport', () => ({
     getQqTransportAvailability: () => ({ configured: true }),
     hasQqSession: () => true,
     clearQqSession: vi.fn(),
@@ -16,13 +16,14 @@ vi.mock('@/services/onlineMusic/providerStorage', () => ({
     writeProviderSessionValue: vi.fn(),
 }));
 
-vi.mock('@/utils/lyrics/providers/qqLyricProvider', () => ({
+vi.mock('@/services/onlineMusic/qq/qqLyricProvider', () => ({
     searchQQLyrics: vi.fn(),
+    searchQQSongs: vi.fn(),
     fetchQQLyrics: vi.fn(),
 }));
 
 import { omni } from '@/services/onlineMusic/omni';
-import { resetQqLoginChannelCache } from '@/services/onlineMusic/qqProvider';
+import { resetQqLoginChannelCache } from '@/services/onlineMusic/qq/qqProvider';
 
 describe('QQ login method selection', () => {
     beforeEach(() => {
@@ -32,7 +33,7 @@ describe('QQ login method selection', () => {
     });
 
     it('declares both scan methods with an i18n key and an icon key, never an asset', () => {
-        const methods = omni.getQrLoginMethods('qq');
+        const methods = omni.getLoginMethods('qq');
 
         expect(methods).toEqual([
             { id: 'qq', labelKey: 'home.qqLoginMethodMobile', iconKey: 'qq' },
@@ -45,21 +46,21 @@ describe('QQ login method selection', () => {
     });
 
     it('reports no methods for providers with a single scan flow', () => {
-        expect(omni.getQrLoginMethods('netease')).toEqual([]);
-        expect(omni.getQrLoginMethods('kugou')).toEqual([]);
+        expect(omni.getLoginMethods('netease')).toEqual([]);
+        expect(omni.getLoginMethods('kugou')).toEqual([]);
     });
 
     it('declares the QR lifetime only for QQ, whose session TTL we own', () => {
         // 后端 qq-music-api 的会话寿命是 180 秒，前端要早一步收手才有意义。
-        expect(omni.getQrTtlMs('qq')).toBe(175_000);
-        expect(omni.getQrTtlMs('qq')).toBeLessThan(180_000);
+        expect(omni.getLoginTtlMs('qq')).toBe(175_000);
+        expect(omni.getLoginTtlMs('qq')).toBeLessThan(180_000);
         // netease / kugou 的二维码能活多久我们无从得知，交给它们各自的后端去报过期。
-        expect(omni.getQrTtlMs('netease')).toBeNull();
-        expect(omni.getQrTtlMs('kugou')).toBeNull();
+        expect(omni.getLoginTtlMs('netease')).toBeNull();
+        expect(omni.getLoginTtlMs('kugou')).toBeNull();
     });
 
     it('creates no QR session until a method is chosen', () => {
-        omni.getQrLoginMethods('qq');
+        omni.getLoginMethods('qq');
 
         // 读取方式列表只允许探测后端声明的通道，绝不能先去要一个二维码。
         const operations = requestMock.mock.calls.map(([operation]) => operation);
@@ -68,21 +69,21 @@ describe('QQ login method selection', () => {
     });
 
     it('passes the chosen method to the backend as the channel parameter', async () => {
-        await omni.createQrLogin('qq', 'wechat');
+        await omni.startLogin('qq', 'wechat');
 
         expect(requestMock).toHaveBeenNthCalledWith(1, 'login_qr_key', { channel: 'wechat' });
     });
 
     it('falls back to the App channel when no method is given', async () => {
-        await omni.createQrLogin('qq');
+        await omni.startLogin('qq');
 
         expect(requestMock).toHaveBeenNthCalledWith(1, 'login_qr_key', { channel: 'qq' });
     });
 
     it('starts a fresh session per switch instead of reusing the previous choice', async () => {
-        await omni.createQrLogin('qq', 'qq');
-        await omni.createQrLogin('qq', 'wechat');
-        await omni.createQrLogin('qq', 'qq');
+        await omni.startLogin('qq', 'qq');
+        await omni.startLogin('qq', 'wechat');
+        await omni.startLogin('qq', 'qq');
 
         const channels = requestMock.mock.calls
             .filter(([operation]) => operation === 'login_qr_key')
@@ -110,11 +111,11 @@ describe('QQ login channels declared by the backend', () => {
     it('hides the selector entirely when the backend serves a single channel', async () => {
         declare(['wechat']);
 
-        const methods = await omni.resolveQrLoginMethods('qq');
+        const methods = await omni.resolveLoginMethods('qq');
 
         // 登录流程等待能力发现，用这同一份结果决定是否显示选择器与是否直接创建二维码。
         expect(methods).toEqual([]);
-        expect(omni.getQrLoginMethods('qq')).toEqual([]);
+        expect(omni.getLoginMethods('qq')).toEqual([]);
     });
 
     it('uses the only declared channel when the hidden selector supplies no method', async () => {
@@ -126,9 +127,9 @@ describe('QQ login channels declared by the backend', () => {
             return { code: 200, data: { qrimg: 'data:image/png;base64,fixture' } };
         });
 
-        omni.getQrLoginMethods('qq');
+        omni.getLoginMethods('qq');
         await vi.waitFor(() => expect(requestMock).toHaveBeenCalledWith('login_channels'));
-        await omni.createQrLogin('qq');
+        await omni.startLogin('qq');
 
         expect(requestMock).toHaveBeenCalledWith('login_qr_key', { channel: 'wechat' });
     });
@@ -136,16 +137,16 @@ describe('QQ login channels declared by the backend', () => {
     it('keeps both methods when the backend declares both', async () => {
         declare(['qq', 'wechat']);
 
-        omni.getQrLoginMethods('qq');
+        omni.getLoginMethods('qq');
         await vi.waitFor(() => expect(requestMock).toHaveBeenCalledWith('login_channels'));
 
-        expect(omni.getQrLoginMethods('qq').map(method => method.id)).toEqual(['qq', 'wechat']);
+        expect(omni.getLoginMethods('qq').map(method => method.id)).toEqual(['qq', 'wechat']);
     });
 
     it('keeps the hardcoded methods when the route is missing on an older backend', async () => {
         requestMock.mockRejectedValue(new Error('404'));
 
-        const methods = await omni.resolveQrLoginMethods('qq');
+        const methods = await omni.resolveLoginMethods('qq');
 
         // 旧后端没有这条路由，向后兼容的定义就是「行为和今天完全一样」。
         expect(methods.map(method => method.id)).toEqual(['qq', 'wechat']);
@@ -160,7 +161,7 @@ describe('QQ login channels declared by the backend', () => {
         ));
 
         let settled = false;
-        const resolving = omni.resolveQrLoginMethods('qq').then(methods => {
+        const resolving = omni.resolveLoginMethods('qq').then(methods => {
             settled = true;
             return methods;
         });
@@ -177,8 +178,8 @@ describe('QQ login channels declared by the backend', () => {
             .mockRejectedValueOnce(new Error('temporary network failure'))
             .mockResolvedValueOnce({ code: 200, data: { channels: ['wechat'] } });
 
-        await expect(omni.resolveQrLoginMethods('qq')).resolves.toHaveLength(2);
-        await expect(omni.resolveQrLoginMethods('qq')).resolves.toEqual([]);
+        await expect(omni.resolveLoginMethods('qq')).resolves.toHaveLength(2);
+        await expect(omni.resolveLoginMethods('qq')).resolves.toEqual([]);
 
         const probes = requestMock.mock.calls.filter(([operation]) => operation === 'login_channels');
         expect(probes).toHaveLength(2);
@@ -187,10 +188,10 @@ describe('QQ login channels declared by the backend', () => {
     it('probes the backend only once however often the methods are read', async () => {
         declare(['qq', 'wechat']);
 
-        omni.getQrLoginMethods('qq');
-        omni.getQrLoginMethods('qq');
+        omni.getLoginMethods('qq');
+        omni.getLoginMethods('qq');
         await vi.waitFor(() => expect(requestMock).toHaveBeenCalledWith('login_channels'));
-        omni.getQrLoginMethods('qq');
+        omni.getLoginMethods('qq');
 
         const probes = requestMock.mock.calls.filter(([operation]) => operation === 'login_channels');
         expect(probes).toHaveLength(1);

@@ -1,5 +1,4 @@
 import React from 'react';
-import { DEFAULT_TEMPERA_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
 import TemperaSettingsPanel from './TemperaSettingsPanel';
 
@@ -14,15 +13,24 @@ export default defineVisualizer({
     labelFallback: 'Tempera',
     previewSeed: 'tempera',
     previewStartOffset: 0,
-    tuningKind: 'tempera',
+    // 凝彩：上下色块分割与分割线
+    glyph: (
+        <>
+            <rect x="4" y="4" width="16" height="6.5" rx="1" />
+            <rect x="4" y="13.5" width="16" height="6.5" rx="1" opacity="0.45" />
+            <path d="M4 12h16" opacity="0.7" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Tempera',
+        description: 'Switch to Tempera visualizer',
+        keywords: ['tempera', '凝彩', 'dancai', 'dc', '色块 pv', 'block pv'],
+    },
     usesWordSegmentation: true,
     // Deliberately unkeyed on the seed: the runtime hands a track change over in place
     // (see songHandover.ts / pixiRuntimeHost.ts). Remounting here would throw the WebGL
     // context away mid-transition and leave the frame empty for the whole rebuild.
     render: props => <VisualizerTempera {...props} />,
     renderSettingsPanel: props => <TemperaSettingsPanel {...props} />,
-    resetSettings: ({ resetTemperaTuning, setDraftTemperaTuning }) => {
-        setDraftTemperaTuning?.(DEFAULT_TEMPERA_TUNING);
-        resetTemperaTuning?.();
-    },
+    ownFontSizeNoticeKey: 'options.temperaFontSizeAutoNotice',
 });

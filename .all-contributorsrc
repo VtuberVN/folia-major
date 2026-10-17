@@ -744,6 +744,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "nasaeds",
+      "name": "nasaed",
+      "avatar_url": "https://avatars.githubusercontent.com/u/135424755?v=4",
+      "profile": "https://github.com/nasaeds",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "commit": false,

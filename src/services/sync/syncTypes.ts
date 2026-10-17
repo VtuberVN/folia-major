@@ -46,6 +46,8 @@ export type SyncedVisualSettings = {
     subtitleFontFamily?: string | null;
     subtitleFontFallbackFamilies?: string[];
     visualizerTunings?: VisualizerTuningBundle;
+    // Frozen: the 13 lyric-style tunings below predate the visualizerTunings bundle, which carries any
+    // new style. Do not add a lyric style here.
     classicTuning?: unknown;
     cadenzaTuning?: unknown;
     partitaTuning?: unknown;

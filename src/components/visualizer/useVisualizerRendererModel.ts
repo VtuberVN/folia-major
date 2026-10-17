@@ -10,18 +10,20 @@ import { useThemeSettingsStore } from '../../stores/useThemeSettingsStore';
 import { useTypographySettingsStore } from '../../stores/useTypographySettingsStore';
 import { usePlayerChromeSettingsStore } from '../../stores/usePlayerChromeSettingsStore';
 import { useVisualizerSettingsStore } from '../../stores/useVisualizerSettingsStore';
-import { useVisualizerAssetStore } from '../../stores/useVisualizerAssetStore';
 import { useStageSettingsStore } from '../../stores/useStageSettingsStore';
 import { resolveMainWindowVisualizerMode } from '../../utils/obsBrowserSource';
 import {
     selectDisplayCoverUrl,
+    selectDisplayDuration,
     selectDisplayLyrics,
     selectDisplayPlayerState,
     selectDisplaySong,
     usePlaybackStore,
 } from '../../stores/usePlaybackStore';
 import { getSongAlbumLabel, getSongArtistLabel } from '../../services/onlineMusic/songMetadata';
+import { getVisualizerRegistryEntry } from './registry';
 import { useVisualizerBackgroundConfig } from './useVisualizerBackgroundConfig';
+import { useVisualizerStyleAssets } from './useVisualizerStyleAssets';
 import { useVisualizerTunings } from './useVisualizerTunings';
 import { NO_LYRIC_LINES } from '../../utils/lyrics/noLyricLines';
 import { selectLibraryPlayerBackdrop, useLibraryPlayerOcclusionStore } from '../../stores/useLibraryPlayerOcclusionStore';
@@ -94,11 +96,7 @@ export const useVisualizerRendererModel = ({
         showSubtitleTranslation: state.showSubtitleTranslation,
         subtitleContentMode: state.subtitleContentMode,
     })));
-    const assets = useVisualizerAssetStore(useShallow(state => ({
-        cappellaCustomEmojiImages: state.cappellaCustomEmojiImages,
-        cappellaCustomAvatarImages: state.cappellaCustomAvatarImages,
-        monetPortraitImage: state.monetPortraitImage,
-    })));
+    const assets = useVisualizerStyleAssets();
     const currentLineIndex = usePlaybackStore(state => state.currentLineIndex);
     // The held picture throughout: song, lyrics, cover and transport must describe one track for the
     // whole length of a blend.
@@ -106,6 +104,7 @@ export const useVisualizerRendererModel = ({
     const displayLyrics = usePlaybackStore(selectDisplayLyrics);
     const displayCoverUrl = usePlaybackStore(selectDisplayCoverUrl);
     const displayPlayerState = usePlaybackStore(selectDisplayPlayerState);
+    const displayDuration = usePlaybackStore(selectDisplayDuration);
     const backgroundConfig = useVisualizerBackgroundConfig();
     const visualizerTunings = useVisualizerTunings();
 
@@ -135,6 +134,7 @@ export const useVisualizerRendererModel = ({
         renderEnabled,
         mode,
         currentTime: lyricCurrentTime,
+        duration: Number.isFinite(displayDuration) ? displayDuration : 0,
         currentLineIndex,
         lines: displayLyrics?.lines || NO_LYRIC_LINES,
         theme,
@@ -164,8 +164,9 @@ export const useVisualizerRendererModel = ({
         visualizerTunings,
         onMonetTuningChange,
         ...assets,
-        // Only these two read a click on a lyric line; the rest have no line hit-testing at all.
-        onLyricLineSeek: ['monet', 'pendolo'].includes(visualizerMode) ? onLyricLineSeek : undefined,
+        // Only a style that reads a click on a lyric line says so in its entry; the rest have no line
+        // hit-testing at all.
+        onLyricLineSeek: getVisualizerRegistryEntry(visualizerMode).seeksOnLineClick ? onLyricLineSeek : undefined,
         onBack,
         isPanelOpen,
         alwaysShowBackButton: alwaysShowPlayerBackButton || isPanelOpen,

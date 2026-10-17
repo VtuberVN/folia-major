@@ -6,6 +6,7 @@ import type { Theme } from '../../../types';
 import { useTransitionBorderCue } from './now-playing-toast/useTransitionBorderCue';
 import { usePlayerBottomBarBottomPx } from '../../../hooks/usePlayerBottomBarBottomPx';
 import { useGlass } from '../../../mods/useGlass';
+import { usePlayerOverlayObstacle } from '../../../hooks/usePlayerOverlayLayout';
 
 // src/components/app/overlays/NowPlayingToast.tsx
 // 播放器与 Lattice 左下角的 now playing 卡片（playing-toast 样式：圆角 2xl、44px 封面、底部滑入）。
@@ -110,6 +111,11 @@ const NowPlayingToast: React.FC<NowPlayingToastProps> = ({
     // 回调会晚一帧。挂个条件上去就等于把「卡片描边」那个开关又读了第二遍，而它已经有一个读的
     // 地方了（useTransitionBorderCue）——同一个开关两个读点、两个时机，正是这块出过的那个 bug。
     const frameRef = useRef<HTMLDivElement | null>(null);
+    const { ref: layoutRef, invalidate: invalidateLayout } = usePlayerOverlayObstacle('now-playing-card', 'now-playing');
+    const setFrameRef = React.useCallback((element: HTMLDivElement | null) => {
+        frameRef.current = element;
+        layoutRef(element);
+    }, [layoutRef]);
     const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
     useEffect(() => {
         const frame = frameRef.current;
@@ -132,7 +138,8 @@ const NowPlayingToast: React.FC<NowPlayingToastProps> = ({
         <AnimatePresence>
             {visible && (
                 <motion.div
-                    ref={frameRef}
+                    ref={setFrameRef}
+                    onUpdate={invalidateLayout}
                     initial={{ opacity: 0, x: -32 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -16 }}
@@ -176,6 +183,8 @@ const NowPlayingToast: React.FC<NowPlayingToastProps> = ({
                         pointer-events-none 只在这一个元素上翻回来——描边和扫光都还是不吃鼠标的。 */}
                     <motion.button
                         data-glass
+                        onUpdate={invalidateLayout}
+                        onLayoutAnimationComplete={invalidateLayout}
                         data-toast-card=""
                         type="button"
                         layout="size"

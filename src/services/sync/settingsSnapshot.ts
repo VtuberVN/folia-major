@@ -51,6 +51,8 @@ export const buildSyncedVisualSettings = (state: SyncableSettingsState): SyncedV
     subtitleFontFamily: state.subtitleFontFamily,
     subtitleFontFallbackFamilies: state.subtitleFontFallbackFamilies,
     visualizerTunings: collectVisualizerTunings(state as unknown as Record<string, unknown>),
+    // Frozen: the 13 lyric-style tunings below predate the visualizerTunings bundle, which carries any
+    // new style. Do not add a lyric style here.
     classicTuning: state.classicTuning,
     cadenzaTuning: state.cadenzaTuning,
     partitaTuning: state.partitaTuning,
@@ -119,6 +121,8 @@ export const applySyncedVisualSettings = (
     if (settings.visualizerTunings !== undefined) {
         applyVisualizerTuningsToSettings(state as unknown as Record<string, unknown>, settings.visualizerTunings);
     }
+    // Frozen: the 13 lyric-style tunings below predate the visualizerTunings bundle, which carries any
+    // new style. Do not add a lyric style here.
     if (settings.visualizerTunings === undefined && settings.classicTuning !== undefined) state.handleSetClassicTuning(settings.classicTuning as Parameters<SyncableSettingsState['handleSetClassicTuning']>[0]);
     if (settings.visualizerTunings === undefined && settings.cadenzaTuning !== undefined) state.handleSetCadenzaTuning(settings.cadenzaTuning as Parameters<SyncableSettingsState['handleSetCadenzaTuning']>[0]);
     if (settings.visualizerTunings === undefined && settings.partitaTuning !== undefined) state.handleSetPartitaTuning(settings.partitaTuning as Parameters<SyncableSettingsState['handleSetPartitaTuning']>[0]);

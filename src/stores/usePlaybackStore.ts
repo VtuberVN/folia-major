@@ -41,6 +41,15 @@ type PlaybackStoreState = {
     cachedCoverUrl: string | null;
     duration: number;
     playerState: PlayerState;
+    /**
+     * The state is IDLE because a song is loading to play, not because anything stopped.
+     *
+     * Set with the IDLE each play route writes when it hands the player a new song to start, and
+     * ended by any later write of the state (the song starting, a pause, a stop) or by the song's
+     * source failing. The display layer shows it as playing; the raw state stays IDLE for the code
+     * that has to know the new song has not started yet.
+     */
+    isLoadingToPlay: boolean;
     currentLineIndex: number;
     playQueue: SongResult[];
     activePlaybackContext: PlaybackContext;
@@ -63,6 +72,8 @@ type PlaybackStoreState = {
     setCachedCoverUrl: SetState<string | null>;
     setDuration: SetState<number>;
     setPlayerState: SetState<PlayerState>;
+    startLoadingToPlay: () => void;
+    endLoadingToPlay: () => void;
     setCurrentLineIndex: SetState<number>;
     setPlayQueue: SetState<SongResult[]>;
     setActivePlaybackContext: SetState<PlaybackContext>;
@@ -90,6 +101,7 @@ export const usePlaybackStore = create<PlaybackStoreState>((set, get) => ({
     cachedCoverUrl: null,
     duration: 0,
     playerState: PlayerState.IDLE,
+    isLoadingToPlay: false,
     currentLineIndex: -1,
     playQueue: [],
     activePlaybackContext: 'main',
@@ -106,7 +118,9 @@ export const usePlaybackStore = create<PlaybackStoreState>((set, get) => ({
     setActiveLocalLyricsSource: (next) => set({ activeLocalLyricsSource: resolve(next, get().activeLocalLyricsSource) }),
     setCachedCoverUrl: (next) => set({ cachedCoverUrl: resolve(next, get().cachedCoverUrl) }),
     setDuration: (next) => set({ duration: resolve(next, get().duration) }),
-    setPlayerState: (next) => set({ playerState: resolve(next, get().playerState) }),
+    setPlayerState: (next) => set({ playerState: resolve(next, get().playerState), isLoadingToPlay: false }),
+    startLoadingToPlay: () => set({ playerState: PlayerState.IDLE, isLoadingToPlay: true }),
+    endLoadingToPlay: () => set({ isLoadingToPlay: false }),
     setCurrentLineIndex: (next) => set({ currentLineIndex: resolve(next, get().currentLineIndex) }),
     setPlayQueue: (next) => set({ playQueue: resolve(next, get().playQueue) }),
     setActivePlaybackContext: (next) => set({ activePlaybackContext: resolve(next, get().activePlaybackContext) }),
@@ -129,6 +143,8 @@ export const setActiveLocalLyricsSource: SetState<ActiveLocalLyricsSource | null
 export const setCachedCoverUrl: SetState<string | null> = (next) => usePlaybackStore.getState().setCachedCoverUrl(next);
 export const setDuration: SetState<number> = (next) => usePlaybackStore.getState().setDuration(next);
 export const setPlayerState: SetState<PlayerState> = (next) => usePlaybackStore.getState().setPlayerState(next);
+export const startLoadingToPlay = () => usePlaybackStore.getState().startLoadingToPlay();
+export const endLoadingToPlay = () => usePlaybackStore.getState().endLoadingToPlay();
 export const setCurrentLineIndex: SetState<number> = (next) => usePlaybackStore.getState().setCurrentLineIndex(next);
 export const setPlayQueue: SetState<SongResult[]> = (next) => usePlaybackStore.getState().setPlayQueue(next);
 export const setActivePlaybackContext: SetState<PlaybackContext> = (next) => usePlaybackStore.getState().setActivePlaybackContext(next);
@@ -168,9 +184,13 @@ export const selectDisplayDuration = (state: PlaybackStoreState) => (
  * `playSong` resets the raw state to IDLE for the track it is loading. That is correct for the
  * arriving track and wrong for what is still being heard, so anything user-facing — the controls,
  * the remote, the taskbar, the command palette — must read this rather than `playerState`.
+ *
+ * Nor is it idle while that track loads to play on: every ordinary song change passes through
+ * IDLE for as long as the next song takes to start, and read raw that showed as a pause on every
+ * change - the play button, the system media controls, the visualizer.
  */
 export const selectDisplayPlayerState = (state: PlaybackStoreState) => (
-    selectIsShowingTail(state) && state.playerState === PlayerState.IDLE
+    state.playerState === PlayerState.IDLE && (selectIsShowingTail(state) || state.isLoadingToPlay)
         ? PlayerState.PLAYING
         : state.playerState
 );
