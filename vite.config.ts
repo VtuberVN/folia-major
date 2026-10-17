@@ -3,8 +3,9 @@ import { fileURLToPath } from 'url';
 import { type ConfigEnv, type UserConfig, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { commandPinyinPlugin } from './dev/pinyin/commandPinyinPlugin.mjs';
+import { traditionalLocalePlugin } from './dev/i18n/traditionalLocalePlugin.mjs';
 import { icuFoliaDataPlugin } from './dev/icuFolia/icuFoliaDataPlugin.mjs';
-import { normalizeBuildCommit, resolveBuildKind, resolveBuildRepo } from './dev/build/buildIdentity.mjs';
+import { normalizeBuildCommit, resolveBuildKind, resolveBuildRepo, resolveDevBuildKindOverride } from './dev/build/buildIdentity.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
 import { createHash } from 'crypto';
@@ -186,7 +187,8 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
   const buildRepo = resolveBuildRepo(process.env, () => execSync('git remote get-url origin', { stdio: ['ignore', 'pipe', 'ignore'] }).toString());
   const buildCommit = normalizeBuildCommit(commitHash);
   // 官方 / 自部署 / 非官方：设置里的版本号、扫码诊断报告和反馈入口都会读它
-  const buildKind = resolveBuildKind(process.env);
+  // 开发服务器可以用 FOLIA_DEV_BUILD_KIND 钉住（Playwright 用）；vite build 不认这个变量。
+  const buildKind = resolveDevBuildKindOverride(_config.command, process.env) ?? resolveBuildKind(process.env);
 
   const appVersionLabel = process.env.APP_VERSION_LABEL?.trim() || 'Realeco';
   const appReleaseChannel = process.env.APP_RELEASE_CHANNEL?.trim().toLowerCase() || 'realeco';
@@ -267,6 +269,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
     plugins: [
       devLyricProxyPlugin(),
       commandPinyinPlugin(),
+      traditionalLocalePlugin(),
       icuFoliaDataPlugin(),
       react(),
       VitePWA({

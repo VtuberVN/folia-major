@@ -6,7 +6,7 @@ import { useAutomixSettingsStore } from '../../../stores/useAutomixSettingsStore
 import { useDesktopSettingsStore } from '../../../stores/useDesktopSettingsStore';
 import { useLocalLibrarySettingsStore } from '../../../stores/useLocalLibrarySettingsStore';
 import { isLocalLibraryAutoScanSupported } from '../../../services/localLibraryAutoScan';
-import { isNeteaseScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
+import { isPlaybackReportReady } from '../../../services/onlineMusic/playbackReportGate';
 import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { useGridViewSettingsStore } from '../../../stores/useGridViewSettingsStore';
 import { useLatticeSettingsStore } from '../../../stores/useLatticeSettingsStore';
@@ -25,7 +25,7 @@ import { useSleepTimerStore } from '../../../stores/useSleepTimerStore';
 import { useTypographySettingsStore } from '../../../stores/useTypographySettingsStore';
 import { useThemeQuickEditorStore } from '../../../stores/useThemeQuickEditorStore';
 import { usePlayerBottomBarLayoutStore } from '../../../stores/usePlayerBottomBarLayoutStore';
-import type { SongResult, StageSource } from '../../../types';
+import type { SongResult } from '../../../types';
 import { cycleSubtitleContentMode } from '../../../utils/lyrics/alternateText';
 
 // src/components/app/command-palette-context/buildSettingsCommandContext.ts
@@ -52,8 +52,6 @@ export type SettingsCommandContextDeps = {
     voiceInputPauseSupported: boolean;
     /** A getter: the answer changes when a model download finishes, with nothing re-rendering. */
     canUseTransitionPerformance: () => boolean;
-    /** Pushes the Stage source through Electron and refreshes App's stageStatus; false when unavailable. */
-    setStageSource: (source: StageSource) => Promise<boolean>;
 };
 
 export const buildSettingsCommandContext = (
@@ -86,7 +84,6 @@ export const buildSettingsCommandContext = (
         toggleSubtitleOverlayBackground: () => typography.handleToggleSubtitleOverlayBackground(
             !useTypographySettingsStore.getState().subtitleOverlayBackground,
         ),
-        setStageSource: deps.setStageSource,
         playbackEntryView: entryView.playbackEntryView,
         setPlaybackEntryView: entryView.setPlaybackEntryView,
         librarySuiteOptions: listLibrarySuiteOptions,
@@ -186,10 +183,13 @@ export const buildSettingsCommandContext = (
         togglePlaybackFade: () => audio.handleTogglePlaybackFade(
             !useAudioSettingsStore.getState().playbackFadeEnabled,
         ),
+        toggleAutoSkipUnplayable: () => audio.handleToggleAutoSkipUnplayable(
+            !useAudioSettingsStore.getState().autoSkipUnplayable,
+        ),
         canAutoScanLocalLibrary: isLocalLibraryAutoScanSupported,
         toggleLocalLibraryAutoScan: () => useLocalLibrarySettingsStore.getState().toggleAutoScan(),
-        canReportNeteasePlayback: isNeteaseScrobbleReady,
-        toggleNeteaseScrobble: () => audio.handleToggleNeteaseScrobble(
+        canReportPlayback: () => isPlaybackReportReady(),
+        togglePlaybackReport: () => audio.handleToggleNeteaseScrobble(
             !useAudioSettingsStore.getState().neteaseScrobbleEnabled,
         ),
         voiceInputPauseSupported: deps.voiceInputPauseSupported,

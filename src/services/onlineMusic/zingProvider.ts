@@ -3,8 +3,10 @@
 
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
+    MediaId,
     OnlineMusicProvider,
     ProviderAudioSource,
+    ProviderLikedSongIds,
     ProviderLyricsResult,
     ProviderSongAvailability,
     ProviderUser,
@@ -144,8 +146,12 @@ export const zingProvider: OnlineMusicProvider = {
                 nextOffset: offset + limit,
             };
         },
-        async getLikedSongs(_userId) {
-            return getZingLikedSongs(100, 0);
+        async getLikedSongIds(_userId: MediaId): Promise<ProviderLikedSongIds> {
+            const songs = await getZingLikedSongs(100, 0);
+            return {
+                ids: songs.map(song => song.id),
+                whole: songs.length < 100,
+            };
         },
         async getUserAlbums(_userId, limit, offset) {
             const userAlbums = await getUserZingAlbums(limit, offset);

@@ -15,7 +15,7 @@ import { useInteractionSettingsStore } from '../../stores/useInteractionSettings
 import { resolveCustomShortcutCommand } from './customShortcut';
 
 // src/components/command-palette/useCommandPalette.ts
-import { effectiveKeyCode, isTextEntryTarget } from '../../utils/keyboardTargets';
+import { effectiveKeyCode, hasOpenSheet, isCommandPaletteShortcut, isTextEntryTarget } from '../../utils/keyboardTargets';
 
 // Manages palette state, keyboard opening, and selected autocomplete item.
 
@@ -484,6 +484,12 @@ export const useCommandPalette = ({
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // A dialog is drawn over the palette and has the keyboard: under it no key opens the
+            // palette or runs a command.
+            if (hasOpenSheet()) {
+                return;
+            }
+
             // Ordered by who has the stronger claim on the keystroke, not by how the palette is
             // built. A modifier shortcut can never be mistaken for input, so it goes first; a
             // surface that reads bare characters outranks every modifier-free palette key, or the
@@ -511,7 +517,7 @@ export const useCommandPalette = ({
 
             // Works everywhere, because it carries a modifier.
             // Software-injected shortcuts may provide the key without a physical key code.
-            if ((effectiveKeyCode(event) === 'KeyK' || event.key.toLowerCase() === 'k') && isPrimaryModifierPressed(event) && !event.altKey && !event.shiftKey && !isSecondaryModifierPressed(event)) {
+            if (isCommandPaletteShortcut(event)) {
                 if (isBlocked) {
                     return;
                 }

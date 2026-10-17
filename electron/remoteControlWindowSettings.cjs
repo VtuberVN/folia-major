@@ -18,7 +18,8 @@ function shouldShowRemoteUnlockTrayItem({ remoteOpen, clickThrough }) {
 }
 
 /**
- * Applies click-through to the remote window. Mouse events are deliberately NOT forwarded: the
+ * Applies click-through to the remote window (the switch, or the cursor over the empty part left
+ * of the card). Mouse events are deliberately NOT forwarded: the
  * page must never see hover/move events while it is click-through, so no hover state can latch.
  */
 function applyRemoteControlMouseIgnore(win, clickThrough) {

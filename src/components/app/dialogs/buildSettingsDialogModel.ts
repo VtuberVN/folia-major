@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type React from 'react';
 import type { MotionValue } from 'framer-motion';
 import type SettingsModal from '../../modal/SettingsModal';
@@ -11,11 +10,10 @@ import type {
     StageStatus,
 } from '../../../types';
 import type { useThemeController } from '../../../hooks/useThemeController';
-import { type SettingsModalState, useSettingsModalStore } from '../../../stores/useSettingsModalStore';
+import type { SettingsModalState } from '../../../stores/useSettingsModalStore';
 import type { ObsBrowserSourceStatus } from '../../../types/obsBrowserSource';
 import type { PlayerCapConnectionStatus } from '../../../types/playerCap';
 import type { LyricApiStatus } from '../../../types/lyricApi';
-import { useStageSettingsStore } from '../../../stores/useStageSettingsStore';
 import { closeSettings } from '../../../stores/useSettingsModalStore';
 
 // src/components/app/dialogs/buildSettingsDialogModel.ts
@@ -47,7 +45,6 @@ export type SettingsDialogDeps = {
     clearPersistedStagePlaybackCache: () => Promise<void>;
     loadStageSessionIntoPlayback: (session: any) => Promise<void>;
     nowPlayingConnectionStatus?: NowPlayingConnectionStatus;
-    nowPlayingConnectionError?: string | null;
     playerCapConnectionStatus?: PlayerCapConnectionStatus;
     playerCapPlayers?: string[];
     onAudioOutputDeviceChange: (deviceId: string) => Promise<boolean> | boolean;
@@ -81,7 +78,6 @@ export const buildSettingsDialogModel = ({
     clearPersistedStagePlaybackCache,
     loadStageSessionIntoPlayback,
     nowPlayingConnectionStatus,
-    nowPlayingConnectionError,
     playerCapConnectionStatus,
     playerCapPlayers,
     onAudioOutputDeviceChange,
@@ -123,7 +119,6 @@ export const buildSettingsDialogModel = ({
         stageStatus,
         stageSource,
         nowPlayingConnectionStatus,
-        nowPlayingConnectionError,
         playerCapConnectionStatus,
         playerCapPlayers,
         obsBrowserSourceStatus,
@@ -172,15 +167,7 @@ export const buildSettingsDialogModel = ({
             }
         },
         onStageSourceChange: async (source) => {
-            if (!window.electron?.setStageSource) {
-                return;
-            }
-            try {
-                const nextStatus = await window.electron.setStageSource(source);
-                setStageStatus(nextStatus);
-            } catch (error) {
-                console.error('[buildSettingsDialogModel] Failed to change stage source:', error);
-            }
+            await window.electron?.saveSettings?.('STAGE_MODE_SOURCE', source);
         },
         onRegenerateStageToken: async () => {
             const nextStatus = await window.electron?.regenerateStageToken();
@@ -189,21 +176,6 @@ export const buildSettingsDialogModel = ({
                 if (activePlaybackContext === 'stage') {
                     await loadStageSessionIntoPlayback(null);
                 }
-            }
-        },
-        onClearStageState: async () => {
-            const nextStatus = await window.electron?.clearStageState();
-            if (nextStatus) {
-                setStageStatus(nextStatus);
-                if (activePlaybackContext === 'stage') {
-                    await loadStageSessionIntoPlayback(null);
-                }
-            }
-        },
-        onToggleNowPlayingStage: async (enabled) => {
-            useStageSettingsStore.getState().handleToggleNowPlayingStage(enabled);
-            if (!enabled && activePlaybackContext === 'stage') {
-                leaveStagePlayback();
             }
         },
         aiTheme: themeController.aiTheme,

@@ -3,7 +3,7 @@ import { useVisualizerSettingsStore } from '../../../stores/useVisualizerSetting
 import { useLyricSegmentationStore } from '../../../stores/useLyricSegmentationStore';
 import { useVideoLayerSettingsStore } from '../../../stores/useVideoLayerSettingsStore';
 import { getVisualizerRegistryEntry } from '../../visualizer/registry';
-import { isLyricSegmentationAiAvailable } from '../../../services/lyricSegmentationAi';
+import { isLyricSegmentationAiAvailable } from '../../../services/aiText';
 import type { LyricSegmentationActions } from '../playback/createLyricSegmentationActions';
 
 // src/components/app/command-palette-context/buildVisualizerCommandContext.ts

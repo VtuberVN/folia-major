@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { normalizeBuildCommit, parseGitHubRepo, resolveBuildKind, resolveBuildRepo } from '../../dev/build/buildIdentity.mjs';
+import { normalizeBuildCommit, parseGitHubRepo, resolveBuildKind, resolveBuildRepo, resolveDevBuildKindOverride } from '../../dev/build/buildIdentity.mjs';
 
 // test/unit/buildIdentity.test.ts
 
@@ -75,5 +75,20 @@ describe('resolveBuildKind', () => {
         expect(resolveBuildKind({ GITHUB_REPOSITORY: 'chthollyphile/folia-major' }).kind).toBe('unofficial');
         expect(resolveBuildKind({ FOLIA_BUILD_REPO: 'chthollyphile/folia-major' }).kind).toBe('unofficial');
         expect(resolveBuildKind({}).kind).toBe('unofficial');
+    });
+});
+
+describe('resolveDevBuildKindOverride', () => {
+    it('pins the dev server to the requested kind', () => {
+        expect(resolveDevBuildKindOverride('serve', { FOLIA_DEV_BUILD_KIND: 'official' })).toEqual({ kind: 'official', host: null });
+        expect(resolveDevBuildKindOverride('serve', { FOLIA_DEV_BUILD_KIND: ' Unofficial ' })).toEqual({ kind: 'unofficial', host: null });
+        expect(resolveDevBuildKindOverride('serve', { FOLIA_DEV_BUILD_KIND: 'self-hosted' })).toEqual({ kind: 'self-hosted', host: null });
+    });
+
+    it('never applies to builds, and ignores unknown or missing values', () => {
+        // 打包产物的类别只由 resolveBuildKind 决定：这个变量冒充不了官方构建。
+        expect(resolveDevBuildKindOverride('build', { FOLIA_DEV_BUILD_KIND: 'official' })).toBeNull();
+        expect(resolveDevBuildKindOverride('serve', { FOLIA_DEV_BUILD_KIND: 'trusted' })).toBeNull();
+        expect(resolveDevBuildKindOverride('serve', {})).toBeNull();
     });
 });

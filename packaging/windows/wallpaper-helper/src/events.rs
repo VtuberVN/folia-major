@@ -1,6 +1,6 @@
 // packaging/windows/wallpaper-helper/src/events.rs
 // JSONL event protocol spoken on stdout between the helper and the Electron main process
-// (parsed by electron/windowsWallpaperController.cjs). Pure string building — no Win32 —
+// (parsed by electron/wallpaper/windowsWallpaperController.cjs). Pure string building — no Win32 —
 // so the snapshot-style unit tests below run on any host OS.
 
 #[derive(Debug, Clone, PartialEq, Eq)]

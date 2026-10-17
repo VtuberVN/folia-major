@@ -132,8 +132,10 @@ describe('wallpaper mode entry confirmation (store behaviour)', () => {
 describe('wallpaper mode entry classification (source contract)', () => {
     // Interactive entries: every one must reach the store's gated handleToggleWallpaperMode.
     it('settings card and command palette use the gated store action', () => {
-        const settingsModal = read('src/components/modal/SettingsModal.tsx');
-        expect(settingsModal).toMatch(/handleToggleWallpaperMode:\s*onToggleWallpaperMode/);
+        // The settings card is the wallpaper row of the desktop page, which takes the action from the store itself.
+        const desktopPage = read('src/components/modal/settings/pages/DesktopPage.tsx');
+        expect(desktopPage).toMatch(/setWallpaperMode:\s*state\.handleToggleWallpaperMode/);
+        expect(desktopPage).toMatch(/option=\{O\.wallpaperMode\}[^]*?onChange=\{desktop\.setWallpaperMode\}/);
 
         const commandContext = read('src/components/app/command-palette-context/buildSettingsCommandContext.ts');
         expect(commandContext).toMatch(/toggleWallpaperMode:\s*\(\)\s*=>\s*desktop\.handleToggleWallpaperMode\(/);
@@ -168,7 +170,7 @@ describe('wallpaper mode entry classification (source contract)', () => {
             'src/App.tsx',
             'src/hooks/useAppPreferences.ts',
             'src/components/modal/SettingsModal.tsx',
-            'src/components/modal/settings/DesktopSettingsSubview.tsx',
+            'src/components/modal/settings/pages/DesktopPage.tsx',
             'src/components/app/command-palette-context/buildSettingsCommandContext.ts',
             'src/components/command-palette/commands/settingsCommands.ts',
             'src/components/app/dialogs/useAppDialogsModel.ts',

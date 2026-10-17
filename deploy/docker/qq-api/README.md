@@ -9,7 +9,7 @@
 | 项 | 内容 |
 | --- | --- |
 | npm 包 | [`@yakult-green-tea/qq-music-api`](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api) |
-| 版本 | `3.3.0`，锁定在 [`package.json`](./package.json) 与 `package-lock.json` |
+| 版本 | `3.3.1`，锁定在 [`package.json`](./package.json) 与 `package-lock.json` |
 | 原始上游 | [Rain120/qq-music-api](https://github.com/Rain120/qq-music-api)，作者 Rain120 |
 | 许可证 | MIT；全文随包安装在 `node_modules/@yakult-green-tea/qq-music-api/LICENSE` |
 | 镜像定义 | [`images/qq-api.Dockerfile`](../images/qq-api.Dockerfile) |
@@ -70,7 +70,7 @@ PORT=3200 \
   node node_modules/@yakult-green-tea/qq-music-api/dist/src/app.js
 ```
 
-该包在被 `require()` 时就会 `app.listen()`，并导出 http server 句柄 `server`。嵌入到其他 Node 进程时应等 `listening` 事件确认端口绑定成功、挂 `error` 监听避免绑定失败变成未处理异常，退出时主动 `close()`；因为 `require` 有模块缓存，同一进程内只应该 `require()` 一次。Electron 版走的正是这条路径（见 [`electron/qqApiStartup.cjs`](../../../electron/qqApiStartup.cjs)），端口动态分配，装置状态写在 `userData/qq-auth-state/qq-device.json`。
+该包在被 `require()` 时就会 `app.listen()`，并导出 http server 句柄 `server`。嵌入到其他 Node 进程时应等 `listening` 事件确认端口绑定成功、挂 `error` 监听避免绑定失败变成未处理异常，退出时主动 `close()`；因为 `require` 有模块缓存，同一进程内只应该 `require()` 一次。Electron 版走的正是这条路径（见 [`electron/qq/qqApiStartup.cjs`](../../../electron/qq/qqApiStartup.cjs)），端口动态分配，装置状态写在 `userData/qq-auth-state/qq-device.json`。
 
 ### Web 版接法
 
@@ -204,6 +204,11 @@ Cloudflare 上可以用 Durable Object 补上它——DO 能跨调用持有那�
 - 扫码失败可能带 `upstreamErrorKey`、`failureHint` 和（手机 QQ 通道的）`primaryFailure`。登录设备超限（`20279`）因此在网页版也认得出来。
 - 常驻服务（本镜像、裸 Node、Electron）会在凭证到期前 6 小时内自动续期，`qqmusic_session` 不变；serverless 部署还没有这个能力。
 - 扫码失败后的冷却固定为 15 秒，上游明确说操作频繁时为 30 秒。
+
+3.3.1 起：
+
+- 新增 `POST /user/song/like` 与 `POST /user/album/subscribe`，Folia 用它们给 QQ 的歌红心、收藏专辑；「我喜欢」里删歌就是取消红心。两条都是写一次、读回确认后才回成功，结果不明时回 `502`，不自动重送。
+- `POST /user/playlist/tracks` 回 `changed: false` 时多一个读回结果 `verification.status`。加歌时歌已经都在、删歌时歌已经都不在，Folia 按成功处理；其余照旧提示失败。
 
 排查时先看容器日志：
 

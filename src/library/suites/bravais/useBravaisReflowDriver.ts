@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, type MutableRefObject, type RefObject } from 'react';
-import { getBlockSlots, parseWallSlotKey } from '../../../components/wall/wallSlots';
 import { buildPlatePath, type PlateBlock, type PlateBlockSet, type PlateRect } from './bravaisBlockPlate';
-import { BRAVAIS_METRICS } from './bravaisConstants';
+import { BRAVAIS_BLOCK_SHAPE, shapeSlotFromKey, type BravaisWallShape } from './bravaisWallShape';
 import { BRAVAIS_REFLOW_MS, bravaisReflowEase } from './bravaisReflowMotion';
 
 // src/library/suites/bravais/useBravaisReflowDriver.ts
@@ -25,10 +24,9 @@ export type ReflowTrack = { from: PlateRect; to: PlateRect; start: number };
 const rectOf = ({ x, y, width, height }: PlateRect): PlateRect => ({ x, y, width, height });
 const isSameRect = (a: PlateRect, b: PlateRect) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
-/** slot 不在任何让位表里时画在哪（块模板里的原位）。 */
-const restingRect = (slotKey: string): PlateRect | null => {
-    const address = parseWallSlotKey(slotKey);
-    const slot = address ? getBlockSlots(address.column, address.row, BRAVAIS_METRICS)[address.slotIndex] : undefined;
+/** slot 不在任何让位表里时画在哪（墙此刻形状里的原位）。 */
+const restingRect = (slotKey: string, shape: BravaisWallShape): PlateRect | null => {
+    const slot = shapeSlotFromKey(shape, slotKey);
     return slot ? rectOf(slot) : null;
 };
 
@@ -60,13 +58,14 @@ export const planReflowTracks = (
     previous: BravaisReflowRects,
     next: BravaisReflowRects,
     now: number,
+    shape: BravaisWallShape = BRAVAIS_BLOCK_SHAPE,
 ): Map<string, ReflowTrack> => {
     const out = new Map<string, ReflowTrack>();
     for (const [key, track] of tracks) {
         if (!isTrackDone(track, now)) out.set(key, track);
     }
     for (const key of new Set([...previous.keys(), ...next.keys()])) {
-        const resting = restingRect(key);
+        const resting = restingRect(key, shape);
         const running = out.get(key);
         const from = running ? sampleReflowTrack(running, now) : previous.get(key) ?? resting;
         const to = next.get(key) ?? resting;
@@ -94,6 +93,7 @@ export const useBravaisReflowDriver = ({
     enabled,
     fieldRef,
     platesRef,
+    getShape,
 }: {
     /** 聚焦卡所在块的让位矩形（slot key → 落定矩形）；空表示没有聚焦卡。 */
     reflow: BravaisReflowRects;
@@ -102,6 +102,8 @@ export const useBravaisReflowDriver = ({
     fieldRef: RefObject<HTMLElement | null>;
     /** 此刻渲染的块底板（每次渲染更新）；实色档为空。 */
     platesRef: MutableRefObject<PlateBlockSet>;
+    /** 墙此刻的形状（不在让位表里的 slot 回到它的原位）。 */
+    getShape: () => BravaisWallShape;
 }) => {
     const previousRef = useRef(reflow);
     const tracksRef = useRef<Map<string, ReflowTrack>>(new Map());
@@ -167,7 +169,7 @@ export const useBravaisReflowDriver = ({
             draw(now);
             return;
         }
-        tracksRef.current = planReflowTracks(tracksRef.current, previous, reflow, now);
+        tracksRef.current = planReflowTracks(tracksRef.current, previous, reflow, now, getShape());
         // React 刚把外框写成终点：绘制前拉回起点。
         draw(now);
         if (tracksRef.current.size > 0 && rafRef.current === 0) rafRef.current = requestAnimationFrame(tick);

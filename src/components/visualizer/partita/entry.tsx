@@ -13,11 +13,20 @@ export default defineVisualizer({
     labelFallback: '云阶',
     previewSeed: 'partita',
     previewStartOffset: 0,
-    tuningKind: 'partita',
+    // 云阶：逐行向右下错落的阶梯
+    glyph: (
+        <>
+            <path d="M4 7h7" />
+            <path d="M8.5 12h7" opacity="0.7" />
+            <path d="M13 17h7" opacity="0.45" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Partita',
+        description: 'Switch to partita visualizer',
+        keywords: ['partita', '云阶'],
+    },
     usesWordSegmentation: true,
     render: props => <VisualizerPartita {...props} />,
     renderSettingsPanel: props => <PartitaSettingsPanel {...props} />,
-    resetSettings: ({ resetPartitaTuning }) => {
-        resetPartitaTuning?.();
-    },
 });

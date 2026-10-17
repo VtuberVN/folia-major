@@ -21,6 +21,19 @@ contextBridge.exposeInMainWorld('electron', {
     debugOpenLogs: (which) => ipcRenderer.invoke('debug-open-logs', which),
     // Batched by the caller - one message per line would cost more than the logging it records.
     debugWriteRuntimeLines: (lines) => ipcRenderer.send('debug-runtime-lines', lines),
+    // The main process's console lines, for the log panel: what was said so far, then each burst.
+    onDebugMainLines: (callback) => {
+        // After a reload the window is still listed from its last page, and a burst sent to it can
+        // arrive ahead of the backlog this page asks for, which holds the same lines.
+        let caughtUp = false;
+        const listener = (_event, lines, isBacklog) => {
+            caughtUp ||= isBacklog === true;
+            if (caughtUp) callback(lines);
+        };
+        ipcRenderer.on('debug-main-lines', listener);
+        ipcRenderer.send('debug-main-lines-ready');
+        return () => ipcRenderer.removeListener('debug-main-lines', listener);
+    },
     /**
      * What only this process can answer about itself.
      *
@@ -92,6 +105,13 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('wallpaper-input-monitor-requested', listener);
         return () => ipcRenderer.removeListener('wallpaper-input-monitor-requested', listener);
     },
+    getWallpaperDisplays: () => ipcRenderer.invoke('wallpaper-displays-get'),
+    setWallpaperDisplay: (displayId) => ipcRenderer.invoke('wallpaper-display-set', displayId),
+    onWallpaperDisplaysChanged: (callback) => {
+        const listener = (_event, state) => callback(state);
+        ipcRenderer.on('wallpaper-displays-changed', listener);
+        return () => ipcRenderer.removeListener('wallpaper-displays-changed', listener);
+    },
     setPlaybackDisplaySleepBlockingActive: (active) => ipcRenderer.invoke('playback-display-sleep-set-active', active),
     setAppLocale: (localeKey) => ipcRenderer.invoke('set-app-locale', localeKey),
     getCacheDirectory: () => ipcRenderer.invoke('get-cache-directory'),
@@ -121,6 +141,7 @@ contextBridge.exposeInMainWorld('electron', {
     getAudioCache: (cacheKey) => ipcRenderer.invoke('get-audio-cache', cacheKey),
     hasAudioCache: (cacheKey) => ipcRenderer.invoke('has-audio-cache', cacheKey),
     saveAudioCache: (cacheKey, data, mimeType, limitBytes) => ipcRenderer.invoke('save-audio-cache', cacheKey, data, mimeType, limitBytes),
+    removeAudioCache: (cacheKey, size) => ipcRenderer.invoke('remove-audio-cache', cacheKey, size),
     getAudioCacheUsage: () => ipcRenderer.invoke('get-audio-cache-usage'),
     getAudioCacheStats: () => ipcRenderer.invoke('get-audio-cache-stats'),
     clearAudioCache: () => ipcRenderer.invoke('clear-audio-cache'),
@@ -143,7 +164,8 @@ contextBridge.exposeInMainWorld('electron', {
     getNeteaseApiStatus: () => ipcRenderer.invoke('get-netease-api-status'),
     getLoginDiagnostics: (providerId) => ipcRenderer.invoke('get-login-diagnostics', providerId),
     runLoginSelfCheck: (providerId) => ipcRenderer.invoke('run-login-self-check', providerId),
-    restartNeteaseApi: () => ipcRenderer.invoke('restart-netease-api'),
+    // 'needed': a request needs the local service and finds it down (see startsAgainWhenNeeded).
+    restartNeteaseApi: (reason) => ipcRenderer.invoke('restart-netease-api', reason),
     onNeteaseApiStatusChanged: (callback) => {
         const listener = (_event, status) => callback(status);
         ipcRenderer.on('netease-api-status-changed', listener);
@@ -152,6 +174,8 @@ contextBridge.exposeInMainWorld('electron', {
     getKugouApiStatus: () => ipcRenderer.invoke('kugou-api-status'),
     kugouRequest: (operation, params) => ipcRenderer.invoke('kugou-api-request', operation, params),
     bodianRequest: (operation, params) => ipcRenderer.invoke('bodian-api-request', operation, params),
+    ytmRequest: (operation, params) => ipcRenderer.invoke('ytm-api-request', operation, params),
+    spotifyRequest: (operation, params) => ipcRenderer.invoke('spotify-api-request', operation, params),
     getQqPort: () => ipcRenderer.invoke('get-qq-port'),
     getQqApiStatus: () => ipcRenderer.invoke('get-qq-api-status'),
     onQqApiStatusChanged: (callback) => {
@@ -269,6 +293,12 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('remote-control-window-settings-changed', listener);
         return () => ipcRenderer.removeListener('remote-control-window-settings-changed', listener);
     },
+    getRemoteControlPointerInside: () => ipcRenderer.invoke('remote-control-get-pointer-inside'),
+    onRemoteControlPointerInside: (callback) => {
+        const listener = (_event, inside) => callback(Boolean(inside));
+        ipcRenderer.on('remote-control-pointer-inside', listener);
+        return () => ipcRenderer.removeListener('remote-control-pointer-inside', listener);
+    },
     publishRemoteControlSnapshot: (snapshot) => ipcRenderer.invoke('remote-control-publish-snapshot', snapshot),
     getRemoteControlSnapshot: () => ipcRenderer.invoke('remote-control-get-snapshot'),
     sendRemoteControlCommand: (command) => ipcRenderer.invoke('remote-control-send-command', command),
@@ -340,6 +370,11 @@ contextBridge.exposeInMainWorld('electron', {
         getFfmpegStatus: () => ipcRenderer.invoke('folia-mods:ffmpeg-status'),
         openModsDirectory: () => ipcRenderer.invoke('folia-mods:open-directory'),
         installModFromZip: (zipPath) => ipcRenderer.invoke('folia-mods:install-zip', zipPath),
+        getModStorageUsage: (modId) => ipcRenderer.invoke('folia-mods:storage-usage', modId),
+        clearModCache: (modId) => ipcRenderer.invoke('folia-mods:clear-cache', modId),
+        getModCallStats: () => ipcRenderer.invoke('folia-mods:call-stats'),
+        reportModsStartSettled: () => ipcRenderer.invoke('folia-mods:start-settled'),
+        reportModsStartAlive: () => ipcRenderer.invoke('folia-mods:start-alive'),
         onModsStateChanged: (callback) => {
             const listener = (_event, mods) => callback(mods);
             ipcRenderer.on('folia-mods:state-changed', listener);

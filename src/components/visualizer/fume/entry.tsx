@@ -1,7 +1,7 @@
 import React from 'react';
-import { DEFAULT_FUME_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
 import { FumeSettingsPanel } from '../settingsPanels';
+import { fumeBackgroundConfig } from './backgroundConfig';
 
 const VisualizerFume = React.lazy(() => import('./VisualizerFume'));
 
@@ -14,11 +14,20 @@ export default defineVisualizer({
     labelFallback: 'Fume',
     previewSeed: 'fume',
     previewStartOffset: 18.4,
-    tuningKind: 'fume',
+    // 浮名：主歌词超出画面边界，背后叠着淡化的上下文
+    glyph: (
+        <>
+            <path d="M6 7.5h9" opacity="0.3" />
+            <path d="M1 12h22" />
+            <path d="M9 16.5h9" opacity="0.3" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Fume',
+        description: 'Switch to fume visualizer',
+        keywords: ['fume', '浮名'],
+    },
+    background: fumeBackgroundConfig,
     render: props => <VisualizerFume {...props} />,
     renderSettingsPanel: props => <FumeSettingsPanel {...props} />,
-    resetSettings: ({ resetFumeTuning, setDraftFumeTuning }) => {
-        setDraftFumeTuning?.(DEFAULT_FUME_TUNING);
-        resetFumeTuning?.();
-    },
 });

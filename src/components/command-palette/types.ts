@@ -2,15 +2,15 @@ import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { SearchReturnView, SearchSource } from '../../stores/useSearchNavigationStore';
 import type { LocalLibraryDisplayCatalog } from '../../services/playbackAdapters';
-import type { HomeViewTab, LatentBackgroundTuning, LocalSong, LyricData, PlayerState, ReplayGainMode, SongResult, StageSource, StatusMessage, SubtitleContentMode, VisualizerMode, VisualizerBackgroundMode, MonetBackgroundTuning } from '../../types';
+import type { HomeViewTab, LatentBackgroundTuning, LocalSong, LyricData, PlayerState, ReplayGainMode, SongResult, StatusMessage, SubtitleContentMode, VisualizerMode, VisualizerBackgroundMode, MonetBackgroundTuning } from '../../types';
 import type { LyricSegmentationRecord, LyricSegmentationSource } from '../../types/lyricSegmentation';
 import type { AppLanguagePreference } from '../../i18n/config';
 import type { PanelTab } from '../UnifiedPanel';
 import type { AppView, CommandFilterHandle } from '../../stores/useAppViewStore';
 import type { GridSurfaceHandle } from '../../types/gridCommandSurface';
-import type { LibraryDirectorySurfaceHandle } from '../../library/core/contracts/directory';
-import type { LibraryArtistSurfaceHandle } from '../../library/core/contracts/artist';
-import type { LibrarySuiteChromeHandle } from '../../library/core/contracts/suiteChrome';
+import type { LibraryDirectorySurfaceHandle } from '../../library/core/directory/directory.contract';
+import type { LibraryArtistSurfaceHandle } from '../../library/core/artist/artist.contract';
+import type { LibrarySuiteChromeHandle } from '../../library/core/suite/suiteChrome.contract';
 import { type SettingsModalInitialTab, type SettingsSubviewId, type VisualizerSettingsSection } from '../../stores/useSettingsModalStore';
 import type { SettingsAnchorId } from '../modal/settings/navigation/settingsAnchorModel';
 import type { LyricStaffAbsorbMode, LyricStaffPolicy } from '../../utils/lyrics/staffCreditsPolicy';
@@ -195,9 +195,16 @@ export type CommandPaletteNavigationContext = {
     navigateToHome: () => void;
     navigateToPlayer: () => void;
     navigateToLattice: () => void;
-    focusLatticeCurrentSong: () => boolean;
-    canFocusLatticeCurrentSong: boolean;
-    setHomeViewTab: (tab: HomeViewTab) => void;
+    /** The wall's own locate button: shows the tile of the song that is playing on the wall that is up. */
+    locatePlayingSongOnWall: () => void;
+    /** Shows the card of the song that is playing, opening its collection's page where needed. */
+    locatePlayingSong: () => void;
+    /**
+     * Selects a native home tab without the home surface's tab handle: none is registered while no home surface
+     * is mounted (Lattice, or the player view once home is hidden), or the handle refused the tab. The host also
+     * dismisses an open mod home page, as the mounted surface's handle does even when reselecting the current tab.
+     */
+    selectHomeViewTab: (tab: HomeViewTab) => void;
     toggleBrowserFullscreen: () => Promise<boolean>;
     toggleRemoteControlWindow: () => Promise<boolean>;
     toggleMainWindowAlwaysOnTop: () => Promise<boolean>;
@@ -224,8 +231,6 @@ export type CommandPaletteSettingsContext = {
     subtitleContentMode: SubtitleContentMode;
     cycleSubtitleContentMode: () => void;
     toggleSubtitleOverlayBackground: () => void;
-    /** Selects a Stage source the same way the Integration settings picker does; false when unavailable. */
-    setStageSource: (source: StageSource) => Promise<boolean>;
     /** Which surface pressing play opens; see usePlaybackEntryViewStore. */
     playbackEntryView: PlaybackEntryView;
     setPlaybackEntryView: (view: PlaybackEntryView) => void;
@@ -238,7 +243,7 @@ export type CommandPaletteSettingsContext = {
     /** Switches suites the way the settings section does (current session key + switchLibrarySuite). */
     chooseLibrarySuite: (suiteId: string) => void;
     /**
-     * Same predicate the settings block (LibraryWallLookSettings) shows itself with: the *active* suite is bravais.
+     * Same predicate the settings group (pages/BravaisWallGroup) shows itself with: the *active* suite is bravais.
      * A function, because switching suites while the palette is open has to close the wall-look commands off.
      */
     isLibraryWallLookAvailable: () => boolean;
@@ -296,6 +301,8 @@ export type CommandPaletteSettingsContext = {
     toggleTranscodeFallback: () => void;
     /** Whether pause and resume fade the sound out and in. */
     togglePlaybackFade: () => void;
+    /** Whether restricted songs and unknown failures count down to a skip, like taken-down ones. */
+    toggleAutoSkipUnplayable: () => void;
     /**
      * Whether this build can watch the imported local folders at all. A getter because the answer
      * is a runtime API check (FileSystemObserver) rather than a stored value, and the settings
@@ -304,12 +311,12 @@ export type CommandPaletteSettingsContext = {
     canAutoScanLocalLibrary: () => boolean;
     toggleLocalLibraryAutoScan: () => void;
     /**
-     * Whether NetEase listening reports can be turned on at all - the provider supports them and the
+     * Whether listening reports can be turned on at all - a provider takes them and its
      * account is signed in. A getter because signing in and out changes the answer while the palette
      * is open, and the settings panel gates its toggle on the same predicate.
      */
-    canReportNeteasePlayback: () => boolean;
-    toggleNeteaseScrobble: () => void;
+    canReportPlayback: () => boolean;
+    togglePlaybackReport: () => void;
     voiceInputPauseSupported: boolean;
     /** Lab switch for the experimental mod system; gates the `mods` command. */
     modSystemEnabled: boolean;

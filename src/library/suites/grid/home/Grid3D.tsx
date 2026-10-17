@@ -9,26 +9,29 @@ import LocalGrid3DView from './LocalGrid3DView';
 import NavidromeGrid3DView from './NavidromeGrid3DView';
 import { useGrid3DTabKeys } from './useGrid3DTabKeys';
 import DesktopGrid3DSurface from './DesktopGrid3DSurface';
-import OnlineProviderSwitcher from '../account/OnlineProviderSwitcher';
-import OnlineProviderConnectPanel from '../account/OnlineProviderConnectPanel';
 import OnlineProviderAccountlessPanel from '../account/OnlineProviderAccountlessPanel';
-import type { ProviderAccountSummary, ProviderCollection, ProviderUser } from '../../../../types/onlineMusic';
+import HomeLoginPanel from '../../../../components/login/HomeLoginPanel';
+import SwitcherPill from '../../../../components/login/SwitcherPill';
+import ExploreSurface from '../../../../components/app/home/explore/ExploreSurface';
+import { createOnlineGridViewCollection } from '../../../../components/app/home/gridViewCollectionAdapters';
+import { hasExploreWallEntries } from '../../../../components/app/lattice/exploreWall';
+import type { ProviderCollection, ProviderUser } from '../../../../types/onlineMusic';
 import { useThemeSettingsStore } from '../../../../stores/useThemeSettingsStore';
+import type { LatticeSource } from '../../../../stores/useAppViewStore';
+import { useExploreFeedStore } from '../../../../stores/useExploreFeedStore';
 import { countRender } from '../../../../dev/renderCount';
-import type { LibraryAccountController } from '../../../core/contracts/account';
-import type { LibraryDirectoryBatchController } from '../../../core/contracts/directory';
-import type { LibraryLocalCatalogSnapshot } from '../../../core/contracts/home';
-import type { LibraryHomeResources } from '../../../core/contracts/homeModel';
-import type { LibraryDeclaredActions } from '../../../core/contracts/suite';
-import type { LibraryHomeCard, LibraryHomeListState } from '../../../core/contracts/homeModel';
-import { useLibraryHomeSources } from '../../../core/bindings/useLibraryHomeSources';
-import { useLibraryHomeOnline } from '../../../core/bindings/useLibraryHomeOnline';
-import { useLibraryHomeActions } from '../../../core/bindings/useLibraryHomeActions';
-import { useLibraryHomeDirectory } from '../../../core/bindings/useLibraryHomeDirectory';
-import { useLibraryHomeListRegistration, useLibraryHomeTabsRegistration } from '../../../core/bindings/useLibraryHomeSurfaceRegistration';
-import { useLibraryAccountProviders } from '../../../core/bindings/useLibraryAccount';
-import { resolveProviderSelectLabel } from '../../../core/model/accountRules';
-import { cycleIndex, translateHomeMessage } from '../../../core/model/homeSources';
+import type { LibraryAccountController } from '../../../core/account/account.contract';
+import type { LibraryDirectoryBatchController } from '../../../core/directory/directory.contract';
+import type { LibraryLocalCatalogSnapshot } from '../../../core/home/home.contract';
+import type { LibraryHomeResources } from '../../../core/home/homeModel.contract';
+import type { LibraryHomeExtraTab, LibraryDeclaredActions } from '../../../core/suite/suite.contract';
+import type { LibraryHomeCard, LibraryHomeListState } from '../../../core/home/homeModel.contract';
+import { useLibraryHomeSources } from '../../../core/home/useLibraryHomeSources';
+import { useLibraryHomeOnline } from '../../../core/home/online/useLibraryHomeOnline';
+import { useLibraryHomeActions } from '../../../core/home/useLibraryHomeActions';
+import { useLibraryHomeDirectory } from '../../../core/home/useLibraryHomeDirectory';
+import { useLibraryHomeListRegistration, useLibraryHomeTabsRegistration } from '../../../core/home/useLibraryHomeSurfaceRegistration';
+import { cycleIndex } from '../../../core/home/homeSources';
 import { useUpdateIndicator } from '../../../../hooks/useUpdateIndicator';
 
 // src/library/suites/grid/home/Grid3D.tsx
@@ -36,10 +39,8 @@ import { useUpdateIndicator } from '../../../../hooks/useUpdateIndicator';
 // Supports cover sliding with auto-fading header controls and delegates GridView opening upward.
 
 interface Grid3DProps {
-    /** 在线账户 controller（宿主创建，见 LibraryHomeSurfaceProps）：切换器与连接面板经它选平台、登出。 */
+    /** 在线账户 controller（宿主创建，见 LibraryHomeSurfaceProps）：登录按钮与右下角的切换器读它，换平台、登录、退出都在登录窗口里。 */
     account: LibraryAccountController;
-    /** 账户界面（登录弹窗）的挂载点，接在平台切换器之前（见 LibraryHomeSurfaceProps）。 */
-    accountLayerRef?: (element: HTMLElement | null) => void;
     onPlaySong: (song: SongResult, playlistCtx?: SongResult[], isFmCall?: boolean) => void;
     onBackToPlayer: () => void;
     onRefreshUser: () => void;
@@ -76,7 +77,8 @@ interface Grid3DProps {
     onSearchCommitted: (query: string, sourceTab: any, replace?: boolean) => void;
     theme: Theme;
     onOpenSettings?: (initialTab?: 'help' | 'options') => void;
-    onOpenLattice?: () => void;
+    /** `source`: what the wall shows; the play queue when left out. */
+    onOpenLattice?: (source?: LatticeSource) => void;
     navidromeEnabled?: boolean;
     onPlayAll?: (songs: SongResult[]) => void;
     onAddAllToQueue?: (songs: SongResult[]) => void;
@@ -90,6 +92,8 @@ interface Grid3DProps {
     directoryActions?: LibraryDirectoryBatchController;
     /** 首页资源（在线收藏专辑、电台 feed；宿主创建，见 library/app/useLibraryHomeResources）。 */
     homeResources: LibraryHomeResources;
+    extraTabs?: readonly LibraryHomeExtraTab[];
+    onNativeTabSelected?: () => void;
     /** 网格 suite 在 entry 里声明的首页动作（宿主经 registry 传入）：GridMap 的目录 surface 只发布声明 ∩ core 判定。 */
     declaredActions?: LibraryDeclaredActions;
 }
@@ -97,6 +101,7 @@ interface Grid3DProps {
 export const Grid3D: React.FC<Grid3DProps> = (props) => {
     countRender('Grid3D');
     const {
+        onPlaySong,
         onBackToPlayer,
         user,
         playlists,
@@ -119,14 +124,13 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
         stageIsActive = false,
         onOpenStagePlayer,
         account,
-        accountLayerRef,
         isInteractive = true,
         directoryActions,
         homeResources,
         declaredActions,
     } = props;
 
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const {
         isDaylight,
     } = useThemeSettingsStore(useShallow(state => ({
@@ -144,8 +148,8 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
         submitSearch: state.submitSearch,
     })));
 
-    // 来源、页签与在线列表都来自 Library Core 的首页模型（core/model/homeSources、homeCards 与首页资源）；
-    // 这里只剩展示：布局、二维码登录、更新徽标、扫描进度胶囊。
+    // 来源、页签与在线列表都来自 Library Core 的首页模型（core/home/homeSources、homeCards 与首页资源）；
+    // 这里只剩展示：布局、登录入口、更新徽标、扫描进度胶囊。
     const homeSources = useLibraryHomeSources({
         account,
         user,
@@ -155,7 +159,6 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
     });
     const { tab: homeViewTab, setTab: setHomeViewTab, isOnlineTab, online, tabs: homeTabs } = homeSources;
     const activeProviderId = online.providerId;
-    const activeProviderSummary = online.provider;
     const activeProviderLabel = online.providerLabel;
     const activeUser = online.user;
     const activeAccountView = online.accountView;
@@ -164,17 +167,22 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
     const homeActions = homeResources.actions;
     const { snapshot: homeActionState, scanPercent: scanProgressPercent } = useLibraryHomeActions(homeActions);
     const scanProgress = homeActionState.scan;
-    // 当前列表的目录会话 key 与隐藏作用域只在首页模型里算一次（core/model/homeSources），交给三个列表视图。
+    // 当前列表的目录会话 key 与隐藏作用域只在首页模型里算一次（core/home/homeSources），交给三个列表视图。
     const { directoryKey, hiddenScope } = useLibraryHomeDirectory({
         tab: homeViewTab,
         providerId: activeProviderId,
         localRow: localMusicState.activeRow,
     });
-    // 在线列表只在账户已就绪时显示（无账户 / 解析中 / 未登录各有面板）。
+    // 在线列表只在账户已就绪时显示（无账户 / 解析中 / 未登录各有面板）。探索页签没有卡片列表：它是平台自己的推荐页。
     const showOnlineList = isOnlineTab
+        && homeViewTab !== 'explore'
         && activeAccountView !== 'accountless'
         && activeAccountView !== 'resolving'
         && activeAccountView !== 'guest';
+    // On the explore tab the wall (队列拼贴) shows the page's entries, not the play queue: it is
+    // offered there once the page has an entry to show, with or without a song on the player.
+    const opensExploreWall = homeViewTab === 'explore' && online.canUseExplore;
+    const hasExploreWall = useExploreFeedStore(state => opensExploreWall && hasExploreWallEntries(state.feed));
 
     const [focusedIndex, setFocusedIndex] = useState(0);
     const gridRootRef = useRef<HTMLDivElement>(null);
@@ -187,13 +195,6 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
     useEffect(() => {
         setFocusedIndex(0);
     }, [homeViewTab]);
-
-    // 选平台、登出都交给账户 controller（选哪一支的规则、登录、切换确认都在 core；登录弹窗与确认框由账户宿主渲染）。
-    const { providers: accountProviders } = useLibraryAccountProviders(account);
-    // Shared by the switcher and the connect panel: switch now when there is nothing to sign in to.
-    const selectProvider = (provider: ProviderAccountSummary) => {
-        void account.selectProvider(provider.providerId);
-    };
 
     useEffect(() => {
         setFocusedIndex(0);
@@ -211,6 +212,7 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
         setTab: tab => {
             const target = homeTabs.find(candidate => candidate.key === tab);
             if (!target || target.disabledReason) return false;
+            props.onNativeTabSelected?.();
             setHomeViewTab(tab);
             return true;
         },
@@ -273,13 +275,21 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
     };
 
     // Tab / Shift+Tab 在可用页签之间循环，切完把焦点交回海报轨道，和点胶囊一样。
+    // Tab / Shift+Tab includes contributed pages; opening one hands keyboard focus to its own navigation.
+    // Its host disables this native surface while the page is open, so subsequent Tab stays inside the page.
+    const navigationTabs = [
+        ...homeTabs.map(tab => ({ id: tab.key, enabled: !tab.disabledReason, select: () => {
+            setHomeViewTab(tab.key);
+            focusActiveSlider();
+        } })),
+        ...(props.extraTabs ?? []).map(tab => ({ ...tab, enabled: true })),
+    ];
     useGrid3DTabKeys({
         isActive: isInteractive,
         onCycleTab: delta => {
-            const next = cycleIndex(homeTabs, homeTabs.findIndex(tab => tab.key === homeViewTab), delta, tab => !tab.disabledReason);
-            if (next < 0 || homeTabs[next].key === homeViewTab) return;
-            setHomeViewTab(homeTabs[next].key);
-            focusActiveSlider();
+            const next = cycleIndex(navigationTabs, navigationTabs.findIndex(tab => tab.id === homeViewTab), delta, tab => tab.enabled);
+            if (next < 0 || navigationTabs[next].id === homeViewTab) return;
+            navigationTabs[next].select();
         },
     });
 
@@ -405,6 +415,12 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                                         </span>
                                     );
                                 })}
+                                {props.extraTabs?.map(tab => (
+                                    <button key={tab.id} type="button" onClick={tab.select}
+                                        className={`relative inline-flex items-center justify-center px-4 py-1.5 rounded-full text-xs md:text-sm font-medium whitespace-nowrap ${navPillInactiveText}`}>
+                                        {tab.label}
+                                    </button>
+                                ))}
                                 {stageEnabled && (
                                     <button
                                         onClick={() => onOpenStagePlayer?.()}
@@ -417,13 +433,15 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                                 {/* 播放队列的海报视图和 Stage 一样属于「去哪儿」，所以它在这一排，
                                     而不是标题旁的工具图标。没有在播歌曲时队列也是空的，直接不出现。
                                     平时只占一个图标的宽度，指针悬停或键盘聚焦时才展开文字——这一排
-                                    已经有五个内容 tab，多一个常驻文字就把胶囊撑得太长。点击始终直达。 */}
-                                {onOpenLattice && currentTrack && (
+                                    已经有五个内容 tab，多一个常驻文字就把胶囊撑得太长。点击始终直达。
+                                    在「探索」页签上它打开的是同一面墙，铺的是探索页的条目（探索拼贴）：
+                                    探索页有条目可铺时出现，不看有没有在播歌曲。 */}
+                                {onOpenLattice && (opensExploreWall ? hasExploreWall : currentTrack) && (
                                     <button
-                                        onClick={onOpenLattice}
+                                        onClick={() => onOpenLattice(opensExploreWall ? 'explore' : 'queue')}
                                         data-testid="home-lattice-pill"
-                                        title={t('home.lattice')}
-                                        aria-label={t('home.lattice')}
+                                        title={t(opensExploreWall ? 'home.latticeExplore' : 'home.lattice')}
+                                        aria-label={t(opensExploreWall ? 'home.latticeExplore' : 'home.lattice')}
                                         className={`group relative inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition-colors duration-300 whitespace-nowrap ${navPillInactiveText}`}
                                     >
                                         <PanelsTopLeft size={14} className="relative z-10 shrink-0" />
@@ -431,7 +449,7 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                                             aria-hidden="true"
                                             className="relative z-10 max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover:ml-1.5 group-hover:max-w-28 group-hover:opacity-100 group-focus-visible:ml-1.5 group-focus-visible:max-w-28 group-focus-visible:opacity-100"
                                         >
-                                            {t('home.latticeLabel')}
+                                            {t(opensExploreWall ? 'home.latticeExplore' : 'home.latticeLabel')}
                                         </span>
                                     </button>
                                 )}
@@ -477,18 +495,20 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                         <Loader2 className="animate-spin opacity-30" size={28} />
                     </div>
                 ) : isOnlineTab && activeAccountView === 'guest' ? (
-                    <OnlineProviderConnectPanel
-                        providers={accountProviders}
-                        isDaylight={isDaylight}
-                        title={activeProviderNeedsRelogin ? t('status.loginExpired') : t('home.guestTitle')}
-                        prompt={activeProviderNeedsRelogin
-                            ? t('home.guestPromptProvider', {
-                                provider: activeProviderSummary?.shortName || activeProviderSummary?.displayName || activeProviderId,
-                            })
-                            : t('home.guestPrompt')}
-                        getActionLabel={provider => translateHomeMessage(t, resolveProviderSelectLabel(provider))}
-                        onSelect={selectProvider}
-                    />
+                    // One button: it opens the sign-in window, where the platform is chosen.
+                    <HomeLoginPanel account={account} />
+                ) : homeViewTab === 'explore' ? (
+                    online.canUseExplore && (
+                        <ExploreSurface
+                            // Another platform or account starts from its own: how far a section was opened is not carried over.
+                            key={`${activeProviderId}:${activeUser?.id ?? ''}`}
+                            providerId={activeProviderId}
+                            accountId={String(activeUser?.id ?? '')}
+                            scope={`${activeUser?.id ?? ''}:${i18n.language}`}
+                            onPlaySong={(song, queue) => onPlaySong(song, queue, false)}
+                            onOpenCollection={collection => onOpenGridView?.(createOnlineGridViewCollection(collection, activeProviderId))}
+                        />
+                    )
                 ) : showOnlineList ? (
                     <DesktopGrid3DSurface
                         focusMemoryScope={JSON.stringify(['online', activeProviderId, activeUser?.id ?? null, homeViewTab])}
@@ -556,23 +576,8 @@ export const Grid3D: React.FC<Grid3DProps> = (props) => {
                 )}
             </div>
 
-            {/* 账户界面（登录弹窗）的挂载点：账户宿主把弹窗 portal 进来。放在切换器之前，切换器仍盖在弹窗之上。 */}
-            <div ref={accountLayerRef} data-library-account-layer="" className="contents" />
-
-            <OnlineProviderSwitcher
-                providers={accountProviders}
-                activeProviderId={activeProviderId}
-                isDaylight={isDaylight}
-                onBackToPlayer={onBackToPlayer}
-                onSelect={selectProvider}
-                onLogout={provider => {
-                    if (provider.providerId === activeProviderId) {
-                        void account.logout(provider.providerId);
-                    } else if (account.logoutDirect) {
-                        void account.logoutDirect(provider.providerId);
-                    }
-                }}
-            />
+            {/* The active account and the way back to the player; the sign-in window opens from it. */}
+            <SwitcherPill account={account} onBackToPlayer={onBackToPlayer} />
 
         </div>
     );

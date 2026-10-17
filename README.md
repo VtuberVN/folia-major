@@ -35,7 +35,7 @@ Lyrics Reimagined // Trải nghiệm Lời bài hát Tinh tế
 
 ## Giới thiệu dự án
 
-Folia là một trình phát nhạc trực tuyến lấy trải nghiệm **lời bài hát toàn màn hình (Full-screen Immersive Lyrics)** làm trọng tâm cốt lõi. Ứng dụng hỗ trợ các nền tảng âm nhạc phong phú (Zing MP3, NhacCuaTui, NetEase Cloud Music, QQ Music, KuGou, Navidrome và Thư viện nhạc cục bộ). Thông qua thuật toán khớp lời thông minh, AI tạo chủ đề màu sắc theo tâm trạng bài hát, và nhiều phong cách diễn hoạt lời bài hát toàn màn hình, Folia mang lại trải nghiệm nghe nhìn độc đáo như những video ca nhạc (MV / PV) thực thụ.
+Folia là một trình phát nhạc trực tuyến lấy trải nghiệm **lời bài hát toàn màn hình (Full-screen Immersive Lyrics)** làm trọng tâm cốt lõi. Ứng dụng hỗ trợ các nền tảng âm nhạc phong phú (Zing MP3, NhacCuaTui, NetEase Cloud Music, QQ Music, KuGou, Navidrome, YouTube Music, Spotify và Thư viện nhạc cục bộ). Thông qua thuật toán khớp lời thông minh, AI tạo chủ đề màu sắc theo tâm trạng bài hát, và nhiều phong cách diễn hoạt lời bài hát toàn màn hình, Folia mang lại trải nghiệm nghe nhìn độc đáo như những video ca nhạc (MV / PV) thực thụ.
 
 Cung cấp phiên bản Desktop cho Windows / macOS / Linux dựa trên **Electron** cùng phiên bản Web xây dựng trên **Node.js**, hỗ trợ triển khai linh hoạt trên nhiều nền tảng.
 
@@ -206,11 +206,11 @@ npm run build:win
 Folium là nền tảng Mod của Folia. Mod có thể bổ sung các chế độ diễn hoạt lời bài hát mới, loại hình nền, các lớp phủ trên trang phát nhạc, nút bấm trên thanh tiến trình, đăng ký lệnh điều khiển và gọi các công cụ cục bộ như ffmpeg thông qua Node. Mod chạy với quyền mã nguồn tin cậy; mỗi mod trước khi bật đều phải được xác nhận trong cửa sổ gốc.
 
 - **Chợ Mod**: [folium-compound.cielaniska.top](https://folium-compound.cielaniska.top) cung cấp các mod chính thức và mod cộng đồng đã qua kiểm duyệt. Sau khi tải tệp zip, kéo thả vào bảng Mod để cài đặt.
-- **Xác nhận chính thức**: Mod trên chợ có chữ ký của Folium, hiển thị "Chứng nhận chính thức"; mod bên thứ ba không có chữ ký sẽ hiển thị "Chưa xác minh", nhưng vẫn sử dụng bình thường.
+- **Xác nhận chính thức**: Mod trên chợ có chữ ký của Folium, hiển thị "Chứng nhận chính thức"; mod bản thử nghiệm qua xét duyệt an toàn hiển thị "Bản thử nghiệm sớm"; mod bên thứ ba không có chữ ký sẽ hiển thị "Chưa xác minh", nhưng vẫn sử dụng bình thường.
 - **Phát triển & Đóng góp**: [Hướng dẫn phát triển và đóng góp Mod](docs/folium/contributing.md).
 - **Tham khảo API**: [Tài liệu API Folium](docs/folium/api.md).
 - **Quy chuẩn nền tảng**: [Quy chuẩn Folium](mods/README.md).
-- **Mod mẫu**: Thư mục [`mods/`](mods/) của kho lưu trữ.
+- **Mod mẫu**: Thư mục [`mods/`](mods/) của kho lưu trữ, bao gồm diễn hoạt lời bài hát, tinh chỉnh tham số, thanh tiến trình, các lớp phát nhạc và xuất video trong suốt.
 
 ---
 

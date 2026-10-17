@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LibraryHomeSurfaceProps } from '../../core/contracts/suite';
-import type { LibraryHomeTabKey } from '../../core/contracts/homeModel';
-import { cycleIndex, isOnlineHomeTab, resolveHomeSourceGroups, type LibraryHomeSourceGroup } from '../../core/model/homeSources';
-import { LOCAL_HOME_SECTIONS, localHomeSectionOfRow } from '../../core/model/localHomeModel';
-import { NAVIDROME_HOME_SECTIONS } from '../../core/model/navidromeHomeModel';
-import { useLibraryHomeSources } from '../../core/bindings/useLibraryHomeSources';
-import { useLibraryHomeOnline } from '../../core/bindings/useLibraryHomeOnline';
-import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
-import { useLibraryHomeDirectory } from '../../core/bindings/useLibraryHomeDirectory';
-import { useLibraryHomeTabsRegistration } from '../../core/bindings/useLibraryHomeSurfaceRegistration';
-import { useNavidromeHomeSectionStore } from '../../core/state/useNavidromeHomeSectionStore';
+import type { LibraryHomeSurfaceProps } from '../../core/suite/suite.contract';
+import type { LibraryHomeTabKey } from '../../core/home/homeModel.contract';
+import { cycleIndex, isOnlineHomeTab, resolveHomeSourceGroups, type LibraryHomeSourceGroup } from '../../core/home/homeSources';
+import { LOCAL_HOME_SECTIONS, localHomeSectionOfRow } from '../../core/home/localHomeModel';
+import { NAVIDROME_HOME_SECTIONS } from '../../core/home/navidrome/navidromeHomeModel';
+import { useLibraryHomeSources } from '../../core/home/useLibraryHomeSources';
+import { useLibraryHomeOnline } from '../../core/home/online/useLibraryHomeOnline';
+import { useLibraryHomeActions } from '../../core/home/useLibraryHomeActions';
+import { useLibraryHomeDirectory } from '../../core/home/useLibraryHomeDirectory';
+import { useLibraryHomeTabsRegistration } from '../../core/home/useLibraryHomeSurfaceRegistration';
+import { useNavidromeHomeSectionStore } from '../../core/home/navidrome/useNavidromeHomeSectionStore';
 import { useThemeSettingsStore } from '../../../stores/useThemeSettingsStore';
 import { LibraryTuiLocalList, LibraryTuiNavidromeList, LibraryTuiOnlineList } from './LibraryTuiHomeLists';
 import type { LibraryTuiPromptRequest } from './LibraryTuiPrompt';
@@ -24,6 +24,8 @@ import { useLibraryTuiHomePageKeys } from './useLibraryTuiHomeKeyboard';
 // 在线页签未登录时是平台列表（LibraryTuiAccountList），已登录时 F2 打开它（切换平台、登出）；扫码登录框与切换确认由
 // TUI 的 account surface（LibraryTuiAccount）画。更新徽标、搜索框、舞台入口属于网格的首页外观，这里不做。
 // 这里不引用网格的任何实现。
+// 宿主的扩展页签（extraTabs，模组的首页页面）在 TUI 里不画入口（页面只能经 ui.openHomeTab 打开）；但页面开着时
+// 选原生页签照契约通知宿主（onNativeTabSelected），命令面板重选当前页签也能关掉页面。
 
 type SectionTab = { key: string; label: string; active: boolean; disabledReason?: string };
 
@@ -66,6 +68,8 @@ const LibraryTuiHome: React.FC<LibraryHomeSurfaceProps> = (props) => {
     const selectTab = (key: LibraryHomeTabKey) => {
         const target = tabs.find(candidate => candidate.key === key);
         if (!target || target.disabledReason) return false;
+        // 与 Grid3D / BravaisHome 相同：原生页签接手时通知宿主（重选当前页签也通知），开着的模组首页页面随之关掉。
+        props.onNativeTabSelected?.();
         setPrompt(null);
         if (key !== tab) setAccountsOpen(false);
         setTab(key);

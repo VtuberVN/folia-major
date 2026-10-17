@@ -600,7 +600,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
     // Default neutral profile for standard users with vipType: 0 (NOT VIP)
     const fallbackProfile: ProviderUser = {
         id: 'zing_user',
-        nickname: (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
+        nickname: (i18n.isInitialized && i18n.exists('zing.accountUser') ? i18n.t('zing.accountUser') : 'Tài khoản Zing MP3'),
         vipType: 0,
     };
     return fallbackProfile;

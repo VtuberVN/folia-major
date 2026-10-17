@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
 
     steps:
       - name: Check out Git repository
@@ -201,7 +201,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
           RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
-          MACOS_UNSIGNED_HELP_URL: https://github.com/${{ github.repository }}/blob/${{ github.sha }}/docs/desktop/macos-app-damaged.md
+          MACOS_UNSIGNED_HELP_URL: https://github.com/${{ github.repository }}/blob/main/docs/desktop/macos-app-damaged.md
         run: |
           node <<'NODE'
           const fs = require('fs');

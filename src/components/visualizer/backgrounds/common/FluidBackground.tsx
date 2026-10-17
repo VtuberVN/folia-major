@@ -1,6 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Theme } from '../../../../types';
+import { ARRIVING_MARK } from '../../preview/frozenPicture';
+import { useFirstFrameDrawn, useLayerUnseen } from '../../styleTransition/firstFrame';
 
 // src/components/visualizer/backgrounds/common/FluidBackground.tsx
 
@@ -220,9 +222,23 @@ const FluidBackground: React.FC<FluidBackgroundProps> = memo(({ coverUrl, theme 
         });
         return () => { cancelled = true; };
     }, [coverUrl, isIOSSafari]);
+    // A copy for a new song is ready once its cover is decoded: the background layer around it starts
+    // the change then. Without a cover (or on iOS, which draws the cover itself) it is ready at once.
+    const coverDrawn = useFirstFrameDrawn();
+    const unseen = useLayerUnseen();
+    useEffect(() => {
+        if (!coverUrl || isIOSSafari) coverDrawn();
+    }, [coverUrl, isIOSSafari, coverDrawn]);
     const markCoverReady = useCallback((key: number) => {
         setReadyCoverKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-    }, []);
+        coverDrawn();
+    }, [coverDrawn]);
+    // The cover is there once the layer made for it has faded in. Until then the root says that a
+    // part is still to come, so that a small picture of this background is not taken without it.
+    const [arrivedCoverKey, setArrivedCoverKey] = useState<number | null>(null);
+    const topCoverLayer = coverLayers[coverLayers.length - 1];
+    const isCoverArriving = Boolean(coverUrl) && !isIOSSafari
+        && !(topCoverLayer && topCoverLayer.sourceCover === coverUrl && topCoverLayer.key === arrivedCoverKey);
 
     const iosDisplayCoverUrl = isIOSSafari ? (softFocusCoverUrl ?? coverUrl ?? null) : null;
     const isSoftFocusReady = isIOSSafari && Boolean(softFocusCoverUrl);
@@ -255,6 +271,7 @@ const FluidBackground: React.FC<FluidBackgroundProps> = memo(({ coverUrl, theme 
                 contain: 'paint',
                 transform: 'translateZ(0)',
             }}
+            {...(isCoverArriving ? { [ARRIVING_MARK]: '' } : {})}
         >
             {/* Background Image / Fallback */}
             {coverUrl ? (
@@ -270,14 +287,21 @@ const FluidBackground: React.FC<FluidBackgroundProps> = memo(({ coverUrl, theme 
                             style={coverLayerStyle}
                         />
                     ) : (
-                        // Cross-fade the cover on song change instead of hard-swapping the <img src>: the
-                        // outgoing cover fades out while the incoming one fades in (both mounted during the
-                        // change), so the world's backdrop glides between songs like the camera does.
-                        // The opacity is animated on a WRAPPER div, not on the blurred <img>: animating
-                        // opacity directly on a blur(40px) layer makes the browser re-rasterise the blur
-                        // every frame and tile-flicker it, so the blur stays baked (rasterised once) on the
-                        // static img while only the cheap composited wrapper fades.
-                        coverLayers.map((layer, index) => {
+                        <>
+                        {/* Under the cover, which hides it: what shows until the cover is drawn, for a copy
+                            started before its cover came (BACKGROUND_READY_LIMIT_MS). */}
+                        <div
+                            className="absolute inset-0 w-full h-full transition-colors duration-1000"
+                            style={{ backgroundColor: theme.backgroundColor, opacity: 0.8 }}
+                        />
+                        {/* Cross-fade the cover on song change instead of hard-swapping the <img src>: the
+                            outgoing cover fades out while the incoming one fades in (both mounted during the
+                            change), so the world's backdrop glides between songs like the camera does.
+                            The opacity is animated on a WRAPPER div, not on the blurred <img>: animating
+                            opacity directly on a blur(40px) layer makes the browser re-rasterise the blur
+                            every frame and tile-flicker it, so the blur stays baked (rasterised once) on the
+                            static img while only the cheap composited wrapper fades. */}
+                        {coverLayers.map((layer, index) => {
                             const isTop = index === coverLayers.length - 1;
                             const ready = readyCoverKeys.has(layer.key);
                             return (
@@ -287,12 +311,15 @@ const FluidBackground: React.FC<FluidBackgroundProps> = memo(({ coverUrl, theme 
                                     style={{ willChange: 'opacity' }}
                                     initial={{ opacity: isTop ? 0 : 1 }}
                                     animate={{ opacity: isTop && !ready ? 0 : 1 }}
-                                    transition={{ duration: 1.5, ease: 'easeInOut' }}
+                                    // The first cover of a copy still unseen shows at once: the background layer
+                                    // around it plays the change of song. One that comes after fades in.
+                                    transition={{ duration: arrivedCoverKey === null && unseen ? 0 : 1.5, ease: 'easeInOut' }}
                                     onAnimationComplete={() => {
                                         // Once the newcomer has fully faded in, drop the layers beneath it.
                                         if (isTop && ready) {
                                             setCoverLayers((prev) => prev.filter((l) => l.key === layer.key));
                                             setReadyCoverKeys((prev) => (prev.has(layer.key) ? new Set([layer.key]) : prev));
+                                            setArrivedCoverKey(layer.key);
                                         }
                                     }}
                                 >
@@ -325,7 +352,8 @@ const FluidBackground: React.FC<FluidBackgroundProps> = memo(({ coverUrl, theme 
                                     />
                                 </motion.div>
                             );
-                        })
+                        })}
+                        </>
                     )}
 
                     {isIOSSafari && (

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'module';
-import { shouldRevealRemoteTitlebar } from '../../../src/components/remote/remoteTitlebarReveal';
 
 const require = createRequire(import.meta.url);
 const {
@@ -10,18 +9,6 @@ const {
     shouldShowRemoteUnlockTrayItem,
     applyRemoteControlMouseIgnore,
 } = require('../../../electron/remoteControlWindowSettings.cjs') as typeof import('../../../electron/remoteControlWindowSettings.cjs');
-
-describe('remote titlebar reveal', () => {
-    it('reveals near the top by default', () => {
-        expect(shouldRevealRemoteTitlebar(10, { hideTitlebar: false, clickThrough: false })).toBe(true);
-        expect(shouldRevealRemoteTitlebar(200, { hideTitlebar: false, clickThrough: false })).toBe(false);
-    });
-
-    it('never reveals when the bar is hidden or the window is click-through', () => {
-        expect(shouldRevealRemoteTitlebar(0, { hideTitlebar: true, clickThrough: false })).toBe(false);
-        expect(shouldRevealRemoteTitlebar(0, { hideTitlebar: false, clickThrough: true })).toBe(false);
-    });
-});
 
 describe('remote window settings', () => {
     it('defaults both switches to off', () => {

@@ -1,5 +1,4 @@
 import React from 'react';
-import { DEFAULT_CLADDAGH_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
 import { CladdaghSettingsPanel } from '../settingsPanels';
 
@@ -14,11 +13,18 @@ export default defineVisualizer({
     labelFallback: 'Claddagh',
     previewSeed: 'claddagh',
     previewStartOffset: 0,
-    tuningKind: 'claddagh',
+    // 回环：倾斜的椭圆轨道
+    glyph: (
+        <>
+            <ellipse cx="12" cy="12" rx="9" ry="4.5" transform="rotate(-18 12 12)" />
+            <circle cx="18" cy="9" r="1.5" fill="currentColor" stroke="none" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Claddagh',
+        description: 'Switch to Claddagh visualizer',
+        keywords: ['claddagh', '回环'],
+    },
     render: props => <VisualizerCladdagh {...props} />,
     renderSettingsPanel: props => <CladdaghSettingsPanel {...props} />,
-    resetSettings: ({ resetCladdaghTuning, setDraftCladdaghTuning }) => {
-        setDraftCladdaghTuning?.(DEFAULT_CLADDAGH_TUNING);
-        resetCladdaghTuning?.();
-    },
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import { DEFAULT_PENDOLO_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
 import PendoloSettingsPanel from './PendoloSettingsPanel';
 
@@ -14,12 +13,22 @@ export default defineVisualizer({
     labelFallback: 'Pendolo',
     previewSeed: 'pendolo',
     previewStartOffset: 0,
-    tuningKind: 'pendolo',
+    // 时计：左侧齿轮，右侧歌词
+    glyph: (
+        <>
+            <circle cx="8" cy="12" r="5" />
+            <circle cx="8" cy="12" r="1.4" fill="currentColor" stroke="none" />
+            <path d="M16 10h5" opacity="0.55" />
+            <path d="M16 14h4" opacity="0.55" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Pendolo',
+        description: 'Switch to Pendolo visualizer',
+        keywords: ['pendolo', '擒纵', '摆轮', 'pd', '切换到可视化：擒纵', '切换到可视化擒纵'],
+    },
+    seeksOnLineClick: true,
     // The song-scoped seed resets Pendolo's lyric rail state before the next track starts.
     render: props => <VisualizerPendolo key={props.seed} {...props} />,
     renderSettingsPanel: props => <PendoloSettingsPanel {...props} />,
-    resetSettings: ({ resetPendoloTuning, setDraftPendoloTuning }) => {
-        setDraftPendoloTuning?.(DEFAULT_PENDOLO_TUNING);
-        resetPendoloTuning?.();
-    },
 });

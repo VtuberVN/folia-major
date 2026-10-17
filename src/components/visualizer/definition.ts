@@ -23,15 +23,24 @@ import {
     type TiltTuning,
     type VisualizerMode,
 } from '../../types';
+import type { VisualizerTuningSettings } from './tuningDefinition';
 import type { VisualizerTuningBundle } from './tuningRegistry';
 import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere';
+
+/** The command-palette line that switches to a lyric style or a background. The command list builds its id from the mode. */
+export interface VisualizerModeCommand {
+    title: string;
+    description: string;
+    keywords: string[];
+}
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
+    /** The song's length in seconds, 0 or absent while unknown; in a preview, the preview's length. Mod styles read it (getDuration). */
+    duration?: number;
     currentLineIndex: number;
     lines: Line[];
     theme: Theme;
@@ -76,12 +85,13 @@ export interface VisualizerSharedProps {
     onLyricLineSeek?: (lyricTimeSec: number) => void;
     isPreviewMode?: boolean;
     visualizerTunings?: VisualizerTuningBundle;
+    /** A change the style on screen makes to its own tuning (a part dragged on the stage): the host saves it. A tuning.ts puts it on the prop its renderer calls. */
+    onVisualizerTuningChange?: (patch: object) => void;
     classicTuning?: ClassicTuning;
     cadenzaTuning?: CadenzaTuning;
     partitaTuning?: PartitaTuning;
     fumeTuning?: FumeTuning;
     claddaghTuning?: CladdaghTuning;
-    onCladdaghTuningChange?: (patch: Partial<CladdaghTuning>) => void;
     cappellaTuning?: CappellaTuning;
     cappellaCustomEmojiImages?: CappellaEmojiImage[];
     cappellaCustomAvatarImages?: CappellaAvatarImage[];
@@ -91,85 +101,33 @@ export interface VisualizerSharedProps {
     monetPortraitImage?: MonetPortraitImage | null;
     onMonetTuningChange?: (patch: Partial<MonetTuning>) => void;
     pendoloTuning?: PendoloTuning;
-    onPendoloTuningChange?: (patch: Partial<PendoloTuning>) => void;
     sonnetTuning?: SonnetTuning;
-    onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
     temperaTuning?: TemperaTuning;
-    onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     lumiereTuning?: LumiereTuning;
-    onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
 }
 
-export interface VisualizerSettingsPanelProps {
+/**
+ * What a lyric style's own options panel gets from the settings window: the same for every style,
+ * a mod's too. A style whose settings are not a stored tuning (a mod's style keeps its own) gets
+ * no tuning and a change that does nothing.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface VisualizerSettingsPanelProps<T = any> {
     t: (key: string) => string;
     isDaylight: boolean;
     theme: Theme;
     controlCardBg: string;
     rangeInputClass: string;
-    classicTuning?: ClassicTuning;
-    onClassicTuningChange?: (patch: Partial<ClassicTuning>) => void;
-    partitaTuning?: PartitaTuning;
-    onPartitaTuningChange?: (patch: Partial<PartitaTuning>) => void;
-    fumeTuning?: FumeTuning;
-    onFumeTuningChange?: (patch: Partial<FumeTuning>) => void;
-    claddaghTuning?: CladdaghTuning;
-    onCladdaghTuningChange?: (patch: Partial<CladdaghTuning>) => void;
-    cappellaTuning?: CappellaTuning;
-    cappellaCustomEmojiImages?: CappellaEmojiImage[];
-    onCappellaTuningChange?: (patch: Partial<CappellaTuning>) => void;
-    cappellaCustomEmojiCount?: number;
-    hasCappellaCustomEmojiPack?: boolean;
-    isCappellaCustomEmojiPackLoading?: boolean;
-    onImportCappellaCustomEmojiPack?: (files: File[]) => Promise<{ ok: boolean; error?: string; }>;
-    onClearCappellaCustomEmojiPack?: () => Promise<void> | void;
-    cappellaCustomAvatarImages?: CappellaAvatarImage[];
-    onImportCappellaCustomAvatar?: (files: File[]) => Promise<{ ok: boolean; error?: string; }>;
-    onClearCappellaCustomAvatar?: () => Promise<void> | void;
-    hasCappellaCustomAvatar?: boolean;
-    isCappellaCustomAvatarLoading?: boolean;
-    tiltTuning?: TiltTuning;
-    onTiltTuningChange?: (patch: Partial<TiltTuning>) => void;
-    dioramaTuning?: DioramaTuning;
-    onDioramaTuningChange?: (patch: Partial<DioramaTuning>) => void;
-    monetTuning?: MonetTuning;
-    onMonetTuningChange?: (patch: Partial<MonetTuning>) => void;
-    monetPortraitImage?: MonetPortraitImage | null;
-    onUploadMonetPortraitImage?: (files: File[]) => Promise<{ ok: boolean; error?: string; }>;
-    onClearMonetPortraitImage?: () => Promise<void> | void;
-    isLoadingMonetPortraitImage?: boolean;
-    pendoloTuning?: PendoloTuning;
-    onPendoloTuningChange?: (patch: Partial<PendoloTuning>) => void;
-    sonnetTuning?: SonnetTuning;
-    onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
-    temperaTuning?: TemperaTuning;
-    onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
-    lumiereTuning?: LumiereTuning;
-    onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
+    /** The style's tuning as the window shows it: with a slider's value while the slider is held. */
+    tuning: T;
+    /** A change to the tuning: shown at once, and saved at once or, while a slider is held, when it is let go. */
+    onTuningChange: (patch: Partial<T>) => void;
+    /** The settings store's fields of the styles and the backgrounds: for a style's own further actions (a picture uploaded for it, cleared). */
+    settings: VisualizerTuningSettings;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */
     onSliderCommit?: () => void;
-}
-
-export interface VisualizerSettingsResetProps {
-    resetClassicTuning?: () => void;
-    resetPartitaTuning?: () => void;
-    resetFumeTuning?: () => void;
-    resetCladdaghTuning?: () => void;
-    resetCappellaTuning?: () => void;
-    resetTiltTuning?: () => void;
-    resetDioramaTuning?: () => void;
-    resetMonetTuning?: () => void;
-    resetPendoloTuning?: () => void;
-    resetSonnetTuning?: () => void;
-    resetTemperaTuning?: () => void;
-    resetLumiereTuning?: () => void;
-    setDraftFumeTuning?: (tuning: FumeTuning) => void;
-    setDraftCladdaghTuning?: (tuning: CladdaghTuning) => void;
-    setDraftPendoloTuning?: (tuning: PendoloTuning) => void;
-    setDraftSonnetTuning?: (tuning: SonnetTuning) => void;
-    setDraftTemperaTuning?: (tuning: TemperaTuning) => void;
-    setDraftLumiereTuning?: (tuning: LumiereTuning) => void;
 }
 
 export interface VisualizerRegistryEntry {
@@ -179,7 +137,22 @@ export interface VisualizerRegistryEntry {
     labelFallback: string;
     previewSeed: string;
     previewStartOffset: number;
-    tuningKind: VisualizerTuningKind;
+    /*
+     * The small line icon shown beside the style's name: the children of the 24x24 stroked <svg>
+     * that modeGlyphs.tsx draws. A style without one (a mod's, say) gets the generic icon.
+     */
+    glyph?: React.ReactNode;
+    /** The command that switches to this style (id `visualizer-<mode>`). A style without one has no command. */
+    command?: VisualizerModeCommand;
+    /** True when the renderer reads a click on a lyric line and the song should jump there. */
+    seeksOnLineClick?: boolean;
+    /*
+     * The background this style is drawn over. VisualizerRenderer draws one background for every
+     * style and keeps it through a style switch, so a style that changes it says so here, not only
+     * in its own shell: false for none at all (Still), or the config to draw it with (Fume hides the
+     * geometric shapes). Left out: the background in the props, as it is.
+     */
+    background?: false | ((props: VisualizerSharedProps) => VisualizerBackgroundConfig | undefined);
     /*
      * 各模式的 entry.tsx 把真正的 renderer 包成 React.lazy —— registry 用 eager glob 发现
      * entry，如果 entry 静态 import renderer，任何碰 visualizer 设置的模块都会连带拉进 13 个
@@ -187,8 +160,10 @@ export interface VisualizerRegistryEntry {
      * props => ReactElement，lazy 组件照样满足。代价是调用方必须提供 Suspense 边界。
      */
     render: (props: VisualizerSharedProps) => React.ReactElement;
+    /** The style's own options in the settings window. A style that has them and a stored tuning can be put back to its defaults there. */
     renderSettingsPanel?: (props: VisualizerSettingsPanelProps) => React.ReactNode;
-    resetSettings?: (props: VisualizerSettingsResetProps) => void;
+    /** For a style that sizes its own lyrics: the notice (an i18n key) the settings window shows where it switches the font size off. */
+    ownFontSizeNoticeKey?: string;
     /*
      * True when this mode's layout atoms come from whole-line word segmentation
      * (utils/lyrics/wordSegmentation), so the user's saved split for a song changes what it draws.

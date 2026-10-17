@@ -14,10 +14,19 @@ export default defineVisualizer({
     labelFallback: '镜台',
     previewSeed: 'diorama',
     previewStartOffset: 0,
-    tuningKind: 'diorama',
+    // 镜台：不同景深上的方块
+    glyph: (
+        <>
+            <rect x="3.5" y="12" width="5" height="5" rx="1" opacity="0.45" />
+            <rect x="9.5" y="6" width="6.5" height="6.5" rx="1" />
+            <rect x="17" y="13.5" width="4" height="4" rx="1" opacity="0.45" />
+        </>
+    ),
+    command: {
+        title: 'Visualizer: Diorama',
+        description: 'Switch to Diorama visualizer',
+        keywords: ['diorama', '镜台', '切换到可视化：镜台', '切换到可视化镜台'],
+    },
     render: props => <VisualizerDiorama {...props} />,
     renderSettingsPanel: props => <DioramaSettingsPanel {...props} />,
-    resetSettings: ({ resetDioramaTuning }) => {
-        resetDioramaTuning?.();
-    },
 });

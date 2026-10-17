@@ -7,8 +7,47 @@ import {
     type TideColorMode,
 } from '../../../../types';
 import { colorWithAlpha } from '../../colorMix';
-import BackgroundToggleRow from '../BackgroundToggleRow';
 import { TideColorRow, TidePillGroup, TideSectionLabel, TideSliderRow } from './tideSettingsRows';
+
+interface BackgroundToggleRowProps {
+    label: string;
+    description?: string;
+    checked: boolean;
+    onChange?: (checked: boolean) => void;
+    theme: Theme;
+}
+
+const BackgroundToggleRow: React.FC<BackgroundToggleRowProps> = ({
+    label,
+    description,
+    checked,
+    onChange,
+    theme,
+}) => (
+    <div className="flex items-center justify-between gap-4">
+        <div className="space-y-1">
+            <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>{label}</div>
+            {description && (
+                <div className="max-w-[320px] text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                    {description}
+                </div>
+            )}
+        </div>
+        <button
+            type="button"
+            aria-pressed={checked}
+            disabled={!onChange}
+            onClick={() => onChange?.(!checked)}
+            className="h-6 w-12 shrink-0 rounded-full p-1 transition-colors disabled:opacity-45"
+            style={{ backgroundColor: checked ? theme.secondaryColor : colorWithAlpha(theme.secondaryColor, 0.18) }}
+        >
+            <div
+                className={`h-4 w-4 rounded-full shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}
+                style={{ backgroundColor: theme.backgroundColor }}
+            />
+        </button>
+    </div>
+);
 
 // src/components/visualizer/backgrounds/tide/TideBackgroundSettingsCard.tsx
 // The tide settings panel: how the lyrics are sampled (and how rarely), how the water is shaped,
@@ -147,14 +186,14 @@ const TideBackgroundSettingsCard: React.FC<TideBackgroundSettingsCardProps> = ({
                 label={t('options.tideFollowLyrics')}
                 description={t('options.tideFollowLyricsDesc')}
                 checked={resolved.followLyrics}
-                onChange={followLyrics => onTuningChange?.({ followLyrics })}
+                onChange={(followLyrics: boolean) => onTuningChange?.({ followLyrics })}
                 theme={theme}
             />
             <BackgroundToggleRow
                 label={t('options.tideCameraFollow')}
                 description={t('options.tideCameraFollowDesc')}
                 checked={resolved.cameraFollow}
-                onChange={cameraFollow => onTuningChange?.({ cameraFollow })}
+                onChange={(cameraFollow: boolean) => onTuningChange?.({ cameraFollow })}
                 theme={theme}
             />
 

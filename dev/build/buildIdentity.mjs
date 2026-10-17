@@ -68,3 +68,13 @@ export function resolveBuildKind(env) {
   }
   return { kind: 'unofficial', host: null };
 }
+
+// 开发服务器专用的构建类别覆盖：FOLIA_DEV_BUILD_KIND=official|self-hosted|unofficial，只在 vite serve 下生效。
+// 给 Playwright 这类要钉住某条反馈分支的场景用（vitest.config 同样把 __BUILD_KIND__ 钉成 official）；
+// vite build 一律忽略它，产物的类别仍只由 resolveBuildKind 决定，别人打包时拿它冒充不了官方。
+// 不需要覆盖时返回 null。
+export function resolveDevBuildKindOverride(command, env) {
+  if (command !== 'serve') return null;
+  const kind = env.FOLIA_DEV_BUILD_KIND?.trim().toLowerCase();
+  return kind === 'official' || kind === 'self-hosted' || kind === 'unofficial' ? { kind, host: null } : null;
+}
