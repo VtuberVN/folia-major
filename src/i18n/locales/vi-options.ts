@@ -497,6 +497,7 @@ export default {
   "obsBrowserSourceGuideStep7": "Tách lớp: Dùng nút 'Lời bài hát (Trong suốt)' để lấy lời bài hát không nền, hoặc 'Nền Visualizer' để chỉ lấy hình nền. Bạn có thể thêm cả 2 nguồn vào OBS để lồng webcam hoặc nội dung khác vào giữa.",
   "obsBrowserSourceAddress": "OBS URL",
   "copyObsBrowserSourceAddress": "Sao chép URL OBS",
+  "obsBrowserSourceLayer": "Tách lớp OBS",
   "obsBrowserSourceLayerLyrics": "Lời bài hát (Trong suốt)",
   "obsBrowserSourceLayerLyricsDesc": "Sao chép URL chỉ có Lời bài hát với nền trong suốt",
   "obsBrowserSourceLayerBackground": "Nền Visualizer",
