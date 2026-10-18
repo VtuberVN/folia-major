@@ -23,13 +23,6 @@ const STAGE_PLAYER_REQUEST_TIMEOUT_MS = 10_000;
 const STAGE_PLAYER_QUEUE_DEFAULT_LIMIT = 100;
 const STAGE_PLAYER_QUEUE_MAX_LIMIT = 500;
 const STAGE_LYRICS_FORMAT_VALUES = new Set(['lrc', 'enhanced-lrc', 'vtt', 'yrc', 'qrc']);
-const STAGE_MODE_SOURCE_VALUES = new Set([
-  'stage-api',
-  'now-playing',
-  'playercap',
-  'spotify',
-  'spotify-local',
-]);
 const STAGE_INPUT_METADATA = Object.freeze({
   domain: 'stage-input',
   direction: 'outside-in',
@@ -222,13 +215,6 @@ function createStageApi({
   let stagePlayerQueueKey = null;
   let stagePlayerPlaybackKey = null;
   let musicMetadataModulePromise = null;
-  let stageModeTransition = Promise.resolve();
-
-  const enqueueStageModeTransition = (operation) => {
-    const transition = stageModeTransition.then(operation, operation);
-    stageModeTransition = transition.catch(() => undefined);
-    return transition;
-  };
 
   const logStage = (level, message, details) => {
     const method = typeof console[level] === 'function' ? console[level] : console.log;
@@ -250,8 +236,6 @@ function createStageApi({
     const configuredSource = store.get(stageModeSourceSettingKey);
     if (configuredSource === 'now-playing') return 'now-playing';
     if (configuredSource === 'playercap') return 'playercap';
-    if (configuredSource === 'spotify') return 'spotify';
-    if (configuredSource === 'spotify-local') return 'spotify-local';
     return 'stage-api';
   };
 
@@ -2135,45 +2119,18 @@ function createStageApi({
     });
     stageServer.on('upgrade', handleStageWebSocketUpgrade);
 
-    try {
-      await new Promise((resolve, reject) => {
-        stageServer.once('error', reject);
-        stageServer.listen(getConfiguredStagePort(), '127.0.0.1', () => {
-          stageServer.off('error', reject);
-          resolve();
-        });
+    await new Promise((resolve, reject) => {
+      stageServer.once('error', reject);
+      stageServer.listen(getConfiguredStagePort(), '127.0.0.1', () => {
+        stageServer.off('error', reject);
+        resolve();
       });
-    } catch (error) {
-      const failedStageServer = stageServer;
-      stageServer = null;
-      closeStagePlayerWebSockets();
-
-      if (failedStageServer) {
-        failedStageServer.off('upgrade', handleStageWebSocketUpgrade);
-        await new Promise((resolve) => {
-          try {
-            failedStageServer.close((closeError) => {
-              if (closeError && closeError.code !== 'ERR_SERVER_NOT_RUNNING') {
-                logStage('warn', 'Failed to clean up Stage API server after startup failure.', closeError);
-              }
-              resolve();
-            });
-          } catch (closeError) {
-            if (closeError?.code !== 'ERR_SERVER_NOT_RUNNING') {
-              logStage('warn', 'Failed to clean up Stage API server after startup failure.', closeError);
-            }
-            resolve();
-          }
-        });
-      }
-
-      throw error;
-    }
+    });
 
     logStage('info', `Stage API server listening on http://127.0.0.1:${getConfiguredStagePort()}.`);
   };
 
-  const syncStageModeStateNow = async () => {
+  const syncStageModeState = async () => {
     if (isStageEnabled()) {
       getStageToken({ generateIfMissing: true });
       await startStageServerIfNeeded();
@@ -2186,33 +2143,16 @@ function createStageApi({
     return status;
   };
 
-  const syncStageModeState = async () => enqueueStageModeTransition(syncStageModeStateNow);
-
-  const setStageEnabled = async (enabled) => enqueueStageModeTransition(async () => {
+  const setStageEnabled = async (enabled) => {
     const nextEnabled = Boolean(enabled);
     store.set(stageModeEnabledSettingKey, nextEnabled);
     if (nextEnabled && !store.has(stageModeSourceSettingKey)) {
       store.set(stageModeSourceSettingKey, 'stage-api');
     }
 
-    const status = await syncStageModeStateNow();
+    const status = await syncStageModeState();
     logStage('info', nextEnabled ? 'Stage mode enabled.' : 'Stage mode disabled.');
     return status;
-  });
-
-  const setStageSource = async (source) => {
-    if (!STAGE_MODE_SOURCE_VALUES.has(source)) {
-      throw new StageApiError('Stage source is invalid.', {
-        code: 'INVALID_STAGE_SOURCE',
-      });
-    }
-
-    return enqueueStageModeTransition(async () => {
-      store.set(stageModeSourceSettingKey, source);
-      const status = await syncStageModeStateNow();
-      logStage('info', `Stage source changed to ${source}.`);
-      return status;
-    });
   };
 
   const regenerateStageToken = async () => {
@@ -2241,7 +2181,6 @@ function createStageApi({
     logStage,
     regenerateStageToken,
     setStageEnabled,
-    setStageSource,
     syncStageModeState,
     startStageServerIfNeeded,
     stopStageServer,

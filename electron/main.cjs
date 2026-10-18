@@ -12,8 +12,6 @@ const Store = require('electron-store').default || require('electron-store');
 const crypto = require('crypto');
 const { createStageApi } = require('./stageApi.cjs');
 const { getWindowState } = require('./windowState.cjs');
-const { createSpotifyController } = require('./spotify.cjs');
-const { createSpotifyLocalController } = require('./spotifyLocal.cjs');
 const { createModSystem } = require('./modSystem/modSystem.cjs');
 const { MOD_PROTOCOL_PRIVILEGED_SCHEME } = require('./modSystem/modProtocol.cjs');
 const { createWindowPlaybackHandoffStore } = require('./windowPlaybackHandoff.cjs');
@@ -2579,15 +2577,6 @@ const lyricApi = createLyricApi({
   port: DEFAULT_LYRIC_API_PORT,
 });
 
-const spotifyPrivateStore = new Store({ projectName: 'Folia', name: 'spotify-auth' });
-const spotify = createSpotifyController({
-  privateStore: spotifyPrivateStore,
-  shell,
-  safeStorage,
-  getMainWindow: () => mainWindow,
-});
-const spotifyLocal = createSpotifyLocalController();
-
 const discordPresence = createDiscordPresenceController({
   getApplicationId: () => normalizeDiscordApplicationId(store.get(DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY)) || DEFAULT_DISCORD_APPLICATION_ID,
   isEnabled: () => readStoredBoolean(DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY, false),
@@ -3536,38 +3525,7 @@ function setupCorsBypassHandlers() {
     try {
       const parsedUrl = new URL(details.url);
       const hostname = parsedUrl.hostname;
-      if (
-        hostname === 'googlevideo.com' ||
-        hostname.endsWith('.googlevideo.com') ||
-        ((hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) && parsedUrl.pathname.includes('/youtubei/v1/player'))
-      ) {
-        requestHeaders['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
-        for (const h of Object.keys(requestHeaders)) {
-          const lower = h.toLowerCase();
-          if (
-            lower === 'origin' ||
-            lower === 'referer' ||
-            lower.startsWith('sec-fetch-')
-          ) {
-            delete requestHeaders[h];
-          }
-        }
-      } else if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) {
-        if (!requestHeaders['User-Agent'] || requestHeaders['User-Agent'].includes('Electron')) {
-          requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-        }
-        const ytCookie = requestHeaders['x-youtube-cookie'] || requestHeaders['X-YouTube-Cookie'] || '';
-        if (ytCookie) {
-          requestHeaders['Cookie'] = ytCookie;
-          delete requestHeaders['x-youtube-cookie'];
-          delete requestHeaders['X-YouTube-Cookie'];
-        }
-        const xOrigin = requestHeaders['X-Origin'] || requestHeaders['x-origin'] || '';
-        if (xOrigin) {
-          requestHeaders['Origin'] = xOrigin;
-          requestHeaders['Referer'] = `${xOrigin}/`;
-        }
-      } else if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
+      if (hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn')) {
         requestHeaders['Referer'] = 'https://zingmp3.vn/';
         if (!requestHeaders['User-Agent'] || requestHeaders['User-Agent'].includes('Electron')) {
           requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -3596,12 +3554,6 @@ function setupCorsBypassHandlers() {
         hostname === 'y.gtimg.cn' ||
         hostname === 'kugou.com' ||
         hostname.endsWith('.kugou.com') ||
-        hostname === 'googlevideo.com' ||
-        hostname.endsWith('.googlevideo.com') ||
-        hostname === 'youtube.com' ||
-        hostname.endsWith('.youtube.com') ||
-        hostname === 'ytimg.com' ||
-        hostname.endsWith('.ytimg.com') ||
         hostname === 'zingmp3.vn' ||
         hostname.endsWith('.zingmp3.vn') ||
         hostname === 'zmdcdn.me' ||
@@ -3663,10 +3615,6 @@ function isAllowedLyricProxyHost(hostname) {
     hostname.endsWith('.kugou.com') ||
     hostname === 'kgimg.com' ||
     hostname.endsWith('.kgimg.com') ||
-    hostname === 'googlevideo.com' ||
-    hostname.endsWith('.googlevideo.com') ||
-    hostname === 'youtube.com' ||
-    hostname.endsWith('.youtube.com') ||
     hostname === 'api.amll.dev'
   );
 }
@@ -6425,7 +6373,6 @@ app.on('before-quit', (event) => {
       console.error('[Mods] Failed to dispose the mod system', error);
     }
   }
-  spotify.stop();
   voiceInputPauseMonitor.stop();
   displaySleepBlocker.stop();
   if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
@@ -7333,200 +7280,6 @@ body{margin:0;display:flex;align-items:center;justify-content:center;height:100v
   });
 });
 
-function buildYouTubeSapisidAuthorization(sapisid, origin) {
-  if (!sapisid) return '';
-  const timestamp = Math.floor(Date.now() / 1000);
-  const sha1 = crypto.createHash('sha1').update(`${timestamp} ${sapisid} ${origin}`).digest('hex');
-  return `SAPISIDHASH ${timestamp}_${sha1} SAPISID1PHASH ${timestamp}_${sha1} SAPISID3PHASH ${timestamp}_${sha1}`;
-}
-
-async function fetchYouTubeProfileViaInnerTube(cookieStr) {
-  try {
-    const cookieMap = new Map();
-    try {
-      const ytCookies = await session.defaultSession.cookies.get({ domain: '.youtube.com' });
-      const allCookies = await session.defaultSession.cookies.get({});
-      for (const c of [...ytCookies, ...allCookies]) {
-        const dom = c.domain || '';
-        if (dom.includes('youtube.com') || dom.includes('google.com')) {
-          cookieMap.set(c.name, `${c.name}=${c.value}`);
-        }
-      }
-    } catch {}
-
-    for (const seg of String(cookieStr || '').split(';')) {
-      const trimmed = seg.trim();
-      if (!trimmed) continue;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx <= 0) continue;
-      const name = trimmed.slice(0, eqIdx).trim();
-      const val = trimmed.slice(eqIdx + 1).trim();
-      if (name && val) {
-        cookieMap.set(name, `${name}=${val}`);
-      }
-    }
-
-    const mergedCookie = Array.from(cookieMap.values()).join('; ');
-    if (!mergedCookie) return null;
-
-    const sapisidMatch = mergedCookie.match(/(?:^|;\s*)(?:SAPISID|__Secure-3PAPISID|__Secure-1PAPISID)=([^;]+)/);
-    const sapisid = sapisidMatch ? sapisidMatch[1].trim() : '';
-
-    const endpoints = [
-      {
-        url: 'https://www.youtube.com/youtubei/v1/account/account_menu?key=AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4',
-        origin: 'https://www.youtube.com',
-        clientName: 'WEB',
-        clientVersion: '2.20241001.00.00',
-      },
-      {
-        url: 'https://music.youtube.com/youtubei/v1/account/account_menu?key=AIzaSyAO_FJ2SlqU8Q4usbuLznTmPcwjzp4-Ns4',
-        origin: 'https://music.youtube.com',
-        clientName: 'WEB_REMIX',
-        clientVersion: '1.20240101.01.00',
-      },
-    ];
-
-    for (const ep of endpoints) {
-      try {
-        const authHeader = buildYouTubeSapisidAuthorization(sapisid, ep.origin);
-        const res = await fetch(ep.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Referer': `${ep.origin}/`,
-            'Origin': ep.origin,
-            'X-Origin': ep.origin,
-            'X-Goog-AuthUser': '0',
-            'Cookie': mergedCookie,
-            ...(authHeader ? { 'Authorization': authHeader } : {}),
-          },
-          body: JSON.stringify({
-            context: {
-              client: { clientName: ep.clientName, clientVersion: ep.clientVersion, hl: 'vi', gl: 'VN' },
-            },
-          }),
-        });
-        if (!res.ok) continue;
-        const json = await res.json();
-        const actions = json.actions || [];
-        for (const action of actions) {
-          const popup = action?.openPopupAction?.popup;
-          const menuRenderer = popup?.multiPageMenuRenderer;
-          if (!menuRenderer) continue;
-          const header = menuRenderer.header?.activeAccountHeaderRenderer;
-          if (header) {
-            const name =
-              header.accountName?.simpleText ||
-              header.accountName?.runs?.map(r => r.text).join('') ||
-              '';
-            const thumbnails = header.accountPhoto?.thumbnails || [];
-            const avatarUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : undefined;
-            const handle =
-              header.channelHandle?.simpleText ||
-              header.channelHandle?.runs?.map(r => r.text).join('') ||
-              header.email?.simpleText ||
-              header.email?.runs?.map(r => r.text).join('') ||
-              '';
-            if (name) {
-              console.log('[YouTubeAuth] InnerTube profile found:', name, handle);
-              return { nickname: name, avatarUrl, id: handle || 'youtube_user' };
-            }
-          }
-        }
-      } catch (innerErr) {
-        console.warn('[YouTubeAuth] InnerTube endpoint attempt failed:', innerErr);
-      }
-    }
-  } catch (err) {
-    console.warn('[YouTubeAuth] InnerTube account_menu failed:', err);
-  }
-  return null;
-}
-
-ipcMain.handle('auth-fetch-youtube-profile', async (_event, cookieStr) => {
-  return await fetchYouTubeProfileViaInnerTube(cookieStr || '');
-});
-
-ipcMain.handle('auth-open-youtube-login', async () => {
-  return new Promise((resolve) => {
-    let settled = false;
-    const CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-    const loginWin = new BrowserWindow({
-      width: 540,
-      height: 720,
-      title: 'Đăng nhập YouTube / Google',
-      autoHideMenuBar: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-    loginWin.webContents.setUserAgent(CHROME_USER_AGENT);
-
-    const checkCookies = async () => {
-      try {
-        if (!loginWin || loginWin.isDestroyed()) return;
-        const ytCookies = await loginWin.webContents.session.cookies.get({ domain: '.youtube.com' });
-        const allCookies = await loginWin.webContents.session.cookies.get({});
-        const targetCookies = [
-          ...ytCookies,
-          ...allCookies.filter(c => c.domain && (c.domain.includes('youtube.com') || c.domain.includes('google.com'))),
-        ];
-        const uniqueMap = new Map();
-        for (const c of targetCookies) {
-          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
-        }
-        const uniqueCookies = Array.from(uniqueMap.values());
-        const loginInfo = uniqueCookies.find(c => c.name === 'LOGIN_INFO');
-        const sapisid = uniqueCookies.find(c => c.name === 'SAPISID');
-        const sid = uniqueCookies.find(c => c.name === 'SID');
-        const currentUrl = loginWin.webContents.getURL() || '';
-        const isBackOnYouTube = currentUrl.includes('youtube.com') && !currentUrl.includes('accounts.google.com');
-
-        if ((loginInfo && loginInfo.value) || (sapisid && sapisid.value) || (isBackOnYouTube && sid)) {
-          if (!settled) {
-            settled = true;
-            clearInterval(interval);
-            const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ');
-            // Use InnerTube API instead of unreliable DOM scraping
-            let userProfile = await fetchYouTubeProfileViaInnerTube(cookieStr);
-            if (!userProfile) {
-              // Retry once after a short delay
-              await new Promise(r => setTimeout(r, 500));
-              userProfile = await fetchYouTubeProfileViaInnerTube(cookieStr);
-            }
-            loginWin.close();
-            resolve({
-              success: true,
-              cookie: cookieStr,
-              profile: userProfile || { nickname: 'Tài khoản YouTube', id: 'youtube_user' },
-            });
-          }
-        }
-      } catch {
-        // window closing
-      }
-    };
-
-    const interval = setInterval(checkCookies, 1200);
-
-    loginWin.webContents.on('did-navigate', checkCookies);
-    loginWin.webContents.on('did-navigate-in-page', checkCookies);
-
-    loginWin.on('closed', () => {
-      clearInterval(interval);
-      if (!settled) {
-        settled = true;
-        resolve({ success: false, error: 'cancelled' });
-      }
-    });
-
-    loginWin.loadURL('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F');
-  });
-});
-
 ipcMain.handle('safe-storage-encrypt', async (_event, plainText) => {
   if (typeof plainText !== 'string' || plainText.length > 65536 || !safeStorage?.isEncryptionAvailable?.()) return null;
   try {
@@ -8134,48 +7887,6 @@ ipcMain.handle('playback-sync-bridge-get-status', (event) => {
   }
 
   return buildPlaybackSyncBridgeStatus();
-});
-
-ipcMain.handle('spotify-get-status', (event) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to read Spotify status.');
-  }
-  return spotify.buildStatus();
-});
-
-ipcMain.handle('spotify-connect', (event, clientId) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to start Spotify authorization.');
-  }
-  return spotify.connect(clientId);
-});
-
-ipcMain.handle('spotify-disconnect', (event) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to disconnect Spotify.');
-  }
-  return spotify.disconnect();
-});
-
-ipcMain.handle('spotify-get-playback', (event) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to read Spotify playback.');
-  }
-  return spotify.getPlayback();
-});
-
-ipcMain.handle('spotify-local-get-playback', (event) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to read local Spotify playback.');
-  }
-  return spotifyLocal.getPlayback();
-});
-
-ipcMain.handle('spotify-control-playback', (event, command) => {
-  if (!isTrustedMainWindowContents(event.sender)) {
-    throw new Error('Untrusted renderer attempted to control Spotify playback.');
-  }
-  return spotify.controlPlayback(command);
 });
 
 ipcMain.handle('voice-input-pause-get-status', (event) => {

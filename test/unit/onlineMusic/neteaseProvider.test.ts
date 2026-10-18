@@ -82,14 +82,14 @@ describe('neteaseProvider', () => {
         expect(source?.replayGain).toBeUndefined();
     });
 
-    it('throws preview-only error when NetEase returns freeTrialInfo', async () => {
+    it('returns preview flag when NetEase returns freeTrialInfo', async () => {
         vi.mocked(neteaseApi.getSongUrl).mockResolvedValue({
             data: [{ url: 'https://music.test/song.mp3', freeTrialInfo: { start: 0, end: 30 } }],
         } as any);
 
-        await expect(neteaseProvider.playback!.getAudioSource(song, 'high')).rejects.toThrow(
-            /preview/i
-        );
+        await expect(neteaseProvider.playback!.getAudioSource(song, 'high')).resolves.toMatchObject({
+            preview: true,
+        });
     });
 
     it('exposes NetEase romanization alongside the parsed lyric result', async () => {

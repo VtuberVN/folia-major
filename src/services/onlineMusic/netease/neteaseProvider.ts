@@ -336,12 +336,14 @@ export const neteaseProvider: OnlineMusicProvider = {
             // module/song_url_v1.js 带 unblock=true 时写字符串 'null'。
             const preview = typeof raw?.freeTrialInfo === 'object' && raw.freeTrialInfo !== null;
             const trackGain = toFiniteNumber(raw?.gain);
+            const audioQualityInfo = raw?.br ? { bitrate: Number(raw.br), codec: raw.type ? String(raw.type).toLowerCase() : undefined } : undefined;
             return {
                 url: String(rawUrl).replace(/^http:/, 'https:'),
                 fetchedAt: Date.now(),
                 quality,
                 ...(preview ? { preview } : {}),
                 ...(trackGain === undefined ? {} : { replayGain: { trackGain } }),
+                ...(audioQualityInfo ? { audioQualityInfo } : {}),
             };
         },
         getAvailability(song): ProviderSongAvailability {

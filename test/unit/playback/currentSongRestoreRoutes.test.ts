@@ -80,6 +80,7 @@ vi.mock('@/services/localLibraryEntityRepository', () => ({
 vi.mock('@/services/navidromeService', () => ({
     getNavidromeConfig: () => ({ serverUrl: 'https://navi.test' }),
     isNavidromeEnabled: () => true,
+    getNavidromeAudioQualityInfo: () => undefined,
     navidromeApi: {
         getStreamUrl: (_config: unknown, id: string) => `https://navi.test/stream/${id}`,
         getSong: async (_config: unknown, id: string) => { env.note(`wait navidrome song ${id}`); return env.serverSong; },

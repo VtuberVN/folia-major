@@ -61,6 +61,7 @@ vi.mock('@/services/db', () => ({
     saveToCache: async () => { await env.duringCacheSave?.(); },
     removeFromCache: async () => {},
     getLocalSongs: async () => env.songs,
+    getLocalSong: async (id: string) => (env.songs as Array<{ id: string }>).find(s => s.id === id) ?? null,
     saveLocalSong: async () => { await env.duringSave?.(); },
     getFromCacheWithMigration: async () => null,
 }));
@@ -103,6 +104,7 @@ vi.mock('@/services/playbackBlobUrls', async importOriginal => {
 vi.mock('@/services/navidromeService', () => ({
     getNavidromeConfig: () => env.navidromeConfig,
     isNavidromeEnabled: () => true,
+    getNavidromeAudioQualityInfo: () => undefined,
     navidromeApi: {
         getStreamUrl: (_config: unknown, id: string) => `https://navi.test/stream/${id}`,
         getSong: async (_config: unknown, id: string) => { env.note(`wait navidrome song ${id}`); return env.serverSong; },

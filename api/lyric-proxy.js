@@ -21,7 +21,6 @@ const CORS_HEADERS = {
         'x-router',
         'Range',
         'x-zing-cookie',
-        'x-youtube-cookie',
         'Authorization',
         'X-Origin',
     ].join(', '),
@@ -43,9 +42,6 @@ function isAllowedLyricProxyHost(hostname) {
         hostname === 'kugou.com' || hostname.endsWith('.kugou.com') ||
         hostname === 'zingmp3.vn' || hostname.endsWith('.zingmp3.vn') ||
         hostname === 'zmdcdn.me' || hostname.endsWith('.zmdcdn.me') ||
-        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') ||
-        hostname === 'googlevideo.com' || hostname.endsWith('.googlevideo.com') ||
-        hostname === 'ytimg.com' || hostname.endsWith('.ytimg.com') ||
         hostname === 'nhaccuatui.com' || hostname.endsWith('.nhaccuatui.com') ||
         hostname === 'nct.vn' || hostname.endsWith('.nct.vn') ||
         hostname === 'nixcdn.com' || hostname.endsWith('.nixcdn.com'));
@@ -94,21 +90,6 @@ export default async function handler(req, res) {
                 cookieList.push('zmp3_app_version.1=1222', `zmp3_rqid=${syntheticRqid}`);
             }
             headers['Cookie'] = cookieList.join('; ');
-        }
-        else if (hostname === 'music.youtube.com') {
-            headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-            headers['Origin'] = 'https://music.youtube.com';
-            headers['Referer'] = 'https://music.youtube.com/';
-            const ytCookie = req.headers['x-youtube-cookie'];
-            if (ytCookie) {
-                headers['Cookie'] = ytCookie;
-            }
-            if (req.headers['authorization']) {
-                headers['Authorization'] = String(req.headers['authorization']);
-            }
-        }
-        else if (hostname.endsWith('googlevideo.com') || hostname.endsWith('youtube.com')) {
-            headers['User-Agent'] = 'com.google.android.youtube/20.10.38 (Linux; U; Android 12; GB)';
         }
         else if (hostname.endsWith('nhaccuatui.com') || hostname.endsWith('nct.vn') || hostname.endsWith('nixcdn.com')) {
             headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';

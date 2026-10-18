@@ -124,8 +124,6 @@ contextBridge.exposeInMainWorld('electron', {
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
     openZingLogin: () => ipcRenderer.invoke('auth-open-zing-login'),
     fetchZingProfile: (cookieStr) => ipcRenderer.invoke('auth-fetch-zing-profile', cookieStr),
-    openYouTubeLogin: () => ipcRenderer.invoke('auth-open-youtube-login'),
-    fetchYouTubeProfile: (cookieStr) => ipcRenderer.invoke('auth-fetch-youtube-profile', cookieStr),
     safeStorageEncrypt: (text) => ipcRenderer.invoke('safe-storage-encrypt', text),
     safeStorageDecrypt: (cipherText) => ipcRenderer.invoke('safe-storage-decrypt', cipherText),
     safeStorageDecryptSync: (cipherText) => ipcRenderer.sendSync('safe-storage-decrypt-sync', cipherText),
@@ -239,17 +237,6 @@ contextBridge.exposeInMainWorld('electron', {
     getDiscordPresenceStatus: () => ipcRenderer.invoke('discord-presence-get-status'),
     publishDiscordPresenceSnapshot: (snapshot) => ipcRenderer.invoke('discord-presence-publish-snapshot', snapshot),
     getPlaybackSyncBridgeStatus: () => ipcRenderer.invoke('playback-sync-bridge-get-status'),
-    getSpotifyStatus: () => ipcRenderer.invoke('spotify-get-status'),
-    connectSpotify: (clientId) => ipcRenderer.invoke('spotify-connect', clientId),
-    disconnectSpotify: () => ipcRenderer.invoke('spotify-disconnect'),
-    getSpotifyPlayback: () => ipcRenderer.invoke('spotify-get-playback'),
-    getSpotifyLocalPlayback: () => ipcRenderer.invoke('spotify-local-get-playback'),
-    controlSpotifyPlayback: (command) => ipcRenderer.invoke('spotify-control-playback', command),
-    onSpotifyStatusChanged: (callback) => {
-        const listener = (_event, status) => callback(status);
-        ipcRenderer.on('spotify-status-changed', listener);
-        return () => ipcRenderer.removeListener('spotify-status-changed', listener);
-    },
     getMainWindowRenderState: () => ipcRenderer.invoke('main-window-render-state-get'),
     onMainWindowRenderStateChanged: (callback) => {
         const listener = (_event, state) => callback(state);

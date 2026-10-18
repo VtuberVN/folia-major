@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Worker } = require('worker_threads');
-const { resolveFfmpeg, TRANSCODE_RUNTIME_DIR } = require('../modSystem/ffmpeg.cjs');
+const { resolveFfmpeg, TRANSCODE_RUNTIME_DIR } = require('../ffmpeg.cjs');
 
 const createWasapiEngine = ({ app }) => {
     let worker = null;

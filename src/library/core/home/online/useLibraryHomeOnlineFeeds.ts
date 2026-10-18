@@ -21,7 +21,7 @@ export const useLibraryHomeFeed = <TData>(resource: LibraryHomeFeedResource<TDat
 
 // When a provider is `capable` but the user hasn't logged in (userId is null/undefined),
 // we assign a synthetic guest owner so the tab is visible with public/fallback data.
-// Providers that truly need login (netease, kugou, qq) will return empty results gracefully.
+// Providers that truly need an authenticated user return empty results gracefully without crashing.
 const ownerOf = (providerId: string, userId: MediaId | null | undefined, capable: boolean): LibraryHomeFeedOwner | null => (
     capable ? { providerId, userId: userId ?? `${providerId}_guest` } : null
 );

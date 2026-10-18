@@ -147,11 +147,7 @@ const searchOnlineProviderSongs = async (
     limit: number,
     offset: number,
 ): Promise<SearchExecutionResult> => {
-    let targetId = providerId;
-    if (targetId === 'youtube' && !omni.hasProvider('youtube') && omni.hasProvider('folium.youtube-provider.youtube')) {
-        targetId = 'folium.youtube-provider.youtube';
-    }
-    const page = await omni.searchProviderSongs(targetId, query, { limit, offset });
+    const page = await omni.searchProviderSongs(providerId, query, { limit, offset });
     return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
 };
 
@@ -269,7 +265,6 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
     followOnlineProvider: (providerId) => set(state => (
         state.searchSourceTab === 'local'
         || state.searchSourceTab === 'navidrome'
-        || state.searchSourceTab === 'youtube'
         || state.searchSourceTab === 'zing'
         || state.searchSourceTab === 'nct'
         || state.searchSourceTab === providerId

@@ -13,6 +13,8 @@ import SearchResultsList from './SearchResultsList';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { omni } from '../../../services/onlineMusic/omni';
+import { PlatformMark } from '../../login/PlatformMark';
+import type { OnlineProviderId } from '../../../types/onlineMusic';
 
 // src/components/app/search/SearchWorkspace.tsx
 
@@ -84,9 +86,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     );
     const sources = useMemo<SearchSource[]>(() => {
         const base: SearchSource[] = [
-            'netease',
-            'zing',
-            'nct',
+            activeOnlineProviderId,
         ];
         const onlineSummaries = omni.getProviderSummaries();
         for (const summary of onlineSummaries) {
@@ -95,68 +95,40 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             }
         }
         base.push('local', 'navidrome');
-
-        if (!base.includes(activeOnlineProviderId)) {
-            base.splice(1, 0, activeOnlineProviderId);
-        }
         return base;
     }, [activeOnlineProviderId, providerRegistryVersion]);
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
     const getSourceIcon = (source: SearchSource) => {
-        switch (source) {
-            case 'zing':
-                return (
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none">
-                        <circle cx="12" cy="12" r="11" fill="#FFFFFF" />
-                        <circle cx="12" cy="12" r="10" fill="#18181b" />
-                        <path d="M12 12 L9.54 2.82 A9.5 9.5 0 0 1 21.35 10.35 Z" fill="#43B03C" />
-                        <path d="M12 12 L21.35 10.35 A9.5 9.5 0 0 1 14.46 21.18 Z" fill="#F37321" />
-                        <path d="M12 12 L14.46 21.18 A9.5 9.5 0 0 1 2.82 14.46 Z" fill="#E51D73" />
-                        <path d="M12 12 L2.82 14.46 A9.5 9.5 0 0 1 9.54 2.82 Z" fill="#00A4E4" />
-                        <circle cx="12" cy="12" r="2.8" fill="#FFFFFF" />
-                        <circle cx="12" cy="12" r="1.3" fill="#6A35FF" />
-                    </svg>
-                );
-            case 'nct':
-                return (
-                    <svg viewBox="0 0 24 24" fill="#00D3E5" className="h-3.5 w-3.5 shrink-0">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5.5 13c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm3 2c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm2.5 1.5c-.55 0-1-.45-1-1V5.5c0-.55.45-1 1-1s1 .45 1 1v13c0 .55-.45 1-1 1zm3-1.5c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm3-2c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1z" />
-                    </svg>
-                );
-            case 'netease':
-                return (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[8px] font-bold text-white leading-none">
-                        云
-                    </span>
-                );
-            case 'youtube':
-            case 'folium.youtube-provider.youtube':
-                return (
-                    <svg viewBox="0 0 24 24" fill="#dc2626" className="h-3.5 w-3.5 shrink-0">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                    </svg>
-                );
-            default: {
-                const p = omni.getProviderSummaries().find(item => item.providerId === source);
-                const firstChar = p?.shortName?.[0] || source[0]?.toUpperCase() || 'M';
-                return (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-[8px] font-bold text-white leading-none">
-                        {firstChar}
-                    </span>
-                );
-            }
+        if (source === 'local' || source === 'navidrome') {
+            return null;
         }
+        if (source === 'zing') {
+            return (
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none">
+                    <circle cx="12" cy="12" r="11" fill="#FFFFFF" />
+                    <circle cx="12" cy="12" r="10" fill="#18181b" />
+                    <path d="M12 12 L9.54 2.82 A9.5 9.5 0 0 1 21.35 10.35 Z" fill="#43B03C" />
+                    <path d="M12 12 L21.35 10.35 A9.5 9.5 0 0 1 14.46 21.18 Z" fill="#F37321" />
+                    <path d="M12 12 L14.46 21.18 A9.5 9.5 0 0 1 2.82 14.46 Z" fill="#E51D73" />
+                    <path d="M12 12 L2.82 14.46 A9.5 9.5 0 0 1 9.54 2.82 Z" fill="#00A4E4" />
+                    <circle cx="12" cy="12" r="2.8" fill="#FFFFFF" />
+                    <circle cx="12" cy="12" r="1.3" fill="#6A35FF" />
+                </svg>
+            );
+        }
+        if (source === 'nct') {
+            return (
+                <svg viewBox="0 0 24 24" fill="#00D3E5" className="h-3.5 w-3.5 shrink-0">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5.5 13c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm3 2c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm2.5 1.5c-.55 0-1-.45-1-1V5.5c0-.55.45-1 1-1s1 .45 1 1v13c0 .55-.45 1-1 1zm3-1.5c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8c0 .55-.45 1-1 1zm3-2c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1z" />
+                </svg>
+            );
+        }
+        return <PlatformMark providerId={source as OnlineProviderId} size={14} />;
     };
 
     const getSourceLabel = (source: SearchSource) => {
         if (source === 'local') return t('search.sourceLocal');
         if (source === 'navidrome') return t('search.sourceNavidrome');
-        if (source === 'zing') return t('search.sourceZing', { defaultValue: 'Zing MP3' });
-        if (source === 'nct') return t('search.sourceNct', { defaultValue: 'NhacCuaTui' });
-        if (source === 'netease') return t('neteaseSource', { defaultValue: 'NetEase' });
-        if (source === 'qq') return t('qqSource', { defaultValue: 'QQ Music' });
-        if (source === 'kugou') return t('kugouSource', { defaultValue: 'KuGou Music' });
-        if (source === 'youtube' || source === 'folium.youtube-provider.youtube') return 'YouTube';
         return omni.getProviderLabel(source);
     };
 

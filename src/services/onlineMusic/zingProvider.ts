@@ -40,6 +40,7 @@ export const zingProvider: OnlineMusicProvider = {
     id: 'zing',
     displayName: 'Zing MP3',
     shortName: 'Zing MP3',
+    mark: { letter: 'Z', color: '#6a35ff' },
     getAvailability: () => ({ configured: true }),
     capabilities: {
         search: true,
@@ -160,7 +161,7 @@ export const zingProvider: OnlineMusicProvider = {
         },
     },
     recommendations: {
-        // Pseudo-FM fallback: Zing has no personal FM API like NetEase.
+        // Pseudo-FM fallback: Zing has no official personal FM API.
         // We shuffle chart songs to simulate variety in the radio experience.
         async getPersonalFm(_options) {
             const songs = await getZingChartSongs(50);

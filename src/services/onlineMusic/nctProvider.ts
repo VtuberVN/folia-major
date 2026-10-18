@@ -47,6 +47,7 @@ export const nctProvider: OnlineMusicProvider = {
     id: 'nct',
     displayName: 'NhacCuaTui',
     shortName: 'NhacCuaTui',
+    mark: { letter: 'N', color: '#00d3e5' },
     getAvailability: () => ({ configured: true }),
     capabilities: {
         search: true,
