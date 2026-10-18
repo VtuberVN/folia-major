@@ -23,12 +23,7 @@ export const OPTIONS: SettingsOptionDef[] = Object.values(O);
 const OBS_GUIDE_STEPS = [1, 2, 3, 4, 5, 6, 7];
 
 type ObsLayer = 'all' | 'lyrics' | 'background';
-
-const LAYER_HINT: Record<ObsLayer, string> = {
-    all: 'options.obsBrowserSourceLayerAllDesc',
-    lyrics: 'options.obsBrowserSourceLayerLyricsDesc',
-    background: 'options.obsBrowserSourceLayerBackgroundDesc',
-};
+type ObsSourceMode = 'default' | 'split';
 
 const getObsUrlForLayer = (baseUrl: string | null | undefined, layer: ObsLayer): string => {
     if (!baseUrl) return '';
@@ -56,8 +51,10 @@ const IntegrationPage: React.FC = () => {
     // Subscribed to, so the row follows the reporting account signing in or out while the page is open.
     const canScrobble = usePlaybackReportReady();
 
-    const [obsLayer, setObsLayer] = useState<ObsLayer>('all');
-    const activeObsUrl = getObsUrlForLayer(obs?.url, obsLayer);
+    const [obsMode, setObsMode] = useState<ObsSourceMode>('default');
+    const defaultObsUrl = getObsUrlForLayer(obs?.url, 'all');
+    const lyricsObsUrl = getObsUrlForLayer(obs?.url, 'lyrics');
+    const backgroundObsUrl = getObsUrlForLayer(obs?.url, 'background');
 
     return (
         <>
@@ -100,23 +97,42 @@ const IntegrationPage: React.FC = () => {
                             <Toggle checked={obs.enabled} onChange={enabled => void stage.onToggleObsBrowserSource?.(enabled)} />
                         </Row>
                         <Reveal when={obs.enabled}>
-                            <Row sub label={t('options.obsBrowserSourceLayer')} hint={t(LAYER_HINT[obsLayer])}>
-                                <Segmented<ObsLayer>
-                                    value={obsLayer}
+                            <Row
+                                sub
+                                label={t('options.obsBrowserSourceMode')}
+                                hint={t(obsMode === 'default' ? 'options.obsBrowserSourceModeDefaultDesc' : 'options.obsBrowserSourceModeSplitDesc')}
+                            >
+                                <Segmented<ObsSourceMode>
+                                    value={obsMode}
                                     options={[
-                                        { value: 'all', label: t('options.obsBrowserSourceLayerAll') },
-                                        { value: 'lyrics', label: t('options.obsBrowserSourceLayerLyrics') },
-                                        { value: 'background', label: t('options.obsBrowserSourceLayerBackground') },
+                                        { value: 'default', label: t('options.obsBrowserSourceModeDefault') },
+                                        { value: 'split', label: t('options.obsBrowserSourceModeSplit') },
                                     ]}
-                                    onChange={setObsLayer}
+                                    onChange={setObsMode}
                                 />
                             </Row>
-                            <Row sub label={t('options.obsBrowserSourceAddress')}>
-                                {activeObsUrl ? <CopyValue value={activeObsUrl} /> : <Value>http://127.0.0.1</Value>}
-                                <Button onClick={() => void stage.onRegenerateObsBrowserSourceToken?.()}>
-                                    {t('options.regenerateObsBrowserSourceToken')}
-                                </Button>
-                            </Row>
+                            {obsMode === 'default' ? (
+                                <Row sub label={t('options.obsBrowserSourceAddress')}>
+                                    {defaultObsUrl ? <CopyValue value={defaultObsUrl} /> : <Value>http://127.0.0.1</Value>}
+                                    <Button onClick={() => void stage.onRegenerateObsBrowserSourceToken?.()}>
+                                        {t('options.regenerateObsBrowserSourceToken')}
+                                    </Button>
+                                </Row>
+                            ) : (
+                                <>
+                                    <Row sub label={t('options.obsBrowserSourceLayerLyrics')} hint={t('options.obsBrowserSourceLayerLyricsDesc')}>
+                                        {lyricsObsUrl ? <CopyValue value={lyricsObsUrl} /> : <Value>http://127.0.0.1</Value>}
+                                    </Row>
+                                    <Row sub label={t('options.obsBrowserSourceLayerBackground')} hint={t('options.obsBrowserSourceLayerBackgroundDesc')}>
+                                        {backgroundObsUrl ? <CopyValue value={backgroundObsUrl} /> : <Value>http://127.0.0.1</Value>}
+                                    </Row>
+                                    <Row sub label={t('options.obsBrowserSourceToken')}>
+                                        <Button onClick={() => void stage.onRegenerateObsBrowserSourceToken?.()}>
+                                            {t('options.regenerateObsBrowserSourceToken')}
+                                        </Button>
+                                    </Row>
+                                </>
+                            )}
                             <Row sub label={t('options.obsBrowserSourceClients')}>
                                 <Status tone={obs.clientCount > 0 ? 'ok' : undefined}>{obs.clientCount}</Status>
                             </Row>
