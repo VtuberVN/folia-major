@@ -43,7 +43,7 @@ To use Folia on a phone or in a browser, [deploy the web app to Vercel in one cl
 > - **GitHub**: [Latest Release](https://github.com/chthollyphile/folia-major/releases/latest) has installers for Windows, macOS, and Linux.
 > - **Cloud drives** (faster in mainland China): [Quark](https://pan.quark.cn/s/6e4c6fa3bc6f) · [Baidu](https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia) (code `flia`). Stable installers for Windows and Apple silicon only.
 >
-> For other options (web deployment, Docker, AUR, Flatpak), see [Get Folia](#get-folia) below.
+> For other options (web deployment, Docker, AUR, Flatpak, community mobile port), see [Get Folia](#get-folia) below.
 
 ## Showcase
 
@@ -149,11 +149,14 @@ We recommend deploying the web or self-hosted version, then installing it as a P
 
 If you are comfortable with the tooling, you can package the web version as an installable Android APK with Capacitor. See the example repository [chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet).
 
+You can also use the community Android port at [maimai993/folia-sonnet](https://github.com/maimai993/folia-sonnet). It is maintained independently by the community and its features differ from the official desktop version; please report any issues to that repository.
+
 ### Direct download
 
 - **Windows / macOS / Linux**: Download the latest installers from the [Releases page](https://github.com/chthollyphile/folia-major/releases/latest).
 - **Arch Linux**: Install [folia-major-bin](https://aur.archlinux.org/packages/folia-major-bin) from the AUR.
 - **Flatpak**: A community-maintained third-party Flatpak is available on [Flatpark](https://flatpark.org/apps/top.izuna.foliamajor/).
+- **Android**: A community port is available at [maimai993/folia-sonnet](https://github.com/maimai993/folia-sonnet). It is maintained independently by the community and its features differ from the official desktop version; please report any issues to that repository.
 
 > [!IMPORTANT]
 > If GitHub Releases is slow from mainland China, download from [Quark](https://pan.quark.cn/s/6e4c6fa3bc6f) or [Baidu](https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia) instead. These links host stable installers for Windows and Apple silicon only.

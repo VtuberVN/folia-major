@@ -50,7 +50,7 @@ Nếu bạn muốn sử dụng trên thiết bị di động hoặc trải nghi�
 > [!TIP]
 > - **GitHub**: [Bản phát hành mới nhất](https://github.com/VtuberVN/folia-major/releases/latest), cung cấp gói cài đặt cho Windows / macOS / Linux (bao gồm cả bộ cài Setup và bản nén giải nén Portable Zip).
 > - **Bản gốc Upstream**: [Release Upstream](https://github.com/chthollyphile/folia-major/releases/latest).
-> - Xem thêm các cách tải và cài đặt khác (Web, Docker, AUR, Flatpak) tại phần [Cách cài đặt và sử dụng](#cách-cài-đặt-và-sử-dụng).
+> - Xem thêm các cách tải và cài đặt khác (Web, Docker, AUR, Flatpak, bản Android cộng đồng) tại phần [Cách tải về & Cài đặt](#cách-tải-về--cài-đặt).
 
 ## Trình diễn
 
@@ -174,6 +174,10 @@ Người dùng tự host máy chủ có thể sử dụng [Docker Compose toàn 
 Hiện khuyến nghị người dùng di động sau khi triển khai bản Web / Self-host, sử dụng Chrome trên Android hoặc Safari trên iOS để tạo ứng dụng **PWA** (thêm trang web vào màn hình chính). Folia bản Web hỗ trợ cài đặt PWA hoàn chỉnh.
 
 Người dùng có kinh nghiệm kỹ thuật có thể sử dụng Capacitor để đóng gói bản Web thành ứng dụng Android APK, tham khảo kho mẫu: [chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet).
+
+---
+
+Bạn cũng có thể sử dụng bản Android do cộng đồng chuyển đổi tại [maimai993/folia-sonnet](https://github.com/maimai993/folia-sonnet). Phiên bản này do cộng đồng tự duy trì độc lập, các tính năng sẽ có sự khác biệt so với bản máy tính chính thức; nếu gặp vấn đề vui lòng báo cáo tại kho lưu trữ đó.
 
 ---
 
