@@ -36,6 +36,7 @@ const O = {
     fade: option(SOUND, 'playbackFade', 'options.playbackFade'),
     transcode: option(SOUND, 'transcodeFallback', 'options.transcodeFallback', { electronOnly: true }),
     wasapiExclusive: option(SOUND, 'wasapiExclusive', 'options.wasapiExclusive', { electronOnly: true, available: () => runsOnWindows() && Boolean(window.electron?.wasapi) }),
+    showSignalPath: option(SOUND, 'showSignalPath', 'options.showSignalPath'),
     queueBehavior: option(BEHAVIOR, 'queueDefaultBehavior', 'options.queueDefaultBehavior'),
     autoSkipUnplayable: option(BEHAVIOR, 'autoSkipUnplayable', 'options.autoSkipUnplayable'),
     preventSleep: option(BEHAVIOR, 'preventDisplaySleepDuringPlayback', 'options.preventDisplaySleepDuringPlayback', { electronOnly: true }),
@@ -78,12 +79,14 @@ const PlaybackPage: React.FC = () => {
         queueBehavior: state.queueAddBehavior,
         autoSkipUnplayable: state.autoSkipUnplayable,
         wasapiExclusive: state.enableWasapiExclusive,
+        showSignalPath: state.showAudioSignalPath,
         setMediaCache: state.handleToggleMediaCache,
         setFade: state.handleTogglePlaybackFade,
         setTranscode: state.handleToggleTranscodeFallback,
         setQueueBehavior: state.handleSetQueueAddBehavior,
         setAutoSkipUnplayable: state.handleToggleAutoSkipUnplayable,
         setWasapiExclusive: state.handleToggleWasapiExclusive,
+        setShowSignalPath: state.handleSetShowAudioSignalPath,
     })));
     const preventSleep = useDesktopSettingsStore(state => state.preventDisplaySleepDuringPlayback);
     const setPreventSleep = useDesktopSettingsStore(state => state.handleTogglePreventDisplaySleepDuringPlayback);
@@ -217,6 +220,9 @@ const PlaybackPage: React.FC = () => {
                         <Toggle checked={audio.wasapiExclusive} onChange={audio.setWasapiExclusive} />
                     </Row>
                 )}
+                <Row option={O.showSignalPath} hint={t('options.showSignalPathDesc')}>
+                    <Toggle checked={audio.showSignalPath} onChange={audio.setShowSignalPath} />
+                </Row>
             </Group>
 
             <Group def={BEHAVIOR}>

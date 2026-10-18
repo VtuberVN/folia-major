@@ -2038,6 +2038,7 @@ export default {
     "enableAutoUpdateDesc": "发现新版本后自动下载更新。",
     "manualUpdateOnlyDesc": "仍会检查新版本，升级需要下载完整安装包。",
     "updateChannel": "更新通道",
+    "updateChannelVietnamese": "越南语分支 · 本地化",
     "updateChannelRealeco": "Realeco · 正式版",
     "updateChannelLimo": "Limo · Nightly",
     "updateChannelCielo": "Cielo · Canary",

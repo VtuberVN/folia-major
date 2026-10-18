@@ -1983,6 +1983,7 @@ export default {
     "enableAutoUpdateDesc": "Unduh pembaruan secara otomatis setelah versi baru ditemukan.",
     "manualUpdateOnlyDesc": "Versi baru tetap diperiksa, tetapi pembaruan memerlukan installer lengkap.",
     "updateChannel": "Saluran Pembaruan",
+    "updateChannelVietnamese": "Vietnam · Lokalisasi",
     "updateChannelRealeco": "Realeco · Stabil",
     "updateChannelLimo": "Limo · Nightly",
     "updateChannelCielo": "Cielo · Canary",

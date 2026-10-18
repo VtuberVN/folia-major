@@ -110,13 +110,15 @@ interface SettingsModalProps {
 
 const QUARK_DOWNLOAD_URL = 'https://pan.quark.cn/s/6e4c6fa3bc6f';
 const BAIDU_DOWNLOAD_URL = 'https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia';
-const DEFAULT_UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'internal' = __APP_RELEASE_CHANNEL__ === 'limo'
-    ? 'limo'
-    : __APP_RELEASE_CHANNEL__ === 'cielo'
-        ? 'cielo'
-        : __APP_RELEASE_CHANNEL__ === 'internal'
-            ? 'internal'
-            : 'realeco';
+const DEFAULT_UPDATE_CHANNEL: 'vietnamese' | 'realeco' | 'limo' | 'cielo' | 'internal' = __APP_RELEASE_CHANNEL__ === 'vietnamese'
+    ? 'vietnamese'
+    : __APP_RELEASE_CHANNEL__ === 'limo'
+        ? 'limo'
+        : __APP_RELEASE_CHANNEL__ === 'cielo'
+            ? 'cielo'
+            : __APP_RELEASE_CHANNEL__ === 'internal'
+                ? 'internal'
+                : 'realeco';
 
 // Synchronous on purpose: the first render has to know which sections exist before the isElectron state below settles.
 const hasElectronBridge = () => typeof window !== 'undefined' && Boolean((window as any).electron);
@@ -641,7 +643,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         }
     };
 
-    const handleUpdateChannelChange = async (channel: 'realeco' | 'limo' | 'cielo') => {
+    const handleUpdateChannelChange = async (channel: 'vietnamese' | 'realeco' | 'limo' | 'cielo') => {
         if (!window.electron?.saveSettings) {
             return;
         }

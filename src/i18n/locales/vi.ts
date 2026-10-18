@@ -2816,6 +2816,7 @@ const vi = {
     "enableAutoUpdateDesc": "Tự động tải bản cập nhật khi phát hiện phiên bản mới.",
     "manualUpdateOnlyDesc": "Vẫn phát hiện phiên bản mới, nhưng cần tải bộ cài đặt đầy đủ hoặc dùng trình quản lý gói được hỗ trợ để nâng cấp.",
     "updateChannel": "Kênh cập nhật",
+    "updateChannelVietnamese": "Tiếng Việt · Bản địa hóa",
     "updateChannelRealeco": "Realeco · Ổn định",
     "updateChannelLimo": "Limo · Nightly",
     "updateChannelCielo": "Cielo · Canary",

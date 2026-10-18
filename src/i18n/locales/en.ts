@@ -2038,6 +2038,7 @@ export default {
     "enableAutoUpdateDesc": "Automatically download updates after a new version is found.",
     "manualUpdateOnlyDesc": "New versions are still found, but upgrading needs a full installer.",
     "updateChannel": "Update Channel",
+    "updateChannelVietnamese": "Vietnamese · Localization",
     "updateChannelRealeco": "Realeco · Stable",
     "updateChannelLimo": "Limo · Nightly",
     "updateChannelCielo": "Cielo · Canary",

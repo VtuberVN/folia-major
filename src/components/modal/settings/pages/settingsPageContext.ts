@@ -32,7 +32,7 @@ export type ElectronSettingsState = {
     USE_SYSTEM_PROXY_FOR_AI: boolean;
     ENABLE_UPDATE_CHECK: boolean;
     ENABLE_AUTO_UPDATE: boolean;
-    UPDATE_CHANNEL: 'realeco' | 'limo' | 'cielo' | 'internal';
+    UPDATE_CHANNEL: 'vietnamese' | 'realeco' | 'limo' | 'cielo' | 'internal';
     STAGE_MODE_SOURCE: string;
     DISCORD_RICH_PRESENCE_ENABLED: boolean;
 };
@@ -152,7 +152,7 @@ export type SettingsPageContextValue = {
                 onInstallUpdate: () => Promise<void> | void;
                 onOpenBaiduDownload: () => Promise<void> | void;
                 onOpenChinaDownload: () => Promise<void> | void;
-                onUpdateChannelChange: (channel: 'realeco' | 'limo' | 'cielo') => Promise<void> | void;
+                onUpdateChannelChange: (channel: 'vietnamese' | 'realeco' | 'limo' | 'cielo') => Promise<void> | void;
                 onSaveElectronSettings: () => Promise<void> | void;
                 onToggleAutoUpdate: () => Promise<void> | void;
                 onToggleUpdateCheck: () => Promise<void> | void;
