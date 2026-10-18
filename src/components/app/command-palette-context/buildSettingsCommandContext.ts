@@ -174,6 +174,9 @@ export const buildSettingsCommandContext = (
         toggleAutoHideCursorWithPlayerChrome: () => chrome.handleToggleAutoHideCursorWithPlayerChrome(
             !usePlayerChromeSettingsStore.getState().autoHideCursorWithPlayerChrome,
         ),
+        toggleHideCursorWhenIdle: () => chrome.handleToggleHideCursorWhenIdle(
+            !usePlayerChromeSettingsStore.getState().hideCursorWhenIdle,
+        ),
         toggleAutoPlayOnLaunch: () => audio.handleToggleAutoPlayOnLaunch(
             !useAudioSettingsStore.getState().autoPlayOnLaunch,
         ),
@@ -208,6 +211,9 @@ export const buildSettingsCommandContext = (
         ),
         toggleHideRemoteControlTitlebar: () => desktop.handleToggleHideRemoteControlTitlebar(
             !useDesktopSettingsStore.getState().hideRemoteControlTitlebar,
+        ),
+        toggleRemoteControlExpandCover: () => desktop.handleToggleRemoteControlExpandCover(
+            !useDesktopSettingsStore.getState().remoteControlExpandCover,
         ),
         unlockRemoteControl: () => desktop.handleToggleRemoteControlClickThrough(false),
         toggleObsKeepMainWindowAnimation: () => useStageSettingsStore.getState().handleToggleObsKeepMainWindowAnimation(

@@ -186,7 +186,7 @@ const Segments: React.FC<Paint & { count: number; active: number; className: str
 );
 
 /**
- * 控制页，从上到下：音量一行；循环、智能过渡、音频效果器三格；歌词样式、背景类型两行；
+ * 控制页，从上到下：音量一行；循环、智能过渡、音频效果器三格；歌词样式、背景类型两行（动画强度在按钮右边，其余小控件在按钮下面）；
  * 「播放页透明背景」一行开关；一道线；主题来源一行；当前主题一行。
  */
 const ControlsRows: React.FC<Paint> = ({ accent, line, outline }) => (
@@ -215,35 +215,55 @@ const ControlsRows: React.FC<Paint> = ({ accent, line, outline }) => (
             ))}
         </div>
 
-        {/* 两行：歌词样式、背景类型。中间那颗按钮按几何表单独摆，不走 flex —— 它要能被锚点指住。 */}
+        {/* 两行：歌词样式、背景类型。中间那颗按钮、它右边那一枚和它下面那行小控件按几何表单独摆，不走 flex —— 它们要能被锚点指住。 */}
         {([
-            [C.modeRowVisualizer, C.modeName, true],
-            [C.modeRowBackground, C.modeNameBackground, false],
-        ] as const).map(([rowRect, nameRect, isFirst]) => (
+            [C.modeRowVisualizer, C.modeName, C.modeAside, C.modeParams, ['toggle'], true],
+            [C.modeRowBackground, C.modeNameBackground, null, C.modeParamsBackground, ['chip', 'toggle'], false],
+        ] as const).map(([rowRect, nameRect, asideRect, paramsRect, params, isFirst]) => (
             <React.Fragment key={isFirst ? 'visualizer' : 'background'}>
-                <div data-ponder-panel-mode-row className="flex items-center justify-between" style={relativeRectStyle(rowRect)}>
-                    <ChevronLeft className="h-[40%] w-auto shrink-0 opacity-35" />
-                    <span className="flex h-full w-[26%] items-center justify-end gap-[10%]">
-                        <span className="h-[52%] w-[36%] rounded-md" style={{ backgroundColor: line }} />
-                        <span className="aspect-square h-[34%] rounded-sm opacity-60" style={{ backgroundColor: line }} />
+                {/* 两端的箭头对着中间那颗按钮，不对着整行：整行还包着下面那行小控件。 */}
+                <div data-ponder-panel-mode-row style={relativeRectStyle(rowRect)}>
+                    <span className="flex h-[62%] items-center justify-between">
+                        <ChevronLeft className="h-[40%] w-auto shrink-0 opacity-35" />
                         <ChevronRight className="h-[40%] w-auto shrink-0 opacity-35" />
                     </span>
                 </div>
-                {/* 一张小图、两行字（这一行是什么、现在选的是哪个）、一个向下的箭头。 */}
+                {/*
+                  一张小图、两行字（这一行是什么、现在选的是哪个），向下的小箭头紧跟着模式名。
+                  左内边距按面板宽算（真实按钮的 6），小图的宽跟着高（48 × 30），两行按钮宽窄不同，小图仍然一样大、和下面那行对齐。
+                */}
                 <span
                     {...(isFirst ? { 'data-ponder-panel-mode-name': true } : {})}
-                    className="flex items-center gap-[6%]"
+                    className="flex items-center pl-[1.8%]"
                     style={relativeRectStyle(nameRect)}
                 >
                     <span
-                        className="h-[75%] w-[24%] shrink-0 rounded-md"
+                        className="aspect-[8/5] h-[75%] shrink-0 rounded-md"
                         style={{ backgroundColor: 'rgba(0,0,0,0.4)', boxShadow: `inset 0 0 0 1px ${outline}` }}
                     />
-                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="ml-2.5 flex min-w-0 flex-1 flex-col gap-1">
                         <span className="h-0.5 w-[40%] rounded-full opacity-60" style={{ backgroundColor: line }} />
-                        <span className="h-1 w-[30%] rounded-full" style={{ backgroundColor: line, opacity: 0.95 }} />
+                        <span className="flex items-center gap-1">
+                            <span className="h-1 w-[24%] rounded-full" style={{ backgroundColor: line, opacity: 0.95 }} />
+                            <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-40" />
+                        </span>
                     </span>
-                    <ChevronDown className="h-[30%] w-auto shrink-0 opacity-40" />
+                </span>
+                {/* 歌词样式的动画强度：一枚写字的小控件，留在按钮右边。 */}
+                {asideRect && (
+                    <span className="flex items-center justify-center rounded-[28%]" style={{ ...relativeRectStyle(asideRect), backgroundColor: line }}>
+                        <span className="h-0.5 w-[50%] rounded-full" style={{ backgroundColor: outline }} />
+                    </span>
+                )}
+                {/* 这个模式其余的小控件：写字的、图标的，和按钮里的小图左对齐。 */}
+                <span className="flex items-stretch gap-[2.3%]" style={relativeRectStyle(paramsRect)}>
+                    {params.map((kind, index) => (kind === 'chip' ? (
+                        <span key={index} className="flex w-[15%] items-center justify-center rounded-[28%]" style={{ backgroundColor: line }}>
+                            <span className="h-0.5 w-[50%] rounded-full" style={{ backgroundColor: outline }} />
+                        </span>
+                    ) : (
+                        <span key={index} className="aspect-square rounded-[28%]" style={{ backgroundColor: line }} />
+                    )))}
                 </span>
             </React.Fragment>
         ))}
@@ -254,7 +274,7 @@ const ControlsRows: React.FC<Paint> = ({ accent, line, outline }) => (
                 <span className="absolute left-[8%] top-1/2 aspect-square h-[70%] -translate-y-1/2 rounded-full bg-white/80" />
             </span>
         </div>
-        <span className="absolute inset-x-0 top-[73.4%] h-px" style={{ backgroundColor: outline }} />
+        <span className="absolute inset-x-0 top-[77.9%] h-px" style={{ backgroundColor: outline }} />
 
         {/* 主题来源：默认、AI 主题、自定义三段，右边一颗调色板。 */}
         <div data-ponder-panel-theme-source className="flex items-stretch gap-[3%]" style={relativeRectStyle(C.themeSource)}>

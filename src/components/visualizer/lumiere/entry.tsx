@@ -1,6 +1,9 @@
 // Copyright (c) 2026 chthollyphile
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { EyeOff, Frame } from 'lucide-react';
+import type { LumiereTuning } from '../../../types';
+import { QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import LumiereSettingsPanel from './LumiereSettingsPanel';
 
 const VisualizerLumiere = React.lazy(() => import('./VisualizerLumiere'));
@@ -31,5 +34,23 @@ export default defineVisualizer({
     // place (songHandover.ts / pixiRuntimeHost.ts) instead of throwing the WebGL context away.
     render: props => <VisualizerLumiere {...props} />,
     renderSettingsPanel: props => <LumiereSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<LumiereTuning>) => (
+        <>
+            <QuickControlToggle
+                active={tuning.overlayFrame}
+                label={t('options.lumiereOverlayFrame')}
+                onToggle={() => onTuningChange({ overlayFrame: !tuning.overlayFrame })}
+            >
+                <Frame size={14} />
+            </QuickControlToggle>
+            <QuickControlToggle
+                active={tuning.hideTrails}
+                label={t('options.lumiereHideTrails')}
+                onToggle={() => onTuningChange({ hideTrails: !tuning.hideTrails })}
+            >
+                <EyeOff size={14} />
+            </QuickControlToggle>
+        </>
+    ),
     ownFontSizeNoticeKey: 'options.lumiereFontSizeAutoNotice',
 });

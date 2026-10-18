@@ -1,5 +1,8 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { SeparatorVertical } from 'lucide-react';
+import type { CladdaghTuning } from '../../../types';
+import { QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { CladdaghSettingsPanel } from '../settingsPanels';
 
 const VisualizerCladdagh = React.lazy(() => import('./VisualizerCladdagh'));
@@ -27,4 +30,13 @@ export default defineVisualizer({
     },
     render: props => <VisualizerCladdagh {...props} />,
     renderSettingsPanel: props => <CladdaghSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<CladdaghTuning>) => (
+        <QuickControlToggle
+            active={tuning.showAxisLine}
+            label={t('options.claddaghShowAxisLine')}
+            onToggle={() => onTuningChange({ showAxisLine: !tuning.showAxisLine })}
+        >
+            <SeparatorVertical size={14} />
+        </QuickControlToggle>
+    ),
 });

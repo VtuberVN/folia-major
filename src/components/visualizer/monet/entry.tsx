@@ -1,6 +1,8 @@
 import React from 'react';
-import { DEFAULT_MONET_TUNING } from '../../../types';
-import { defineVisualizer } from '../definition';
+import { AlignLeft, AudioWaveform, Move } from 'lucide-react';
+import { DEFAULT_MONET_TUNING, type MonetTuning } from '../../../types';
+import { QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { MonetSettingsPanel } from './MonetSettingsPanel';
 
 const VisualizerMonet = React.lazy(() => import('./VisualizerMonet'));
@@ -42,4 +44,32 @@ export default defineVisualizer({
         );
     },
     renderSettingsPanel: props => <MonetSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<MonetTuning>) => {
+        const showHanger = tuning.showPortraitDragHanger ?? true;
+        return (
+            <>
+                <QuickControlToggle
+                    active={tuning.showDescription}
+                    label={t('options.monetShowDescription')}
+                    onToggle={() => onTuningChange({ showDescription: !tuning.showDescription })}
+                >
+                    <AlignLeft size={14} />
+                </QuickControlToggle>
+                <QuickControlToggle
+                    active={showHanger}
+                    label={t('options.monetPortraitDragHanger')}
+                    onToggle={() => onTuningChange({ showPortraitDragHanger: !showHanger })}
+                >
+                    <Move size={14} />
+                </QuickControlToggle>
+                <QuickControlToggle
+                    active={tuning.showAudioVisualization}
+                    label={t('options.monetShowAudioVisualization')}
+                    onToggle={() => onTuningChange({ showAudioVisualization: !tuning.showAudioVisualization })}
+                >
+                    <AudioWaveform size={14} />
+                </QuickControlToggle>
+            </>
+        );
+    },
 });

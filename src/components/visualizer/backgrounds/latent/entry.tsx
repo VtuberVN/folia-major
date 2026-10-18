@@ -1,10 +1,14 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
-import { DEFAULT_LATENT_BACKGROUND_TUNING, type LatentBackgroundDisplayMode } from '../../../../types';
+import {
+    DEFAULT_LATENT_BACKGROUND_TUNING,
+    type LatentBackgroundColorSource,
+    type LatentBackgroundDisplayMode,
+} from '../../../../types';
 import LatentBackground from './LatentBackground';
 import LatentBackgroundSettingsCard from './LatentBackgroundSettingsCard';
 import { defineVisualizerBackground } from '../definition';
-import { QuickControlChip, QuickControlToggle } from '../../../shared/QuickControlChip';
+import { cycleValue, QuickControlChip, QuickControlToggle } from '../../../shared/QuickControlChip';
 
 // src/components/visualizer/backgrounds/latent/entry.tsx
 // Registers the cover-colored, audio-reactive Latent shell background.
@@ -15,6 +19,13 @@ const LATENT_DISPLAY_LABEL_KEYS: Record<LatentBackgroundDisplayMode, string> = {
     dithering: 'options.latentDisplayDithering',
     mesh: 'options.latentDisplayMesh',
     both: 'options.latentDisplayBoth',
+};
+
+const LATENT_COLOR_SOURCES: LatentBackgroundColorSource[] = ['cover-theme', 'cover-only'];
+
+const LATENT_COLOR_SOURCE_LABEL_KEYS: Record<LatentBackgroundColorSource, string> = {
+    'cover-theme': 'options.latentColorSourceCoverTheme',
+    'cover-only': 'options.latentColorSourceCoverOnly',
 };
 
 export default defineVisualizerBackground({
@@ -54,27 +65,25 @@ export default defineVisualizerBackground({
             onTuningChange={actions?.latent?.onTuningChange}
         />
     ),
-    renderQuickControls: ({ config, actions, t, isDaylight, theme }) => {
+    renderQuickControls: ({ config, actions, t }) => {
         const tuning = config?.latent?.tuning ?? DEFAULT_LATENT_BACKGROUND_TUNING;
         const displayLabel = t(LATENT_DISPLAY_LABEL_KEYS[tuning.displayMode]);
-        const cycleDisplayMode = () => {
-            const currentIndex = LATENT_DISPLAY_MODES.indexOf(tuning.displayMode);
-            actions?.latent?.onTuningChange?.({
-                displayMode: LATENT_DISPLAY_MODES[(currentIndex + 1) % LATENT_DISPLAY_MODES.length],
-            });
-        };
+        const colorLabel = t(LATENT_COLOR_SOURCE_LABEL_KEYS[tuning.colorSource]);
 
         return (
             <>
                 <QuickControlChip
-                    isDaylight={isDaylight}
                     label={displayLabel}
                     title={`${t('options.latentDisplayMode')}: ${displayLabel}`}
-                    onClick={cycleDisplayMode}
+                    onClick={() => actions?.latent?.onTuningChange?.({ displayMode: cycleValue(LATENT_DISPLAY_MODES, tuning.displayMode) })}
+                />
+                <QuickControlChip
+                    label={colorLabel}
+                    title={`${t('options.latentColorSource')}: ${colorLabel}`}
+                    onClick={() => actions?.latent?.onTuningChange?.({ colorSource: cycleValue(LATENT_COLOR_SOURCES, tuning.colorSource) })}
                 />
                 <QuickControlToggle
                     active={tuning.overlayEnabled}
-                    theme={theme}
                     label={t('options.nomandBackgroundOverlay')}
                     onToggle={() => actions?.latent?.onTuningChange?.({ overlayEnabled: !tuning.overlayEnabled })}
                 >

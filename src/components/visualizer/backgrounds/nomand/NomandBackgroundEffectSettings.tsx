@@ -13,7 +13,8 @@ import type { NomandBackgroundEffectPanelProps } from './NomandBackgroundEffectP
 // that effect's own rows.
 const EFFECT_GROUP: SettingsGroupDef = { id: 'bg-nomand-effect', titleKey: 'options.nomandBackgroundEffect' };
 
-const EFFECTS: NomandBackgroundEffect[] = [
+/** The effects in the order the settings window and the player panel offer them. */
+export const EFFECTS: NomandBackgroundEffect[] = [
     'dithering',
     'fluted-glass',
     'paper-texture',
@@ -21,7 +22,7 @@ const EFFECTS: NomandBackgroundEffect[] = [
     'lens-distortion',
 ];
 
-const EFFECT_LABEL_KEYS: Record<NomandBackgroundEffect, string> = {
+export const EFFECT_LABEL_KEYS: Record<NomandBackgroundEffect, string> = {
     dithering: 'options.nomandBackgroundEffectDithering',
     'fluted-glass': 'options.nomandBackgroundEffectFlutedGlass',
     'paper-texture': 'options.nomandBackgroundEffectPaperTexture',

@@ -38,16 +38,19 @@ type RemoteSwitchProps = {
     label: string;
     on: boolean;
     disabled?: boolean;
+    /** Hover text, for a switch that needs a word on why it is greyed out. */
+    hint?: string;
     onChange: (on: boolean) => void;
 };
 
-export const RemoteSwitch: React.FC<RemoteSwitchProps> = ({ label, on, disabled, onChange }) => (
+export const RemoteSwitch: React.FC<RemoteSwitchProps> = ({ label, on, disabled, hint, onChange }) => (
     <button
         type="button"
         role="switch"
         aria-checked={on}
         data-on={on}
         disabled={disabled}
+        title={hint}
         className="remote-switch"
         style={REMOTE_NO_DRAG_STYLE}
         onClick={() => onChange(!on)}

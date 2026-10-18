@@ -47,7 +47,7 @@ const ThemeParkColumn: React.FC<ThemeParkColumnProps> = ({ editor, recommendedCo
             style={{ ...settingsTokens(isDaylight, theme), ...kitMotionTokens(reduced) }}
         >
             <Tabs
-                label="Theme Park"
+                label={t('theme.themePark')}
                 tabs={TABS.map(({ id, labelKey }) => ({ id, label: t(labelKey), dot: id === 'details' && !isDualThemeNameValid(draft) }))}
                 activeId={activeTab}
                 onSelect={(id) => {

@@ -43,12 +43,11 @@ export default defineVisualizerBackground({
             onTuningChange={actions?.sora?.onTuningChange}
         />
     ),
-    renderQuickControls: ({ config, actions, t, theme }) => {
+    renderQuickControls: ({ config, actions, t }) => {
         const tuning = config?.sora?.tuning ?? DEFAULT_SORA_BACKGROUND_TUNING;
         return (
             <QuickControlToggle
                 active={tuning.blank}
-                theme={theme}
                 label={t('options.soraBlank')}
                 onToggle={() => actions?.sora?.onTuningChange?.({ blank: !tuning.blank })}
             >

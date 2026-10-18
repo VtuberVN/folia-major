@@ -27,11 +27,21 @@ export const qqStatusFailure = (error: OnlineProviderError): { httpStatus: numbe
 // 后端对没配好的能力回 501（serverless 入口缺少配置）：再试也一样。
 const HTTP_NOT_IMPLEMENTED = 501;
 
+// 新路由的错误正文带后端自己分的 `kind`（qq-music-api protocol/errors.js）。这几种是 QQ 答了话、只是拒绝或答得不对：
+// 算平台拒绝，不自动重来，上游的数字码一并交出。连不上 QQ（`network`）、QQ 回了非 200（`upstream-http`）和认不得的
+// kind 都不在这里，照共用的规则按 5xx 算连不上。
+const REFUSED_KINDS: ReadonlySet<string> = new Set([
+    'upstream-business', 'upstream-gateway', 'invalid-response',
+    'device-limit', 'account-restricted', 'account-banned', 'account-binding', 'login-rejected',
+]);
+
 // 后端说话的那一处的码，是一个数时。
 const codeOf = (value: unknown): string | undefined => (
     value === undefined || value === null || !Number.isFinite(Number(value)) ? undefined : String(Number(value))
 );
 
+// 只有播放地址（'audio'）和读集合的歌（'collection'）来这里：omni.ts 的 runRequest 只为这两种调用 describeFailure。
+// 写入（加歌、收藏、红心）的失败不经过这里，所以下面的分法不用再按 operation 分。
 export const describeQqFailure = (_operation: OnlineFailureOperation, error: unknown): OnlineFailureDetail | null => {
     // 请求是裸 fetch：连不上时它抛 TypeError（Failed to fetch）。别的 TypeError 是读回答时出的错，不是网络。
     if (error instanceof TypeError && /fetch/i.test(error.message)) return { case: 'unreachable' };
@@ -53,6 +63,11 @@ export const describeQqFailure = (_operation: OnlineFailureOperation, error: unk
         const shell = status.httpStatus === 500 || (status.httpStatus === 502 && typeof errorKey !== 'string');
         const refusal = shell ? readUpstreamRefusalCode(status.message ?? '') : undefined;
         if (refusal !== undefined) return { case: 'refused', ...status, ...(typeof refusal === 'number' ? { code: String(refusal) } : {}) };
+        const answer = error.cause as { kind?: unknown; upstreamCode?: unknown } | null | undefined;
+        if (status.httpStatus === 502 && typeof answer?.kind === 'string' && REFUSED_KINDS.has(answer.kind)) {
+            const upstreamCode = codeOf(answer.upstreamCode);
+            return { case: 'refused', ...status, ...(upstreamCode ? { upstreamCode } : {}) };
+        }
         return status;
     }
     // 后端答了 200，QQ 音乐在回答的某一处拒绝了（qqTransport.ts 的 assertUpstreamAccepted）：那一处就是 cause。

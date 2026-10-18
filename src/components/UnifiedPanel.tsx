@@ -1,5 +1,5 @@
 import React from 'react';
-import { Disc, SlidersHorizontal, ListMusic, User as UserIcon, FileAudio, FileText, Radio, Cloud, Puzzle } from 'lucide-react';
+import { AudioLines, Disc, SlidersHorizontal, ListMusic, FileAudio, FileText, Radio, Cloud, Puzzle } from 'lucide-react';
 import { locatePlayingSong } from './app/playing-song-locator/playingSongLocator';
 import { useTranslation } from 'react-i18next';
 import { Album, Artist, SongResult, Theme, PlayerState, ReplayGainMode, ThemeMode, VisualizerMode } from '../types';
@@ -255,7 +255,7 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
         isFmMode 
             ? { id: 'queue' as PanelTab, label: t('home.radio'), icon: Radio }
             : { id: 'queue' as PanelTab, label: t('panel.playlist'), icon: ListMusic },
-        { id: 'account' as PanelTab, label: t('panel.account'), icon: UserIcon },
+        { id: 'account' as PanelTab, label: t('panel.account'), icon: AudioLines },
     ];
 
     if (isLocal) {

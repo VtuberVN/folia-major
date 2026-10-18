@@ -41,7 +41,7 @@ export type LyricPreview = {
 const LyricPreviewContext = createContext<LyricPreview | null>(null);
 
 /** The size of the app's window, followed as it changes. */
-const useWindowSize = (): Size => {
+export const useWindowSize = (): Size => {
     const [size, setSize] = useState<Size>(() => ({ width: window.innerWidth, height: window.innerHeight }));
     useEffect(() => {
         const update = () => setSize(before => (

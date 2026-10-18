@@ -43,7 +43,7 @@ const ThemeSourceRow: React.FC<ThemeSourceRowProps> = ({
     const editableSource = themeSourceModel.editableSource;
 
     return (
-        <div className="flex min-h-12 items-center gap-2 px-1">
+        <div className="flex min-h-12 items-center gap-2">
             <Segments<ThemeMode>
                 fill
                 value={themeSourceModel.activeSource}

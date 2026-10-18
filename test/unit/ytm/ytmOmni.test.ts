@@ -54,7 +54,7 @@ describe('the explore page, playlists and albums through the facade', () => {
         useOnlineProviderAccountStore.setState({ accounts: {}, activeProviderId: 'netease' });
     });
 
-    it.each([['ytm', true], ['netease', true], ['kugou', false], ['qq', false], ['bodian', false]] as const)(
+    it.each([['ytm', true], ['netease', true], ['kugou', false], ['qq', true], ['bodian', false]] as const)(
         'tells the UI whether %s has an explore page', (providerId, expected) => {
             expect(omni.supportsExplore(providerId)).toBe(expected);
         },

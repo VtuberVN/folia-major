@@ -88,6 +88,7 @@ export const buildNavigationCommandContext = (
     locatePlayingSongOnWall,
     locatePlayingSong,
     isWallpaperMode: useDesktopSettingsStore.getState().wallpaperMode,
+    isWindowAlwaysOnTopSupported: useDesktopSettingsStore.getState().windowAlwaysOnTopSupported,
 });
 
 export const buildPanelCommandContext = (

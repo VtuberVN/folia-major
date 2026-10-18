@@ -1,5 +1,8 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { EyeOff } from 'lucide-react';
+import type { FumeTuning } from '../../../types';
+import { cycleValue, QuickControlChip, QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { FumeSettingsPanel } from '../settingsPanels';
 import { fumeBackgroundConfig } from './backgroundConfig';
 
@@ -7,6 +10,12 @@ const VisualizerFume = React.lazy(() => import('./VisualizerFume'));
 
 // src/components/visualizer/fume/entry.tsx
 // Registers Fume and its preview tuning panel.
+const CAMERA_TRACKING_MODES: FumeTuning['cameraTrackingMode'][] = ['stepped', 'smooth'];
+const CAMERA_TRACKING_LABEL_KEYS: Record<FumeTuning['cameraTrackingMode'], string> = {
+    stepped: 'options.fumeCameraTrackingStepped',
+    smooth: 'options.fumeCameraTrackingSmooth',
+};
+
 export default defineVisualizer({
     mode: 'fume',
     order: 60,
@@ -30,4 +39,23 @@ export default defineVisualizer({
     background: fumeBackgroundConfig,
     render: props => <VisualizerFume {...props} />,
     renderSettingsPanel: props => <FumeSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<FumeTuning>) => {
+        const trackingLabel = t(CAMERA_TRACKING_LABEL_KEYS[tuning.cameraTrackingMode]);
+        return (
+            <>
+                <QuickControlToggle
+                    active={tuning.hidePrintSymbols}
+                    label={t('options.fumeHidePrintSymbols')}
+                    onToggle={() => onTuningChange({ hidePrintSymbols: !tuning.hidePrintSymbols })}
+                >
+                    <EyeOff size={14} />
+                </QuickControlToggle>
+                <QuickControlChip
+                    label={trackingLabel}
+                    title={`${t('options.fumeCameraTrackingMode')}: ${trackingLabel}`}
+                    onClick={() => onTuningChange({ cameraTrackingMode: cycleValue(CAMERA_TRACKING_MODES, tuning.cameraTrackingMode) })}
+                />
+            </>
+        );
+    },
 });

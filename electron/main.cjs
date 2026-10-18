@@ -20,6 +20,7 @@ const { createWindowPlaybackHandoffStore } = require('./windowPlaybackHandoff.cj
 const {
   REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY,
   REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY,
+  REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY,
   readRemoteControlWindowSettings,
   shouldShowRemoteUnlockTrayItem,
   applyRemoteControlMouseIgnore,
@@ -79,6 +80,7 @@ const { createDebugHost, runtimeLine } = require('./debug/debugHost.cjs');
 const { createCrashLog, installCrashHandlers } = require('./debug/crashLog.cjs');
 const { createModelStore } = require('./analysis/modelStore.cjs');
 const { resolveLinuxPasswordStore } = require('./linuxPasswordStore.cjs');
+const { isWindowAlwaysOnTopSupported } = require('./windowAlwaysOnTopSupport.cjs');
 const { createTranscodeService } = require('./transcode/service.cjs');
 const { TRANSCODE_PROTOCOL_SCHEME } = require('./transcode/protocol.cjs');
 const { sanitizeDualTheme: sanitizeGeneratedDualTheme } = require('../shared/themeSanitizer.cjs');
@@ -295,6 +297,9 @@ const aiCredentials = createAiCredentialStore({ store, safeStorage });
 // Settings keys follow the existing electron-store key/value chain; values are normalized here in
 // the main process so stale or dirty stored values never reach the windowtolayer CLI.
 const WALLPAPER_MODE_SETTING_KEY = 'wallpaper_mode';
+// Renderer-recorded: the one-time "entering wallpaper mode" warning has been accepted. The tray
+// reads it to skip asking the renderer for a confirmation dialog that would not be shown anyway.
+const WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY = 'wallpaper_entry_confirmed';
 // Windows-only helper switches; both default to on (missing = enabled).
 const WALLPAPER_FORWARD_MOUSE_SETTING_KEY = 'wallpaper_forward_mouse';
 const WALLPAPER_ZGUARD_SETTING_KEY = 'wallpaper_zguard';
@@ -1844,6 +1849,14 @@ function sendMacWallpaperMouseEvent(event) {
 // windowtolayer; the wrapped child uses FOLIA_RELAUNCH to retry after the jumpboard exits.
 const wallpaperMode = isWallpaperModeEnabled();
 const onWayland = Boolean(process.env.WAYLAND_DISPLAY);
+// False on the native Wayland backend: setAlwaysOnTop there is silently ignored (issue #657), so every
+// always-on-top switch is greyed out instead of showing a state the compositor never received.
+const windowAlwaysOnTopSupported = isWindowAlwaysOnTopSupported({
+  ozonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+});
+if (!windowAlwaysOnTopSupported) {
+  console.info('[Window] always-on-top unavailable: running on the native Wayland backend');
+}
 
 // Serializes ownership, wrapper launch, and crash-loop accounting.
 async function prepareMainProcessStartup() {
@@ -1919,6 +1932,7 @@ const mainLocale = {
     trayTransparentBackground: '透明背景',
     trayToggleClickThrough: '点击穿透',
     trayAlwaysOnTop: '窗口置顶',
+    trayAlwaysOnTopUnavailable: '窗口置顶（Wayland 下不可用）',
     trayHideTaskbar: '隐藏任务栏图标',
     trayDesktopLyricMode: '桌面歌词',
     trayToggleWallpaperMode: '壁纸模式',
@@ -1944,6 +1958,7 @@ const mainLocale = {
     trayTransparentBackground: '透明背景',
     trayToggleClickThrough: '點選穿透',
     trayAlwaysOnTop: '視窗置頂',
+    trayAlwaysOnTopUnavailable: '視窗置頂（Wayland 下不可用）',
     trayHideTaskbar: '隱藏工作列圖示',
     trayDesktopLyricMode: '桌面歌詞',
     trayToggleWallpaperMode: '桌布模式',
@@ -1969,6 +1984,7 @@ const mainLocale = {
     trayTransparentBackground: 'Transparent Background',
     trayToggleClickThrough: 'Click-Through',
     trayAlwaysOnTop: 'Always on Top',
+    trayAlwaysOnTopUnavailable: 'Always on Top (unavailable on Wayland)',
     trayHideTaskbar: 'Hide Taskbar Icon',
     trayDesktopLyricMode: 'Desktop Lyrics',
     trayToggleWallpaperMode: 'Wallpaper Mode',
@@ -1994,6 +2010,7 @@ const mainLocale = {
     trayTransparentBackground: 'Latar Belakang Transparan',
     trayToggleClickThrough: 'Click-Through',
     trayAlwaysOnTop: 'Selalu di Atas',
+    trayAlwaysOnTopUnavailable: 'Selalu di Atas (tidak tersedia di Wayland)',
     trayHideTaskbar: 'Sembunyikan Ikon Taskbar',
     trayDesktopLyricMode: 'Lirik Desktop',
     trayToggleWallpaperMode: 'Mode Wallpaper',
@@ -2246,6 +2263,7 @@ let remoteControlAlwaysOnTop = false;
 let remoteControlSkipTaskbarEnabled = false;
 let remoteControlHideTitlebarEnabled = false;
 let remoteControlClickThroughEnabled = false;
+let remoteControlExpandCoverEnabled = true;
 let mainWindowAlwaysOnTop = false;
 let mainWindowClickThroughEnabled = false;
 let mainWindowClickThroughUnlockHover = false;
@@ -2433,6 +2451,7 @@ function getPublicSettings() {
     [REMOTE_CONTROL_SKIP_TASKBAR_SETTING_KEY]: readStoredBoolean(REMOTE_CONTROL_SKIP_TASKBAR_SETTING_KEY, false),
     [REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY]: readStoredBoolean(REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY, false),
     [REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY]: readStoredBoolean(REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY, false),
+    [REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY]: readStoredBoolean(REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY, true),
     [MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY]: readStoredBoolean(MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY, false),
     [TRANSPARENT_PLAYER_BACKGROUND_SETTING_KEY]: readStoredBoolean(TRANSPARENT_PLAYER_BACKGROUND_SETTING_KEY, false),
     [DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY]: readStoredBoolean(DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY, false),
@@ -2445,7 +2464,10 @@ function getPublicSettings() {
     'enable_player_page_native_blur': store.get('enable_player_page_native_blur') === true,
     'wallpaper_attach_mode': process.platform === 'win32' ? wallpaperWindowsAttachMode : null,
     [WALLPAPER_MODE_SETTING_KEY]: isWallpaperModeEnabled(),
+    [WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY]: readStoredBoolean(WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY, false),
     [WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY]: readStoredBoolean(WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY, true),
+    // Not a stored setting: whether always-on-top can take effect in this process at all.
+    'window_always_on_top_supported': windowAlwaysOnTopSupported,
   };
 }
 
@@ -2509,6 +2531,7 @@ remoteControlSkipTaskbarEnabled = readStoredBoolean(REMOTE_CONTROL_SKIP_TASKBAR_
   const remoteWindowSettings = readRemoteControlWindowSettings(readStoredBoolean);
   remoteControlHideTitlebarEnabled = remoteWindowSettings.hideTitlebar;
   remoteControlClickThroughEnabled = remoteWindowSettings.clickThrough;
+  remoteControlExpandCoverEnabled = remoteWindowSettings.expandCover;
 }
 mainWindowAlwaysOnTop = readStoredBoolean(MAIN_WINDOW_ALWAYS_ON_TOP_SETTING_KEY, false);
 
@@ -2941,10 +2964,12 @@ function buildRemoteControlWindowSettings() {
   return {
     hideTitlebar: remoteControlHideTitlebarEnabled,
     clickThrough: remoteControlClickThroughEnabled,
+    expandCover: remoteControlExpandCoverEnabled,
+    alwaysOnTopSupported: windowAlwaysOnTopSupported,
   };
 }
 
-// Applies click-through to the remote window and tells its renderer about both switches.
+// Applies click-through to the remote window and tells its renderer about its switches.
 function applyRemoteControlWindowPresentation(win) {
   if (!win || win.isDestroyed()) {
     return false;
@@ -3130,9 +3155,15 @@ function refreshTrayMenu() {
       checked: isWallpaperModeEnabled(),
       click: () => {
         const nextEnabled = !isWallpaperModeEnabled();
-        // Entering is a user-initiated switch, so the renderer asks for confirmation first and
-        // then enters through save-settings. Leaving never needs one.
-        if (nextEnabled && requestWallpaperEntryConfirmation({ mainWindow, focusMainWindow, isClickThroughActive: () => mainWindowClickThroughEnabled })) {
+        // Entering is a user-initiated switch, so the first entry asks for confirmation through the
+        // renderer and then enters through save-settings. Once the renderer has recorded that first
+        // entry, there is no dialog left to show: enter directly instead of bringing the window
+        // forward for nothing. Leaving never needs a confirmation.
+        if (
+          nextEnabled &&
+          !readStoredBoolean(WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY, false) &&
+          requestWallpaperEntryConfirmation({ mainWindow, focusMainWindow, isClickThroughActive: () => mainWindowClickThroughEnabled })
+        ) {
           // The click already flipped the checkbox; nothing is entered until the user confirms.
           refreshTrayMenu();
           return;
@@ -3143,6 +3174,12 @@ function refreshTrayMenu() {
         // empty menu-bar strip above the wallpaper). The wallpaper entry asserts click-
         // through and the always-on-top state itself (state-only flip + level sink).
         store.set(WALLPAPER_MODE_SETTING_KEY, nextEnabled);
+        if (nextEnabled) {
+          // Either the renderer already accepted the warning, or it could not answer (destroyed,
+          // loading, crashed, click-through) and the click wins over the dialog. Entering counts
+          // as the first use either way, so the next tray click must not ask again.
+          store.set(WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY, true);
+        }
         refreshTrayMenu();
         scheduleWallpaperModeRelaunch(nextEnabled);
       },
@@ -3172,10 +3209,11 @@ function refreshTrayMenu() {
       },
     },
     {
-      label: locale.trayAlwaysOnTop,
+      // Native Wayland ignores the request; the label says so, since a tray menu has no tooltip on Linux.
+      label: windowAlwaysOnTopSupported ? locale.trayAlwaysOnTop : locale.trayAlwaysOnTopUnavailable,
       type: 'checkbox',
-      checked: mainWindowAlwaysOnTop,
-      enabled: hasMainWindow && !wallpaperOn,
+      checked: windowAlwaysOnTopSupported && mainWindowAlwaysOnTop,
+      enabled: hasMainWindow && !wallpaperOn && windowAlwaysOnTopSupported,
       click: () => {
         setMainWindowAlwaysOnTop(!mainWindowAlwaysOnTop);
       },
@@ -6247,12 +6285,14 @@ ipcMain.handle('save-settings', async (event, key, value) => {
     key === REMOTE_CONTROL_SKIP_TASKBAR_SETTING_KEY ||
     key === REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY ||
     key === REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY ||
+    key === REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY ||
     key === TRANSPARENT_PLAYER_BACKGROUND_SETTING_KEY ||
     key === DISCORD_RICH_PRESENCE_ENABLED_SETTING_KEY ||
     key === VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY ||
     key === PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY ||
     key === MOD_SYSTEM_ENABLED_SETTING_KEY ||
     key === WALLPAPER_MODE_SETTING_KEY ||
+    key === WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY ||
     key === WALLPAPER_FORWARD_MOUSE_SETTING_KEY ||
     key === WALLPAPER_ZGUARD_SETTING_KEY ||
     key === WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY
@@ -6426,6 +6466,11 @@ ipcMain.handle('save-settings', async (event, key, value) => {
     remoteControlClickThroughEnabled = Boolean(nextValue);
     applyRemoteControlWindowPresentation(remoteControlWindow);
     refreshTrayMenu();
+  }
+
+  if (key === REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY) {
+    remoteControlExpandCoverEnabled = Boolean(nextValue);
+    applyRemoteControlWindowPresentation(remoteControlWindow);
   }
 
   if (key === STAGE_MODE_SOURCE_SETTING_KEY) {
@@ -7649,6 +7694,11 @@ ipcMain.handle('window-get-always-on-top', (event) => {
     return false;
   }
 
+  // On native Wayland isAlwaysOnTop() only echoes the last request, never the compositor's state.
+  if (!windowAlwaysOnTopSupported) {
+    return false;
+  }
+
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindowAlwaysOnTop = mainWindow.isAlwaysOnTop();
   }
@@ -7943,6 +7993,11 @@ ipcMain.handle('remote-control-get-always-on-top', (event) => {
     throw new Error('Untrusted renderer attempted to read remote control always-on-top state.');
   }
 
+  // On native Wayland isAlwaysOnTop() only echoes the last request, never the compositor's state.
+  if (!windowAlwaysOnTopSupported) {
+    return false;
+  }
+
   if (remoteControlWindow && !remoteControlWindow.isDestroyed()) {
     remoteControlAlwaysOnTop = remoteControlWindow.isAlwaysOnTop();
   }
@@ -7953,6 +8008,10 @@ ipcMain.handle('remote-control-get-always-on-top', (event) => {
 ipcMain.handle('remote-control-set-always-on-top', (event, nextAlwaysOnTop) => {
   if (!isTrustedRemoteControlContents(event.sender)) {
     throw new Error('Untrusted renderer attempted to update remote control always-on-top state.');
+  }
+
+  if (!windowAlwaysOnTopSupported) {
+    return false;
   }
 
   remoteControlAlwaysOnTop = Boolean(nextAlwaysOnTop);

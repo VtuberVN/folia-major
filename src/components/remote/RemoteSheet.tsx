@@ -23,6 +23,8 @@ export type RemoteSheetTab = 'window' | 'export' | 'mods';
 type RemoteSheetProps = {
     tab: RemoteSheetTab;
     snapshot: RemoteControlSnapshot;
+    /** False on native Wayland: the main window's pin switch greys out instead of showing a state that never took. */
+    alwaysOnTopSupported: boolean;
     choices: RemoteExportChoices;
     /** No song, or the main window has the controls locked. */
     primaryDisabled: boolean;
@@ -34,6 +36,7 @@ type RemoteSheetProps = {
 const RemoteSheet: React.FC<RemoteSheetProps> = ({
     tab,
     snapshot,
+    alwaysOnTopSupported,
     choices,
     primaryDisabled,
     reduceMotion,
@@ -191,7 +194,9 @@ const RemoteSheet: React.FC<RemoteSheetProps> = ({
                         />
                         <RemoteSwitch
                             label={t('remote.pin')}
-                            on={snapshot.mainWindowAlwaysOnTop}
+                            on={alwaysOnTopSupported && snapshot.mainWindowAlwaysOnTop}
+                            disabled={!alwaysOnTopSupported}
+                            hint={alwaysOnTopSupported ? undefined : t('remote.pinUnavailable')}
                             onChange={enabled => sendRemoteCommand({ type: 'set-main-window-always-on-top', enabled })}
                         />
                     </div>

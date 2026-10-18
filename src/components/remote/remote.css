@@ -1,10 +1,11 @@
 /* src/components/remote/remote.css
    The remote window: a block of type, a line, a row of keys. 602 x 184: the card in use, 420 x 176,
-   on the right, and 174 px left of it for the sleeve, the look of the window when not in use.
-   Every colour is the ink (--remote-ink) at some strength; the theme and the background mode only
-   change the ink and the card under it. What the pointer lights up hangs on [data-lit], which
-   look is on screen on [data-sleeve]. A rule on a look carries the transition into that look:
-   into the sleeve is slow and calm (0.62 s), back into use is quick (0.32 s). */
+   on the right, and 174 px left of it for the sleeve, the look of the window when not in use
+   (with the switch "expand cover" on). Every colour is the ink (--remote-ink) at some strength; the
+   theme and the background mode only change the ink and the card under it. What the pointer
+   lights up hangs on [data-lit]; the keys making way for the line when not in use on [data-idle];
+   the opened card and the large cover on [data-sleeve]. A rule on a look carries the transition
+   into that look: into the sleeve is slow and calm (0.62 s), back into use is quick (0.32 s). */
 
 .remote-window {
   --remote-ink: 255, 255, 255;
@@ -69,7 +70,7 @@
 /* 594 x 176, centred: 4 px from each edge of the 602 x 184 window. A fixed size, so a window
    manager that gives the window another size leaves the layout alone. The card in use is its
    right 420 (.remote-face); the left 174 is the sleeve's cover, and is empty in use. A
-   click-through window is a display and always shows the sleeve. */
+   click-through window is a display and always shows the look of not in use. */
 .remote-card {
   position: absolute;
   left: 50%;
@@ -227,7 +228,7 @@
   transition: opacity 220ms var(--remote-snap) 80ms;
 }
 
-.remote-window[data-sleeve='true'] .remote-lit {
+.remote-window[data-idle='true'] .remote-lit {
   transition: opacity 180ms ease-out;
 }
 
@@ -324,7 +325,7 @@
 }
 
 /* With the keys away, paused shows in the type (dimmed, as in use) and in a darker cover. */
-.remote-window[data-sleeve='true'][data-paused='true'] .remote-cover__image {
+.remote-window[data-idle='true'][data-paused='true'] .remote-cover__image {
   filter: brightness(0.78) saturate(0.75);
 }
 
@@ -640,9 +641,13 @@
   transition: background-color 140ms ease-out, color 140ms ease-out;
 }
 
-.remote-tool:hover {
+.remote-tool:hover:not(:disabled) {
   background: rgba(var(--remote-ink), 0.12);
   color: rgb(var(--remote-ink));
+}
+
+.remote-tool:disabled {
+  opacity: 0.45;
 }
 
 /* ---- the line: divider and progress in one, y 125..127 ---- */
@@ -658,8 +663,8 @@
   transition: transform 240ms var(--remote-snap);
 }
 
-/* In the sleeve the line lies along the bottom edge, where the keys were. */
-.remote-window[data-sleeve='true'] .remote-line {
+/* When idle the line lies along the bottom edge, where the keys were. */
+.remote-window[data-idle='true'] .remote-line {
   transform: translateY(34px);
   transition: transform 440ms var(--remote-settle) 120ms;
 }
@@ -769,7 +774,7 @@
   transition: opacity 220ms var(--remote-snap) 80ms, transform 220ms var(--remote-snap) 80ms;
 }
 
-.remote-window[data-sleeve='true'] .remote-deck {
+.remote-window[data-idle='true'] .remote-deck {
   opacity: 0;
   transform: translateY(6px);
   pointer-events: none;

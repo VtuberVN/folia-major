@@ -36,6 +36,7 @@ describe('the table of sign-in cases', () => {
             refused: 'C refresh-code|sign-in-again details',
             'retry-later': 'C wait-then-retry details',
             'device-limit': 'C refresh-code|sign-in-again details',
+            'wrong-scan-app': 'C refresh-code|sign-in-again details',
             'local-service-stopped': 'D restart-service details',
             'local-service-unavailable': 'D refresh-code|sign-in-again details',
             'cannot-listen': 'D refresh-code|sign-in-again details',

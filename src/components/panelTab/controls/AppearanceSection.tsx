@@ -21,7 +21,8 @@ import BackgroundPicture from '../../visualizer/preview/BackgroundPicture';
 import { LyricPreviewProvider, type LyricPreviewLook } from '../../visualizer/preview/LyricPreviewContext';
 import LyricStylePicture from '../../visualizer/preview/LyricStylePicture';
 import { usePreviewClock } from '../../visualizer/preview/usePreviewClock';
-import { backgroundTuningActions } from '../../visualizer/tuningRegistry';
+import { backgroundTuningActions, getVisualizerTuning } from '../../visualizer/tuningRegistry';
+import type { VisualizerTuningSettings } from '../../visualizer/tuningDefinition';
 import { useVisualizerBackgroundConfig } from '../../visualizer/useVisualizerBackgroundConfig';
 import { useVisualizerTunings } from '../../visualizer/useVisualizerTunings';
 import { useTypographySettingsStore } from '../../../stores/useTypographySettingsStore';
@@ -33,7 +34,8 @@ import { Toggle, type PictureState } from '../../modal/settings/kit';
 
 // src/components/panelTab/controls/AppearanceSection.tsx
 // 外观区：歌词样式、背景、播放页透明背景三件事放在一起。
-// 前两行是「‹ 字形 当前模式 参数 ›」取景器；背景的模式专属参数由背景注册表自己提供，
+// 前两行是「‹ 字形 当前模式 ›」取景器：歌词样式的动画强度在按钮右侧，分词开关和背景参数在按钮下面一行，
+// 没有就收起；背景的模式专属参数由背景注册表自己提供，
 // 面板不再按模式写 if 链，新增背景模式会自带快捷控件。
 // 行里只有字形；点开后的一格一格小图画的是真的样式和背景，用的是当前主题和已保存的设置；
 // 它们共用这里的一个预览时钟，只有某一行的选择器开着时时钟才走。
@@ -154,11 +156,32 @@ const AppearanceSection: React.FC<AppearanceSectionProps> = ({
         });
     };
 
+    // The style's own quick controls get its tuning as it is saved, and a change that is saved at once
+    // through the store action its tuning.ts names (an action needs no subscription).
+    const styleTuning = getVisualizerTuning(visualizerMode);
+    const styleQuickControls = getVisualizerRegistryEntry(visualizerMode).renderQuickControls?.({
+        t,
+        isDaylight,
+        theme,
+        tuning: styleTuning?.read(visualizerTunings),
+        onTuningChange: (patch) => {
+            const save = styleTuning && (useVisualizerSettingsStore.getState() as unknown as Record<string, unknown>)[styleTuning.settingsSetterKey];
+            if (typeof save === 'function') {
+                save(patch);
+            }
+        },
+        settings: useVisualizerSettingsStore.getState() as unknown as VisualizerTuningSettings,
+    });
+    const hasStyleQuickControls = styleQuickControls !== null && styleQuickControls !== undefined && styleQuickControls !== false;
+
     const backgroundQuickControls = getVisualizerBackgroundRegistryEntry(resolvedBackgroundMode).renderQuickControls?.({
         // The backgrounds' tunings as they are saved, and the store's actions for them (an action needs no subscription).
         config: { ...pictureBackground, common: { ...pictureBackground.common, useCoverColorBg } },
         actions: {
-            common: { onCoverColorChange: onToggleCoverColorBg },
+            common: {
+                onCoverColorChange: onToggleCoverColorBg,
+                onDisableVignetteChange: useVisualizerSettingsStore.getState().handleToggleDisableVisualizerVignette,
+            },
             ...backgroundTuningActions(useVisualizerSettingsStore.getState() as unknown as Record<string, unknown>),
         },
         t,
@@ -190,18 +213,18 @@ const AppearanceSection: React.FC<AppearanceSectionProps> = ({
                         onOpenMore={openVisualizerSettings}
                         open={openPicker === 'style'}
                         onOpenChange={open => changeOpenPicker(open ? 'style' : null)}
-                        trailing={(
+                        aside={(
+                            <QuickControlChip
+                                label={t(`animation.${theme.animationIntensity}`)}
+                                title={`${t('ui.animationIntensity')}: ${t(`animation.${theme.animationIntensity}`)}`}
+                                onClick={cycleAnimationIntensity}
+                            />
+                        )}
+                        params={(usesWordSegmentation || hasStyleQuickControls) && (
                             <>
-                                <QuickControlChip
-                                    isDaylight={isDaylight}
-                                    label={t(`animation.${theme.animationIntensity}`)}
-                                    title={`${t('ui.animationIntensity')}: ${t(`animation.${theme.animationIntensity}`)}`}
-                                    onClick={cycleAnimationIntensity}
-                                />
                                 {usesWordSegmentation && (
                                     <QuickControlToggle
                                         active={hasSavedSegmentation}
-                                        theme={theme}
                                         label={t('commandPalette.commands.lyric-segmentation.title')}
                                         onToggle={() => {
                                             openCommandPaletteCommand(LYRIC_SEGMENTATION_COMMAND_ID);
@@ -211,6 +234,7 @@ const AppearanceSection: React.FC<AppearanceSectionProps> = ({
                                         <WholeWord size={14} />
                                     </QuickControlToggle>
                                 )}
+                                {styleQuickControls}
                             </>
                         )}
                     />
@@ -227,13 +251,13 @@ const AppearanceSection: React.FC<AppearanceSectionProps> = ({
                         onOpenMore={openBackgroundSettings}
                         open={openPicker === 'background'}
                         onOpenChange={open => changeOpenPicker(open ? 'background' : null)}
-                        trailing={backgroundQuickControls}
+                        params={backgroundQuickControls}
                     />
                 </LyricPreviewProvider>
             </div>
 
             {/* The switch takes its name from the label it sits in; a press anywhere on the row turns it. */}
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 px-1 py-1.5">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5">
                 <span className="min-w-0 flex-1 text-sm leading-5">{t('options.transparentPlayerBackground')}</span>
                 <Toggle checked={transparentPlayerBackground} onChange={onToggleTransparentPlayerBackground} />
             </label>

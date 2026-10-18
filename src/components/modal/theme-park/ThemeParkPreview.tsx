@@ -20,6 +20,7 @@ import {
 import { getVisualizerScopedSeed } from '../../visualizer/registry';
 import type { VisualizerTuningBundle } from '../../visualizer/tuningRegistry';
 import type { VisualizerBackgroundConfig } from '../../visualizer/backgrounds/definition';
+import VisPlaygroundSampleStage from '../../visualizer/window/VisPlaygroundSampleStage';
 import { Tooltip } from '../settings/kit';
 import { SAMPLE_COLOR_MOTION_CLASS, ThemeSampleButton, ThemeSampleCard, themeSampleVars } from './ThemeSample';
 import type { EditableMode } from './themeParkDraft';
@@ -53,6 +54,13 @@ const ThemeSampleProgress: React.FC<{ currentTime: PreviewClock }> = ({ currentT
         </>
     );
 };
+
+/**
+ * How far above the sample's bottom the lyric subtitle sits, in the sample's pixels: a little over the
+ * song card below (`bottom-[18px]`, about 52 pixels tall, so its top is about 70 pixels up), which is
+ * not scaled with the style.
+ */
+const SUBTITLE_BOTTOM_PX = 90;
 
 const ThemePreview: React.FC<{
     /** The side being edited, safe to draw. */
@@ -109,34 +117,40 @@ const ThemePreview: React.FC<{
                 className="relative isolate h-full overflow-hidden rounded-xl bg-[var(--ts-bg)] shadow-[0_0_0_1px_var(--st-line)]"
                 style={themeSampleVars(theme)}
             >
-                <div className="absolute inset-0">
-                    <VisualizerRenderer
-                        mode={visualizerMode}
-                        visualizerTunings={visualizerTunings}
-                        currentTime={currentTime}
-                        duration={VIS_PLAYGROUND_PREVIEW_LOOP_DURATION}
-                        currentLineIndex={currentLineIndex}
-                        lines={VIS_PLAYGROUND_PREVIEW_LINES}
-                        theme={theme}
-                        isDaylight={mode === 'light'}
-                        audioPower={audioPower}
-                        audioBands={audioBands}
-                        songTitle="Cappella Preview"
-                        showText
-                        staticMode={staticMode}
-                        isPreviewMode
-                        visualizerOpacity={visualizerOpacity}
-                        background={backgroundConfig}
-                        coverUrl={VIS_PLAYGROUND_PREVIEW_COVER_URL}
-                        lyricsFontScale={lyricsFontScale}
-                        showSubtitleTranslation={showSubtitleTranslation}
-                        subtitleContentMode={subtitleContentMode}
-                        cappellaCustomEmojiImages={cappellaCustomEmojiImages}
-                        cappellaCustomAvatarImages={cappellaCustomAvatarImages}
-                        monetPortraitImage={monetPortraitImage}
-                        seed={getVisualizerScopedSeed(visualizerMode, `theme-park-${mode}`)}
-                    />
-                </div>
+                {/* Styles lay out from the app's window (vw, window.innerWidth), so the style is drawn
+                    as large as the window and scaled to fit, as in the lyric style window, then zoomed
+                    in a little. The song card below is not scaled, so the subtitle keeps
+                    a set height above it (SUBTITLE_BOTTOM_PX). */}
+                <VisPlaygroundSampleStage subtitleBottomPx={SUBTITLE_BOTTOM_PX}>
+                    <div className="absolute inset-0">
+                        <VisualizerRenderer
+                            mode={visualizerMode}
+                            visualizerTunings={visualizerTunings}
+                            currentTime={currentTime}
+                            duration={VIS_PLAYGROUND_PREVIEW_LOOP_DURATION}
+                            currentLineIndex={currentLineIndex}
+                            lines={VIS_PLAYGROUND_PREVIEW_LINES}
+                            theme={theme}
+                            isDaylight={mode === 'light'}
+                            audioPower={audioPower}
+                            audioBands={audioBands}
+                            songTitle="Cappella Preview"
+                            showText
+                            staticMode={staticMode}
+                            isPreviewMode
+                            visualizerOpacity={visualizerOpacity}
+                            background={backgroundConfig}
+                            coverUrl={VIS_PLAYGROUND_PREVIEW_COVER_URL}
+                            lyricsFontScale={lyricsFontScale}
+                            showSubtitleTranslation={showSubtitleTranslation}
+                            subtitleContentMode={subtitleContentMode}
+                            cappellaCustomEmojiImages={cappellaCustomEmojiImages}
+                            cappellaCustomAvatarImages={cappellaCustomAvatarImages}
+                            monetPortraitImage={monetPortraitImage}
+                            seed={getVisualizerScopedSeed(visualizerMode, `theme-park-${mode}`)}
+                        />
+                    </div>
+                </VisPlaygroundSampleStage>
 
                 {/* A picture of the theme at work: nothing in it takes the pointer or the keyboard. */}
                 <div aria-hidden className="pointer-events-none absolute inset-0 z-10">

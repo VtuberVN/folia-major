@@ -66,7 +66,8 @@ export const navigationCommands: CommandPaletteCommand[] = [
         title: 'Toggle main window always on top',
         description: 'Pin or unpin the main window above other windows',
         keywords: ['always on top', 'main window on top', 'pin main window', '主窗口置顶', '切换主窗口置顶', '取消主窗口置顶'],
-        isAvailable: (context) => !context?.navigation.isWallpaperMode,
+        isAvailable: (context) => !context?.navigation.isWallpaperMode
+            && context?.navigation.isWindowAlwaysOnTopSupported !== false,
         execute: (_input, context) => context.navigation.toggleMainWindowAlwaysOnTop(),
     }
 ];

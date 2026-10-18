@@ -91,6 +91,7 @@ const CASES: Record<LoginCaseId, { on: string; step: LoginStep; scanned?: boolea
     refused: { on: 'netease', step: 'check', detail: { code: '8821', message: '当前登录存在安全风险，请稍后再试' } },
     'retry-later': { on: 'qq', step: 'check', detail: { case: 'retry-later', code: '800', message: 'QR login failed', upstreamCode: '50006', retryAfterMs: 31_000 } },
     'device-limit': { on: 'qq', step: 'check', detail: { case: 'device-limit', code: '20279' } },
+    'wrong-scan-app': { on: 'qq', step: 'check', detail: { case: 'wrong-scan-app', code: '800', upstreamCode: '1000', message: 'QR login failed' } },
     'local-service-stopped': { on: 'netease', step: 'start', detail: { case: 'local-service-stopped' } },
     'local-service-unavailable': { on: 'qq', step: 'start', detail: { case: 'local-service-unavailable' } },
     'cannot-listen': { on: 'spotify', step: 'start', detail: { case: 'cannot-listen', mainCode: 'cannot-listen' } },

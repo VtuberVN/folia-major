@@ -6,7 +6,8 @@ import { idleVideoExportState } from '../../types/videoExport';
 
 // src/components/remote/remoteWindowBridge.ts
 // What the remote window hears from the main process and says back: the playback snapshot, the
-// window's own two switches, whether the pointer is in the window, and the command sender.
+// window's own two switches (and whether always-on-top works at all), whether the pointer is in the
+// window, and the command sender.
 
 export const sendRemoteCommand = (command: RemoteControlCommand) => {
     void window.electron?.sendRemoteControlCommand(command);
@@ -92,11 +93,17 @@ export interface RemoteWindowPresentation {
     hideTitlebar: boolean;
     /** The window ignores the mouse: it is a display, and the key row is not drawn. */
     clickThrough: boolean;
+    /** The settings switch "expand cover": when idle, the cover opens into the large sleeve. On by default. */
+    expandCover: boolean;
+    /** False on native Wayland, where Electron cannot keep a window on top: both pin switches grey out. */
+    alwaysOnTopSupported: boolean;
 }
 
 const DEFAULT_REMOTE_WINDOW_PRESENTATION: RemoteWindowPresentation = {
     hideTitlebar: false,
     clickThrough: false,
+    expandCover: true,
+    alwaysOnTopSupported: true,
 };
 
 export const useRemoteWindowPresentation = (): RemoteWindowPresentation => {
@@ -104,11 +111,20 @@ export const useRemoteWindowPresentation = (): RemoteWindowPresentation => {
 
     useEffect(() => {
         let mounted = true;
-        const apply = (settings: RemoteWindowPresentation) => {
+        const apply = (settings: Partial<RemoteWindowPresentation>) => {
+            const next: RemoteWindowPresentation = {
+                hideTitlebar: Boolean(settings.hideTitlebar),
+                clickThrough: Boolean(settings.clickThrough),
+                expandCover: settings.expandCover !== false,
+                alwaysOnTopSupported: settings.alwaysOnTopSupported !== false,
+            };
             setPresentation(previous => (
-                previous.hideTitlebar === settings.hideTitlebar && previous.clickThrough === settings.clickThrough
+                previous.hideTitlebar === next.hideTitlebar
+                    && previous.clickThrough === next.clickThrough
+                    && previous.expandCover === next.expandCover
+                    && previous.alwaysOnTopSupported === next.alwaysOnTopSupported
                     ? previous
-                    : { hideTitlebar: settings.hideTitlebar, clickThrough: settings.clickThrough }
+                    : next
             ));
         };
 

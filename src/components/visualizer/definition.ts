@@ -130,6 +130,21 @@ export interface VisualizerSettingsPanelProps<T = any> {
     onSliderCommit?: () => void;
 }
 
+/**
+ * What a lyric style's quick controls in the player panel get: the saved tuning and a change that
+ * is saved at once (the panel has no sliders and no draft), with the store's fields for a style's
+ * further actions, as its settings panel has them.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface VisualizerQuickControlsProps<T = any> {
+    t: (key: string) => string;
+    isDaylight: boolean;
+    theme: Theme;
+    tuning: T;
+    onTuningChange: (patch: Partial<T>) => void;
+    settings: VisualizerTuningSettings;
+}
+
 export interface VisualizerRegistryEntry {
     mode: VisualizerMode;
     order: number;
@@ -162,6 +177,11 @@ export interface VisualizerRegistryEntry {
     render: (props: VisualizerSharedProps) => React.ReactElement;
     /** The style's own options in the settings window. A style that has them and a stored tuning can be put back to its defaults there. */
     renderSettingsPanel?: (props: VisualizerSettingsPanelProps) => React.ReactNode;
+    /*
+     * 播放面板歌词样式那一行下面的快捷参数：开关（QuickControlToggle）和在几项里轮换的胶囊
+     * （QuickControlChip），只放常调的几项，其余留给设置窗口。没有就不出这一行。
+     */
+    renderQuickControls?: (props: VisualizerQuickControlsProps) => React.ReactNode;
     /** For a style that sizes its own lyrics: the notice (an i18n key) the settings window shows where it switches the font size off. */
     ownFontSizeNoticeKey?: string;
     /*

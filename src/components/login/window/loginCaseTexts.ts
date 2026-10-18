@@ -16,6 +16,7 @@ export const LOGIN_CASE_TEXTS: Record<LoginCaseId, { title: string; note?: strin
     refused: { title: 'login.caseRefused', note: 'login.noteRetryLater' },
     'retry-later': { title: 'login.caseRetryLater' },
     'device-limit': { title: 'login.caseDeviceLimit', note: 'login.noteDeviceLimit' },
+    'wrong-scan-app': { title: 'login.caseWrongScanApp', note: 'login.noteWrongScanApp' },
     'local-service-stopped': { title: 'login.caseLocalService' },
     'local-service-unavailable': { title: 'login.caseLocalService' },
     'cannot-listen': { title: 'login.caseCannotListen' },
