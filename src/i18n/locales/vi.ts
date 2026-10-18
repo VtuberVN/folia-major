@@ -2767,6 +2767,15 @@ const vi = {
     "chooseCacheDirectory": "Chọn thư mục",
     "resetCacheDirectory": "Dùng thư mục mặc định",
     "cacheDirectoryPendingDesc": "Electron hiện lưu tệp đệm âm thanh tại thư mục này. Lời bài hát, ảnh bìa và bộ đệm trình duyệt khác vẫn nằm trong thư mục dữ liệu ứng dụng.",
+    "downloadLocation": "Thư mục tải về",
+    "downloadLocationDesc": "Các bài hát bạn tải về từ danh sách phát sẽ được lưu tại đây dưới dạng tệp âm thanh thông thường.",
+    "openDownloadLocation": "Mở thư mục",
+    "chooseDownloadLocation": "Chọn thư mục",
+    "resetDownloadLocation": "Dùng thư mục mặc định",
+    "downloadLocationDefaultHint": "Đang dùng vị trí tải về mặc định.",
+    "downloadLocationCustomHint": "Đang dùng vị trí tải về tùy chỉnh.",
+    "downloadLocationMoved": "Đã di chuyển {{count}} tệp tải về sang vị trí mới.",
+    "downloadLocationMoveFailed": "Không thể di chuyển {{count}} tệp.",
     "localLibraryWatch": "Theo dõi thư mục nội bộ",
     "localLibraryAutoScan": "Tự động quét thư mục đã nhập",
     "localLibraryAutoScanDesc": "Theo dõi các thư mục đã nhập và quét tăng dần mỗi khi tệp thay đổi.",
@@ -6154,6 +6163,30 @@ const vi = {
         "noMatch": "Tùy chọn \"Không sử dụng dữ liệu trực tuyến\" ở góc dưới bên trái sẽ giúp bài hát chỉ sử dụng dữ liệu gốc trong tệp."
       }
     }
+  },
+  "download": {
+    "downloadSongs": "Tải bài hát về máy",
+    "selectSongs": "Chọn bài hát muốn tải về",
+    "songCount": "{{count}} bài hát",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "selectedCount": "Đã chọn {{count}} bài",
+    "start": "Tải về",
+    "windowTitle": "Tải về",
+    "progress": "Đã xong {{done}}/{{total}} bài",
+    "activeCount": "Đang tải {{count}} bài",
+    "pendingCount": "Còn lại {{count}} bài",
+    "openFolder": "Mở thư mục",
+    "clearFinished": "Xóa mục đã hoàn thành",
+    "hide": "Thu nhỏ",
+    "unavailable": "Không khả dụng để tải về",
+    "continue": "Tiếp tục tải",
+    "queued": "Đang trong hàng đợi",
+    "remove": "Xóa bỏ",
+    "pause": "Tạm dừng",
+    "resume": "Tiếp tục",
+    "pauseAll": "Tạm dừng tất cả",
+    "paused": "Đã tạm dừng"
   }
 } as const;
 

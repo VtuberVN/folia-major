@@ -843,6 +843,63 @@ declare global {
     | { type: 'fallback'; message: string }
     | { type: 'error'; message: string };
 
+  interface ElectronDownloadProgress {
+    id: string;
+    name: string;
+    status: 'downloading' | 'paused' | 'done' | 'error' | 'canceled';
+    received: number;
+    total: number;
+    error?: string;
+    path?: string;
+  }
+
+  interface ElectronDownloadStartRequest {
+    id: string;
+    songId?: string;
+    url?: string;
+    sourcePath?: string;
+    fileName: string;
+    cacheKey?: string;
+    mimeType?: string;
+    limitBytes?: number;
+  }
+
+  interface ElectronDownloadStartResult {
+    ok: boolean;
+    path?: string;
+    name?: string;
+    error?: string;
+    canceled?: boolean;
+    skipped?: boolean;
+    paused?: boolean;
+  }
+
+  interface ElectronDeleteLocalAudioResult {
+    ok: boolean;
+    removed: string[];
+    failed: string[];
+  }
+
+  interface ElectronDownloadQueueEntry {
+    id: string;
+    songId: string;
+    name: string;
+    status: string;
+    error?: string;
+    path?: string;
+    fileName?: string;
+    song?: unknown;
+    quality?: string;
+  }
+
+  interface ElectronDownloadDirectoryResult {
+    canceled?: boolean;
+    path: string;
+    isDefault: boolean;
+    moved?: number;
+    failed?: number;
+  }
+
   interface Window {
     electron?: {
       webUtils?: {
@@ -961,6 +1018,21 @@ declare global {
       getAudioCacheUsage: () => Promise<number>;
       getAudioCacheStats: () => Promise<ElectronAudioCacheStats>;
       clearAudioCache: () => Promise<boolean>;
+      download?: {
+        getDirectory: () => Promise<ElectronDownloadDirectoryResult>;
+        chooseDirectory: () => Promise<ElectronDownloadDirectoryResult>;
+        resetDirectory: () => Promise<ElectronDownloadDirectoryResult>;
+        openDirectory: () => Promise<{ ok: boolean; directory?: string; error?: string }>;
+        start: (request: ElectronDownloadStartRequest) => Promise<ElectronDownloadStartResult>;
+        cancel: (id: string, fileName?: string) => Promise<boolean>;
+        pause: (id: string) => Promise<boolean>;
+        pauseAll: () => Promise<number>;
+        checkDownloaded: (songIds: string[]) => Promise<Record<string, { path: string; name: string } | null>>;
+        deleteLocalAudio: (payload: { songId?: string; cacheKey?: string; filePath?: string }) => Promise<ElectronDeleteLocalAudioResult>;
+        getQueue: () => Promise<ElectronDownloadQueueEntry[]>;
+        saveQueue: (queue: ElectronDownloadQueueEntry[]) => Promise<boolean>;
+        onProgress: (callback: (progress: ElectronDownloadProgress) => void) => () => void;
+      };
       requestTranscodeFallback?: (request: import('./types/playbackRecovery').TranscodeFallbackRequest) => Promise<import('./types/playbackRecovery').TranscodeFallbackResult>;
       cancelTranscodeFallback?: (requestId: string) => Promise<boolean>;
       getCoverCache: (cacheKey: string) => Promise<ElectronAudioCacheEntry>;

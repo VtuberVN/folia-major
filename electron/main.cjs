@@ -2836,6 +2836,141 @@ function getAudioCacheDirectory() {
   return path.join(getConfiguredCacheDirectory(), 'audio');
 }
 
+// Downloads are plain user-facing files (unlike the hashed media cache), so they live in a visible
+// folder under the OS Downloads directory by default; the listener can point them elsewhere.
+const DOWNLOAD_DIRECTORY_SETTING_KEY = 'DOWNLOAD_DIRECTORY';
+// songId -> { fileName, name, updatedAt }: lets a repeat playlist download skip what is already on
+// disk instead of saving " (1)" copies, and survives a restart.
+const DOWNLOAD_INDEX_SETTING_KEY = 'DOWNLOAD_INDEX';
+// Songs still queued from a previous session, so the download window can offer to continue.
+const DOWNLOAD_QUEUE_SETTING_KEY = 'DOWNLOAD_QUEUE';
+
+function getDefaultDownloadDirectory() {
+  return path.join(app.getPath('downloads'), 'Folia');
+}
+
+function getConfiguredDownloadDirectory() {
+  const configured = store.get(DOWNLOAD_DIRECTORY_SETTING_KEY);
+  return typeof configured === 'string' && configured.trim().length > 0
+    ? configured
+    : getDefaultDownloadDirectory();
+}
+
+function getDownloadDirectory() {
+  return getConfiguredDownloadDirectory();
+}
+
+function getDownloadIndex() {
+  const value = store.get(DOWNLOAD_INDEX_SETTING_KEY);
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function recordDownloadedSong(songId, fileName, name) {
+  if (!songId) return;
+  const index = getDownloadIndex();
+  index[String(songId)] = { fileName, name, updatedAt: Date.now() };
+  store.set(DOWNLOAD_INDEX_SETTING_KEY, index);
+}
+
+// Returns the on-disk file for a song already downloaded, or null. The stored name is checked
+// against the current download folder, so a moved-but-present file is still found.
+function findExistingDownload(songId) {
+  if (!songId) return null;
+  const entry = getDownloadIndex()[String(songId)];
+  if (!entry || !entry.fileName) return null;
+  const candidate = path.join(getDownloadDirectory(), entry.fileName);
+  if (!fs.existsSync(candidate)) return null;
+  return { path: candidate, name: entry.name || entry.fileName };
+}
+
+// Moves every file from one download folder to another, renaming on name collisions. Used when the
+// listener changes the download location so already-downloaded songs come along.
+async function migrateDownloadFiles(fromDirectory, toDirectory) {
+  const result = { moved: 0, failed: 0 };
+  if (!fromDirectory || !toDirectory || path.resolve(fromDirectory) === path.resolve(toDirectory)) {
+    return result;
+  }
+  let entries;
+  try {
+    entries = await fs.promises.readdir(fromDirectory, { withFileTypes: true });
+  } catch {
+    return result;
+  }
+  await fs.promises.mkdir(toDirectory, { recursive: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const source = path.join(fromDirectory, entry.name);
+    let target = path.join(toDirectory, entry.name);
+    if (fs.existsSync(target)) {
+      const parsed = path.parse(entry.name);
+      let index = 1;
+      while (fs.existsSync(target)) {
+        target = path.join(toDirectory, `${parsed.name} (${index})${parsed.ext}`);
+        index += 1;
+      }
+    }
+    try {
+      await fs.promises.rename(source, target);
+    } catch (error) {
+      if (error && error.code === 'EXDEV') {
+        try {
+          await fs.promises.copyFile(source, target);
+          await fs.promises.rm(source, { force: true });
+        } catch {
+          result.failed += 1;
+          continue;
+        }
+      } else {
+        result.failed += 1;
+        continue;
+      }
+    }
+    result.moved += 1;
+  }
+  return result;
+}
+
+const activeDownloads = new Map();
+
+// Aborts a download's controller. Electron's network Session can throw the AbortError reason
+// synchronously back out of `abort()` (its internal abort listener rethrows), which the app's
+// uncaughtException crash handler would otherwise report as a crash. The transfer's own promise
+// still settles, so swallowing it here is safe.
+function abortDownloadEntry(entry) {
+  if (!entry || !entry.controller) return;
+  try {
+    if (!entry.controller.signal.aborted) entry.controller.abort();
+  } catch {
+    // See above: a synchronous AbortError from the network layer is not a real failure.
+  }
+}
+
+function sendDownloadProgress(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-progress', payload);
+  }
+}
+
+function sanitizeDownloadFileName(name, fallback = 'download') {
+  const cleaned = String(name || '')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || fallback;
+}
+
+// Never overwrite an existing file: append " (1)", " (2)", ... before the extension.
+function resolveUniqueDownloadPath(directory, fileName) {
+  const parsed = path.parse(fileName);
+  let candidate = path.join(directory, fileName);
+  let index = 1;
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(directory, `${parsed.name} (${index})${parsed.ext}`);
+    index += 1;
+  }
+  return candidate;
+}
+
 function getCoverCacheDirectory() {
   return path.join(getConfiguredCacheDirectory(), 'cover');
 }
@@ -7466,6 +7601,308 @@ ipcMain.handle('get-audio-cache-stats', async () => {
 ipcMain.handle('clear-audio-cache', async () => {
   await clearAudioCacheDirectory();
   return true;
+});
+
+ipcMain.handle('download-get-directory', () => {
+  return { path: getDownloadDirectory(), isDefault: !store.has(DOWNLOAD_DIRECTORY_SETTING_KEY) };
+});
+
+ipcMain.handle('choose-download-directory', async () => {
+  const current = getDownloadDirectory();
+  const isDefault = !store.has(DOWNLOAD_DIRECTORY_SETTING_KEY);
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return { canceled: true, path: current, isDefault };
+  }
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose download folder',
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: current,
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, path: current, isDefault };
+  }
+  const selected = result.filePaths[0];
+  const migration = await migrateDownloadFiles(current, selected);
+  store.set(DOWNLOAD_DIRECTORY_SETTING_KEY, selected);
+  return { canceled: false, path: selected, isDefault: false, ...migration };
+});
+
+ipcMain.handle('reset-download-directory', async () => {
+  const current = getDownloadDirectory();
+  const fallback = getDefaultDownloadDirectory();
+  if (path.resolve(current) === path.resolve(fallback)) {
+    return { canceled: false, path: fallback, isDefault: true, moved: 0, failed: 0 };
+  }
+  const migration = await migrateDownloadFiles(current, fallback);
+  store.delete(DOWNLOAD_DIRECTORY_SETTING_KEY);
+  return { canceled: false, path: fallback, isDefault: true, ...migration };
+});
+
+ipcMain.handle('download-open-directory', async () => {
+  const target = getDownloadDirectory();
+  try {
+    fs.mkdirSync(target, { recursive: true });
+    const error = await shell.openPath(target);
+    if (error) return { ok: false, error };
+    return { ok: true, directory: target };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
+ipcMain.handle('download-cancel', (_event, id, fileName) => {
+  const key = String(id);
+  const entry = activeDownloads.get(key);
+  if (entry) {
+    entry.mode = 'cancel';
+    abortDownloadEntry(entry);
+  }
+  // A paused transfer is no longer active; drop its partial file when the caller knows its name.
+  if (typeof fileName === 'string' && fileName) {
+    try {
+      fs.rmSync(path.join(getDownloadDirectory(), `${sanitizeDownloadFileName(fileName)}.part`), { force: true });
+    } catch {
+      // Best effort.
+    }
+  }
+  return Boolean(entry) || Boolean(fileName);
+});
+
+// Pauses one transfer: aborts it but keeps the ".part" so a later start resumes from that offset.
+ipcMain.handle('download-pause', (_event, id) => {
+  const entry = activeDownloads.get(String(id));
+  if (!entry) return false;
+  entry.mode = 'pause';
+  abortDownloadEntry(entry);
+  return true;
+});
+
+// Pauses every in-flight transfer (the "pause all" button).
+ipcMain.handle('download-pause-all', () => {
+  let paused = 0;
+  for (const entry of activeDownloads.values()) {
+    entry.mode = 'pause';
+    abortDownloadEntry(entry);
+    paused += 1;
+  }
+  return paused;
+});
+
+// Deletes a song's local copy: its downloaded file (download index), an absolute local-library path,
+// and/or the seeded media-cache entry. Used when removing a song from a playlist and the listener
+// asked to delete the local file too.
+ipcMain.handle('delete-local-audio', async (_event, payload) => {
+  const songId = payload && payload.songId != null ? String(payload.songId) : '';
+  const cacheKey = payload && typeof payload.cacheKey === 'string' ? payload.cacheKey : null;
+  const filePath = payload && typeof payload.filePath === 'string' ? payload.filePath : null;
+  const removed = [];
+  const failed = [];
+
+  const index = getDownloadIndex();
+  const entry = songId ? index[songId] : null;
+  if (entry && entry.fileName) {
+    const target = path.join(getDownloadDirectory(), entry.fileName);
+    try {
+      fs.rmSync(target, { force: true });
+      removed.push(target);
+    } catch (error) {
+      failed.push(String((error && error.message) || error));
+    }
+    delete index[songId];
+    store.set(DOWNLOAD_INDEX_SETTING_KEY, index);
+  }
+
+  if (filePath && path.isAbsolute(filePath)) {
+    try {
+      fs.rmSync(filePath, { force: true });
+      removed.push(filePath);
+    } catch (error) {
+      failed.push(String((error && error.message) || error));
+    }
+  }
+
+  if (cacheKey) {
+    try {
+      const { dataPath, metaPath } = getAudioCachePaths(cacheKey);
+      fs.rmSync(dataPath, { force: true });
+      fs.rmSync(metaPath, { force: true });
+      removed.push(dataPath);
+    } catch (error) {
+      failed.push(String((error && error.message) || error));
+    }
+  }
+
+  return { ok: failed.length === 0, removed, failed };
+});
+
+// Reports which songs already have a file on disk, so the renderer can skip resolving their URLs.
+ipcMain.handle('download-check', (_event, songIds) => {
+  const result = {};
+  if (Array.isArray(songIds)) {
+    for (const songId of songIds) {
+      const key = String(songId);
+      result[key] = findExistingDownload(key);
+    }
+  }
+  return result;
+});
+
+ipcMain.handle('download-queue-get', () => {
+  const value = store.get(DOWNLOAD_QUEUE_SETTING_KEY);
+  return Array.isArray(value) ? value : [];
+});
+
+ipcMain.handle('download-queue-set', (_event, queue) => {
+  if (Array.isArray(queue) && queue.length > 0) {
+    store.set(DOWNLOAD_QUEUE_SETTING_KEY, queue);
+  } else {
+    store.delete(DOWNLOAD_QUEUE_SETTING_KEY);
+  }
+  return true;
+});
+
+ipcMain.handle('download-start', async (_event, payload) => {
+  const id = String((payload && payload.id) || '');
+  const songId = payload && payload.songId != null ? String(payload.songId) : '';
+  const url = payload && typeof payload.url === 'string' ? payload.url : null;
+  const sourcePath = payload && typeof payload.sourcePath === 'string' ? payload.sourcePath : null;
+  const fileName = sanitizeDownloadFileName(payload && payload.fileName, 'download');
+  const cacheKey = payload && typeof payload.cacheKey === 'string' ? payload.cacheKey : null;
+  const mimeType = payload && typeof payload.mimeType === 'string' ? payload.mimeType : null;
+  const limitBytes = Number(payload && payload.limitBytes) || 0;
+  if (!id || (!url && !sourcePath)) return { ok: false, error: 'invalid download request' };
+
+  // Already downloaded in a previous run or an earlier playlist pass: keep the existing file
+  // instead of writing a " (1)" duplicate.
+  const existing = findExistingDownload(songId);
+  if (existing) {
+    sendDownloadProgress({ id, name: existing.name, status: 'done', received: 0, total: 0, path: existing.path });
+    return { ok: true, path: existing.path, name: existing.name, skipped: true };
+  }
+  // Songs saved before the index existed: an exact file-name match in the download folder counts
+  // as already downloaded, and is recorded so later runs skip it without touching the disk.
+  const directory = getDownloadDirectory();
+  const exactPath = path.join(directory, fileName);
+  if (songId && fs.existsSync(exactPath)) {
+    recordDownloadedSong(songId, fileName, fileName);
+    sendDownloadProgress({ id, name: fileName, status: 'done', received: 0, total: 0, path: exactPath });
+    return { ok: true, path: exactPath, name: fileName, skipped: true };
+  }
+
+  fs.mkdirSync(directory, { recursive: true });
+  const finalPath = resolveUniqueDownloadPath(directory, fileName);
+  const partPath = `${finalPath}.part`;
+  const controller = new AbortController();
+
+  // A leftover ".part" means a previous attempt was paused (or interrupted); resume from its size.
+  let startOffset = 0;
+  try {
+    if (fs.existsSync(partPath)) startOffset = fs.statSync(partPath).size;
+  } catch {
+    startOffset = 0;
+  }
+
+  const entry = { controller, mode: 'run', partPath };
+  activeDownloads.set(id, entry);
+
+  const { Readable, Transform } = require('stream');
+  const { pipeline } = require('stream/promises');
+
+  let received = 0;
+  let total = 0;
+  let lastReport = 0;
+  const report = (status, extra) => {
+    sendDownloadProgress({ id, name: fileName, status, received, total, ...extra });
+  };
+  const counted = new Transform({
+    transform(chunk, _encoding, callback) {
+      received += chunk.length;
+      const now = Date.now();
+      if (now - lastReport >= 200) {
+        lastReport = now;
+        report('downloading');
+      }
+      callback(null, chunk);
+    },
+  });
+
+  try {
+    let source;
+    let writeFlags = 'w';
+    if (sourcePath) {
+      const sourceSize = fs.statSync(sourcePath).size;
+      total = sourceSize;
+      if (startOffset >= total) {
+        // The partial already holds the whole file: just finish it.
+        if (fs.existsSync(partPath)) fs.renameSync(partPath, finalPath);
+        recordDownloadedSong(songId, path.basename(finalPath), fileName);
+        report('done', { path: finalPath });
+        return { ok: true, path: finalPath, name: fileName };
+      }
+      received = startOffset;
+      writeFlags = startOffset > 0 ? 'a' : 'w';
+      source = fs.createReadStream(sourcePath, { start: startOffset, signal: controller.signal }).pipe(counted);
+    } else {
+      const headers = startOffset > 0 ? { Range: `bytes=${startOffset}-` } : undefined;
+      const response = await fetch(url, { redirect: 'follow', signal: controller.signal, headers });
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      if (startOffset > 0 && response.status === 206) {
+        const length = Number(response.headers.get('content-length')) || 0;
+        received = startOffset;
+        total = length > 0 ? startOffset + length : 0;
+        writeFlags = 'a';
+      } else {
+        // No range support (or a fresh start): replace whatever partial existed.
+        startOffset = 0;
+        received = 0;
+        total = Number(response.headers.get('content-length')) || 0;
+        writeFlags = 'w';
+      }
+      source = Readable.fromWeb(response.body).pipe(counted);
+    }
+    report('downloading');
+    await pipeline(source, fs.createWriteStream(partPath, { flags: writeFlags }), { signal: controller.signal });
+    if (total > 0 && received !== total) throw new Error('incomplete download');
+    fs.renameSync(partPath, finalPath);
+    // Seed the media cache too, so the song can be played offline AND served to the WASAPI
+    // exclusive engine from disk without a network read.
+    if (cacheKey) {
+      try {
+        const { dataPath, metaPath } = getAudioCachePaths(cacheKey);
+        await fs.promises.mkdir(path.dirname(dataPath), { recursive: true });
+        await fs.promises.copyFile(finalPath, dataPath);
+        await fs.promises.writeFile(metaPath, JSON.stringify({
+          cacheKey,
+          mimeType: mimeType || 'audio/mpeg',
+          size: fs.statSync(finalPath).size,
+          updatedAt: Date.now(),
+        }), 'utf-8');
+        await pruneMediaCache(limitBytes);
+      } catch (cacheError) {
+        console.warn('[download] failed to seed media cache', cacheError);
+      }
+    }
+    recordDownloadedSong(songId, path.basename(finalPath), fileName);
+    report('done', { path: finalPath });
+    return { ok: true, path: finalPath, name: fileName };
+  } catch (err) {
+    if (entry.mode === 'pause') {
+      // Keep the partial file; a later start resumes from its size.
+      report('paused', { received, total });
+      return { ok: false, paused: true };
+    }
+    try {
+      fs.rmSync(partPath, { force: true });
+    } catch {
+      // Best effort.
+    }
+    const canceled = entry.mode === 'cancel' || controller.signal.aborted;
+    const message = String((err && err.message) || err);
+    report(canceled ? 'canceled' : 'error', { error: message });
+    return { ok: false, error: message, canceled };
+  } finally {
+    activeDownloads.delete(id);
+  }
 });
 
 ipcMain.handle('transcode-fallback-request', async (_event, request) => {

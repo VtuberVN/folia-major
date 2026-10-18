@@ -14,6 +14,8 @@ import Home from './components/app/Home';
 import PlayerPanel from './components/app/PlayerPanel';
 import ThemeQuickEditorHost from './components/panelTab/ThemeQuickEditor';
 import AppDialogs from './components/app/dialogs/AppDialogs';
+import DownloadProgressWindow from './components/download/DownloadProgressWindow';
+import { initDownloadQueue } from './services/songDownloadService';
 import { useProviderSignOut } from './components/app/dialogs/useProviderSignOut';
 import LoginHost from './components/login/LoginHost';
 import { useSettingsDialogModel } from './components/app/dialogs/useSettingsDialogModel';
@@ -372,6 +374,12 @@ export default function App() {
         lastAudioRecoverySourceRef,
         currentOnlineAudioUrlFetchedAtRef,
     } = usePlaybackRuntimeRefs();
+
+    // Restore any unfinished download queue from a previous session, so the download window can
+    // offer to continue it after a restart.
+    useEffect(() => {
+        void initDownloadQueue();
+    }, []);
     // The automix decks are set up much further down, but a few reset paths declared above here
     // need to be able to stop a transition, and queue navigation needs the track being SHOWN. A ref
     // keeps both reachable without reordering them; it is reassigned on every render, so the
@@ -2914,6 +2922,7 @@ export default function App() {
             <UserGuideModal theme={theme} />
             <PlaybackEntryViewPrompt theme={theme} />
             <LatticeFmNotice />
+            <DownloadProgressWindow isDaylight={isDaylight} />
         </AppShell>
     );
 }

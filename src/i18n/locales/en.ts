@@ -1989,6 +1989,15 @@ export default {
     "chooseCacheDirectory": "Choose Folder",
     "resetCacheDirectory": "Use Default Folder",
     "cacheDirectoryPendingDesc": "Electron now stores audio cache files in this directory. Lyrics, covers, and other browser-side caches still use the app data directory.",
+    "downloadLocation": "Download Location",
+    "downloadLocationDesc": "Songs you download from a playlist are saved here as normal audio files.",
+    "openDownloadLocation": "Open Folder",
+    "chooseDownloadLocation": "Choose Folder",
+    "resetDownloadLocation": "Use Default Folder",
+    "downloadLocationDefaultHint": "Using the default download location.",
+    "downloadLocationCustomHint": "Using a custom download location.",
+    "downloadLocationMoved": "Moved {{count}} downloaded file(s) to the new location.",
+    "downloadLocationMoveFailed": "{{count}} file(s) could not be moved.",
     "localLibraryWatch": "Local Folder Watch",
     "localLibraryAutoScan": "Auto scan imported folders",
     "localLibraryAutoScanDesc": "Runs an incremental scan whenever the imported folders change.",
@@ -5378,5 +5387,29 @@ export default {
         "noMatch": "“Don't use online metadata” at the bottom left makes the song use only what the file has."
       }
     }
+  },
+  "download": {
+    "downloadSongs": "Download Songs",
+    "selectSongs": "Select songs to download",
+    "songCount": "{{count}} songs",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectedCount": "{{count}} selected",
+    "start": "Download",
+    "windowTitle": "Downloads",
+    "progress": "{{done}}/{{total}} done",
+    "activeCount": "{{count}} downloading",
+    "pendingCount": "{{count}} pending",
+    "openFolder": "Open folder",
+    "clearFinished": "Clear finished",
+    "hide": "Minimize",
+    "unavailable": "Not available for download",
+    "continue": "Continue download",
+    "queued": "Queued",
+    "remove": "Remove",
+    "pause": "Pause",
+    "resume": "Resume",
+    "pauseAll": "Pause all",
+    "paused": "Paused"
   }
 } as const;
