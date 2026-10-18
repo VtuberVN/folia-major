@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePlaybackReportReady } from '../../../../services/onlineMusic/playbackReportGate';
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { usePlayerChromeSettingsStore } from '../../../../stores/usePlayerChromeSettingsStore';
 import { useStageSettingsStore } from '../../../../stores/useStageSettingsStore';
-import { Button, CopyValue, Group, Reveal, Row, Status, Toggle, Value, type SettingsOptionDef } from '../kit';
+import { Button, CopyValue, Group, Reveal, Row, Segmented, Status, Toggle, Value, type SettingsOptionDef } from '../kit';
 import NavidromeRows from './integration/NavidromeRows';
 import { O, SERVICES, STREAMING } from './integration/options';
 import { DesktopStageRows, WebStageRows } from './integration/StageModeRows';
@@ -20,7 +20,27 @@ import { useSettingsPage } from './settingsPageContext';
 
 export const OPTIONS: SettingsOptionDef[] = Object.values(O);
 
-const OBS_GUIDE_STEPS = [1, 2, 3, 4, 5, 6];
+const OBS_GUIDE_STEPS = [1, 2, 3, 4, 5, 6, 7];
+
+type ObsLayer = 'all' | 'lyrics' | 'background';
+
+const LAYER_HINT: Record<ObsLayer, string> = {
+    all: 'options.obsBrowserSourceLayerAllDesc',
+    lyrics: 'options.obsBrowserSourceLayerLyricsDesc',
+    background: 'options.obsBrowserSourceLayerBackgroundDesc',
+};
+
+const getObsUrlForLayer = (baseUrl: string | null | undefined, layer: ObsLayer): string => {
+    if (!baseUrl) return '';
+    const sep = baseUrl.includes('?') ? '&' : '?';
+    if (layer === 'lyrics') {
+        return `${baseUrl}${sep}layer=lyrics&transparent=1`;
+    }
+    if (layer === 'background') {
+        return `${baseUrl}${sep}layer=background`;
+    }
+    return baseUrl;
+};
 
 const IntegrationPage: React.FC = () => {
     const { t } = useTranslation();
@@ -35,6 +55,9 @@ const IntegrationPage: React.FC = () => {
     const setScrobbleEnabled = useAudioSettingsStore(state => state.handleToggleNeteaseScrobble);
     // Subscribed to, so the row follows the reporting account signing in or out while the page is open.
     const canScrobble = usePlaybackReportReady();
+
+    const [obsLayer, setObsLayer] = useState<ObsLayer>('all');
+    const activeObsUrl = getObsUrlForLayer(obs?.url, obsLayer);
 
     return (
         <>
@@ -77,8 +100,19 @@ const IntegrationPage: React.FC = () => {
                             <Toggle checked={obs.enabled} onChange={enabled => void stage.onToggleObsBrowserSource?.(enabled)} />
                         </Row>
                         <Reveal when={obs.enabled}>
+                            <Row sub label={t('options.obsBrowserSourceLayer')} hint={t(LAYER_HINT[obsLayer])}>
+                                <Segmented<ObsLayer>
+                                    value={obsLayer}
+                                    options={[
+                                        { value: 'all', label: t('options.obsBrowserSourceLayerAll') },
+                                        { value: 'lyrics', label: t('options.obsBrowserSourceLayerLyrics') },
+                                        { value: 'background', label: t('options.obsBrowserSourceLayerBackground') },
+                                    ]}
+                                    onChange={setObsLayer}
+                                />
+                            </Row>
                             <Row sub label={t('options.obsBrowserSourceAddress')}>
-                                {obs.url ? <CopyValue value={obs.url} /> : <Value>http://127.0.0.1</Value>}
+                                {activeObsUrl ? <CopyValue value={activeObsUrl} /> : <Value>http://127.0.0.1</Value>}
                                 <Button onClick={() => void stage.onRegenerateObsBrowserSourceToken?.()}>
                                     {t('options.regenerateObsBrowserSourceToken')}
                                 </Button>
