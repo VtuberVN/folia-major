@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { motion, motionValue, useTransform, type MotionValue } from 'framer-motion';
 import {
+    GripHorizontal,
     Lock,
     Music,
     Pause,
@@ -433,6 +434,30 @@ export default function MiniLyricBarApp() {
         };
     }, [applySnapshot]);
 
+    // Handle mouse movement to un-ignore mouse events over interactive controls in click-through mode
+    useEffect(() => {
+        const handleWindowMouseMove = (e: MouseEvent) => {
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            const isInteractive = Boolean(
+                target && (
+                    target.closest('[data-mini-interactive]') ||
+                    target.closest('button') ||
+                    target.closest('[role="button"]')
+                )
+            );
+            if (isInteractive) {
+                void window.electron?.setMiniLyricBarMouseIgnore?.(false);
+                setIsHovered(true);
+            } else if (isClickThrough) {
+                void window.electron?.setMiniLyricBarMouseIgnore?.(true);
+                setIsHovered(false);
+            }
+        };
+
+        window.addEventListener('mousemove', handleWindowMouseMove);
+        return () => window.removeEventListener('mousemove', handleWindowMouseMove);
+    }, [isClickThrough]);
+
     // Silky smooth rAF animation loop running at native display refresh rate
     useEffect(() => {
         let frameId: number | null = null;
@@ -622,6 +647,7 @@ export default function MiniLyricBarApp() {
                 {/* Right: Floating control toolbar (floats over right edge on hover, taking 0 flex space when idle) */}
                 {!isClickThrough ? (
                     <div
+                        data-mini-interactive="true"
                         className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-neutral-950/85 backdrop-blur-2xl border border-white/20 shadow-2xl transition-all duration-200 z-20 ${
                             isHovered
                                 ? 'opacity-100 scale-100 pointer-events-auto'
@@ -629,6 +655,16 @@ export default function MiniLyricBarApp() {
                         }`}
                         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                     >
+                        {/* Drag Handle */}
+                        <div
+                            title={t('ui.miniLyricBarDrag', 'Kéo để di chuyển')}
+                            aria-label={t('ui.miniLyricBarDrag', 'Kéo để di chuyển')}
+                            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-grab active:cursor-grabbing flex items-center justify-center select-none"
+                            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+                        >
+                            <GripHorizontal size={15} />
+                        </div>
+
                         {/* Previous track */}
                         <button
                             type="button"
@@ -680,28 +716,25 @@ export default function MiniLyricBarApp() {
                         </button>
                     </div>
                 ) : (
-                    /* Locked mode: only lock icon shown on hover to unlock */
+                    /* Locked mode: ALWAYS VISIBLE interactive lock icon with amber accent to unlock */
                     <div
-                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center transition-all duration-200 z-20 ${
-                            isHovered
-                                ? 'opacity-100 scale-100 pointer-events-auto'
-                                : 'opacity-0 scale-95 pointer-events-none'
-                        }`}
+                        data-mini-interactive="true"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center transition-all duration-200 z-30 pointer-events-auto"
                         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                         onMouseEnter={() => {
                             void window.electron?.setMiniLyricBarMouseIgnore?.(false);
-                        }}
-                        onMouseLeave={() => {
-                            if (isClickThrough) {
-                                void window.electron?.setMiniLyricBarMouseIgnore?.(true);
-                            }
+                            setIsHovered(true);
                         }}
                     >
                         <button
                             type="button"
+                            data-mini-interactive="true"
                             onClick={() => handleToggleClickThrough(false)}
-                            title={t('ui.miniLyricBarUnlock')}
-                            className="p-1.5 rounded-lg text-amber-400 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 shadow-md transition-all active:scale-95"
+                            title={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
+                            aria-label={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
+                            className={`p-1.5 rounded-lg text-amber-400 bg-neutral-950/85 hover:bg-amber-400/30 border border-amber-400/50 shadow-lg transition-all active:scale-95 cursor-pointer ${
+                                isHovered ? 'opacity-100 scale-105' : 'opacity-70 scale-100'
+                            }`}
                         >
                             <Lock size={15} />
                         </button>

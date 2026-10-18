@@ -299,6 +299,7 @@ contextBridge.exposeInMainWorld('electron', {
     getMiniLyricBarState: () => ipcRenderer.invoke('mini-lyric-bar-get-state'),
     setMiniLyricBarClickThrough: (enabled) => ipcRenderer.invoke('mini-lyric-bar-set-click-through', enabled),
     setMiniLyricBarMouseIgnore: (ignore) => ipcRenderer.invoke('mini-lyric-bar-set-mouse-ignore', ignore),
+    resetMiniLyricBarPosition: () => ipcRenderer.invoke('mini-lyric-bar-reset-position'),
     sendMiniLyricBarCommand: (command) => ipcRenderer.invoke('mini-lyric-bar-send-command', command),
     onMiniLyricBarSnapshot: (callback) => {
         const listener = (_event, snapshot) => callback(snapshot);

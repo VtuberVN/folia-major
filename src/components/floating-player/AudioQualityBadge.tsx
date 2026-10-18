@@ -49,11 +49,16 @@ export default function AudioQualityBadge({
 
     const isExclusive = wasapiExclusiveEnabled || wasapiMode === 'exclusive' || snapshot?.backend === 'wasapi-exclusive';
 
-    // If we have WASAPI support on Windows, fallback label when no audio info exists but engine is running
+    // If we have WASAPI support on Windows, fallback label with audio specs when no stream info exists but engine is running
     if (!label && hasWasapi && (isExclusive || wasapiMode === 'shared' || snapshot)) {
-        label = isExclusive
-            ? t('options.wasapiModeExclusive', 'Exclusive')
-            : t('options.wasapiModeShared', 'Shared');
+        if (isExclusive) {
+            label = snapshot?.sampleRate
+                ? `${(snapshot.sampleRate / 1000).toFixed(1)} kHz · ${snapshot.bitsPerSample || 16}-bit`
+                : t('options.wasapiModeExclusive', 'Exclusive');
+        } else {
+            // Default shared Chromium audio output pipeline format
+            label = '44.1 kHz · 16-bit';
+        }
     }
 
     // Hide only if there's neither format info nor WASAPI toggle available

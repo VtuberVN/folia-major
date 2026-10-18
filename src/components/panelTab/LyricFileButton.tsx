@@ -27,6 +27,7 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportL
     const [isOpen, setIsOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isMiniLyricOpen, setIsMiniLyricOpen] = useState(false);
+    const [isClickThrough, setIsClickThrough] = useState(false);
     const electron = window.electron;
     const currentSong = usePlaybackStore(state => state.currentSong);
     const lyrics = usePlaybackStore(state => state.lyrics);
@@ -36,10 +37,17 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportL
         if (!electron) return;
         let active = true;
         void electron.getMiniLyricBarState?.().then(st => {
-            if (active && st) setIsMiniLyricOpen(Boolean(st.isOpen));
+            if (active && st) {
+                setIsMiniLyricOpen(Boolean(st.isOpen));
+                setIsClickThrough(Boolean(st.clickThrough));
+            }
+        });
+        const unsub = electron.onMiniLyricBarClickThroughChanged?.((enabled) => {
+            if (active) setIsClickThrough(enabled);
         });
         return () => {
             active = false;
+            unsub?.();
         };
     }, [electron]);
 
@@ -107,9 +115,23 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportL
                 <PanelButton
                     icon={Captions}
                     onClick={() => void handleToggleMiniLyricBar()}
-                    title={t('ui.miniLyricBar', 'Desktop Mini Lyric Bar')}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (isMiniLyricOpen && electron?.setMiniLyricBarClickThrough) {
+                            const next = !isClickThrough;
+                            setIsClickThrough(next);
+                            void electron.setMiniLyricBarClickThrough(next);
+                            setStatusMessage({
+                                type: 'info',
+                                text: next
+                                    ? t('ui.miniLyricBarLockedToast', 'Đã khóa thanh lời Desktop (nhấp xuyên thấu)')
+                                    : t('ui.miniLyricBarUnlockedToast', 'Đã mở khóa thanh lời Desktop (có thể di chuyển)'),
+                            });
+                        }
+                    }}
+                    title={`${t('ui.miniLyricBar', 'Desktop Mini Lyric Bar')}${isMiniLyricOpen ? ` (${isClickThrough ? t('ui.miniLyricBarLock', 'Khóa') : t('ui.miniLyricBarUnlock', 'Mở khóa')} · Chuột phải để chuyển)` : ''}`}
                     aria-label={t('ui.miniLyricBar', 'Desktop Mini Lyric Bar')}
-                    style={isMiniLyricOpen ? { color: '#34d399' } : undefined}
+                    style={isMiniLyricOpen ? { color: isClickThrough ? '#fbbf24' : '#34d399' } : undefined}
                 >
                     {t('ui.miniLyricBarShort', 'Mini Bar')}
                 </PanelButton>

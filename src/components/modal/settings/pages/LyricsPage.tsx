@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -19,6 +19,7 @@ import { useSettingsPage } from './settingsPageContext';
 
 const SOURCE: SettingsGroupDef = { id: 'lyrics', titleKey: 'options.settingsHeadingLyricSource' };
 const ADJUST: SettingsGroupDef = { id: 'lyricAdjust', titleKey: 'options.settingsHeadingLyricTiming' };
+const MINI_BAR: SettingsGroupDef = { id: 'miniLyricBar', titleKey: 'options.settingsHeadingMiniLyricBar' };
 const FORMATS: SettingsGroupDef = { id: 'localLyricFormatOrder', titleKey: 'options.localLyricFormatOrder' };
 
 const O = {
@@ -27,6 +28,9 @@ const O = {
     localPriority: option(SOURCE, 'localLyricsPriority', 'options.localLyricsPriority'),
     globalOffset: option(ADJUST, 'globalLyricTimelineOffset', 'options.globalLyricTimelineOffset'),
     filter: option(ADJUST, 'lyricFilterRegex', 'options.lyricFilterRegex'),
+    miniLyricOpen: option(MINI_BAR, 'miniLyricBarOpen', 'options.miniLyricBarOpen'),
+    miniLyricClickThrough: option(MINI_BAR, 'miniLyricBarClickThrough', 'options.miniLyricBarClickThrough'),
+    miniLyricResetPosition: option(MINI_BAR, 'miniLyricBarResetPosition', 'options.miniLyricBarResetPosition'),
     formatOrder: option(FORMATS, 'localLyricFormatOrderList', 'options.localLyricFormatOrderList'),
 };
 
@@ -75,6 +79,54 @@ const LyricsPage: React.FC = () => {
         }
     };
 
+    const electron = window.electron;
+    const [isMiniLyricOpen, setIsMiniLyricOpen] = useState(false);
+    const [isMiniLyricClickThrough, setIsMiniLyricClickThrough] = useState(false);
+
+    useEffect(() => {
+        if (!electron) return;
+        let active = true;
+        void electron.getMiniLyricBarState?.().then(st => {
+            if (active && st) {
+                setIsMiniLyricOpen(Boolean(st.isOpen));
+                setIsMiniLyricClickThrough(Boolean(st.clickThrough));
+            }
+        });
+        const unsub = electron.onMiniLyricBarClickThroughChanged?.((enabled) => {
+            if (active) setIsMiniLyricClickThrough(enabled);
+        });
+        return () => {
+            active = false;
+            unsub?.();
+        };
+    }, [electron]);
+
+    const handleToggleOpen = async (enabled: boolean) => {
+        if (!electron) return;
+        if (enabled) {
+            await electron.openMiniLyricBar?.();
+            setIsMiniLyricOpen(true);
+        } else {
+            await electron.closeMiniLyricBar?.();
+            setIsMiniLyricOpen(false);
+        }
+    };
+
+    const handleToggleClickThrough = async (enabled: boolean) => {
+        if (!electron) return;
+        await electron.setMiniLyricBarClickThrough?.(enabled);
+        setIsMiniLyricClickThrough(enabled);
+    };
+
+    const handleResetPosition = async () => {
+        if (!electron?.resetMiniLyricBarPosition) return;
+        await electron.resetMiniLyricBarPosition();
+        setStatusMessage({
+            type: 'info',
+            text: t('options.miniLyricBarPositionResetToast', 'Đã đặt lại vị trí thanh lời Desktop về giữa màn hình'),
+        });
+    };
+
     return (
         <>
             <Group def={SOURCE}>
@@ -110,6 +162,30 @@ const LyricsPage: React.FC = () => {
                 </Row>
                 <Row option={O.filter} hint={t('options.lyricFilterRegexDesc')} onClick={onOpenLyricFilterSettings} />
             </Group>
+
+            {electron && (
+                <Group def={MINI_BAR}>
+                    <Row option={O.miniLyricOpen} note={t('options.miniLyricBarOpenDesc', 'Hiển thị thanh lời bài hát mini nổi trên màn hình Desktop.')}>
+                        <Toggle checked={isMiniLyricOpen} onChange={handleToggleOpen} />
+                    </Row>
+                    <Reveal when={isMiniLyricOpen}>
+                        <Row
+                            option={O.miniLyricClickThrough}
+                            note={t('options.miniLyricBarClickThroughDesc', 'Khóa vị trí và cho phép nhấp chuột xuyên thấu qua thanh lời.')}
+                        >
+                            <Toggle checked={isMiniLyricClickThrough} onChange={handleToggleClickThrough} />
+                        </Row>
+                        <Row
+                            option={O.miniLyricResetPosition}
+                            note={t('options.miniLyricBarResetPositionDesc', 'Đưa thanh lời bài hát về vị trí mặc định chính giữa phía dưới màn hình.')}
+                        >
+                            <Button icon={RotateCcw} onClick={() => void handleResetPosition()}>
+                                {t('options.miniLyricBarResetPositionBtn', 'Đặt lại vị trí')}
+                            </Button>
+                        </Row>
+                    </Reveal>
+                </Group>
+            )}
 
             <FoldedGroup def={FORMATS} summary={t('options.localLyricFormatOrderFirst', { format: `.${lyric.formatOrder[0]}` })}>
                 <Row
