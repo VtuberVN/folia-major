@@ -39,6 +39,7 @@ export const getCacheTableName = (key: string): CacheTableName => {
     key.startsWith('theme_') ||
     key.startsWith('replayGain_') ||
     key.startsWith('audioLevel_') ||
+    key.startsWith('audioQuality_') ||
     key.startsWith('playlist_tracks_') ||
     key.startsWith('playlist_detail_') ||
     (key.startsWith('online_provider_') && (key.includes('_playlist_tracks_') || key.includes('_playlist_detail_')))

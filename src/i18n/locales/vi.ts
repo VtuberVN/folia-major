@@ -956,6 +956,10 @@ const vi = {
         "title": "Hẹn giờ ngủ",
         "description": "Tạm dừng phát sau khoảng thời gian đã chọn hoặc đóng ứng dụng"
       },
+      "smart-beat-toggle": {
+        "title": "Bật / tắt chế độ nhịp thông minh",
+        "description": "Bật hoặc tắt các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống)"
+      },
       "navigate-home": {
         "title": "Về trang chủ",
         "description": "Quay lại màn hình trang chủ"
@@ -2662,40 +2666,12 @@ const vi = {
     "transitionPerformanceDesc": "Chuyển tiếp bài hát mạnh mẽ hơn.",
     "transitionPerformanceNeedsStems": "Không khả dụng trên bản trình duyệt.",
     "transitionPerformanceNeedsModel": "Cần tải về mô hình tách track trước.",
-    "modelsTitle": "Mô hình phân tích",
-    "modelEnablesBeatGrid": "Beat This!",
-    "modelEnablesStems": "HTDemucs",
-    "modelEnablesRuntime": "Thành phần bắt buộc",
-    "modelScopeAutomix": "Automix",
-    "modelScopePerformance": "Chế độ trình diễn",
-    "modelInstalled": "Đã cài đặt",
-    "modelMissing": "Chưa cài đặt",
-    "modelUnsupported": "Không hỗ trợ",
-    "modelUnsupportedWhy": "Bộ xử lý thiết bị này không hỗ trợ tách giọng hát",
-    "modelDownload": "Tải xuống",
-    "modelCancel": "Hủy",
-    "modelScan": "Tìm trên máy tính",
-    "modelScanning": "Đang tìm...",
-    "modelScanNone": "Không tìm thấy tệp mô hình phù hợp",
-    "modelScanFound": "Đã cài {{count}} mô hình",
-    "modelManualHint": "Mọi đường tải xuống đều thất bại. Tải tệp từ đám mây về máy, rồi nhấn \"Tìm trên máy tính\" để cài đặt.",
-    "modelManualLink": "Tải từ đám mây",
-    "modelManualTitle": "Tải mô hình từ đám mây",
-    "modelManualDialogDesc": "Sau khi tải tệp về máy tính, quay lại đây và nhấn \"Tìm trên máy tính\" để tự động xác minh và cài đặt.",
-    "modelManualOpen": "Mở liên kết",
-    "modelLocation": "Vị trí mô hình",
-    "modelLocationChange": "Đổi vị trí",
-    "modelLocationReset": "Đặt lại mặc định",
-    "modelRemoveAll": "Xóa tất cả mô hình",
-    "modelRemoveConfirm": "Thao tác này sẽ xóa {{size}} tệp mô hình đã cài và chuyển Automix về chế độ tương thích. Có thể tải lại bất kỳ lúc nào.",
-    "modelRemoveDone": "Đã xóa, giải phóng {{size}}",
-    "modelRemoveFailed": "Không thể xóa: {{what}}",
-    "modelManualCode": "Mã truy cập",
-    "modelReminderTitle": "Chưa tải mô hình phân tích",
-    "modelReminderDesc": "Công cụ chuyển tiếp đầy đủ của Folia cần các mô hình mạng nơ-ron, tổng cộng khoảng 249MB.",
-    "modelReminderDownload": "Tải xuống",
-    "modelReminderLater": "Đã hiểu",
-    "modelReminderNever": "Không nhắc lại",
+    "legacyModelsTitle": "Dọn dẹp các mô hình automix cũ",
+    "legacyModelsDesc": "Các mô hình phân tích của automix hiện đã được đóng gói sẵn cùng Folia, vì vậy các mô hình và runtime được tải xuống ở các phiên bản trước không còn được sử dụng nữa. Thư mục mô hình bạn đã chọn vẫn còn chứa {{files}} tệp, tổng dung lượng {{size}}: {{dir}}. Xóa chỉ gỡ bỏ các tệp cũ này và giữ nguyên mọi thứ khác trong thư mục.",
+    "legacyModelsDelete": "Xóa",
+    "legacyModelsOpen": "Mở thư mục",
+    "legacyModelsKeep": "Giữ lại, không hỏi lại",
+    "legacyModelsFailed": "Không thể xóa một số tệp (có thể chúng đang được sử dụng). Hãy mở thư mục để tự xóa hoặc thử lại vào lần khởi động tiếp theo.",
     "transitionAnimation": "Hoạt ảnh chuyển tiếp",
     "transitionAnimationDesc": "Hiển thị đồ họa khi hòa âm. Không áp dụng cho chuyển tiếp dưới 5 giây.",
     "transitionAnimationRing": "Vòng tròn màn hình",
@@ -3283,6 +3259,27 @@ const vi = {
     "sonnetPostProcessLensDispersion": "Tán sắc thấu kính",
     "sonnetPostProcessHalftone": "Lưới chấm Halftone",
     "sonnetPostProcessVignette": "Tối góc",
+    "smartBeat": "Chế độ nhịp thông minh",
+    "smartBeatEnabled": "Công tắc",
+    "smartBeatOn": "Bật",
+    "smartBeatOff": "Tắt",
+    "smartBeatDesc": "Công tắc chính. Khi bật, các hiệu ứng nhịp được liệt kê trong cài đặt riêng của từng kiểu lời bài hát sẽ điều khiển khung hình theo âm nhạc, mỗi hiệu ứng có công tắc và độ mạnh riêng; khi tắt, mọi khung hình sẽ giữ nguyên phản hồi phổ âm thanh ban đầu. Hiệu ứng nhịp chuyển động theo các nhịp do beat_this phát hiện, hiệu ứng trống theo các tiếng trống do HTDemucs tách, mỗi mô hình chỉ phân tích khi có hiệu ứng đang hiển thị trên màn hình sử dụng. Bài hát cục bộ được phân tích trong vài giây ở lần phát đầu tiên; bài hát trực tuyến được phân tích từ luồng phát ở lần phát đầu tiên. Các bài hát đã phân tích sẽ được ghi nhớ.",
+    "beatFxUnavailable_noGpu": "Không tìm thấy WebGPU khả dụng trên thiết bị này, do đó các hiệu ứng nhịp sẽ không có tác dụng.",
+    "beatFxUnavailable_desktopOnly": "Hiệu ứng nhịp chỉ khả dụng trên ứng dụng máy tính.",
+    "beatEffects": "Hiệu ứng nhịp",
+    "beatEffectsNeedSmartBeat": "Bật chế độ nhịp thông minh ở trên để các hiệu ứng này hoạt động.",
+    "beatEffectStrength": "Độ mạnh",
+    "beatEffectNeedsDrums": "Thiếu mô hình HTDemucs trong bản cài đặt này; vui lòng cài đặt lại Folia. Đối với bài hát không có tiếng trống, hiệu ứng cũng sẽ không hiển thị.",
+    "beatEffect_sonnetLensTear": "Xé ống kính",
+    "beatEffect_sonnetLensTearDesc": "Theo các nhịp do beat_this phát hiện: mỗi nhịp đẩy camera vào gần; nhịp đầu tiên của mỗi ô nhịp sẽ xé hình và lóe sáng.",
+    "beatEffect_dioramaRipple": "Gợn sóng gương soi",
+    "beatEffect_dioramaRippleDesc": "Theo các nhịp do beat_this phát hiện: các hạt gợn sóng theo từng nhịp, tạo gợn sóng lớn ở nhịp đầu tiên của mỗi ô nhịp, và từ đang hát sẽ nảy lên.",
+    "beatEffect_pendoloDrumhead": "Mặt trống",
+    "beatEffect_pendoloDrumheadDesc": "Theo tiếng trống do HTDemucs tách: tiếng trống bass (kick) làm phồng mặt đồng hồ, cú đánh mạnh làm rung màn hình; tiếng trống snare đánh lệch tâm và nghiêng mặt số theo hướng đó; tiếng hi-hat thắp sáng các vạch chia và vòng tròn bên trong.",
+    "beatEffect_pendoloGearBeats": "Nhịp bánh răng",
+    "beatEffect_pendoloGearBeatsDesc": "Các bánh răng dịch chuyển theo các nhịp do beat_this phát hiện. (Không còn dùng)",
+    "beatEffect_latentPulse": "Xung nhịp thủy triều",
+    "beatEffect_latentPulseDesc": "Dòng chảy nền Latent đập theo các nhịp do beat_this phát hiện. (Không còn dùng)",
     "temperaMotionSection": "Chuyển động & Màu sắc",
     "temperaDisplaySection": "Hiển thị",
     "temperaLyricSection": "Phân cảnh lời",
@@ -4088,6 +4085,33 @@ const vi = {
       "qqPrivatePlaylists": {
         "title": "Danh sách phát QQ Music riêng tư",
         "description": "Sau khi đăng nhập, danh sách phát riêng tư của bạn nay có thể tải bài hát với phân trang thực tế. Máy chủ tự lưu trữ cần chạy qq-music-api 3.1.2 trở lên; phiên bản cũ hơn sẽ tự động quay về cơ chế dự phòng, và danh sách phát không đọc được sẽ báo rõ là danh sách không công khai thay vì hiển thị trống."
+      }
+    },
+    "v0_7_21": {
+      "intro": "Chào mừng bạn đến với phiên bản 0.7.21, bản cập nhật Sabbat-of-the-witch — một bản phát hành lớn. Ứng dụng máy tính bổ sung Spotify và YouTube Music, và mọi nền tảng hiện đăng nhập thông qua một cửa sổ đăng nhập duy nhất; màn hình chính có thêm tab Khám phá; Sonnet, Diorama và Pendolo có thêm chế độ Nhịp thông minh chuyển động theo nhịp điệu và tiếng trống; QQ Music có thể đăng nhập bằng ứng dụng QQ Music, và giao diện hiện đã hỗ trợ tiếng Trung Phồn thể.",
+      "newPlatforms": {
+        "title": "Spotify và YouTube Music",
+        "description": "Hai nền tảng mới trên máy tính. Đăng nhập Spotify qua trình duyệt hệ thống để tìm kiếm, duyệt bài hát, thích, lưu và chỉnh sửa danh sách phát; phát nhạc yêu cầu Spotify Premium, hỗ trợ chất lượng lên đến 320k và hiện chưa khả dụng trên máy Mac chạy chip Intel. YouTube Music hỗ trợ tìm kiếm và phát nhạc mà không cần đăng nhập; để đăng nhập, Folia sẽ mở Chrome, Edge, Chromium hoặc Brave trên máy tính cho tài khoản Google của bạn, và tài khoản Premium có thể chọn chất lượng âm thanh cao hơn. Cả hai nền tảng chỉ cung cấp lời bài hát đồng bộ theo dòng và hiện chưa hỗ trợ trên phiên bản web."
+      },
+      "loginWindow": {
+        "title": "Một cửa sổ đăng nhập thống nhất",
+        "description": "NetEase Cloud Music, QQ Music, Kugou, Bodian, Spotify và YouTube Music đều đăng nhập từ cùng một cửa sổ: danh sách nền tảng và trạng thái đăng nhập ở bên trái, các bước quét mã QR hoặc duyệt web ở bên phải, và khi gặp sự cố sẽ hiển thị lý do cùng thời điểm có thể thử lại. Bạn có thể duy trì đăng nhập nhiều nền tảng cùng lúc, chuyển đổi hoặc đăng xuất tại đây (đăng xuất sẽ xóa hàng đợi phát). Mở từ nút Đăng nhập trên màn hình chính hoặc biểu tượng nền tảng ở góc dưới bên phải."
+      },
+      "explore": {
+        "title": "Khám phá",
+        "description": "Màn hình chính có thêm tab Khám phá mới với các danh sách phát gợi ý, bảng xếp hạng, bài hát mới và album mới từ NetEase Cloud Music, QQ Music, Spotify và YouTube Music, cùng với các bài hát phát gần đây và \"Phát lại lần nữa\" được lưu trên thiết bị này, kèm theo nút tải thêm lượt mới. Bravais cũng có thêm tab Khám phá, và việc mở Lattice từ Khám phá sẽ trình bày toàn bộ dưới dạng bức tường áp phích. Bạn có thể tắt tính năng này trong Cài đặt → Trang chủ & danh sách phát; mục Khám phá của QQ Music yêu cầu qq-music-api 3.3.3 trở lên ở backend."
+      },
+      "smartBeat": {
+        "title": "Chế độ nhịp thông minh",
+        "description": "Các kiểu lời bài hát trên máy tính có thêm chế độ Nhịp thông minh: Sonnet đẩy camera lại gần theo từng nhịp và lóe sáng ở nhịp đầu tiên của ô nhịp, các hạt của Diorama gợn sóng theo nhịp trong khi từ đang hát nảy lên, và mặt số của Pendolo phồng lên theo tiếng trống bass, trống snare và chũm chọe đã được tách riêng. Mỗi hiệu ứng có công tắc và độ mạnh riêng, và toàn bộ chế độ có thể bật/tắt nhanh từ bảng lệnh. Tính năng yêu cầu GPU hỗ trợ WebGPU; bài hát được phân tích trong giây lát ở lần phát đầu tiên và được ghi nhớ về sau. Các mô hình hiện được phân phối kèm bộ cài đặt, vì vậy tính năng automix cũng không cần tải xuống mô hình riêng nữa."
+      },
+      "qqMusic": {
+        "title": "QQ Music: Đăng nhập qua ứng dụng và nhiều cải tiến",
+        "description": "QQ Music hiện có thể đăng nhập bằng cách quét mã bằng ứng dụng QQ Music (trên desktop, Docker và Node, cùng mã nguồn cũng hoạt động với QQ di động và WeChat); trên phiên bản web với backend Serverless, đăng nhập sẽ tự động làm mới tối đa 30 ngày. Tìm kiếm khi đã đăng nhập ổn định hơn, và khi nền tảng từ chối tìm kiếm bạn sẽ thấy thông báo lỗi thay vì \"không có kết quả\". Điểm mới: ổ đĩa đám mây âm nhạc (chỉ các bài hát có thể phát), cấp độ thành viên, số lượt nghe danh sách phát và tạo danh sách phát trống; khi không có nguồn phát đầy đủ, Folia sẽ phát bản nghe thử và thông báo rõ. Các tính năng này yêu cầu qq-music-api 3.3.3 ở backend."
+      },
+      "moreDetails": {
+        "title": "Nhiều cải tiến khác",
+        "description": "Giao diện có thể chuyển sang tiếng Trung Phồn thể; Cài đặt được tổ chức lại thành Giao diện, Âm nhạc, Ứng dụng và Nâng cao, mục đồng bộ được chuyển sang Kết nối. Tùy chọn mới \"Ẩn con trỏ khi không hoạt động\", và \"Định vị bài hát đang phát\" trong bảng lệnh; cửa sổ điều khiển từ xa được thiết kế lại và có thể ngăn ảnh bìa nhàn rỗi mở rộng; trong quá trình chuyển tiếp automix, Monet và cửa sổ điều khiển từ xa sẽ chuyển bài hát đồng bộ theo tiến trình hòa âm. Khi có nhiều màn hình, bạn có thể chọn màn hình mà chế độ hình nền sử dụng, và thao tác kéo trong chế độ hình nền Windows sẽ bám sát chuột hơn. Các gói Linux ARM64 đã được thêm mới, và API mod chuyển sang Folium 1.6."
       }
     },
     "v0_7_20": {

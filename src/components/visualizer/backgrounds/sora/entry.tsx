@@ -44,6 +44,7 @@ export default defineVisualizerBackground({
                     blendProgress={blendProgress}
                 />
             )}
+        </div>
     ),
     renderSettingsPanel: ({ config, actions, t, isDaylight, theme, controlCardBg, rangeInputClass, onSliderPointerDown, onSliderCommit }) => (
         <SoraBackgroundSettingsCard

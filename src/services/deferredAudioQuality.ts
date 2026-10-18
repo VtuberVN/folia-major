@@ -1,6 +1,6 @@
 import type { SongResult } from '../types';
 import type { AudioQualityInfo } from '../types/audioQuality';
-import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { setCurrentSong, setPlayQueue, usePlaybackStore } from '../stores/usePlaybackStore';
 import { isSamePlaybackSong } from '../utils/appPlaybackGuards';
 
 // src/services/deferredAudioQuality.ts
@@ -17,9 +17,7 @@ export function watchDeferredAudioQuality(song: SongResult, audioSrc: string, re
         const codecChanged = previous?.codec && info.codec && previous.codec.trim().toLowerCase() !== info.codec.trim().toLowerCase();
         const replace = codecChanged || (previous?.provenance === 'source' && info.provenance !== 'source');
         const audioQualityInfo = replace ? info : { ...previous, ...definedInfo };
-        usePlaybackStore.setState({
-            currentSong: { ...state.currentSong, audioQualityInfo },
-            playQueue: state.playQueue.map(entry => isSamePlaybackSong(entry, song) ? { ...entry, audioQualityInfo } : entry),
-        });
+        setCurrentSong(current => (current && isSamePlaybackSong(current, song) ? { ...current, audioQualityInfo } : current));
+        setPlayQueue(currentQueue => currentQueue.map(entry => isSamePlaybackSong(entry, song) ? { ...entry, audioQualityInfo } : entry));
     }).catch(() => { /* Metadata is optional and must not interrupt playback. */ });
 }

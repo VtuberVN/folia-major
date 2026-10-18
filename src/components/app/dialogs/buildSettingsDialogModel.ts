@@ -167,7 +167,18 @@ export const buildSettingsDialogModel = ({
             }
         },
         onStageSourceChange: async (source) => {
-            await window.electron?.saveSettings?.('STAGE_MODE_SOURCE', source);
+            try {
+                if (window.electron?.setStageSource) {
+                    const nextStatus = await window.electron.setStageSource(source);
+                    if (nextStatus) {
+                        setStageStatus(nextStatus);
+                    }
+                } else {
+                    await window.electron?.saveSettings?.('STAGE_MODE_SOURCE', source);
+                }
+            } catch (error) {
+                console.error('[buildSettingsDialogModel] Failed to change stage source:', error);
+            }
         },
         onRegenerateStageToken: async () => {
             const nextStatus = await window.electron?.regenerateStageToken();

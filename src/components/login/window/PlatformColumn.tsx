@@ -68,9 +68,9 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
     // 高亮那一块的位置和大小，每次画完从它所在的行量一遍（行的宽度跟着名字、头像和语言变）；数没变就不动。
     useLayoutEffect(() => {
         const row = rowOf(lit?.providerId);
-        const next = row ? { x: row.offsetLeft, y: row.offsetTop, w: row.offsetWidth, h: row.offsetHeight } : null;
+        const next = row ? { x: Math.round(row.offsetLeft), y: Math.round(row.offsetTop), w: Math.round(row.offsetWidth), h: Math.round(row.offsetHeight) } : null;
         setBox(current => (current?.x === next?.x && current?.y === next?.y && current?.w === next?.w && current?.h === next?.h ? current : next));
-    });
+    }, [lit?.providerId, lie, shown.length]);
 
     // 选中的行换了，把它滚进来。指针指着的行不滚：列表不在指针底下自己动，指针移开也不跳回去。
     useLayoutEffect(() => {
@@ -81,18 +81,26 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
         const list = listRef.current;
         if (!list) return;
         const [at, room, all] = lie === 'column' ? [list.scrollTop, list.clientHeight, list.scrollHeight] : [list.scrollLeft, list.clientWidth, list.scrollWidth];
-        const next = { before: at > 1, after: at + room < all - 1 };
+        const next = { before: at > 2, after: at + room < all - 2 };
         setMore(current => (current.before === next.before && current.after === next.after ? current : next));
     };
     // 行数变了、横竖换了，和列表自己的大小变了（窗口变宽变窄）的时候都重看一遍。
     useEffect(() => {
         readMore();
+        const updateBox = () => {
+            const row = rowOf(lit?.providerId);
+            const next = row ? { x: Math.round(row.offsetLeft), y: Math.round(row.offsetTop), w: Math.round(row.offsetWidth), h: Math.round(row.offsetHeight) } : null;
+            setBox(current => (current?.x === next?.x && current?.y === next?.y && current?.w === next?.w && current?.h === next?.h ? current : next));
+        };
         const list = listRef.current;
         if (!list || typeof ResizeObserver === 'undefined') return undefined;
-        const observer = new ResizeObserver(readMore);
+        const observer = new ResizeObserver(() => {
+            readMore();
+            updateBox();
+        });
         observer.observe(list);
         return () => observer.disconnect();
-    }, [shown.length, lie]);
+    }, [shown.length, lie, lit?.providerId]);
 
     // 横着的那一排：竖着滚的滚轮也让它左右走（它没有滚动条）。已经到了那一头就不拦：滚轮照常去滚窗口里的内容。
     useEffect(() => {
@@ -133,6 +141,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
         }
     };
 
+    const fade = (more.before || more.after) ? `linear-gradient(${lie === 'column' ? 'to bottom' : 'to right'}, ${more.before ? 'transparent, #000 30px' : '#000'}, ${more.after ? '#000 calc(100% - 30px), transparent' : '#000'})` : undefined;
     const stateText = (status: ReturnType<typeof rowStatus>): string | null => (
         status === 'signed-in' ? t('login.rowSignedIn') : status === 'ran-out' ? t('login.rowRanOut') : status === 'off' ? t('home.providerNotConfigured') : null
     );
@@ -162,6 +171,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                 onScroll={readMore}
                 onMouseLeave={() => setPointed(null)}
                 className={`relative min-h-0 rounded-lg outline-none ${lie === 'column' ? 'st-scroll flex flex-1 flex-col overflow-y-auto overscroll-contain' : 'login-row-scroll flex gap-1 overflow-x-auto overscroll-x-contain'}`}
+                style={fade ? { WebkitMaskImage: fade, maskImage: fade } : undefined}
             >
                 <div
                     aria-hidden
@@ -193,7 +203,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                                 <i
                                     aria-hidden
                                     className={`st-t-fast absolute left-0 top-1/2 h-[38%] w-[3px] -translate-y-1/2 rounded-full transition-opacity ${chosen ? 'opacity-100' : 'opacity-0'}`}
-                                    style={{ background: platformMarkOf(row.providerId, row.shortName).color }}
+                                    style={{ background: platformMarkOf(row.providerId, row.shortName)?.color ?? 'var(--st-accent)' }}
                                 />
                             )}
                             <PlatformMark providerId={row.providerId} label={row.shortName} size={tall ? 30 : 22} ranOut={status === 'ran-out'} />

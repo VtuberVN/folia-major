@@ -174,4 +174,36 @@ describe('the sign-in window, drawn', () => {
         expect(wheel(0, 40)).toBe(false);
         expect(wheel(40, 40)).toBe(false);
     });
+
+    it('does not re-render infinitely or exceed update depth when scrolling or hovering bottom items', () => {
+        const rows = [row('netease'), row('qq'), row('kugou'), row('bodian'), row('spotify'), row('ytm'), row('zing'), row('nct')];
+        draw(React.createElement(PlatformColumn, { rows, chosenId: 'netease', onChoose: () => { }, lie: 'column' }));
+        const list = place.querySelector<HTMLElement>('[role="listbox"]')!;
+        Object.defineProperty(list, 'scrollHeight', { value: 600 });
+        Object.defineProperty(list, 'clientHeight', { value: 300 });
+
+        // Scroll down
+        act(() => {
+            list.scrollTop = 300;
+            list.dispatchEvent(new Event('scroll'));
+        });
+
+        // Hover on NCT (at the bottom)
+        const nctRow = place.querySelector<HTMLElement>('#login-row-nct')!;
+        expect(nctRow).not.toBeNull();
+        act(() => {
+            nctRow.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        });
+
+        // Scroll again while hovering
+        act(() => {
+            list.scrollTop = 300;
+            list.dispatchEvent(new Event('scroll'));
+        });
+
+        // Mouse leave
+        act(() => {
+            list.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        });
+    });
 });

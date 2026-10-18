@@ -53,7 +53,7 @@ export const matchesCategory = (key: string, category: CacheCategory): boolean =
   // counted here but NOT in mediaCount below, which means "songs cached" and would otherwise
   // double for every track that has both. The level the audio was fetched at (`audioLevel_`)
   // describes that one copy, so it is cleared and counted with it in the same way.
-  return key.startsWith('audio_') || key.startsWith('replayGain_') || key.startsWith('audioLevel_');
+  return key.startsWith('audio_') || key.startsWith('replayGain_') || key.startsWith('audioLevel_') || key.startsWith('audioQuality_');
 };
 
 export const emptyCacheUsage = (): CacheUsage => ({ playlist: 0, lyrics: 0, cover: 0, media: 0, analysis: 0, mediaCount: 0 });

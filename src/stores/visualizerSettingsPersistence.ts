@@ -173,4 +173,3 @@ export const readStoredSmartBeatSettings = (): SmartBeatSettings => {
         return DEFAULT_SMART_BEAT_SETTINGS;
     }
 };
->>>>>>> upstream/main
