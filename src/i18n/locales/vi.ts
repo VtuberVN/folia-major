@@ -1591,8 +1591,8 @@ const vi = {
         "description": "Sử dụng tiếng Indonesia cho giao diện"
       },
       "settings-language-vi": {
-        "title": "Chuyển ngôn ngữ sang Tiếng Việt",
-        "description": "Sử dụng Tiếng Việt cho giao diện"
+        "title": "Chuyển sang tiếng Việt",
+        "description": "Sử dụng tiếng Việt cho giao diện"
       }
     }
   },
