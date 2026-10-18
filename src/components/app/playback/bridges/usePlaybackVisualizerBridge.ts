@@ -4,10 +4,21 @@ import type { MotionValue } from 'framer-motion';
 import { findLatestActiveLineIndex } from '../../../../utils/appPlaybackHelpers';
 import { PlayerState } from '../../../../types';
 import type { AudioBands, LyricData } from '../../../../types';
-import { setCurrentLineIndex, setPlayerState } from '../../../../stores/usePlaybackStore';
+import { setCurrentLineIndex, setHandoffLineIndex, setPlayerState } from '../../../../stores/usePlaybackStore';
 import { selectDisplayLyrics, usePlaybackStore } from '../../../../stores/usePlaybackStore';
-import { audioBands, audioPower, currentTime, lyricCurrentTime } from '../../../../stores/motionSignals';
+import {
+    audioBands,
+    audioPower,
+    currentTime,
+    handoffLyricCurrentTime,
+    handoffProgress,
+    lyricCurrentTime,
+} from '../../../../stores/motionSignals';
 import { isExclusiveClockRunning, getExclusiveClockSec } from '../../../../services/exclusiveClock';
+import { getTransitionHandoffProgress } from '../../../../services/automix/transitionCue';
+import { tickBeatFx } from '../../../../services/beatFx/beatFxLive';
+import { useBeatFxTrack } from '../../../../hooks/useBeatFxTrack';
+import { readIncomingLyricClock } from './incomingLyricClock';
 
 // src/components/app/playback/bridges/usePlaybackVisualizerBridge.ts
 
@@ -33,6 +44,12 @@ type UsePlaybackVisualizerBridgeParams = {
     getPlayerCapDisplayTime: () => number;
     syncNowPlayingClock: (progressSec: number, durationSec: number, paused: boolean) => void;
     lyricTimelineOffsetMs: number;
+    /**
+     * The incoming track's own lyric offset during a blend (`lyricTimelineOffsetMs` is the displayed
+     * track's): its clock is read against it, so it runs on unchanged when the settle makes it the
+     * displayed track's. Left out, the displayed track's.
+     */
+    incomingLyricTimelineOffsetMs?: number;
     /** True while an automix handover is in progress and a deck other than the active one sounds. */
     isTransitionAudible: () => boolean;
     /**
@@ -63,6 +80,7 @@ export function usePlaybackVisualizerBridge({
     getPlayerCapDisplayTime,
     syncNowPlayingClock,
     lyricTimelineOffsetMs,
+    incomingLyricTimelineOffsetMs = lyricTimelineOffsetMs,
     isTransitionAudible,
     getDisplayElement,
 }: UsePlaybackVisualizerBridgeParams) {
@@ -72,8 +90,56 @@ export function usePlaybackVisualizerBridge({
     const duration = usePlaybackStore(state => state.duration);
     // The lyrics on screen, matching the deck getDisplayElement points at.
     const lyrics = usePlaybackStore(selectDisplayLyrics);
+    // The live lyrics, which during a blend are the incoming track's (null until they load).
+    const incomingLyrics = usePlaybackStore(state => state.lyrics);
 
     const currentLineIndexRef = useRef(-1);
+    // 智能动感模式: loads the track's beats while it is on; the clock is stepped below. A ref, so
+    // switching it does not rebuild the frame loop.
+    const beatFxWantedRef = useRef(false);
+    beatFxWantedRef.current = useBeatFxTrack();
+    const handoffLineIndexRef = useRef(-1);
+    // The lyric offsets as the loop reads them. The settle moves the displayed one onto the incoming
+    // track's as it copies that track's clock: the prop catches up a render later, and a frame read in
+    // between against the outgoing track's offset would move the line by the difference.
+    const displayOffsetMsRef = useRef(lyricTimelineOffsetMs);
+    const incomingOffsetMsRef = useRef(incomingLyricTimelineOffsetMs);
+    useEffect(() => {
+        displayOffsetMsRef.current = lyricTimelineOffsetMs;
+    }, [lyricTimelineOffsetMs]);
+    useEffect(() => {
+        incomingOffsetMsRef.current = incomingLyricTimelineOffsetMs;
+    }, [incomingLyricTimelineOffsetMs]);
+
+    // The ends of a blend, written as the store changes rather than on the next frame: the visualizer
+    // renders from that same change, and a frame late it would draw the incoming track's lyrics from
+    // the outgoing track's clock and line (or the last blend's finished hand-off at the next one's start).
+    useEffect(() => usePlaybackStore.subscribe((state, previous) => {
+        if (state.transitionDisplay === previous.transitionDisplay) return;
+        if (previous.transitionDisplay === null) {
+            handoffProgress.set(0);
+            handoffLineIndexRef.current = -1;
+            setHandoffLineIndex(-1);
+            return;
+        }
+        if (state.transitionDisplay !== null) return;
+        // Handed over: the picture is now the incoming track, and its clock runs on from its own deck.
+        // Only the session knows which way the blend went. A cancel keeps the outgoing deck's clock, and
+        // a skip mid-blend loads some other track onto the deck that was incoming, so both are left to
+        // the ordinary song change. Read from the deck here rather than from the frame loop's last
+        // hand-off: that loop does not run while the window is hidden.
+        // The hand-off itself is left where it stood: what plays along it (the background change, the
+        // Monet cover) lets go of it at a settle or a cancel and plays the rest from there on the clock,
+        // and a set here would snap it to the end first.
+        const incoming = audioRef.current;
+        if (state.transitionEnd !== 'handedOver' || !incoming) return;
+        const clock = readIncomingLyricClock(incoming.currentTime, incomingOffsetMsRef.current, state.lyrics?.lines);
+        displayOffsetMsRef.current = incomingOffsetMsRef.current;
+        currentTime.set(incoming.currentTime);
+        lyricCurrentTime.set(clock.lyricTimeSec);
+        currentLineIndexRef.current = clock.lineIndex;
+        setCurrentLineIndex(clock.lineIndex);
+    }), [audioRef]);
 
     const updateLoop = useCallback(() => {
         // Normally the active deck; the outgoing one for as long as a blend holds the picture on
@@ -137,7 +203,7 @@ export function usePlaybackVisualizerBridge({
                 : audioElement.currentTime;
             currentTime.set(time);
 
-            const effectiveLyricTime = time - lyricTimelineOffsetMs / 1000;
+            const effectiveLyricTime = time - displayOffsetMsRef.current / 1000;
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
@@ -153,7 +219,7 @@ export function usePlaybackVisualizerBridge({
 
             currentTime.set(nextTime);
 
-            const effectiveLyricTime = nextTime - lyricTimelineOffsetMs / 1000;
+            const effectiveLyricTime = nextTime - displayOffsetMsRef.current / 1000;
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
@@ -188,7 +254,7 @@ export function usePlaybackVisualizerBridge({
             const nextTime = getPlayerCapDisplayTime();
             currentTime.set(nextTime);
 
-            const effectiveLyricTime = nextTime - lyricTimelineOffsetMs / 1000;
+            const effectiveLyricTime = nextTime - displayOffsetMsRef.current / 1000;
             lyricCurrentTime.set(effectiveLyricTime);
 
             if (lyrics) {
@@ -230,6 +296,24 @@ export function usePlaybackVisualizerBridge({
             }
         }
 
+        if (beatFxWantedRef.current) {
+            tickBeatFx(isActuallyPlaying ? audioElement : null, analyserRef.current?.context);
+        }
+
+        // While a blend holds the picture, the active deck is the incoming track: its hand-off, clock
+        // and line for the visualizer, off this same frame rather than a second loop.
+        const heldElement = getDisplayElement?.() ?? null;
+        const incomingElement = heldElement ? audioRef.current : null;
+        if (incomingElement && incomingElement !== heldElement) {
+            handoffProgress.set(getTransitionHandoffProgress());
+            const incomingClock = readIncomingLyricClock(incomingElement.currentTime, incomingOffsetMsRef.current, incomingLyrics?.lines);
+            handoffLyricCurrentTime.set(incomingClock.lyricTimeSec);
+            if (incomingClock.lineIndex !== handoffLineIndexRef.current) {
+                handoffLineIndexRef.current = incomingClock.lineIndex;
+                setHandoffLineIndex(incomingClock.lineIndex);
+            }
+        }
+
         animationFrameRef.current = requestAnimationFrame(updateLoop);
     }, [
         activePlaybackContext,
@@ -247,6 +331,7 @@ export function usePlaybackVisualizerBridge({
         isNowPlayingStageActive,
         isPlayerCapStageActive,
         lyrics,
+        incomingLyrics,
         playerState,
         setCurrentLineIndex,
         setPlayerState,
@@ -255,7 +340,6 @@ export function usePlaybackVisualizerBridge({
         stageLyricsSession,
         syncNowPlayingClock,
         syncStageLyricsClock,
-        lyricTimelineOffsetMs,
         lyricCurrentTime,
         isTransitionAudible,
         getDisplayElement,

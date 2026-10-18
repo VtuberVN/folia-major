@@ -8,7 +8,7 @@ import { getPlaybackSongKey, isNavidromePlaybackSong, resolveNavidromePlaybackCa
 import { nextTransitionSong } from '../../utils/playbackNeighbors';
 import { getPrefetchedData } from '../prefetchService';
 import { getTrackProfile, recordPlayedTail } from './profileService';
-import { refreshModelAvailability } from './modelAvailability';
+import { refreshModelAvailability } from '../analysis/modelAvailability';
 import { canSeparateStems, ensureStems, getStemsByKey, setWantedStems, stemWindowKey } from './stems';
 import { connectAutomixDeck, type AutomixDeckChain } from './crossfadeGraph';
 import {
@@ -213,6 +213,7 @@ export function useAutomixDecks({
     // the whole point of it — see the comment at the call site.
     const transitionDisplay = usePlaybackStore(state => state.transitionDisplay);
     const setTransitionDisplay = usePlaybackStore(state => state.setTransitionDisplay);
+    const releaseTransitionDisplay = usePlaybackStore(state => state.releaseTransitionDisplay);
     /**
      * The next track's source, handed to the idle deck so it can buffer before it is needed.
      *
@@ -255,7 +256,7 @@ export function useAutomixDecks({
         void refreshModelAvailability().then((present) => {
             console.log(
                 `[Automix] models on disk at startup: beat_this ${present.beat_this ? 'yes' : 'no'},`
-                + ` htdemucs ${present.htdemucs ? 'yes' : 'no'}`,
+                + ` htdemucs ${present.htdemucs ? 'yes' : 'no'}, htdemucs_gpu ${present.htdemucs_gpu ? 'yes' : 'no'}`,
             );
         });
     }, []);
@@ -388,7 +389,10 @@ export function useAutomixDecks({
                 // same block that calls `advanceTrack` a few lines later, so what the ref holds
                 // here is still the outgoing track. A snapshot taken from an effect would race the
                 // advance and capture whichever of the two React had committed by then.
-                setTransitionDisplay(src === null ? null : displayRef.current);
+                // The release carries how the blend ended: the screen continues the incoming track's
+                // clock only across a hand-over, and treats a cancel or a skip as a plain song change.
+                if (src === null) releaseTransitionDisplay(opts?.end ?? 'handedOver');
+                else setTransitionDisplay(displayRef.current);
                 // Mirrored into a ref so `getDisplayElement` can stay a stable callback: it is
                 // read from an animation frame, and a changing identity there restarts the loop.
                 displayHeldRef.current = src !== null;

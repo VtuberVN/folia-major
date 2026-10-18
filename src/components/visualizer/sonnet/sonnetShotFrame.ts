@@ -19,6 +19,7 @@ import { isSonnetEmphasisRole } from './sonnetTypographyLayout';
 import { resolveSonnetSegmentCameraFocus } from './sonnetCameraTracking';
 import { publishTideAnchorFrom, resolveGlyphAnchorStrength } from '../backgrounds/tide/tideAnchorBridge';
 import { shouldPublishTideAnchors } from '../backgrounds/tide/tideAnchorDemand';
+import { applySonnetBeatFxLayers, restoreSonnetBeatFxLayers, type SonnetBeatFxFrame } from './sonnetBeatFx';
 
 // src/components/visualizer/sonnet/sonnetShotFrame.ts
 // 单个 shot 的逐帧姿态：镜头运动、间隙漂移与呼吸、逐段落焦点跟踪、MG / 引导线 / 开放画框时间，
@@ -27,11 +28,15 @@ import { shouldPublishTideAnchors } from '../backgrounds/tide/tideAnchorDemand';
 /** What a shot frame reads besides the view and the clock; all of it is read fresh every frame. */
 export interface SonnetShotFrameContext {
     tuning: SonnetTuning;
+    /** 智能动感模式 (SmartBeatSettings.enabled), whether or not this track's beats are in yet. */
+    smartBeatEnabled: boolean;
     theme: Theme;
     audioBands?: AudioBands;
     audioPower?: MotionValue<number>;
     /** Mod multiplier lookup; 1 when the key is absent. */
     mod: (key: string) => number;
+    /** 智能动感模式 for this frame; null/absent unless it is on and the track's beats are installed. */
+    beatFx?: SonnetBeatFxFrame | null;
 }
 
 /** Reads a mod modulation key, falling back to 1 so the frame is unchanged when absent. */
@@ -75,7 +80,7 @@ export const updateSonnetShot = (
     width: number,
     height: number,
     shakeIntensity: number,
-    { tuning, theme, audioBands, audioPower: audioPowerValue, mod }: SonnetShotFrameContext,
+    { tuning, smartBeatEnabled, theme, audioBands, audioPower: audioPowerValue, mod, beatFx }: SonnetShotFrameContext,
 ) => {
     const progress = resolveShotProgress(view.shot, time);
     const motion = tuning.typographyMotion * resolveSonnetAnimationScale(theme) * mod('motionScale');
@@ -164,6 +169,18 @@ export const updateSonnetShot = (
     ) * camera;
     view.container.x = view.baseX + (cameraFrame.x * width + shake.x * width) * camera;
     view.container.y = view.baseY + (cameraFrame.y * height + shake.y * height) * camera;
+
+    if (beatFx) {
+        // Beat punch on top of the tracked camera: zooms about the focus pivot, tilt alternates.
+        // The frame overlay is a stage sibling of the scenes, so it never moves with this.
+        view.container.scale.set(view.container.scale.x * beatFx.zoom);
+        view.container.rotation += beatFx.rotation;
+        applySonnetBeatFxLayers(view, beatFx);
+    } else if (smartBeatEnabled) {
+        // On, but no beats for this track (yet): the original frame, including what an earlier
+        // beat FX frame - the previous track's - left on these layers.
+        restoreSonnetBeatFxLayers(view);
+    }
 
     if (view.mgParticleLayer) {
         // Create a slight time-difference/parallax effect for decorative elements

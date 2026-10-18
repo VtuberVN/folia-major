@@ -9,6 +9,8 @@
 
 Lyrics Reimagined // Trải nghiệm Lời bài hát Tinh tế
 
+[简体中文](README.md) | [English](README.en.md)
+
 [![GitHub release](https://img.shields.io/github/v/release/chthollyphile/folia-major?label=release)](https://github.com/chthollyphile/folia-major/releases)
 [![License](https://img.shields.io/github/license/chthollyphile/folia-major)](https://github.com/chthollyphile/folia-major/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/chthollyphile/folia-major?style=social)](https://github.com/chthollyphile/folia-major/stargazers)
@@ -201,7 +203,7 @@ npm run build:win
 ## Hệ thống Mod (Folium v1.x)
 
 > [!NOTE]
-> Hệ thống Mod là tính năng thử nghiệm, chỉ khả dụng trên bản Desktop, mặc định tắt. Cần bật tại "Cài đặt → Phòng thí nghiệm → Hệ thống Mod".
+> Hệ thống Mod là tính năng thử nghiệm, chỉ khả dụng trên bản Desktop, mặc định tắt. Cần bật tại "Cài đặt → Mod → Hệ thống Mod".
 
 Folium là nền tảng Mod của Folia. Mod có thể bổ sung các chế độ diễn hoạt lời bài hát mới, loại hình nền, các lớp phủ trên trang phát nhạc, nút bấm trên thanh tiến trình, đăng ký lệnh điều khiển và gọi các công cụ cục bộ như ffmpeg thông qua Node. Mod chạy với quyền mã nguồn tin cậy; mỗi mod trước khi bật đều phải được xác nhận trong cửa sổ gốc.
 
@@ -223,7 +225,7 @@ Folia cung cấp máy chủ đồng bộ chính thức tùy chọn `sync-server`
 - **Docker**: Xem [Thư mục triển khai Docker](deploy/docker/README.md).
 - **Node.js Tự host**: Sử dụng SQLite, phù hợp chạy cục bộ.
 
-Xem các bước chi tiết tại [Hướng dẫn triển khai Sync-Server](https://folia-site.cielaniska.top/guide/deploy-sync). Sau khi triển khai, điền địa chỉ máy chủ và `SYNC_TOKEN` trong phần "Cài đặt lưu trữ" của Folia để kích hoạt.
+Xem các bước chi tiết tại [Hướng dẫn triển khai Sync-Server](https://folia-site.cielaniska.top/guide/deploy-sync). Sau khi triển khai, điền địa chỉ máy chủ và `SYNC_TOKEN` trong phần "Cài đặt → Kết nối & Tích hợp" của Folia để kích hoạt.
 
 ---
 

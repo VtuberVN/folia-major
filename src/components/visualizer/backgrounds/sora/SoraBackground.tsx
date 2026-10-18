@@ -8,6 +8,7 @@ import {
   type SoraShootingPalette,
   type Theme,
 } from '../../../../types';
+import { useBlendedColors } from '../useBlendedColors';
 
 // src/components/visualizer/backgrounds/sora/SoraBackground.tsx
 // High-performance Three.js 3D Cosmic Celestial Background for Folia's Sora mode.
@@ -24,6 +25,8 @@ interface SoraBackgroundProps {
   audioBands?: AudioBands;
   audioPower?: MotionValue<number>;
   blendMs?: number;
+  /** Where given, the blend plays along this instead (useBlendedColors). */
+  blendProgress?: MotionValue<number>;
 }
 
 const SHOOTING_PALETTES: Record<SoraShootingPalette, string[]> = {
@@ -148,8 +151,11 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({
   tuning = DEFAULT_SORA_BACKGROUND_TUNING,
   audioBands,
   audioPower,
+  blendMs = 0,
+  blendProgress,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [primaryColor, accentColor] = useBlendedColors([theme.primaryColor, theme.accentColor], blendMs, blendProgress);
 
   // Store mutable refs so animation loop has instant access without re-binding
   const tuningRef = useRef(tuning);

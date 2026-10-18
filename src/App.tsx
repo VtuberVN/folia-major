@@ -18,7 +18,6 @@ import { useProviderSignOut } from './components/app/dialogs/useProviderSignOut'
 import LoginHost from './components/login/LoginHost';
 import { useSettingsDialogModel } from './components/app/dialogs/useSettingsDialogModel';
 import AppOverlays from './components/app/overlays/AppOverlays';
-import AutomixModelReminder from './components/modal/AutomixModelReminder';
 import PonderHost from './components/ponder/PonderHost';
 import { useGlass } from './mods/useGlass';
 // Lazy so animejs (~38KB gz) stays out of the bootstrap chunk: this overlay only ever draws when the
@@ -30,6 +29,7 @@ import { useVisualizerAroundWall, wallExitCompleted, WALL_LAYER } from './compon
 import { useMorphKeepsHost } from './components/collectionFlight';
 import { UserGuideModal } from './components/modal/UserGuideModal';
 import ReleaseNotesDialog from './components/modal/ReleaseNotesDialog';
+import LegacyModelsPrompt from './components/modal/LegacyModelsPrompt';
 import { PlaybackEntryViewPrompt } from './components/modal/playback-entry-view/PlaybackEntryViewPrompt';
 import { LatticeFmNotice } from './components/modal/playback-entry-view/LatticeFmNotice';
 import { useStartupExperienceGate } from './hooks/useStartupExperienceGate';
@@ -71,6 +71,7 @@ import { createQueueMutations } from './components/app/player-panel/createQueueM
 import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, UnifiedSong } from './types';
 import type { LocalSong } from './types';
 import { getLocalSongArrayBuffer } from './services/localMusicService';
+import { registerLocalTrackFileReader } from './services/analysis/trackAudio';
 import type { MediaId, OnlineProviderId, ProviderCollection } from './types/onlineMusic';
 import { resolveSongCatalogRef } from './services/onlineMusic/catalogRefs';
 import { omni } from './services/onlineMusic/omni';
@@ -111,6 +112,7 @@ import { usePlaybackQueueController } from './components/app/playback/start/useP
 import { usePlaybackTransportController } from './components/app/playback/bridges/usePlaybackTransportController';
 import { useLocalLibraryCatalog } from './hooks/useLocalLibraryCatalog';
 import { usePlaybackVisualizerBridge } from './components/app/playback/bridges/usePlaybackVisualizerBridge';
+import { useLyricReadHead } from './components/app/playback/bridges/useLyricReadHead';
 import { useRandomVisualizerMode } from './hooks/useRandomVisualizerMode';
 import { useObsBrowserSourcePublisher } from './hooks/useObsBrowserSourcePublisher';
 import { useLyricApiPublisher } from './hooks/useLyricApiPublisher';
@@ -125,7 +127,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { clampMediaVolume, toSafeRemoteUrl } from './utils/appPlaybackHelpers';
 import { hasLoopedToStart } from './services/playedTrackCache';
 import { getOnlineProviderIdForSong, isLocalPlaybackSong, isNavidromePlaybackSong, isStagePlaybackSong } from './utils/appPlaybackGuards';
-import { readLyricOffset, writeLyricOffset } from './utils/lyrics/lyricOffsetMemory';
+import { writeLyricOffset } from './utils/lyrics/lyricOffsetMemory';
 import { FALLBACK_AI_DUAL_THEME } from './services/themeSanitizer';
 import { BASE_DUAL_THEME, DAYLIGHT_THEME, DEFAULT_THEME } from './services/baseThemes';
 import { initializeSyncCoordinator } from './services/sync/syncCoordinator';
@@ -297,6 +299,12 @@ export default function App() {
         () => ({ mode: transitionMode, crossfadeMaxSec, performance: transitionPerformance }),
         [transitionMode, crossfadeMaxSec, transitionPerformance],
     );
+    // The analysis worker keeps htdemucs loaded while automix can ask for it, and releases it the
+    // moment it cannot - the switch off, or the crossfade mode, which reads no model. Sent on mount
+    // too: the main process starts out assuming off. See electron/analysis/host.cjs.
+    useEffect(() => {
+        window.electron?.setAutomixEnabled?.(automixEnabled && transitionMode === 'automix');
+    }, [automixEnabled, transitionMode]);
 
     const startupExperience = useStartupExperienceGate();
 
@@ -1110,6 +1118,12 @@ export default function App() {
         const local = localSongs.find(candidate => candidate.id === song.localRef.songId);
         return getLocalSongArrayBuffer((local ?? song) as unknown as LocalSong);
     }, [localSongs]);
+    // The same reader for every analyser (analysis/trackAudio.ts): 智能动感模式 and automix's
+    // profile read a local track that has no URL in hand through it too.
+    useEffect(() => {
+        registerLocalTrackFileReader(getLocalStemBytes);
+        return () => registerLocalTrackFileReader(null);
+    }, [getLocalStemBytes]);
 
     const automix = useAutomixDecks({
         audioRef,
@@ -1184,35 +1198,8 @@ export default function App() {
         if (element) currentTime.set(element.currentTime);
     }, [audioRef, currentTime, getDisplayElement, isShowingTail]);
 
-    // Restore the displayed song's remembered manual offset (0 when never adjusted, so a fresh
-    // song behaves exactly like the old reset). Keyed on the DISPLAYED song, not the playing one:
-    // this is what the lyrics on screen are read against, and firing it when a blend arms would
-    // both mis-offset the outgoing lyrics and snap their read-head to zero - a lyric view that
-    // scrolls back to the top of a song it is still showing, which reads as an early song change.
-    // currentSongFullRef.current holds the live song for the change handler above, so a user's
-    // correction is still saved against the track the app has actually committed to.
-    //
-    // There must be exactly ONE of these. Upstream grew its own copy keyed on `currentSong`, the
-    // merge kept both, and the live-keyed one fired on every blend ARM - snapping the read-head to
-    // the top of the song still on screen, which the diorama reads as a loop restart and answers
-    // with a full camera flight that lands back where it started. That is the "it changes song,
-    // then changes song again" report.
-    useEffect(() => {
-        const nextOffsetMs = readLyricOffset(displaySong?.id);
-        setLyricTimelineOffsetMs(nextOffsetMs);
-        lyricCurrentTime.set(-(nextOffsetMs + globalLyricTimelineOffsetMs) / 1000);
-        // Exactly ONE of these per song change, including across an automix blend. Two inside one
-        // transition means the duplicate effect described above is back: the second one fires on
-        // the arm, resets the read-head under the song still on screen, and the diorama answers it
-        // with a camera flight that lands where it started.
-        console.log(
-            `[Lyrics] read-head reset for the DISPLAYED song ${String(displaySong?.id ?? 'none')}`
-            + ` (per-song ${nextOffsetMs}ms + device ${globalLyricTimelineOffsetMs}ms)`,
-        );
-        // globalLyricTimelineOffsetMs is intentionally not a dependency: it is a device-level constant
-        // the user tunes in Lab settings, and re-running this effect on it would fight the panel value.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [displaySong?.id, lyricCurrentTime]);
+    // Restores the displayed song's offset and resets its read-head, unless a blend handed it over.
+    const incomingLyricTimelineOffsetMs = useLyricReadHead(globalLyricTimelineOffsetMs);
 
     /**
      * The now playing card is allowed on screen right now.
@@ -1510,6 +1497,7 @@ export default function App() {
         getPlayerCapDisplayTime,
         syncNowPlayingClock,
         lyricTimelineOffsetMs: effectiveLyricTimelineOffsetMs,
+        incomingLyricTimelineOffsetMs,
     });
 
     const {
@@ -2858,9 +2846,8 @@ export default function App() {
                 </Suspense>
             )}
 
-            {/* Same arrangement, same reason. Mounted here rather than beside either of the two
-                switches that can open it, so that both reach the same one. */}
-            <AutomixModelReminder isDaylight={isDaylight} />
+            {/* 旧版 automix 模型留在用户自选目录里时，问一次要不要删；没有就什么都不画。 */}
+            <LegacyModelsPrompt isDaylight={isDaylight} />
 
             {/* 思索教程。常驻的只有悬停探测和提示胶囊；教程层自己走 React.lazy，
                 animejs 不进 bootstrap chunk。 */}
