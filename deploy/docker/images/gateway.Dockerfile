@@ -8,6 +8,7 @@ ARG REQUIRE_COMMIT_NAME=false
 # 构建来源仓库（dev/build/buildIdentity.mjs）：本仓库的 docker-stack-publish workflow 会传入，写进诊断报告的 build 行；
 # 镜像本身按 APP_RELEASE_CHANNEL=docker 一律算自部署。
 ARG GITHUB_REPOSITORY=
+ENV LOX_LIBRESPOT_SKIP_BUILD=1
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 

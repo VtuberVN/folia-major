@@ -2,6 +2,7 @@ FROM node:24-alpine AS api-builder
 
 WORKDIR /app
 
+ENV LOX_LIBRESPOT_SKIP_BUILD=1
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
