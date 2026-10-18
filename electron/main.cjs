@@ -2036,6 +2036,7 @@ const mainLocale = {
     trayTransparentBackground: 'Nền trong suốt',
     trayToggleClickThrough: 'Nhấp xuyên qua',
     trayAlwaysOnTop: 'Luôn trên cùng',
+    trayAlwaysOnTopUnavailable: 'Luôn trên cùng (không khả dụng trên Wayland)',
     trayHideTaskbar: 'Ẩn biểu tượng thanh tác vụ',
     trayDesktopLyricMode: 'Lời bài hát màn hình chính',
     trayToggleWallpaperMode: 'Chế độ hình nền',
@@ -2068,6 +2069,9 @@ function normalizeMainLocaleKey(value) {
   }
   if (lowered === 'in' || lowered.startsWith('id')) {
     return 'in';
+  }
+  if (lowered === 'vi' || lowered.startsWith('vi')) {
+    return 'vi';
   }
   // Same script/region split the renderer applies in src/i18n/config.ts: an explicit
   // Hant / TW / HK / MO subtag means traditional, a bare `zh` stays simplified.
