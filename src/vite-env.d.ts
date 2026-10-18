@@ -1199,6 +1199,7 @@ declare global {
       getMiniLyricBarState?: () => Promise<{ isOpen: boolean; clickThrough: boolean; snapshot: ElectronRemoteControlSnapshot | null }>;
       setMiniLyricBarClickThrough?: (enabled: boolean) => Promise<boolean>;
       setMiniLyricBarMouseIgnore?: (ignore: boolean) => Promise<boolean>;
+      resetMiniLyricBarPosition?: () => Promise<{ x: number; y: number; width: number; height: number }>;
       sendMiniLyricBarCommand?: (command: ElectronRemoteControlCommand) => Promise<boolean>;
       onMiniLyricBarSnapshot?: (callback: (snapshot: ElectronRemoteControlSnapshot) => void) => () => void;
       onMiniLyricBarClickThroughChanged?: (callback: (enabled: boolean) => void) => () => void;

@@ -9074,6 +9074,27 @@ ipcMain.handle('mini-lyric-bar-send-command', (event, command) => {
   return true;
 });
 
+ipcMain.handle('mini-lyric-bar-reset-position', (event) => {
+  if (!isTrustedMainWindowContents(event.sender) && !isTrustedMiniLyricBarContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to reset mini lyric bar position.');
+  }
+
+  store.delete(MINI_LYRIC_BAR_BOUNDS_SETTING_KEY);
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const primaryWorkArea = primaryDisplay.workArea;
+  const width = 680;
+  const height = 60;
+  const x = Math.round(primaryWorkArea.x + (primaryWorkArea.width - width) / 2);
+  const y = Math.round(primaryWorkArea.y + primaryWorkArea.height - height - 60);
+
+  if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
+    miniLyricBarWindow.setBounds({ x, y, width, height });
+    miniLyricBarWindow.show();
+    miniLyricBarWindow.focus();
+  }
+  return { x, y, width, height };
+});
+
 ipcMain.handle('video-export-choose-path', async (event, defaultName, extension, displayName) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     throw new Error('Untrusted renderer attempted to choose a video export path.');
