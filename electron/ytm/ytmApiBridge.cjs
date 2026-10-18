@@ -648,10 +648,32 @@ function createYtmApiBridge({
     // Asked on a session of its own, before anything is stored. An answer that is not marked as
     // given to a signed-in account means YouTube does not take the cookies.
     async accountOf(signIn) {
-      const web = await createWebSession(pageLanguage(), signIn);
-      const { data } = await web.actions.execute('/account/accounts_list', { client: 'YTMUSIC', parse: false });
+      let web;
+      try {
+        web = await createWebSession(pageLanguage(), signIn);
+      } catch (error) {
+        throw ytmError('network', 'YouTube Music could not be reached', error?.message, 'no-answer');
+      }
+      let data;
+      try {
+        const res = await web.actions.execute('/account/accounts_list', { client: 'YTMUSIC', parse: false });
+        data = res?.data;
+      } catch (error) {
+        try {
+          const res = await web.actions.execute('/account/accounts_list', { client: 'WEB', parse: false });
+          data = res?.data;
+        } catch (innerError) {
+          throw ytmError('unavailable', 'YouTube Music did not take the sign-in', `${error?.message} | ${innerError?.message}`, 'not-taken');
+        }
+      }
       if (webPages.signedInMarkOf(data) !== '1') throw ytmError('unavailable', 'YouTube Music did not take the sign-in', undefined, 'not-taken');
-      const user = webPages.accountFromList(data);
+      let user = webPages.accountFromList(data);
+      if (!user) {
+        try {
+          const menuRes = await web.actions.execute('/account/account_menu', { client: 'YTMUSIC', parse: false });
+          user = webPages.accountFromList(menuRes?.data);
+        } catch {}
+      }
       if (!user) throw ytmError('invalid-response', 'YouTube Music account is missing', undefined, 'account-missing');
       return user;
     },

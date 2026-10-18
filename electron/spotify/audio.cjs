@@ -159,6 +159,9 @@ function createSpotifyAudio({
         return await within(connection.session.resolveAudioFileAsync({ uri: `spotify:track:${trackId}`, bitrate }), 'locating the file');
       } catch (error) {
         const said = String(error?.message ?? error);
+        if (/premium|subscription|payment|forbidden/i.test(said)) {
+          throw spotifyError('subscription-required', 'Spotify plays for Premium accounts only', said);
+        }
         const aboutTheTrack = /track is unavailable|no audio files available/i.test(said);
         if (aboutTheTrack || connection !== kept) {
           // A new connection that cannot load the track's entry: Spotify has no such track.

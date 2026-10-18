@@ -172,4 +172,22 @@ describe('Spotify', () => {
         expect(await omni.checkLogin('spotify', key)).toEqual({ state: 'expired' });
         expect(loginCaseOf(loginFailureFacts({ step: 'wait', inBrowser: true, scanned: false })).id).toBe('browser-unfinished');
     });
+
+    it('describeSpotifyFailure maps unavailable to not-configured and 429 to retry-later', async () => {
+        const { describeSpotifyFailure } = await import('@/services/onlineMusic/spotify/spotifyFailure');
+        const { OnlineProviderError } = await import('@/types/onlineMusic');
+
+        const rateLimitErr = new OnlineProviderError('network', 'Spotify asked to wait before trying again', 'spotify');
+        expect(describeSpotifyFailure('audio', rateLimitErr)).toEqual({ case: 'retry-later', httpStatus: 429 });
+
+        const unavailErr = new OnlineProviderError('unavailable', 'Spotify playback is not available on this system', 'spotify');
+        expect(describeSpotifyFailure('audio', unavailErr)).toEqual({
+            case: 'not-configured',
+            message: 'Spotify playback is not available on this system',
+        });
+
+        const otherErr = new OnlineProviderError('network', 'Other network error', 'spotify');
+        expect(describeSpotifyFailure('audio', otherErr)).toBeNull();
+    });
 });
+

@@ -246,7 +246,8 @@
     "music-metadata": "^11.16.1",
     "onnxruntime-node": "^1.30.0",
     "ws": "^8.21.3",
-    "youtubei.js": "18.1.0"
+    "youtubei.js": "18.1.0",
+    "@lox-audioserver/node-librespot": "0.5.1"
   },
   "devDependencies": {
     "@applemusic-like-lyrics/ttml": "^1.0.1",
@@ -316,8 +317,5 @@
       "fflate": "$fflate"
     }
   },
-  "foliaReleaseChannel": "vietnamese",
-  "optionalDependencies": {
-    "@lox-audioserver/node-librespot": "0.5.1"
-  }
+  "foliaReleaseChannel": "vietnamese"
 }

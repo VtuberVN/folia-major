@@ -10,8 +10,13 @@ import type { OnlineFailureDetail, OnlineFailureOperation } from '../../../types
 // electron/spotify/errors.cjs gives Spotify's 429 this sentence, under the code of a network that fails.
 const ASKED_TO_WAIT = 'Spotify asked to wait before trying again';
 
-export const describeSpotifyFailure = (_operation: OnlineFailureOperation, error: unknown): OnlineFailureDetail | null => (
-    error instanceof OnlineProviderError && error.providerId === 'spotify' && error.code === 'network' && error.message === ASKED_TO_WAIT
-        ? { case: 'retry-later', httpStatus: 429 }
-        : null
-);
+export const describeSpotifyFailure = (_operation: OnlineFailureOperation, error: unknown): OnlineFailureDetail | null => {
+    if (!(error instanceof OnlineProviderError) || error.providerId !== 'spotify') return null;
+    if (error.code === 'network' && error.message === ASKED_TO_WAIT) {
+        return { case: 'retry-later', httpStatus: 429 };
+    }
+    if (error.code === 'unavailable') {
+        return { case: 'not-configured', message: error.message };
+    }
+    return null;
+};
