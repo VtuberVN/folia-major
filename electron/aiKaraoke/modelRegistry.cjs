@@ -1,0 +1,297 @@
+// electron/aiKaraoke/modelRegistry.cjs
+// Model metadata, storage paths, and download manager for AI Karaoke MSS & ASR models.
+
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const http = require('http');
+
+/**
+ * Supported Music Source Separation (MSS) & ASR / Forced Alignment models.
+ */
+const MODEL_CATALOG = [
+    {
+        id: 'uvr_mdxnet_kara_2',
+        name: 'UVR-MDX-Net Karaoke 2',
+        category: 'mss',
+        fileName: 'UVR_MDXNET_KARA_2.onnx',
+        fileSizeMb: 66.8,
+        recommendedVram: '1.5 - 2.5 GB',
+        typicalSpeed: '6 - 10s',
+        description: 'Tối ưu cho Karaoke: Tách giọng hát chính, giữ lại giọng bè (backing vocals) trong beat nhạc nền.',
+        descriptionVi: 'Tối ưu cho Karaoke: Tách giọng hát chính, giữ lại giọng bè (backing vocals) trong beat nhạc nền.',
+        downloadUrl: 'https://huggingface.co/seanghay/uvr_models/resolve/main/UVR_MDXNET_KARA_2.onnx',
+    },
+    {
+        id: 'kim_vocal_2',
+        name: 'Kim Vocal 2',
+        category: 'mss',
+        fileName: 'Kim_Vocal_2.onnx',
+        fileSizeMb: 66.8,
+        recommendedVram: '1.5 - 2.5 GB',
+        typicalSpeed: '6 - 10s',
+        description: 'Tách vocal siêu sạch, giữ dải tần cao. Phù hợp nhất để trích xuất giọng hát đưa vào nhận diện lời ASR.',
+        descriptionVi: 'Tách vocal siêu sạch, giữ dải tần cao. Phù hợp nhất để trích xuất giọng hát đưa vào nhận diện lời ASR.',
+        downloadUrl: 'https://huggingface.co/seanghay/uvr_models/resolve/main/Kim_Vocal_2.onnx',
+    },
+    {
+        id: 'htdemucs_mnn',
+        name: 'HTDemucs v4 (Folia Native)',
+        category: 'mss',
+        fileName: 'htdemucs-wgsl.bin',
+        fileSizeMb: 80.0,
+        recommendedVram: '2.0 - 3.0 GB',
+        typicalSpeed: '8 - 14s',
+        description: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals qua C++ MNN / WebGPU.',
+        descriptionVi: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals qua C++ MNN / WebGPU.',
+        downloadUrl: '', // Bundled
+    },
+    {
+        id: 'bs_roformer',
+        name: 'BS-RoFormer Viperx 12.97',
+        category: 'mss',
+        fileName: 'model_bs_roformer_ep_317_sdr_12.9755.ckpt',
+        fileSizeMb: 639.0,
+        recommendedVram: '2.8 - 4.5 GB',
+        typicalSpeed: '18 - 30s',
+        description: 'Chất lượng phòng thu Studio đỉnh cao (SDR 12.97 dB). Tách sạch tiếng thở, reverb, không lẹm nhạc nền.',
+        descriptionVi: 'Chất lượng phòng thu Studio đỉnh cao (SDR 12.97 dB). Tách sạch tiếng thở, reverb, không lẹm nhạc nền.',
+        downloadUrl: 'https://huggingface.co/aurangzeb/BS-RoFormer-Viperx-12.97/resolve/main/model_bs_roformer_ep_317_sdr_12.9755.ckpt',
+    },
+    {
+        id: 'whisper_turbo',
+        name: 'Whisper Large-v3 Turbo',
+        category: 'asr',
+        fileName: 'whisper-large-v3-turbo-int8.bin',
+        fileSizeMb: 809.0,
+        recommendedVram: '1.5 - 2.5 GB',
+        typicalSpeed: '2 - 4s',
+        description: 'Model nhận diện giọng nói siêu tốc độ (809M tham số, 4 decoder layers), cực kỳ chuẩn xác cho nhạc Việt & quốc tế.',
+        descriptionVi: 'Model nhận diện giọng nói siêu tốc độ (809M tham số, 4 decoder layers), cực kỳ chuẩn xác cho nhạc Việt & quốc tế.',
+        downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin',
+    },
+    {
+        id: 'whisper_small',
+        name: 'Whisper Small',
+        category: 'asr',
+        fileName: 'whisper-small-int8.bin',
+        fileSizeMb: 460.0,
+        recommendedVram: '1.0 - 1.5 GB',
+        typicalSpeed: '3 - 6s',
+        description: 'Bản rút gọn dung lượng vừa tầm, hoạt động mượt mà trên cả CPU hoặc máy tính không có GPU rời.',
+        descriptionVi: 'Bản rút gọn dung lượng vừa tầm, hoạt động mượt mà trên cả CPU hoặc máy tính không có GPU rời.',
+        downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin',
+    },
+    {
+        id: 'forced_alignment',
+        name: 'Meta MMS Forced Alignment / Stable-TS',
+        category: 'asr',
+        fileName: 'mms_fa.pt',
+        fileSizeMb: 1200.0,
+        recommendedVram: '1.2 - 1.8 GB',
+        typicalSpeed: '1 - 2s',
+        description: 'Ép khớp lời bài hát text có sẵn vào file giọng hát với độ lệch dưới 30-50ms (hỗ trợ hơn 1100 ngôn ngữ).',
+        descriptionVi: 'Ép khớp lời bài hát text có sẵn vào file giọng hát với độ lệch dưới 30-50ms (hỗ trợ hơn 1100 ngôn ngữ).',
+        downloadUrl: 'https://huggingface.co/facebook/mms-1b-all/resolve/main/mms_fa.pt',
+    },
+];
+
+const getAiModelsDir = (userDataPath) => {
+    const dir = path.join(userDataPath, 'ai-models');
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+};
+
+const getKaraokeOutputDir = (userDataPath) => {
+    const dir = path.join(userDataPath, 'karaoke-output');
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+};
+
+/** Active downloads map: modelId -> { req, aborted } */
+const activeDownloads = new Map();
+
+/**
+ * Checks which models are downloaded and ready on disk.
+ */
+const getModelsStatus = (userDataPath, appModelsDir) => {
+    const modelsDir = getAiModelsDir(userDataPath);
+
+    return MODEL_CATALOG.map((model) => {
+        // Built-in htdemucs is available if packaged in appModelsDir
+        if (model.id === 'htdemucs_mnn') {
+            const bundledPath = appModelsDir ? path.join(appModelsDir, model.fileName) : null;
+            const isBundled = bundledPath ? fs.existsSync(bundledPath) : false;
+            return {
+                ...model,
+                isDownloaded: isBundled || true, // Treated as available built-in
+                localPath: bundledPath || '',
+            };
+        }
+
+        const localPath = path.join(modelsDir, model.fileName);
+        const exists = fs.existsSync(localPath);
+        let sizeMb = 0;
+        if (exists) {
+            try {
+                sizeMb = Math.round((fs.statSync(localPath).size / (1024 * 1024)) * 10) / 10;
+            } catch {
+                sizeMb = 0;
+            }
+        }
+
+        return {
+            ...model,
+            isDownloaded: exists && sizeMb > 0,
+            localPath: exists ? localPath : '',
+            actualSizeMb: sizeMb,
+        };
+    });
+};
+
+/**
+ * Downloads a model weight file with streaming progress.
+ */
+const downloadModel = async (userDataPath, modelId, onProgress) => {
+    const model = MODEL_CATALOG.find((m) => m.id === modelId);
+    if (!model) throw new Error(`Model not found: ${modelId}`);
+    if (!model.downloadUrl) {
+        throw new Error(`Model ${modelId} does not require downloading (built-in).`);
+    }
+
+    const modelsDir = getAiModelsDir(userDataPath);
+    const targetPath = path.join(modelsDir, model.fileName);
+    const tmpPath = `${targetPath}.tmp`;
+
+    if (activeDownloads.has(modelId)) {
+        throw new Error(`Download already in progress for model: ${modelId}`);
+    }
+
+    return new Promise((resolve, reject) => {
+        const executeDownload = (url, redirectCount = 0) => {
+            if (redirectCount > 5) {
+                activeDownloads.delete(modelId);
+                reject(new Error('Too many HTTP redirects'));
+                return;
+            }
+
+            const client = url.startsWith('https:') ? https : http;
+            const req = client.get(url, { headers: { 'User-Agent': 'Folia-AI-Karaoke/0.7.21' } }, (res) => {
+                if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    res.resume();
+                    executeDownload(res.headers.location, redirectCount + 1);
+                    return;
+                }
+
+                if (res.statusCode !== 200) {
+                    activeDownloads.delete(modelId);
+                    reject(new Error(`Server returned HTTP ${res.statusCode}`));
+                    return;
+                }
+
+                const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+                let receivedBytes = 0;
+                const fileStream = fs.createWriteStream(tmpPath);
+
+                res.on('data', (chunk) => {
+                    receivedBytes += chunk.length;
+                    fileStream.write(chunk);
+                    if (totalBytes > 0 && onProgress) {
+                        const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
+                        onProgress({ modelId, percent, receivedBytes, totalBytes });
+                    }
+                });
+
+                res.on('end', () => {
+                    fileStream.end(async () => {
+                        activeDownloads.delete(modelId);
+                        try {
+                            if (fs.existsSync(targetPath)) {
+                                fs.unlinkSync(targetPath);
+                            }
+                            fs.renameSync(tmpPath, targetPath);
+                            resolve({ success: true, localPath: targetPath });
+                        } catch (err) {
+                            reject(err);
+                        }
+                    });
+                });
+
+                res.on('error', (err) => {
+                    activeDownloads.delete(modelId);
+                    fileStream.close();
+                    if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+                    reject(err);
+                });
+            });
+
+            req.on('error', (err) => {
+                activeDownloads.delete(modelId);
+                if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+                reject(err);
+            });
+
+            activeDownloads.set(modelId, { req });
+        };
+
+        executeDownload(model.downloadUrl);
+    });
+};
+
+/**
+ * Cancels an in-progress model download.
+ */
+const cancelModelDownload = (userDataPath, modelId) => {
+    const active = activeDownloads.get(modelId);
+    if (active) {
+        active.req.destroy();
+        activeDownloads.delete(modelId);
+    }
+    const modelsDir = getAiModelsDir(userDataPath);
+    const model = MODEL_CATALOG.find((m) => m.id === modelId);
+    if (model) {
+        const tmpPath = path.join(modelsDir, `${model.fileName}.tmp`);
+        if (fs.existsSync(tmpPath)) {
+            try {
+                fs.unlinkSync(tmpPath);
+            } catch {
+                // Ignore cleanup error
+            }
+        }
+    }
+    return { canceled: true };
+};
+
+/**
+ * Deletes a downloaded model to free space.
+ */
+const deleteModel = (userDataPath, modelId) => {
+    const modelsDir = getAiModelsDir(userDataPath);
+    const model = MODEL_CATALOG.find((m) => m.id === modelId);
+    if (!model) return { removed: false };
+
+    const targetPath = path.join(modelsDir, model.fileName);
+    if (fs.existsSync(targetPath)) {
+        try {
+            fs.unlinkSync(targetPath);
+            return { removed: true, path: targetPath };
+        } catch (err) {
+            return { removed: false, error: String(err) };
+        }
+    }
+    return { removed: false };
+};
+
+module.exports = {
+    MODEL_CATALOG,
+    getAiModelsDir,
+    getKaraokeOutputDir,
+    getModelsStatus,
+    downloadModel,
+    cancelModelDownload,
+    deleteModel,
+};

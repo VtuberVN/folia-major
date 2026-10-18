@@ -1,11 +1,13 @@
 import React from 'react';
-import { Crosshair, Home as HomeIcon, Settings, Star } from 'lucide-react';
+import { Crosshair, Home as HomeIcon, Mic, Settings, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayingFromCollection } from '../../app/playing-song-locator/usePlayingFromCollection';
 import { openAddToPlaylist, useAddToPlaylistStore } from '../../../stores/useAddToPlaylistStore';
+import { openAiKaraokeModal } from '../../../stores/useAiKaraokeStore';
 import { Tooltip } from '../../modal/settings/kit/Tooltip';
 import { LikeButton, type SongLike } from './LikeButton';
 import { PanelIconButton } from './PanelIconButton';
+import type { SongResult } from '../../../types';
 
 // src/components/panelTab/shell/SongActions.tsx
 // The row under the song's title on the cover tab, always in view: like, add to a playlist, the
@@ -13,13 +15,14 @@ import { PanelIconButton } from './PanelIconButton';
 
 type SongActionsProps = {
     like: SongLike;
+    currentSong?: SongResult | null;
     /** Finds the playing song on its collection's page. */
     onLocatePlayingSong: () => void;
     onNavigateHome: () => void;
     onOpenSettings?: () => void;
 };
 
-const SongActions: React.FC<SongActionsProps> = ({ like, onLocatePlayingSong, onNavigateHome, onOpenSettings }) => {
+const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePlayingSong, onNavigateHome, onOpenSettings }) => {
     const { t } = useTranslation();
     // Answered by AddToPlaylistHost, which owns the picker now: the same question is asked by a
     // command that can fire with this panel closed, so it cannot be derived from panel props.
@@ -39,6 +42,15 @@ const SongActions: React.FC<SongActionsProps> = ({ like, onLocatePlayingSong, on
                     onClick={openAddToPlaylist}
                 >
                     <Star size={17} />
+                </PanelIconButton>
+            )}
+            {currentSong && (
+                <PanelIconButton
+                    label={t('karaoke.openKaraoke', 'Tách nhạc & Tạo Karaoke AI (MSS / ASR)')}
+                    filled
+                    onClick={() => openAiKaraokeModal(currentSong)}
+                >
+                    <Mic size={17} />
                 </PanelIconButton>
             )}
             {/* 这首歌所在的歌单或专辑，点一下回到那一页并找到它的卡片。队列不再是那张歌单的歌时不出现。 */}

@@ -1464,7 +1464,7 @@ export default {
     "loginTitleSpotify": "Sign in to Spotify",
     "loginNoteSpotify": "Choose Agree on the Spotify page that opens in your browser",
     "loginTitleZing": "Sign in to Zing MP3",
-    "loginNoteZing": "Sign in with your Zing MP3 VIP/Standard account",
+    "loginNoteZing": "Sign in to Zing MP3 via Zalo in a browser window",
     "loginTitleNct": "NhacCuaTui",
     "loginNoteNct": "No sign-in needed for NhacCuaTui",
     "loginCaseSpotifyUnfinished": "Not confirmed within 10 minutes",
@@ -1998,6 +1998,10 @@ export default {
     "downloadLocationCustomHint": "Using a custom download location.",
     "downloadLocationMoved": "Moved {{count}} downloaded file(s) to the new location.",
     "downloadLocationMoveFailed": "{{count}} file(s) could not be moved.",
+    "aiKaraokeGroupTitle": "AI Karaoke & Source Separation Models (MSS / ASR)",
+    "aiKaraokeGroupDesc": "Manage AI models for separating vocals/beat and generating word-level karaoke lyrics (Enhanced LRC).",
+    "loadingAiModels": "Loading AI models...",
+    "downloadModel": "Download",
     "localLibraryWatch": "Local Folder Watch",
     "localLibraryAutoScan": "Auto scan imported folders",
     "localLibraryAutoScanDesc": "Runs an incremental scan whenever the imported folders change.",
@@ -5411,5 +5415,17 @@ export default {
     "resume": "Resume",
     "pauseAll": "Pause all",
     "paused": "Paused"
+  },
+  "karaoke": {
+    "openKaraoke": "AI Karaoke Separation & Alignment (MSS / ASR)",
+    "modalTitle": "AI Karaoke Separation & Alignment",
+    "selectMssModel": "Music Source Separation Model (MSS)",
+    "selectAsrMode": "Lyric Recognition & Alignment Mode (Karaoke Sync)",
+    "startSeparation": "Start Separation & Karaoke Generation",
+    "applyToPlayer": "Apply to Current Playing Song",
+    "successBanner": "Successfully separated stems and generated Karaoke lyrics!",
+    "builtIn": "Built-in",
+    "ready": "Ready",
+    "notDownloaded": "Not downloaded"
   }
 } as const;

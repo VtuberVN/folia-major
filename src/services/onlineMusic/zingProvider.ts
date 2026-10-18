@@ -3,6 +3,7 @@
 
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
+    LoginState,
     MediaId,
     OnlineMusicProvider,
     ProviderAudioSource,
@@ -34,7 +35,22 @@ import {
     getZingUserProfile,
     searchZingSongs,
     setStoredZingCookie,
+    setStoredZingProfile,
 } from './zingApi';
+
+let activeLogin: string | null = null;
+let loginStarts = 0;
+const WEB_LOGIN_TTL_MS = 5 * 60 * 1000;
+
+function normalizeZingUser(raw: unknown): ProviderUser {
+    const item = raw as any;
+    return {
+        id: item?.id || 'zing_user',
+        nickname: item?.nickname || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
+        avatarUrl: item?.avatarUrl,
+        vipType: item?.vipType ?? 0,
+    };
+}
 
 export const zingProvider: OnlineMusicProvider = {
     id: 'zing',
@@ -67,15 +83,7 @@ export const zingProvider: OnlineMusicProvider = {
             sourceRef: item.sourceRef || { kind: 'online', providerId: 'zing', mediaId: String(item.id || '') },
         };
     },
-    normalizeUser(raw: unknown): ProviderUser {
-        const item = raw as any;
-        return {
-            id: item?.id || 'zing_user',
-            nickname: item?.nickname || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
-            avatarUrl: item?.avatarUrl,
-            vipType: item?.vipType ?? 0,
-        };
-    },
+    normalizeUser: normalizeZingUser,
     songMetadata: {
         getSongMetadata: createProviderSongMetadata,
     },
@@ -242,12 +250,66 @@ export const zingProvider: OnlineMusicProvider = {
             note: 'home.loginNoteZing',
         }),
         async getLoginStatus(): Promise<ProviderUser | null> {
+            if (typeof window !== 'undefined' && window.electron?.zingLoginStatus) {
+                try {
+                    const ipcUser = await window.electron.zingLoginStatus();
+                    if (ipcUser && (ipcUser.userid || ipcUser.id) && ipcUser.userid !== 0) {
+                        return normalizeZingUser(ipcUser);
+                    }
+                } catch (err) {
+                    console.warn('[ZingProvider] zingLoginStatus failed:', err);
+                }
+            }
             const cookie = getStoredZingCookie();
             if (!cookie) return null;
             return getZingUserProfile();
         },
-        async logout(): Promise<void> {
-            setStoredZingCookie('');
+        async startLogin(): Promise<string> {
+            const ticket = ++loginStarts;
+            if (typeof window !== 'undefined' && window.electron?.zingWebLoginStart) {
+                await window.electron.zingWebLoginStart();
+            }
+            const key = `zing-web-${ticket}`;
+            if (ticket === loginStarts) activeLogin = key;
+            return key;
         },
+        opensLoginPageItself: () => true,
+        async openLoginPage(): Promise<void> {
+            if (typeof window !== 'undefined' && window.electron?.zingWebLoginOpen) {
+                await window.electron.zingWebLoginOpen();
+            }
+        },
+        async checkLogin(key: string): Promise<LoginState> {
+            if (activeLogin !== key) return { state: 'expired' };
+            if (typeof window !== 'undefined' && window.electron?.zingWebLoginCheck) {
+                const answer = await window.electron.zingWebLoginCheck();
+                if (answer.state === 'error') {
+                    return { state: 'error', message: answer.message || 'Zing MP3 login failed' };
+                }
+                if (answer.state === 'confirmed' && answer.account) {
+                    if (answer.cookie) setStoredZingCookie(answer.cookie);
+                    setStoredZingProfile(normalizeZingUser(answer.account));
+                    return { state: 'confirmed' };
+                }
+                return { state: answer.state };
+            }
+            return { state: 'error', message: 'Desktop app required for Zing MP3 sign-in' };
+        },
+        async cancelLogin(key: string): Promise<void> {
+            if (activeLogin !== key) return;
+            activeLogin = null;
+            if (typeof window !== 'undefined' && window.electron?.zingWebLoginCancel) {
+                await window.electron.zingWebLoginCancel();
+            }
+        },
+        async logout(): Promise<void> {
+            activeLogin = null;
+            setStoredZingCookie('');
+            setStoredZingProfile(null);
+            if (typeof window !== 'undefined' && window.electron?.zingLogout) {
+                await window.electron.zingLogout();
+            }
+        },
+        getLoginTtlMs: () => WEB_LOGIN_TTL_MS,
     },
 };

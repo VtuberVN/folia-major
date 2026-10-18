@@ -10,14 +10,14 @@ describe('localFileDeletion', () => {
 
     it('returns early when electron download bridge is not available', async () => {
         const originalElectron = window.electron;
-        // @ts-expect-error test override
-        delete window.electron;
+        delete (window as any).electron;
 
         const song: SongResult = {
             id: 'song-123',
             name: 'Test Song',
-            artist: 'Test Artist',
-            duration: 180,
+            artists: [{ id: 0, name: 'Test Artist' }],
+            album: { id: 0, name: 'Test Album' },
+            durationMs: 180000,
         };
 
         await expect(deleteLocalAudioForSong(song)).resolves.toBeUndefined();
@@ -37,9 +37,9 @@ describe('localFileDeletion', () => {
         const song: SongResult = {
             id: 'yt-123',
             name: 'Online Track',
-            artist: 'Online Artist',
-            duration: 200,
-            source: 'youtube',
+            artists: [{ id: 0, name: 'Online Artist' }],
+            album: { id: 0, name: 'Online Album' },
+            durationMs: 200000,
         };
 
         await deleteLocalAudioForSong(song);
@@ -63,8 +63,8 @@ describe('localFileDeletion', () => {
         };
 
         const songs: SongResult[] = [
-            { id: '1', name: 'Song 1', artist: 'Artist 1', duration: 100 },
-            { id: '2', name: 'Song 2', artist: 'Artist 2', duration: 120 },
+            { id: '1', name: 'Song 1', artists: [{ id: 0, name: 'Artist 1' }], album: { id: 0, name: 'Album 1' }, durationMs: 100000 },
+            { id: '2', name: 'Song 2', artists: [{ id: 0, name: 'Artist 2' }], album: { id: 0, name: 'Album 2' }, durationMs: 120000 },
         ];
 
         await deleteLocalAudioForSongs(songs);

@@ -7405,6 +7405,333 @@ body{margin:0;display:flex;align-items:center;justify-content:center;height:100v
   });
 });
 
+let activeZingLogin = null;
+
+function startZingWebLogin() {
+  if (activeZingLogin && activeZingLogin.win && !activeZingLogin.win.isDestroyed()) {
+    activeZingLogin.win.show();
+    activeZingLogin.win.focus();
+    return { ok: true };
+  }
+
+  const sessionState = {
+    state: 'waiting',
+    win: null,
+    result: null,
+    error: null,
+    startedAt: Date.now(),
+  };
+  activeZingLogin = sessionState;
+
+  (async () => {
+    let settled = false;
+    let redirectedFromChat = false;
+    let authPromise = null;
+
+    try {
+      const existingZa = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
+      for (const c of existingZa) {
+        const domain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+        await session.defaultSession.cookies.remove(`https://${domain}${c.path || '/'}`, c.name).catch(() => {});
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    let initialUrl = '';
+    let codeChallenge = '';
+    try {
+      const info = await getZingOAuthLoginInfo();
+      initialUrl = info.url;
+      codeChallenge = info.codeChallenge;
+    } catch (err) {
+      sessionState.state = 'error';
+      sessionState.error = err.message || 'Failed to initialize Zing OAuth';
+      return;
+    }
+
+    const loginWin = new BrowserWindow({
+      width: 520,
+      height: 680,
+      title: 'Đăng nhập Zing MP3 bằng Zalo',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+    sessionState.win = loginWin;
+
+    const handleAuthCompletion = async (oauthCode, stateParam = '') => {
+      if (settled) return true;
+      try {
+        let finalZa = '';
+        const sessionCookies = await session.defaultSession.cookies.get({});
+        const zingOrZaloCookies = sessionCookies.filter(c => {
+          const dom = c.domain || '';
+          return dom.includes('zingmp3.vn') || dom.includes('zalo') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_');
+        });
+        const extraCookie = zingOrZaloCookies.map(c => `${c.name}=${c.value}`).join('; ');
+        const effectiveChallenge = codeChallenge || stateParam || '';
+
+        if (oauthCode && effectiveChallenge) {
+          console.log('[ZingAuth] Exchanging oauthCode with challenge...');
+          const loginRes = await postZingLoginZalo(oauthCode, effectiveChallenge, extraCookie);
+          console.log('[ZingAuth] postZingLoginZalo result ok:', loginRes.ok, 'err:', loginRes.json?.err, 'msg:', loginRes.json?.msg);
+          if (loginRes.setCookies && loginRes.setCookies.length > 0) {
+            for (const raw of loginRes.setCookies) {
+              const m = raw.match(/za_oauth_v4=([^;]+)/);
+              if (m) {
+                finalZa = m[1];
+                console.log('[ZingAuth] Found za_oauth_v4 in response headers');
+                try {
+                  await session.defaultSession.cookies.set({
+                    url: 'https://zingmp3.vn',
+                    name: 'za_oauth_v4',
+                    value: finalZa,
+                    domain: '.zingmp3.vn',
+                    path: '/',
+                    secure: true,
+                    httpOnly: true,
+                  });
+                } catch {}
+              }
+            }
+          }
+          if (!finalZa && loginRes.json?.data?.za_oauth_v4) {
+            finalZa = loginRes.json.data.za_oauth_v4;
+          }
+        }
+
+        const freshCookies = await session.defaultSession.cookies.get({});
+        const cookieMap = extractCleanZingCookiePairs(cachedZingSessionCookie);
+        for (const c of freshCookies) {
+          const dom = c.domain || '';
+          if (dom.includes('zingmp3.vn') || dom.includes('zalo') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_')) {
+            cookieMap.set(c.name, `${c.name}=${c.value}`);
+          }
+        }
+        if (finalZa) cookieMap.set('za_oauth_v4', `za_oauth_v4=${finalZa}`);
+        if (!cookieMap.has('zmp3_app_version.1')) cookieMap.set('zmp3_app_version.1', 'zmp3_app_version.1=1222');
+
+        const zaCookie = cookieMap.get('za_oauth_v4');
+        if (zaCookie) {
+          const cookieStr = Array.from(cookieMap.values()).join('; ');
+          console.log('[ZingAuth] za_oauth_v4 cookie active, fetching user profile...');
+          let userProfile = await fetchZingUserProfileDirect(cookieStr);
+          if (!userProfile) {
+            await new Promise(r => setTimeout(r, 400));
+            userProfile = await fetchZingUserProfileDirect(cookieStr);
+          }
+          console.log('[ZingAuth] User profile fetched:', userProfile?.displayName || userProfile?.username || userProfile?.userid);
+          settled = true;
+          const resolvedProfile = userProfile && (userProfile.userid || userProfile.id) && userProfile.userid !== 0
+            ? userProfile
+            : { userid: 0, displayName: '__fallback__' };
+
+          sessionState.state = 'confirmed';
+          sessionState.result = { cookie: cookieStr, profile: resolvedProfile };
+          sessionState.win = null;
+          if (!loginWin.isDestroyed()) {
+            loginWin.destroy();
+          }
+          return true;
+        }
+
+        if (oauthCode) {
+          settled = true;
+          sessionState.state = 'error';
+          sessionState.error = 'token_exchange_failed';
+          sessionState.win = null;
+          if (!loginWin.isDestroyed()) {
+            loginWin.destroy();
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('[ZingAuth] handleAuthCompletion error:', err);
+      }
+      return false;
+    };
+
+    const LOADING_HTML = `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:#e0e0e0;font-family:system-ui,sans-serif}
+.wrap{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.15);border-top-color:#a855f7;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 16px}
+@keyframes s{to{transform:rotate(360deg)}}h2{font-size:16px;font-weight:600;margin:0 0 8px}p{font-size:13px;opacity:.6;margin:0}
+</style></head><body><div class="wrap"><div class="spin"></div><h2>Đang đăng nhập Zing MP3...</h2><p>Vui lòng chờ trong giây lát</p></div></body></html>`)}`;
+
+    loginWin.webContents.on('will-navigate', (e, targetUrl) => {
+      if (settled) return;
+      try {
+        const u = new URL(targetUrl);
+        if (u.hostname.includes('chat.zalo.me') && !redirectedFromChat) {
+          redirectedFromChat = true;
+          console.log('[ZingAuth] Bouncing back from chat.zalo.me');
+          e.preventDefault();
+          getZingOAuthLoginInfo().then(bounceInfo => {
+            if (bounceInfo.codeChallenge) codeChallenge = bounceInfo.codeChallenge;
+            if (!loginWin.isDestroyed()) loginWin.loadURL(bounceInfo.url);
+          });
+          return;
+        }
+
+        if (u.hostname.includes('zingmp3.vn') && u.pathname.includes('/login/zalo')) {
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            e.preventDefault();
+            console.log('[ZingAuth] Intercepted OAuth code at will-navigate:', code.slice(0, 8) + '...');
+            if (!loginWin.isDestroyed()) {
+              loginWin.loadURL(LOADING_HTML);
+            }
+            if (!authPromise) {
+              authPromise = handleAuthCompletion(code, state);
+            }
+          }
+        }
+      } catch {}
+    });
+
+    loginWin.webContents.on('will-redirect', (e, targetUrl) => {
+      if (settled) return;
+      try {
+        const u = new URL(targetUrl);
+        if (u.hostname.includes('zingmp3.vn') && u.pathname.includes('/login/zalo')) {
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            e.preventDefault();
+            console.log('[ZingAuth] Intercepted OAuth code at will-redirect:', code.slice(0, 8) + '...');
+            if (!loginWin.isDestroyed()) {
+              loginWin.loadURL(LOADING_HTML);
+            }
+            if (!authPromise) {
+              authPromise = handleAuthCompletion(code, state);
+            }
+          }
+        }
+      } catch {}
+    });
+
+    loginWin.on('close', async (e) => {
+      if (settled) return;
+      e.preventDefault();
+
+      if (authPromise) {
+        console.log('[ZingAuth] Close trapped while authPromise in-flight, waiting...');
+        const ok = await authPromise;
+        if (ok || settled) return;
+      }
+
+      try {
+        const curUrl = loginWin.webContents.getURL() || '';
+        if (curUrl.includes('/login/zalo') && curUrl.includes('code=')) {
+          const u = new URL(curUrl);
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code) {
+            authPromise = handleAuthCompletion(code, state);
+            const ok = await authPromise;
+            if (ok || settled) return;
+          }
+        }
+      } catch {}
+
+      const ok = await handleAuthCompletion(null);
+      if (ok || settled) return;
+
+      await new Promise(r => setTimeout(r, 1200));
+      const retryOk = await handleAuthCompletion(null);
+      if (retryOk || settled) return;
+
+      console.log('[ZingAuth] Login cancelled.');
+      settled = true;
+      sessionState.state = 'expired';
+      sessionState.win = null;
+      if (!loginWin.isDestroyed()) {
+        loginWin.destroy();
+      }
+    });
+
+    loginWin.on('closed', () => {
+      if (!settled) {
+        settled = true;
+        sessionState.state = 'expired';
+        sessionState.win = null;
+      }
+    });
+
+    loginWin.loadURL(initialUrl);
+  })();
+
+  return { ok: true };
+}
+
+ipcMain.handle('zing-web-login-start', async () => {
+  return startZingWebLogin();
+});
+
+ipcMain.handle('zing-web-login-check', async () => {
+  if (!activeZingLogin) return { state: 'expired' };
+  if (activeZingLogin.state === 'waiting') return { state: 'waiting' };
+  if (activeZingLogin.state === 'confirmed') {
+    return {
+      state: 'confirmed',
+      account: activeZingLogin.result?.profile,
+      cookie: activeZingLogin.result?.cookie,
+    };
+  }
+  if (activeZingLogin.state === 'error') {
+    return { state: 'error', message: activeZingLogin.error || 'Zing login failed' };
+  }
+  return { state: 'expired' };
+});
+
+ipcMain.handle('zing-web-login-cancel', async () => {
+  if (activeZingLogin?.win && !activeZingLogin.win.isDestroyed()) {
+    activeZingLogin.win.destroy();
+  }
+  activeZingLogin = null;
+  return { ok: true };
+});
+
+ipcMain.handle('zing-web-login-open', async () => {
+  if (activeZingLogin?.win && !activeZingLogin.win.isDestroyed()) {
+    activeZingLogin.win.show();
+    activeZingLogin.win.focus();
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('zing-login-status', async () => {
+  try {
+    const cookies = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
+    if (!cookies || cookies.length === 0) return null;
+    return await fetchZingUserProfileDirect('');
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('zing-logout', async () => {
+  try {
+    const zingCookies = await session.defaultSession.cookies.get({});
+    for (const c of zingCookies) {
+      const dom = c.domain || '';
+      if (dom.includes('zingmp3.vn') || dom.includes('zalo') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_')) {
+        const domain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+        await session.defaultSession.cookies.remove(`https://${domain}${c.path || '/'}`, c.name).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('[ZingAuth] Logout cookie cleanup failed:', err);
+  }
+  cachedZingSessionCookie = '';
+  activeZingLogin = null;
+  return { ok: true };
+});
+
 ipcMain.handle('safe-storage-encrypt', async (_event, plainText) => {
   if (typeof plainText !== 'string' || plainText.length > 65536 || !safeStorage?.isEncryptionAvailable?.()) return null;
   try {
@@ -7903,6 +8230,67 @@ ipcMain.handle('download-start', async (_event, payload) => {
   } finally {
     activeDownloads.delete(id);
   }
+});
+
+// AI Karaoke (MSS separation & ASR / Forced Alignment)
+const {
+  getModelsStatus: getAiKaraokeModelsStatus,
+  downloadModel: downloadAiKaraokeModel,
+  cancelModelDownload: cancelAiKaraokeModelDownload,
+  deleteModel: deleteAiKaraokeModel,
+} = require('./aiKaraoke/modelRegistry.cjs');
+const {
+  runKaraokePipeline,
+  cancelKaraokeJob,
+} = require('./aiKaraoke/karaokeEngine.cjs');
+
+ipcMain.handle('ai-karaoke-get-models', () => {
+  return getAiKaraokeModelsStatus(app.getPath('userData'), getBundledModelsDirectory?.());
+});
+
+ipcMain.handle('ai-karaoke-download-model', async (event, modelId) => {
+  return downloadAiKaraokeModel(app.getPath('userData'), modelId, (progress) => {
+    if (!event.sender.isDestroyed()) {
+      event.sender.send('ai-karaoke-model-progress', progress);
+    }
+  });
+});
+
+ipcMain.handle('ai-karaoke-cancel-download-model', (_event, modelId) => {
+  return cancelAiKaraokeModelDownload(app.getPath('userData'), modelId);
+});
+
+ipcMain.handle('ai-karaoke-delete-model', (_event, modelId) => {
+  return deleteAiKaraokeModel(app.getPath('userData'), modelId);
+});
+
+ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
+  return runKaraokePipeline({
+    ...payload,
+    userDataPath: app.getPath('userData'),
+    appModelsDir: getBundledModelsDirectory?.(),
+    onProgress: (progress) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('ai-karaoke-job-progress', progress);
+      }
+    },
+  });
+});
+
+ipcMain.handle('ai-karaoke-cancel-job', (_event, jobId) => {
+  return cancelKaraokeJob(jobId);
+});
+
+ipcMain.handle('ai-karaoke-export-lrc', async (_event, { defaultFileName, content }) => {
+  const { dialog } = require('electron');
+  const res = await dialog.showSaveDialog(mainWindow, {
+    title: 'Xuất file lời bài hát Karaoke (.lrc)',
+    defaultPath: defaultFileName || 'lyrics.lrc',
+    filters: [{ name: 'LRC Karaoke Lyrics', extensions: ['lrc', 'txt'] }],
+  });
+  if (res.canceled || !res.filePath) return { canceled: true };
+  await fs.promises.writeFile(res.filePath, content, 'utf8');
+  return { ok: true, filePath: res.filePath };
 });
 
 ipcMain.handle('transcode-fallback-request', async (_event, request) => {

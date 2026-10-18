@@ -350,6 +350,7 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                     />
                     <SongActions
                         like={like}
+                        currentSong={currentSong}
                         onLocatePlayingSong={handleLocatePlayingSong}
                         onNavigateHome={handleNavigateHome}
                         onOpenSettings={onOpenSettings ? handleOpenSettings : undefined}

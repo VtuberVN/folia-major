@@ -2242,7 +2242,7 @@ const vi = {
     "loginTitleSpotify": "Đăng nhập Spotify",
     "loginNoteSpotify": "Chọn “Đồng ý” trên trang Spotify mở trong trình duyệt của bạn",
     "loginTitleZing": "Đăng nhập Zing MP3",
-    "loginNoteZing": "Đăng nhập tài khoản Zing MP3 để đồng bộ bài hát",
+    "loginNoteZing": "Đăng nhập tài khoản Zing MP3 bằng Zalo qua cửa sổ trình duyệt",
     "loginTitleNct": "NhacCuaTui",
     "loginNoteNct": "Không cần đăng nhập cho NhacCuaTui",
     "loginCaseSpotifyUnfinished": "Không xác nhận trong vòng 10 phút",
@@ -2776,6 +2776,10 @@ const vi = {
     "downloadLocationCustomHint": "Đang dùng vị trí tải về tùy chỉnh.",
     "downloadLocationMoved": "Đã di chuyển {{count}} tệp tải về sang vị trí mới.",
     "downloadLocationMoveFailed": "Không thể di chuyển {{count}} tệp.",
+    "aiKaraokeGroupTitle": "Mô hình AI Tách Lời & Nhạc (MSS / ASR)",
+    "aiKaraokeGroupDesc": "Quản lý các mô hình AI để tách beat/vocal và tạo file Karaoke nhảy chữ (Enhanced LRC).",
+    "loadingAiModels": "Đang tải danh sách mô hình...",
+    "downloadModel": "Tải về",
     "localLibraryWatch": "Theo dõi thư mục nội bộ",
     "localLibraryAutoScan": "Tự động quét thư mục đã nhập",
     "localLibraryAutoScanDesc": "Theo dõi các thư mục đã nhập và quét tăng dần mỗi khi tệp thay đổi.",
@@ -6187,6 +6191,18 @@ const vi = {
     "resume": "Tiếp tục",
     "pauseAll": "Tạm dừng tất cả",
     "paused": "Đã tạm dừng"
+  },
+  "karaoke": {
+    "openKaraoke": "Tách nhạc & Tạo Karaoke AI (MSS / ASR)",
+    "modalTitle": "Tách nhạc & Tạo Karaoke AI",
+    "selectMssModel": "Mô hình Tách Lời & Nhạc (MSS)",
+    "selectAsrMode": "Nhận diện Lời & Căn chỉnh Thời gian (Karaoke Sync)",
+    "startSeparation": "Bắt đầu Tách Nhạc & Tạo Karaoke",
+    "applyToPlayer": "Áp dụng cho bài hát đang phát",
+    "successBanner": "Đã tách beat và tạo file Karaoke thành công!",
+    "builtIn": "Tích hợp sẵn",
+    "ready": "Sẵn sàng",
+    "notDownloaded": "Chưa tải"
   }
 } as const;
 

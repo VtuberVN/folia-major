@@ -116,6 +116,12 @@ contextBridge.exposeInMainWorld('electron', {
     openUpdateReleasePage: (version) => ipcRenderer.invoke('updates-open-release-page', version),
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
     openZingLogin: () => ipcRenderer.invoke('auth-open-zing-login'),
+    zingWebLoginStart: () => ipcRenderer.invoke('zing-web-login-start'),
+    zingWebLoginCheck: () => ipcRenderer.invoke('zing-web-login-check'),
+    zingWebLoginCancel: () => ipcRenderer.invoke('zing-web-login-cancel'),
+    zingWebLoginOpen: () => ipcRenderer.invoke('zing-web-login-open'),
+    zingLoginStatus: () => ipcRenderer.invoke('zing-login-status'),
+    zingLogout: () => ipcRenderer.invoke('zing-logout'),
     fetchZingProfile: (cookieStr) => ipcRenderer.invoke('auth-fetch-zing-profile', cookieStr),
     safeStorageEncrypt: (text) => ipcRenderer.invoke('safe-storage-encrypt', text),
     safeStorageDecrypt: (cipherText) => ipcRenderer.invoke('safe-storage-decrypt', cipherText),
@@ -154,6 +160,25 @@ contextBridge.exposeInMainWorld('electron', {
             const listener = (_event, progress) => callback(progress);
             ipcRenderer.on('download-progress', listener);
             return () => ipcRenderer.removeListener('download-progress', listener);
+        },
+    },
+    aiKaraoke: {
+        getModels: () => ipcRenderer.invoke('ai-karaoke-get-models'),
+        downloadModel: (modelId) => ipcRenderer.invoke('ai-karaoke-download-model', modelId),
+        cancelDownloadModel: (modelId) => ipcRenderer.invoke('ai-karaoke-cancel-download-model', modelId),
+        deleteModel: (modelId) => ipcRenderer.invoke('ai-karaoke-delete-model', modelId),
+        startJob: (payload) => ipcRenderer.invoke('ai-karaoke-start-job', payload),
+        cancelJob: (jobId) => ipcRenderer.invoke('ai-karaoke-cancel-job', jobId),
+        exportLrcFile: (payload) => ipcRenderer.invoke('ai-karaoke-export-lrc', payload),
+        onModelProgress: (callback) => {
+            const listener = (_event, progress) => callback(progress);
+            ipcRenderer.on('ai-karaoke-model-progress', listener);
+            return () => ipcRenderer.removeListener('ai-karaoke-model-progress', listener);
+        },
+        onJobProgress: (callback) => {
+            const listener = (_event, progress) => callback(progress);
+            ipcRenderer.on('ai-karaoke-job-progress', listener);
+            return () => ipcRenderer.removeListener('ai-karaoke-job-progress', listener);
         },
     },
     requestTranscodeFallback: (request) => ipcRenderer.invoke('transcode-fallback-request', request),
