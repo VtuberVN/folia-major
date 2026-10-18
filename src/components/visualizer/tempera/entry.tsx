@@ -1,11 +1,21 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { Scan, WandSparkles } from 'lucide-react';
+import type { TemperaColorMode, TemperaTuning } from '../../../types';
+import { cycleValue, QuickControlChip, QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import TemperaSettingsPanel from './TemperaSettingsPanel';
 
 const VisualizerTempera = React.lazy(() => import('./VisualizerTempera'));
 
 // src/components/visualizer/tempera/entry.tsx
 // Registers 凝彩, the deterministic block-composition lyric-PV director.
+const COLOR_MODES: TemperaColorMode[] = ['duo', 'mono', 'gradient'];
+const COLOR_MODE_LABEL_KEYS: Record<TemperaColorMode, string> = {
+    duo: 'options.temperaColorModeDuo',
+    mono: 'options.temperaColorModeMono',
+    gradient: 'options.temperaColorModeGradient',
+};
+
 export default defineVisualizer({
     mode: 'tempera',
     order: 20,
@@ -32,5 +42,31 @@ export default defineVisualizer({
     // context away mid-transition and leave the frame empty for the whole rebuild.
     render: props => <VisualizerTempera {...props} />,
     renderSettingsPanel: props => <TemperaSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<TemperaTuning>) => {
+        const colorLabel = t(COLOR_MODE_LABEL_KEYS[tuning.colorMode]);
+        return (
+            <>
+                <QuickControlChip
+                    label={colorLabel}
+                    title={`${t('options.temperaColorMode')}: ${colorLabel}`}
+                    onClick={() => onTuningChange({ colorMode: cycleValue(COLOR_MODES, tuning.colorMode) })}
+                />
+                <QuickControlToggle
+                    active={tuning.postProcessEnabled}
+                    label={t('options.temperaPostProcessEnabled')}
+                    onToggle={() => onTuningChange({ postProcessEnabled: !tuning.postProcessEnabled })}
+                >
+                    <WandSparkles size={14} />
+                </QuickControlToggle>
+                <QuickControlToggle
+                    active={tuning.showCornerMarks}
+                    label={t('options.temperaShowCornerMarks')}
+                    onToggle={() => onTuningChange({ showCornerMarks: !tuning.showCornerMarks })}
+                >
+                    <Scan size={14} />
+                </QuickControlToggle>
+            </>
+        );
+    },
     ownFontSizeNoticeKey: 'options.temperaFontSizeAutoNotice',
 });

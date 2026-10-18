@@ -5,16 +5,18 @@ const require = createRequire(import.meta.url);
 const {
     REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY,
     REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY,
+    REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY,
     readRemoteControlWindowSettings,
     shouldShowRemoteUnlockTrayItem,
     applyRemoteControlMouseIgnore,
 } = require('../../../electron/remoteControlWindowSettings.cjs') as typeof import('../../../electron/remoteControlWindowSettings.cjs');
 
 describe('remote window settings', () => {
-    it('defaults both switches to off', () => {
+    it('defaults hide titlebar and click-through to off, expand cover to on', () => {
         expect(readRemoteControlWindowSettings((_key: string, fallback: boolean) => fallback)).toEqual({
             hideTitlebar: false,
             clickThrough: false,
+            expandCover: true,
         });
     });
 
@@ -22,10 +24,12 @@ describe('remote window settings', () => {
         const stored: Record<string, boolean> = {
             [REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY]: true,
             [REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY]: true,
+            [REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY]: false,
         };
         expect(readRemoteControlWindowSettings((key: string, fallback: boolean) => stored[key] ?? fallback)).toEqual({
             hideTitlebar: true,
             clickThrough: true,
+            expandCover: false,
         });
     });
 

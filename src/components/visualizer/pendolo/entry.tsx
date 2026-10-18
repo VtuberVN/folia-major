@@ -1,10 +1,20 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { Disc3 } from 'lucide-react';
+import type { PendoloTuning } from '../../../types';
+import { cycleValue, QuickControlChip, QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import PendoloSettingsPanel from './PendoloSettingsPanel';
 
 const VisualizerPendolo = React.lazy(() => import('./VisualizerPendolo'));
 
 // src/components/visualizer/pendolo/entry.tsx
+
+const GEAR_DECOR_MODES: PendoloTuning['showGearDecor'][] = ['none', 'subtle', 'full'];
+const GEAR_DECOR_LABEL_KEYS: Record<PendoloTuning['showGearDecor'], string> = {
+    none: 'options.decorNone',
+    subtle: 'options.decorSubtle',
+    full: 'options.decorFull',
+};
 
 export default defineVisualizer({
     mode: 'pendolo',
@@ -31,4 +41,24 @@ export default defineVisualizer({
     // The song-scoped seed resets Pendolo's lyric rail state before the next track starts.
     render: props => <VisualizerPendolo key={props.seed} {...props} />,
     renderSettingsPanel: props => <PendoloSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<PendoloTuning>) => {
+        const showCover = tuning.showCoverOnWatchFace ?? false;
+        const gearLabel = t(GEAR_DECOR_LABEL_KEYS[tuning.showGearDecor]);
+        return (
+            <>
+                <QuickControlToggle
+                    active={showCover}
+                    label={t('options.pendoloShowCoverOnWatchFace')}
+                    onToggle={() => onTuningChange({ showCoverOnWatchFace: !showCover })}
+                >
+                    <Disc3 size={14} />
+                </QuickControlToggle>
+                <QuickControlChip
+                    label={gearLabel}
+                    title={`${t('options.pendoloShowGearDecor')}: ${gearLabel}`}
+                    onClick={() => onTuningChange({ showGearDecor: cycleValue(GEAR_DECOR_MODES, tuning.showGearDecor) })}
+                />
+            </>
+        );
+    },
 });

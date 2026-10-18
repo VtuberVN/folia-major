@@ -224,7 +224,7 @@ export type LoginStep = 'start' | 'open' | 'wait' | 'check' | 'account';
 export type LoginCaseId =
     | 'code-expired' | 'expired-after-scan' | 'browser-unfinished' | 'not-authorized'
     | 'unreachable' | 'no-answer'
-    | 'refused' | 'retry-later' | 'device-limit'
+    | 'refused' | 'retry-later' | 'device-limit' | 'wrong-scan-app'
     | 'local-service-stopped' | 'local-service-unavailable' | 'cannot-listen'
     | 'no-browser' | 'browser-still-open' | 'browser-closed-early' | 'browser-unread' | 'browser-not-opened'
     | 'account-not-read'

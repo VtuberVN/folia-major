@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { VisualizerMode } from '../../../types';
 import { VisualizerBackdropContext } from '../VisualizerBackdrop';
 import { holdTurns } from '../preview/pictureTurns';
@@ -39,6 +39,14 @@ export interface StyleSwitch {
     /** The switch waits for the new style's first frame: a background change made with it waits too. */
     waits: boolean;
 }
+
+/**
+ * Draws a style in a frame of the host's own, inside the style's layer, so the switch's blur and fade
+ * cover the frame too: the sample of the lyric style window and of Theme Park zooms Monet more than
+ * the rest, and a switch between them then shows each style leaving and coming in at its own size.
+ * Null (most hosts): the style is drawn as it is.
+ */
+export const StyleFrameContext = createContext<((mode: VisualizerMode, content: React.ReactNode) => React.ReactNode) | null>(null);
 
 /** The styles to draw for `mode`, with the transition a switch plays, or null to cut. */
 export const useStyleSwitch = (mode: VisualizerMode, transition: LayerTransition | null): StyleSwitch => {
@@ -121,13 +129,14 @@ interface VisualizerStyleTransitionProps {
 
 const VisualizerStyleTransition: React.FC<VisualizerStyleTransitionProps> = ({ styleSwitch, transition, renderStyle }) => {
     const { styles, onLeft, onStart } = styleSwitch;
+    const frameStyle = useContext(StyleFrameContext);
 
     // Oldest first: the new style is drawn over the leaving one, and neither box moves in the page.
     return (
         <>
             {styles.map(style => (
                 <StyleLayer key={style.key} style={style} transition={transition} onLeft={onLeft} onStart={onStart}>
-                    {renderStyle(style.value)}
+                    {frameStyle ? frameStyle(style.value, renderStyle(style.value)) : renderStyle(style.value)}
                 </StyleLayer>
             ))}
         </>

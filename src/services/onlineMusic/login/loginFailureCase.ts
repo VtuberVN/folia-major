@@ -22,6 +22,8 @@ const CASES: Record<LoginCaseId, { kind: LoginCaseKind; action: LoginCaseAction 
     'retry-later': { kind: 'C', action: 'wait-then-retry', details: true },
     // 账号登录的设备已经满了：平台拒绝，用的人在手机上退出不用的设备之后再来一次。
     'device-limit': { kind: 'C', action: 'retry', details: true },
+    // 扫码用的 App 和选的登录方式对不上：平台拒绝，用的人换对的 App 或改选登录方式之后再来一次。
+    'wrong-scan-app': { kind: 'C', action: 'retry', details: true },
     // 本地服务没有在跑：前一种可以在登录窗口里重启它，后一种不能，只能重来。
     'local-service-stopped': { kind: 'D', action: 'restart-service', details: true },
     'local-service-unavailable': { kind: 'D', action: 'retry', details: true },

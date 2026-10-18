@@ -33,9 +33,9 @@ import './remote.css';
 // Electron-only companion window for controlling the single real player instance.
 // A block of type (the song, the line being sung, its translation), one line that is both the
 // divider and the progress bar, and a row of keys. With the pointer in, it lights up what already
-// has a place; a moment after the pointer leaves, the card turns into a sleeve: the cover large on
-// the left, the song and the line on the right, no keys. This file holds the window's state and
-// puts the parts together.
+// has a place; a moment after the pointer leaves, the keys go and the line takes their place, and
+// (with the switch "expand cover" on) the card turns into a sleeve: the cover large on the left,
+// the song and the line on the right. This file holds the window's state and puts the parts together.
 
 const REMOTE_CONTROL_DOCUMENT_TITLE = 'Folia Remote';
 const REMOTE_BACKGROUND_MODE_STORAGE_KEY = 'remote_background_mode';
@@ -98,7 +98,9 @@ const RemoteControlApp: React.FC = () => {
         isDisplayOnly,
     });
     // An open sheet is the card in use too: it stands where the sleeve's song and line would be.
-    const isSleeve = useRemoteSleeve(!isLit && !sheet.isOpen, reduceMotion, cardRef);
+    const isIdle = useRemoteSleeve(!isLit && !sheet.isOpen, reduceMotion, cardRef);
+    // Idle puts the line where the keys were; the switch "expand cover" decides whether it also opens the sleeve.
+    const isSleeve = isIdle && presentation.expandCover;
     useRemoteTextShade(backgroundMode === 'transparent', stageRef, textShadeRef, isSleeve);
 
     useEffect(() => {
@@ -129,7 +131,8 @@ const RemoteControlApp: React.FC = () => {
             className="remote-window"
             data-theme={snapshot.isDaylight ? 'light' : 'dark'}
             data-bg={backgroundMode}
-            data-lit={isLit && !isSleeve}
+            data-lit={isLit && !isIdle}
+            data-idle={isIdle}
             data-sleeve={isSleeve}
             data-paused={snapshot.hasTrack && !isPlaying}
             data-sheet={sheet.isOpen}
@@ -174,6 +177,7 @@ const RemoteControlApp: React.FC = () => {
                                 key="sheet"
                                 tab={sheet.tab}
                                 snapshot={snapshot}
+                                alwaysOnTopSupported={presentation.alwaysOnTopSupported}
                                 choices={choices}
                                 primaryDisabled={primaryDisabled}
                                 reduceMotion={reduceMotion}
@@ -185,6 +189,7 @@ const RemoteControlApp: React.FC = () => {
 
                     <RemoteWindowTools
                         backgroundMode={backgroundMode}
+                        alwaysOnTopSupported={presentation.alwaysOnTopSupported}
                         onCycleBackgroundMode={() => setBackgroundMode(previous => (
                             previous === 'default' ? 'cover' : previous === 'cover' ? 'transparent' : 'default'
                         ))}

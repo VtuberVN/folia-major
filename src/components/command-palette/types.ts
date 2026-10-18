@@ -210,6 +210,8 @@ export type CommandPaletteNavigationContext = {
     toggleMainWindowAlwaysOnTop: () => Promise<boolean>;
     /** Window-level toggles (fullscreen, always-on-top) are meaningless in wallpaper mode. */
     isWallpaperMode: boolean;
+    /** False on native Wayland, where Electron's always-on-top is silently ignored. */
+    isWindowAlwaysOnTopSupported: boolean;
 };
 
 export type CommandPalettePanelContext = {
@@ -296,6 +298,7 @@ export type CommandPaletteSettingsContext = {
     toggleHideFullscreenButton: () => void;
     toggleNativeMacFullscreenButton: () => void;
     toggleAutoHideCursorWithPlayerChrome: () => void;
+    toggleHideCursorWhenIdle: () => void;
     /** Lab switch: whether the restored session starts playing by itself on launch. */
     toggleAutoPlayOnLaunch: () => void;
     toggleTranscodeFallback: () => void;
@@ -327,6 +330,8 @@ export type CommandPaletteSettingsContext = {
     toggleCloseToTray: () => void;
     /** Remote control window: hide the top floating window-control bar. */
     toggleHideRemoteControlTitlebar: () => void;
+    /** Remote control window: when idle, expand the cover into the large sleeve. */
+    toggleRemoteControlExpandCover: () => void;
     /** Turns remote control click-through off (the way back into a click-through window). */
     unlockRemoteControl: () => void;
     /** OBS browser source: keep the main window's heavy animation while an OBS client is connected. */

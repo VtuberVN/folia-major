@@ -186,7 +186,8 @@ describe('qqProvider', () => {
         expect(qqProvider.capabilities.historyRecommendations).toBeFalsy();
         expect(Object.keys(qqProvider.recommendations ?? {}).sort()).toEqual(['getDailySongs', 'getPersonalFm', 'getRecommendedCollections']);
         expect(Object.keys(qqProvider.mutations ?? {}).sort()).toEqual([
-            'canAddToPlaylist', 'canEditPlaylistTracks', 'likeSong', 'subscribeAlbum', 'subscribePlaylist', 'updatePlaylistTracks',
+            'canAddToPlaylist', 'canEditPlaylistTracks', 'canSubscribe', 'createPlaylist', 'likeSong', 'subscribeAlbum', 'subscribePlaylist',
+            'updatePlaylistTracks',
         ]);
         expect(qqProvider.catalog?.getSubscriptionStatus).toBeTypeOf('function');
     });
@@ -557,6 +558,7 @@ describe('qqProvider', () => {
             'session: backend session stored=yes',
             'login channels: not declared by the backend',
             'last account check: none',
+            'login methods shown: qq, wechat',
         ]);
 
         transportState.hasSession = false;
@@ -812,11 +814,52 @@ describe('qqProvider', () => {
             vi.restoreAllMocks();
         });
 
-        it('says no audio after three empty play links, one request per level', async () => {
+        // 有会话时三档都没链接，再要一次试听；试听也没有，才说没有音频。
+        it('says no audio after three empty play links and no preview clip, one request per level', async () => {
             requestMock.mockResolvedValue(EMPTY_PLAY_LINK);
 
             expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toEqual({ case: 'no-audio' });
-            expect(requestMock).toHaveBeenCalledTimes(3);
+            expect(requestMock).toHaveBeenCalledTimes(4);
+            expect(requestMock).toHaveBeenLastCalledWith('music_play', { songmid: '003rJSwm3TechU', mediaId: '001MediaMidFixture', preview: 1 });
+        });
+
+        it('hands out the preview clip, marked as one, where no level gave a link', async () => {
+            requestMock
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce({ data: { playUrl: { '003rJSwm3TechU': { url: 'https://audio.example.test/clip.mp3', preview: true } } } });
+
+            await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).resolves.toEqual({
+                url: 'https://audio.example.test/clip.mp3',
+                fetchedAt: expect.any(Number),
+                quality: 'standard',
+                preview: true,
+            });
+        });
+
+        // 后端没在这一条上标 `preview`：那是整首的链接，不当成试听。
+        it('does not mark a link as a preview where the backend did not', async () => {
+            requestMock
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce({ data: { playUrl: { '003rJSwm3TechU': { url: 'https://audio.example.test/full.mp3', error: false } } } });
+
+            const source = await qqProvider.playback!.getAudioSource(SONG, 'lossless');
+            expect(source).toMatchObject({ url: 'https://audio.example.test/full.mp3', quality: 'standard' });
+            expect(source).not.toHaveProperty('preview');
+        });
+
+        // 试听那一次失败只是没有试听：照原来的说法说没有音频，不把试听的错交出去。
+        it('says no audio where the preview request itself failed', async () => {
+            requestMock
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockResolvedValueOnce(EMPTY_PLAY_LINK)
+                .mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi request failed: 500', 'qq', { error: 'get-music-play failed' }, 500));
+
+            expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toEqual({ case: 'no-audio' });
         });
 
         // Only a hint: no session, and the backend issued empty links. Never a sign-in that ended.
@@ -894,7 +937,8 @@ describe('qqProvider', () => {
                 .mockResolvedValue(EMPTY_PLAY_LINK);
 
             expect(await caseOf(qqProvider.playback!.getAudioSource(SONG, 'lossless'))).toEqual({ case: 'no-audio' });
-            expect(requestMock).toHaveBeenCalledTimes(3);
+            // 三档，加上一次试听。
+            expect(requestMock).toHaveBeenCalledTimes(4);
         });
 
         // 后端把上游业务拒绝（QqProtocolError）包成 500：QQ 音乐其实答了话，是拒绝，不是服务异常。
@@ -1510,5 +1554,167 @@ describe('qqProvider', () => {
         // 后端 2.2.0 起有 `/user/albums`，收藏专辑不再是空页。
         expect(qqProvider.library?.getUserAlbums).toBeTypeOf('function');
         expect(qqProvider.getAvailability?.()).toEqual({ configured: true });
+    });
+});
+
+// qq-music-api 3.3.3 接上的能力：会员等级、歌单只读一次、逐首确认红心、歌单页的播放数、云盘与探索页的开关。
+// 回应形状取自 3.3.3 的使用文档（「登录后的资料与歌单」「选对歌单详情接口」「收藏与查询收藏状态」）；数字与名字是虚构示例。
+describe('qqProvider (3.3.3 library)', () => {
+    beforeEach(() => {
+        requestMock.mockReset();
+        transportState.hasSession = true;
+        resetQqProviderRuntimeCache();
+        vi.spyOn(console, 'info').mockImplementation(() => { });
+        vi.spyOn(console, 'warn').mockImplementation(() => { });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('declares the cloud and the explore page with their members', () => {
+        expect(qqProvider.capabilities).toMatchObject({ userCloud: true, explore: true });
+        expect(qqProvider.library?.getCloudCollection).toBeTypeOf('function');
+        expect(qqProvider.catalog?.getCloudTracks).toBeTypeOf('function');
+        expect(qqProvider.explore?.getFeed).toBeTypeOf('function');
+    });
+
+    it.each([
+        ['free', 0],
+        ['green', 1],
+        ['super', 2],
+    ])('reads the %s membership into vipType %i', async (vipLevel, vipType) => {
+        requestMock
+            .mockResolvedValueOnce({ code: 200, data: { profile: { str_musicid: '10001', nick: '示例用户' } } })
+            .mockResolvedValueOnce({ code: 200, isVip: vipType > 0, vipLevel });
+
+        await expect(qqProvider.auth!.getLoginStatus!()).resolves.toMatchObject({ id: '10001', vipType });
+        expect(requestMock.mock.calls.map(call => call[0])).toEqual(['login_status', 'user_vip']);
+    });
+
+    // 判断不出来不当成免费；会员等级读不到也不影响登录。等级一个账号只读一次，所以读不到的那次换一个账号。
+    it('leaves vipType out where the level is unknown or could not be read', async () => {
+        const profileOf = (id: string) => ({ code: 200, data: { profile: { str_musicid: id, nick: '示例用户' } } });
+        requestMock
+            .mockResolvedValueOnce(profileOf('10001'))
+            .mockResolvedValueOnce({ code: 200, isVip: false, vipLevel: 'unknown' })
+            .mockResolvedValueOnce(profileOf('10002'))
+            .mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi request failed: 502', 'qq', { errorKey: 'upstream.unknown' }, 502));
+
+        const unknown = await qqProvider.auth!.getLoginStatus!();
+        const failed = await qqProvider.auth!.getLoginStatus!();
+
+        expect(unknown).toMatchObject({ id: '10001' });
+        expect(unknown).not.toHaveProperty('vipType');
+        expect(failed).toMatchObject({ id: '10002' });
+        expect(failed).not.toHaveProperty('vipType');
+        expect(requestMock.mock.calls.map(call => call[0])).toEqual(['login_status', 'user_vip', 'login_status', 'user_vip']);
+    });
+
+    it('keeps vipType through a round trip of the cached user', () => {
+        expect(normalizeQqUser({ id: '10001', nickname: '示例用户', vipType: 2 })).toMatchObject({ vipType: 2 });
+    });
+
+    // 账号层每 50 张要一页；后端一次给整份，所以一轮只请求一次。
+    it('asks for the playlists once a round and pages the rest out of that answer', async () => {
+        const playlist = Array.from({ length: 120 }, (_, index) => ({ tid: 1000 + index, dirId: index + 1, dirName: `歌单 ${index}` }));
+        requestMock.mockResolvedValueOnce({ code: 200, playlist, total: 120, more: false });
+
+        const pages = [];
+        for (let offset = 0; offset < 120; offset += 50) pages.push(await qqProvider.library!.getUserPlaylists(123, 50, offset));
+
+        expect(requestMock).toHaveBeenCalledTimes(1);
+        expect(pages.map(page => page.items.length)).toEqual([50, 50, 20]);
+        expect(pages[2]).toMatchObject({ hasMore: false, nextOffset: 120 });
+
+        // 下一轮从第一页开始，重新读。
+        requestMock.mockResolvedValueOnce({ code: 200, playlist: playlist.slice(0, 1), total: 1, more: false });
+        await expect(qqProvider.library!.getUserPlaylists(123, 50, 0)).resolves.toMatchObject({ total: 1, hasMore: false });
+        expect(requestMock).toHaveBeenCalledTimes(2);
+    });
+
+    // 一轮读到的整份歌单只给读它的那个账号切：换了账号，后面的页也重新读。
+    it('never pages one account\'s playlists out of another account\'s round', async () => {
+        const listOf = (prefix: number) => Array.from({ length: 60 }, (_, index) => ({ tid: prefix + index, dirId: index + 1, dirName: `歌单 ${index}` }));
+        requestMock
+            .mockResolvedValueOnce({ code: 200, playlist: listOf(1000), total: 60, more: false })
+            .mockResolvedValueOnce({ code: 200, playlist: listOf(5000), total: 60, more: false });
+
+        await qqProvider.library!.getUserPlaylists('10001', 50, 0);
+        const other = await qqProvider.library!.getUserPlaylists('20002', 50, 50);
+
+        expect(requestMock).toHaveBeenCalledTimes(2);
+        expect(other.items.map(item => item.id)).toEqual(Array.from({ length: 10 }, (_, index) => 5050 + index));
+    });
+
+    it('asks whether songs are liked by songmid and answers only what the backend is sure of', async () => {
+        requestMock.mockResolvedValueOnce({
+            code: 200,
+            type: 'song',
+            items: [
+                { id: 'mid-a', status: 'subscribed' },
+                { id: 'mid-b', status: 'not-subscribed' },
+                { id: 'mid-c', status: 'unknown' },
+            ],
+        });
+
+        // 数字 id 是没有 songmid 的歌，不拿去问。
+        await expect(qqProvider.library!.areSongsLiked!(['mid-a', 'mid-b', 'mid-c', 12345, 'mid-a']))
+            .resolves.toEqual({ 'mid-a': true, 'mid-b': false });
+        expect(requestMock).toHaveBeenCalledWith('user_subscription_status', { type: 'song', ids: 'mid-a,mid-b,mid-c' });
+
+        requestMock.mockClear();
+        await expect(qqProvider.library!.areSongsLiked!([12345])).resolves.toEqual({});
+        expect(requestMock).not.toHaveBeenCalled();
+    });
+
+    describe('playlist detail', () => {
+        const ownPlaylist = normalizeQqCollection({ tid: 70001, dirId: 5, dirName: '自建歌单', songNum: 3 });
+
+        it('reads an own playlist\'s play count with one song of it', async () => {
+            requestMock.mockResolvedValueOnce({ code: 200, songs: [], total: 3, more: true, play_cnt: 42 });
+
+            await expect(qqProvider.catalog!.getPlaylistDetail!(ownPlaylist.id, ownPlaylist)).resolves.toMatchObject({ id: 70001, playCount: 42 });
+            expect(requestMock).toHaveBeenCalledWith('user_playlist_detail', { tid: '70001', dirid: 5, offset: 0, limit: 1, playCount: 1 });
+        });
+
+        it('reads another\'s playlist from the anonymous detail only where it has no play count yet', async () => {
+            const favourite = normalizeQqCollection({ tid: 80001, dirId: 36, name: '收藏的歌单', songnum: 9 });
+            requestMock.mockResolvedValueOnce({ response: { code: 0, cdlist: [{ dissname: '收藏的歌单', visitnum: 777, desc: '示例简介', songlist: [] }] } });
+
+            await expect(qqProvider.catalog!.getPlaylistDetail!(favourite.id, favourite))
+                .resolves.toMatchObject({ playCount: 777, description: '示例简介' });
+            expect(requestMock).toHaveBeenCalledWith('song_list_detail', { disstid: '80001' });
+
+            requestMock.mockClear();
+            const recommended = normalizeQqCollection({ tid: 90001, title: '推荐歌单', play_cnt: 4321 });
+            await expect(qqProvider.catalog!.getPlaylistDetail!(recommended.id, recommended)).resolves.toBe(recommended);
+            expect(requestMock).not.toHaveBeenCalled();
+        });
+
+        it('asks nothing for the liked list, and hands the playlist back where the detail fails', async () => {
+            const liked = normalizeQqCollection(PLAYLIST_ITEM);
+            await expect(qqProvider.catalog!.getPlaylistDetail!(liked.id, liked)).resolves.toBe(liked);
+            expect(requestMock).not.toHaveBeenCalled();
+
+            requestMock.mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi request failed: 502', 'qq', undefined, 502));
+            await expect(qqProvider.catalog!.getPlaylistDetail!(ownPlaylist.id, ownPlaylist)).resolves.toBe(ownPlaylist);
+        });
+
+        it('leaves the play count out where the upstream gives null', async () => {
+            requestMock.mockResolvedValueOnce({ code: 200, songs: [], total: 3, more: true, play_cnt: null });
+            const detail = await qqProvider.catalog!.getPlaylistDetail!(ownPlaylist.id, ownPlaylist);
+            expect(detail).not.toHaveProperty('playCount');
+        });
+
+        it('keeps reading own playlists with credentials after the anonymous detail answers 404', async () => {
+            const favourite = normalizeQqCollection({ tid: 80001, dirId: 36, name: '收藏的歌单', songnum: 9 });
+            requestMock.mockRejectedValueOnce(new OnlineProviderError('unsupported', 'QQMusicApi has no route', 'qq'));
+            await expect(qqProvider.catalog!.getPlaylistDetail!(favourite.id, favourite)).resolves.toBe(favourite);
+
+            requestMock.mockResolvedValueOnce({ code: 200, songs: [], total: 3, more: true, play_cnt: 42 });
+            await expect(qqProvider.catalog!.getPlaylistDetail!(ownPlaylist.id, ownPlaylist)).resolves.toMatchObject({ playCount: 42 });
+            expect(requestMock).toHaveBeenLastCalledWith('user_playlist_detail', expect.objectContaining({ tid: '70001', dirid: 5 }));
+        });
     });
 });

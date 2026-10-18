@@ -39,6 +39,7 @@ const O = {
     tintIntensity: option(VIEW, 'latticePosterTintIntensity', 'options.latticePosterTintIntensity'),
     autoHide: option(BAR, 'autoHidePlayerChrome', 'options.autoHidePlayerChrome'),
     autoHideCursor: option(BAR, 'autoHideCursorWithPlayerChrome', 'options.autoHideCursorWithPlayerChrome'),
+    idleCursorHide: option(BAR, 'hideCursorWhenIdle', 'options.hideCursorWhenIdle'),
     barOffset: option(BAR, 'playerBottomBarOffset', 'options.playerBottomBarOffset'),
     barReposition: option(BAR, 'playerBottomBarReposition', 'options.playerBottomBarReposition'),
     controlSlots: option(BAR, 'playerControlSlots', 'options.playerControlSlots'),
@@ -83,6 +84,7 @@ const PlayerPage: React.FC = () => {
     const chrome = usePlayerChromeSettingsStore(useShallow(state => ({
         autoHide: state.autoHidePlayerChrome,
         autoHideCursor: state.autoHideCursorWithPlayerChrome,
+        hideCursorWhenIdle: state.hideCursorWhenIdle,
         barOffset: state.playerBottomBarOffset,
         slotPrimary: state.playerControlSlotPrimary,
         slotSecondary: state.playerControlSlotSecondary,
@@ -93,6 +95,7 @@ const PlayerPage: React.FC = () => {
         cardCloseButton: state.showOpenPanelCloseButton,
         setAutoHide: state.handleToggleAutoHidePlayerChrome,
         setAutoHideCursor: state.handleToggleAutoHideCursorWithPlayerChrome,
+        setHideCursorWhenIdle: state.handleToggleHideCursorWhenIdle,
         setBarOffset: state.handleSetPlayerBottomBarOffset,
         setSlot: state.handleSetPlayerControlSlot,
         setHideProgressBar: state.handleToggleHidePlayerProgressBar,
@@ -220,6 +223,9 @@ const PlayerPage: React.FC = () => {
                         <Toggle checked={chrome.autoHideCursor} onChange={chrome.setAutoHideCursor} />
                     </Row>
                 </Reveal>
+                <Row option={O.idleCursorHide} note={t('options.hideCursorWhenIdleDesc')}>
+                    <Toggle checked={chrome.hideCursorWhenIdle} onChange={chrome.setHideCursorWhenIdle} />
+                </Row>
                 <Row option={O.barOffset} note={t('options.playerBottomBarOffsetDesc')}>
                     <Button
                         icon={RotateCcw}

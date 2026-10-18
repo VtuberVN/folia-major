@@ -62,13 +62,12 @@ export default defineVisualizerBackground({
             onSliderCommit={onSliderCommit}
         />
     ),
-    renderQuickControls: ({ config, actions, t, theme }) => {
+    renderQuickControls: ({ config, actions, t }) => {
         const tuning = config?.tide?.tuning ?? DEFAULT_TIDE_BACKGROUND_TUNING;
         return (
             <div className="flex items-center gap-1.5">
                 <QuickControlToggle
                     active={tuning.followLyrics}
-                    theme={theme}
                     label={t('options.tideFollowLyrics')}
                     onToggle={() => actions?.tide?.onTuningChange?.({ followLyrics: !tuning.followLyrics })}
                 >

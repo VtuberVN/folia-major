@@ -1123,8 +1123,9 @@ declare global {
       closeRemoteControl: () => Promise<boolean>;
       getRemoteControlAlwaysOnTop: () => Promise<boolean>;
       setRemoteControlAlwaysOnTop: (alwaysOnTop: boolean) => Promise<boolean>;
-      getRemoteControlWindowSettings: () => Promise<{ hideTitlebar: boolean; clickThrough: boolean }>;
-      onRemoteControlWindowSettingsChanged: (callback: (settings: { hideTitlebar: boolean; clickThrough: boolean }) => void) => () => void;
+      /** alwaysOnTopSupported is false on native Wayland, where setAlwaysOnTop is silently ignored. */
+      getRemoteControlWindowSettings: () => Promise<{ hideTitlebar: boolean; clickThrough: boolean; expandCover?: boolean; alwaysOnTopSupported?: boolean }>;
+      onRemoteControlWindowSettingsChanged: (callback: (settings: { hideTitlebar: boolean; clickThrough: boolean; expandCover?: boolean; alwaysOnTopSupported?: boolean }) => void) => () => void;
       /** Null when the main process cannot tell (a Wayland session): the page then uses its own mouse events. */
       getRemoteControlPointerInside: () => Promise<boolean | null>;
       onRemoteControlPointerInside: (callback: (inside: boolean) => void) => () => void;

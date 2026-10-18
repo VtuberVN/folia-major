@@ -6,6 +6,7 @@ import { REMOTE_NO_DRAG_STYLE } from './remoteWindowBridge';
 // src/components/remote/RemoteWindowTools.tsx
 // The remote window's own three tools, top right: background, keep on top, close.
 // They show with the pointer in the window, and never when the title bar is switched off.
+// Keep on top is greyed out where Electron cannot do it (native Wayland), with a word on why.
 
 export type RemoteBackgroundMode = 'default' | 'cover' | 'transparent';
 
@@ -17,12 +18,17 @@ const BACKGROUND_LABEL_KEYS: Record<RemoteBackgroundMode, string> = {
 
 type RemoteWindowToolsProps = {
     backgroundMode: RemoteBackgroundMode;
+    alwaysOnTopSupported: boolean;
     onCycleBackgroundMode: () => void;
 };
 
-const RemoteWindowTools: React.FC<RemoteWindowToolsProps> = ({ backgroundMode, onCycleBackgroundMode }) => {
+const RemoteWindowTools: React.FC<RemoteWindowToolsProps> = ({ backgroundMode, alwaysOnTopSupported, onCycleBackgroundMode }) => {
     const { t } = useTranslation();
     const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+    const pinned = alwaysOnTopSupported && alwaysOnTop;
+    const pinLabel = !alwaysOnTopSupported
+        ? t('remote.pinUnavailable')
+        : alwaysOnTop ? t('remote.unpin') : t('remote.pinToFront');
 
     useEffect(() => {
         let mounted = true;
@@ -58,12 +64,14 @@ const RemoteWindowTools: React.FC<RemoteWindowToolsProps> = ({ backgroundMode, o
             </button>
             <button
                 type="button"
-                aria-label={alwaysOnTop ? t('remote.unpin') : t('remote.pinToFront')}
-                aria-pressed={alwaysOnTop}
+                aria-label={pinLabel}
+                aria-pressed={pinned}
+                disabled={!alwaysOnTopSupported}
+                title={alwaysOnTopSupported ? undefined : pinLabel}
                 className="remote-tool"
                 onClick={handleToggleAlwaysOnTop}
             >
-                {alwaysOnTop ? <Pin size={13} /> : <PinOff size={13} />}
+                {pinned ? <Pin size={13} /> : <PinOff size={13} />}
             </button>
             <button
                 type="button"

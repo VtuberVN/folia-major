@@ -27,6 +27,7 @@ const O = {
     remoteTaskbarIcon: option(REMOTE, 'hideRemoteControlTaskbarIcon', 'options.hideRemoteControlTaskbarIcon'),
     remoteTitlebar: option(REMOTE, 'hideRemoteControlTitlebar', 'options.hideRemoteControlTitlebar'),
     remoteClickThrough: option(REMOTE, 'remoteControlClickThrough', 'options.remoteControlClickThrough'),
+    remoteExpandCover: option(REMOTE, 'remoteControlExpandCover', 'options.remoteControlExpandCover'),
 };
 
 const PLATFORM = typeof window === 'undefined' ? undefined : window.electron?.platform;
@@ -48,6 +49,7 @@ const DesktopPage: React.FC = () => {
         remoteTaskbarIcon: state.hideRemoteControlTaskbarIcon,
         remoteTitlebar: state.hideRemoteControlTitlebar,
         remoteClickThrough: state.remoteControlClickThrough,
+        remoteExpandCover: state.remoteControlExpandCover,
         setMinimizeToTray: state.handleToggleMinimizeToTray,
         setCloseToTray: state.handleToggleCloseToTray,
         setHideTaskbarIcon: state.handleToggleHideTaskbarIcon,
@@ -56,6 +58,7 @@ const DesktopPage: React.FC = () => {
         setRemoteTaskbarIcon: state.handleToggleHideRemoteControlTaskbarIcon,
         setRemoteTitlebar: state.handleToggleHideRemoteControlTitlebar,
         setRemoteClickThrough: state.handleToggleRemoteControlClickThrough,
+        setRemoteExpandCover: state.handleToggleRemoteControlExpandCover,
     })));
     const chrome = usePlayerChromeSettingsStore(useShallow(state => ({
         hideFullscreenButton: state.hideFullscreenButton,
@@ -63,7 +66,8 @@ const DesktopPage: React.FC = () => {
         setHideFullscreenButton: state.handleToggleHideFullscreenButton,
         setNativeMacFullscreen: state.handleToggleNativeMacFullscreenButton,
     })));
-    const remoteOnCount = [desktop.remoteTaskbarIcon, desktop.remoteTitlebar, desktop.remoteClickThrough].filter(Boolean).length;
+    // Counts the switches moved off their default; expand cover is on by default, so it counts when off.
+    const remoteOnCount = [desktop.remoteTaskbarIcon, desktop.remoteTitlebar, desktop.remoteClickThrough, !desktop.remoteExpandCover].filter(Boolean).length;
 
     return (
         <>
@@ -120,6 +124,9 @@ const DesktopPage: React.FC = () => {
                 </Row>
                 <Row option={O.remoteClickThrough} hint={t('options.remoteControlClickThroughHint')} note={t('options.remoteControlClickThroughDesc')}>
                     <Toggle checked={desktop.remoteClickThrough} onChange={desktop.setRemoteClickThrough} />
+                </Row>
+                <Row option={O.remoteExpandCover} hint={t('options.remoteControlExpandCoverHint')}>
+                    <Toggle checked={desktop.remoteExpandCover} onChange={desktop.setRemoteExpandCover} />
                 </Row>
             </FoldedGroup>
         </>

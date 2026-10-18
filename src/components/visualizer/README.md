@@ -73,7 +73,8 @@ App / ThemePark / VisPlayground / OBS source
 2. tuning 的类型和默认值放在 `foo/` 里（例如 `foo/types.ts`）。现有样式的写在 `src/types.ts`（`TiltTuning`、`DEFAULT_TILT_TUNING`），那是按功能放之前的放法。
 3. 渲染器拿 tuning：在 `entry.tsx` 里用 `tuning.ts` 默认导出的 `read(props.visualizerTunings)` 取，这样不用给 `definition.ts` 加 prop，`apply` 也不用写。现有样式用 `apply` 把 tuning 放到一个具名 prop 上，那要在 `VisualizerSharedProps` 里加字段。
 4. 设置面板：`foo/FooSettingsPanel.tsx`，用设置窗口的共用控件（`src/components/modal/settings/kit`）画，在 `entry.tsx` 的 `renderSettingsPanel` 挂上（照 `pendolo/PendoloSettingsPanel.tsx`、`lumiere/LumiereSettingsPanel.tsx`）。新样式的面板不要再加进 `settingsPanels.tsx`。面板里每组的标题键（`SettingsGroupDef` 的 `titleKey`，现有的放在 `options.` 下，例如 `options.tiltSettings`）和 `resetNotice` 的键（现有的叫 `notifications.<样式>Reset`）三份语言文件都要写。
-5. 测试里钉住已存数据的两处要跟着改：`test/unit/visualizer/storedSettingsPins.test.ts`（把新键加进它的 `CURRENT` 和 `DEFAULTS`，钉住读写结果；它的快照会多出新样式的 tuning）和 `test/unit/stores/storeContract.test.ts`（存储键快照会多一个键）。确认多出来的只有新样式的东西后再更新快照。
+5. 播放面板的快捷参数（可选）：在 `entry.tsx` 的 `renderQuickControls` 挂上常调的几项，它拿到的是已保存的 tuning 和立刻保存的 `onTuningChange`。开关用 `src/components/shared/QuickControlChip.tsx` 的 `QuickControlToggle`（图标），几项里轮换用 `QuickControlChip`（写当前值），标签沿用设置面板里的键。面板把它们放在歌词样式那一行下面；没有就不出这一行。
+6. 测试里钉住已存数据的两处要跟着改：`test/unit/visualizer/storedSettingsPins.test.ts`（把新键加进它的 `CURRENT` 和 `DEFAULTS`，钉住读写结果；它的快照会多出新样式的 tuning）和 `test/unit/stores/storeContract.test.ts`（存储键快照会多一个键）。确认多出来的只有新样式的东西后再更新快照。
 
 ### 不用改的
 

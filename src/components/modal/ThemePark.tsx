@@ -150,7 +150,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
 
     return (
         <StudioWindow
-            title="Theme Park"
+            title={t('theme.themePark')}
             onBack={onClose}
             backLabel={t('ui.back')}
             isDaylight={isDaylight}

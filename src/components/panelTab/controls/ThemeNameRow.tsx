@@ -9,9 +9,9 @@ import { PanelIconButton } from '../shell/PanelIconButton';
 import { Segments } from '../shell/Segments';
 
 // src/components/panelTab/controls/ThemeNameRow.tsx
-// The line under the theme source: the name of the theme in use, the button that has an AI theme
-// made for the playing song, the button that syncs themes now (there for an AI or a custom theme),
-// and light or dark.
+// The line under the theme source: the name of the theme in use, light or dark, the button that has
+// an AI theme made for the playing song, and the button that syncs themes now (there for an AI or a
+// custom theme; it comes last, so opening it moves nothing but itself).
 
 interface ThemeNameRowProps {
     theme: Theme;
@@ -51,11 +51,20 @@ const ThemeNameRow: React.FC<ThemeNameRowProps> = ({
     };
 
     return (
-        <div className="flex min-h-11 flex-wrap items-center gap-x-3 px-1 py-1.5">
+        <div className="flex min-h-11 flex-wrap items-center gap-x-3 py-1.5">
             <span className="min-w-0 flex-[1_1_72px] truncate text-[13px] text-[color:var(--st-t2)]">
                 {formatThemeDisplayName(themeSourceModel.current.label || theme.name)}
             </span>
             <span className="ml-auto flex max-w-full items-center gap-1.5">
+                <Segments
+                    size="s"
+                    value={isDaylight ? 'light' : 'dark'}
+                    onChange={() => onToggleDaylight()}
+                    options={[
+                        { value: 'light', label: t('options.daylightModeLight'), icon: <Sun size={15} />, iconOnly: true },
+                        { value: 'dark', label: t('options.daylightModeDark'), icon: <Moon size={15} />, iconOnly: true },
+                    ]}
+                />
                 <Button
                     icon={themeSourceModel.hasLocalAiTheme && !isGeneratingTheme ? Sparkles : Sparkle}
                     onClick={onGenerateAITheme}
@@ -63,7 +72,7 @@ const ThemeNameRow: React.FC<ThemeNameRowProps> = ({
                 >
                     {isGeneratingTheme ? t('ui.generatingTheme') : t('ui.generateAITheme')}
                 </Button>
-                {/* Opens its width beside the name when there is a theme to sync. */}
+                {/* Opens its width at the row's end when there is a theme to sync. */}
                 <span
                     inert={!hasSync}
                     className={`st-t-move grid transition-[grid-template-columns,opacity,margin] ${hasSync ? 'grid-cols-[1fr]' : '-ml-1.5 grid-cols-[0fr] opacity-0'}`}
@@ -90,15 +99,6 @@ const ThemeNameRow: React.FC<ThemeNameRowProps> = ({
                         </PanelIconButton>
                     </span>
                 </span>
-                <Segments
-                    size="s"
-                    value={isDaylight ? 'light' : 'dark'}
-                    onChange={() => onToggleDaylight()}
-                    options={[
-                        { value: 'light', label: t('options.daylightModeLight'), icon: <Sun size={15} />, iconOnly: true },
-                        { value: 'dark', label: t('options.daylightModeDark'), icon: <Moon size={15} />, iconOnly: true },
-                    ]}
-                />
             </span>
         </div>
     );

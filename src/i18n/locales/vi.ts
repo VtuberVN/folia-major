@@ -365,6 +365,8 @@ const vi = {
     "mainWindowTitlebarAutoHidden": "Nút điều khiển cửa sổ chính chỉ hiện khi di chuột",
     "cursorAutoHideOn": "Con trỏ chuột sẽ ẩn cùng thanh điều khiển",
     "cursorAutoHideOff": "Con trỏ chuột luôn hiển thị khi thanh điều khiển ẩn",
+    "cursorIdleHideOn": "Con trỏ chuột sẽ tự động ẩn khi không hoạt động",
+    "cursorIdleHideOff": "Con trỏ chuột sẽ luôn hiển thị",
     "stageModeOn": "Đã bật chế độ sân khấu",
     "stageModeOff": "Đã tắt chế độ sân khấu",
     "queueInsertNext": "Thêm vào hàng đợi: phát tiếp theo",
@@ -941,6 +943,10 @@ const vi = {
       "desktop-toggle-remote-control-hide-titlebar": {
         "title": "Cửa sổ điều khiển: Ẩn thanh nổi trên cùng",
         "description": "Bật/tắt thanh điều khiển nổi ở cạnh trên của cửa sổ điều khiển"
+      },
+      "desktop-toggle-remote-control-expand-cover": {
+        "title": "Cửa sổ điều khiển: Mở rộng ảnh bìa",
+        "description": "Bật/tắt mở rộng ảnh bìa thành ảnh lớn trong cửa sổ điều khiển khi không hoạt động"
       },
       "desktop-unlock-remote-control": {
         "title": "Mở khóa cửa sổ điều khiển",
@@ -1570,6 +1576,10 @@ const vi = {
         "title": "Ẩn con trỏ chuột cùng thanh điều khiển",
         "description": "Bật/tắt tự động ẩn con trỏ chuột cùng lúc với thanh điều khiển phát"
       },
+      "settings-toggle-cursor-idle-hide": {
+        "title": "Ẩn con trỏ chuột khi không hoạt động",
+        "description": "Bật/tắt tự động ẩn con trỏ chuột khi dừng di chuột trong khi thanh điều khiển vẫn hiển thị"
+      },
       "settings-toggle-auto-play-on-launch": {
         "title": "Tự động phát khi khởi chạy",
         "description": "Bật/tắt tự động phát tiếp phiên trước khi mở ứng dụng"
@@ -2113,6 +2123,7 @@ const vi = {
     "noPlatformMatch": "Không tìm thấy nền tảng phù hợp",
     "rowSignedIn": "Đã đăng nhập",
     "rowRanOut": "Đăng nhập đã hết hạn",
+    "rowSignedOut": "Chưa đăng nhập",
     "signInRanOut": "Đăng nhập đã hết hạn",
     "readingAccount": "Đang đọc thông tin tài khoản…",
     "openBrowser": "Mở trình duyệt",
@@ -2146,6 +2157,7 @@ const vi = {
     "caseRefused": "Yêu cầu đăng nhập bị {{provider}} từ chối",
     "caseRetryLater": "{{provider}} yêu cầu thử lại sau",
     "caseDeviceLimit": "Tài khoản {{provider}} đã đạt giới hạn thiết bị đăng nhập",
+    "caseWrongScanApp": "Ứng dụng quét mã không khớp với phương thức đăng nhập",
     "caseLocalService": "Dịch vụ {{provider}} cục bộ chưa được khởi chạy",
     "caseCannotListen": "Không thể nhận kết quả đăng nhập từ {{provider}}",
     "caseNoBrowser": "Không tìm thấy trình duyệt khả dụng",
@@ -2158,6 +2170,7 @@ const vi = {
     "noteCheckNetwork": "Vui lòng kiểm tra kết nối mạng rồi thử lại",
     "noteRetryLater": "Vui lòng thử lại sau",
     "noteDeviceLimit": "Vui lòng đăng xuất khỏi các thiết bị không dùng trên điện thoại rồi thử lại",
+    "noteWrongScanApp": "Vui lòng quét bằng ứng dụng tương ứng với phương thức đăng nhập này, hoặc chọn phương thức khác",
     "noteCloseBrowser": "Vui lòng đóng trình duyệt đó rồi thử lại",
     "noteUnknown": "Lỗi không xác định"
   },
@@ -2229,15 +2242,25 @@ const vi = {
     "loginCaseSpotifyPort": "Cổng 5588 đã bị chiếm dụng",
     "loginCaseYtmUnfinished": "Vui lòng đăng nhập trước khi đóng trình duyệt",
     "loginCaseQqRestart": "Vui lòng khởi động lại Folia rồi thử lại",
+    "loginCaseQqWrongScanApp": "Nếu dùng ứng dụng QQ Music để quét, vui lòng đổi sang «Quét mã bằng ứng dụng QQ Music»; hoặc dùng ứng dụng QQ di động để quét mã này",
+    "loginCaseQqWrongScanAppMobileOnly": "Phương thức quét mã QQ ở đây chỉ hỗ trợ QQ di động: vui lòng dùng ứng dụng QQ trên điện thoại để quét mã này",
+    "loginCaseQqDeviceLimit": "Vui lòng mở ứng dụng QQ Music, vào «Cài đặt», cuộn xuống dưới cùng chọn «Quản lý thiết bị» và gỡ bỏ các thiết bị không còn dùng, sau đó quét mã lại",
+    "loginCaseQqAccountBanned": "Tài khoản này đã bị khóa và không thể đăng nhập",
+    "loginCaseQqAccountRestricted": "Tài khoản này hiện đang bị hạn chế đăng nhập",
+    "loginCaseQqAccountBinding": "Liên kết của tài khoản này gặp sự cố: vui lòng kiểm tra liên kết tài khoản trong ứng dụng QQ Music",
     "loginBrowserOpen": "Mở lại trình duyệt",
     "loginBrowserLoading": "Đang mở trình duyệt…",
     "loginBrowserRetry": "Đăng nhập lại",
     "spotifyLikedSongs": "Bài hát đã thích",
     "spotifyNewReleases": "Phát hành mới từ nghệ sĩ theo dõi",
     "loginNoteQq": "Chọn phương thức khớp với tài khoản: Quét QQ hoặc Quét WeChat",
+    "loginTitleQqAppScan": "Quét mã bằng ứng dụng QQ, WeChat hoặc QQ Music",
+    "loginNoteQqAppScan": "Hỗ trợ 3 cách quét mã: QQ, WeChat và QQ Music",
+    "loginNoteQqWithApp": "Vui lòng chọn phương thức đăng nhập khớp với tài khoản: quét mã QQ hoặc WeChat, hoặc quét bằng ứng dụng QQ Music",
     "loginMethodTitle": "Chọn phương thức đăng nhập",
     "loginMethodPending": "Chọn phương thức đăng nhập để tạo mã QR",
     "qqLoginMethodMobile": "Quét QQ",
+    "qqLoginMethodQqMusic": "Quét bằng ứng dụng QQ Music",
     "qqLoginMethodWechat": "Quét WeChat",
     "switchOnlineProvider": "Đổi nền tảng nhạc trực tuyến",
     "confirmOnlineProviderSwitch": "Chuyển sang {{provider}}? Danh sách phát và bài đang phát trực tuyến sẽ bị xóa.",
@@ -2379,6 +2402,10 @@ const vi = {
     "neteaseNewSongs": "Bài hát mới",
     "neteaseNewAlbums": "Album mới",
     "neteaseHotPlaylists": "Danh sách phát thịnh hành",
+    "qqRadar": "Khám phá bài hát",
+    "qqNewSongs": "Bài hát mới",
+    "qqNewAlbums": "Album mới",
+    "qqCharts": "Bảng xếp hạng",
     "personalFm": "FM cá nhân",
     "dailyRecommendations": "Gợi ý hàng ngày",
     "dailyRecommendationsDescription": "Bản phối hàng ngày dành riêng cho bạn",
@@ -2951,6 +2978,8 @@ const vi = {
     "autoHidePlayerChromeDesc": "Khi bật, thanh tiến trình và các nút bên phải sẽ tự động ẩn sau 3 giây khi chuột rời khỏi cửa sổ.",
     "autoHideCursorWithPlayerChrome": "Ẩn cả con trỏ chuột",
     "autoHideCursorWithPlayerChromeDesc": "Khi thanh điều khiển ẩn, con trỏ chuột cũng ẩn theo và hiện lại khi di chuột. Tắt mục này để chỉ ẩn thanh điều khiển và giữ lại con trỏ.",
+    "hideCursorWhenIdle": "Ẩn con trỏ chuột khi không hoạt động",
+    "hideCursorWhenIdleDesc": "Tự động ẩn con trỏ chuột khi dừng di chuột trong một khoảng thời gian trong khi thanh điều khiển vẫn hiển thị; di chuyển chuột sẽ hiện lại.",
     "stageTrackPill": "Thẻ bài hát đang phát",
     "stageTrackPillDesc": "Thẻ bài hát đang phát ở góc dưới bên trái: tự ẩn sau một lúc, luôn hiển thị hoặc luôn ẩn.",
     "stageTrackPillMode_auto": "Tự ẩn",
@@ -2960,6 +2989,7 @@ const vi = {
     "stageTrackPillOnHomeDesc": "Tắt sẽ giữ thẻ ở trình phát và hàng đợi. Bật sẽ hiện thêm ở trang chủ, gồm sau khi mở app hoặc đổi bài. Với thư viện Bravais, thẻ luôn được ghim trên không gian thư viện.",
     "stageTrackPillTimeout": "Thời gian hiển thị",
     "disableVisualizerVignette": "Tắt làm tối góc",
+    "visualizerVignette": "Làm tối bốn góc",
     "disableVisualizerVignetteDesc": "Chỉ loại bỏ viền tối ở rìa nền hình học. Nền trong suốt và các khối hình học vẫn tách biệt.",
     "latticeSettings": "Giao diện Lattice & Thư viện",
     "latticeVignette": "Viền tối cạnh",
@@ -3003,6 +3033,8 @@ const vi = {
     "remoteControlClickThrough": "Nhấp xuyên thấu Remote Control",
     "remoteControlClickThroughHint": "Cửa sổ bỏ qua chuột; thao tác nhấp sẽ xuyên qua màn hình và cửa sổ bên dưới",
     "remoteControlClickThroughDesc": "Khi bật, cửa sổ Remote Control sẽ bỏ qua chuột và lượt nhấp sẽ xuyên thấu xuống màn hình nền và cửa sổ bên dưới; không thể thao tác hay kéo cửa sổ. Để dùng lại, chọn \"Mở khóa cửa sổ điều khiển\" trong menu khay hoặc trong bảng lệnh, hoặc tắt tùy chọn này tại đây.",
+    "remoteControlExpandCover": "Mở rộng ảnh bìa",
+    "remoteControlExpandCoverHint": "Mở rộng ảnh bìa thành ảnh lớn khi cửa sổ điều khiển ở trạng thái chờ",
     "openPlayerOnLaunch": "Vào giao diện phát khi khởi động",
     "openPlayerOnLaunchDesc": "Mở giao diện phát khi khởi động ứng dụng. Tuân theo \"Chế độ xem khi nhấn Phát\": nếu chọn Lattice, khởi động sẽ mở hàng đợi Lattice.",
     "wallpaperMode": "Chế độ hình nền",
@@ -4571,7 +4603,8 @@ const vi = {
     "restoreServerPreset": "Dùng đặt sẵn của máy chủ",
     "restoreServerPresetFailed": "Không thể kết nối cấu hình máy chủ sẵn có. Thử lại sau.",
     "cloudDrive": "Ổ đĩa đám mây",
-    "cloudDriveDesc": "Ổ đĩa NetEase Cloud Music"
+    "cloudDriveDesc": "Ổ đĩa NetEase Cloud Music",
+    "qqCloudDriveDesc": "Ổ nhạc đám mây Weiyun"
   },
   "unifiedPanel": {
     "nowPlayingStageDescription": "Now Playing do trình phát ngoài điều khiển. Folia chỉ hiển thị lời bài hát và hiệu ứng thị giác.",
@@ -4644,6 +4677,7 @@ const vi = {
     "targetCustomTheme": "Chủ đề tùy chỉnh",
     "targetAiHint": "Đang chỉnh sửa chủ đề AI của bài hát hiện tại.",
     "targetAiNewHint": "Chưa có chủ đề AI - lưu để tạo mới cho bài hát hiện tại.",
+    "themePark": "Công viên chủ đề",
     "targetCustomHint": "Đang chỉnh sửa chủ đề tùy chỉnh đã lưu.",
     "targetCustomNewHint": "Chưa có chủ đề tùy chỉnh - lưu để tạo mới.",
     "wordColors": "Màu từ cảm xúc",
@@ -4775,6 +4809,7 @@ const vi = {
     "enableClickThrough": "Nhấp xuyên thấu",
     "through": "Xuyên thấu",
     "pin": "Ghim",
+    "pinUnavailable": "Không thể ghim trên cùng trên Wayland. Hãy sử dụng quy tắc cửa sổ của môi trường màn hình (ví dụ: «Giữ trên các cửa sổ khác» của KDE)",
     "portrait": "Dọc",
     "landscape": "Ngang",
     "square": "Vuông",

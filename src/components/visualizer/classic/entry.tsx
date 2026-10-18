@@ -1,5 +1,8 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { RotateCw } from 'lucide-react';
+import type { ClassicTuning } from '../../../types';
+import { QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { ClassicSettingsPanel } from '../settingsPanels';
 
 const Visualizer = React.lazy(() => import('./Visualizer'));
@@ -28,4 +31,13 @@ export default defineVisualizer({
     usesWordSegmentation: true,
     render: props => <Visualizer {...props} />,
     renderSettingsPanel: props => <ClassicSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<ClassicTuning>) => (
+        <QuickControlToggle
+            active={tuning.enableWordRotation}
+            label={t('options.classicWordRotation')}
+            onToggle={() => onTuningChange({ enableWordRotation: !tuning.enableWordRotation })}
+        >
+            <RotateCw size={14} />
+        </QuickControlToggle>
+    ),
 });

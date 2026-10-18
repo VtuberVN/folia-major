@@ -9,7 +9,7 @@
       "id": "qq-device-limit",
       "providers": ["qq"],
       "title": "QQ 音乐账号的登录设备数已达上限",
-      "symptoms": "扫码并在手机上确认后，凭据交换（phase=credential-exchange）阶段上游返回 upstreamCode=20279，随后 get-login-user 返回 code=1000，界面报 credential-validation / upstream-rejected。qq-music-api 3.3.0 起响应另带 upstreamErrorKey=auth.device-limit，手机 QQ 通道的 20279 在 primaryFailure 里。",
+      "symptoms": "扫码并在手机上确认后，凭据交换（phase=credential-exchange）阶段上游返回 upstreamCode=20279，随后 get-login-user 返回 code=1000，界面报 credential-validation / upstream-rejected。qq-music-api 3.3.0 起响应另带 upstreamErrorKey=auth.device-limit，手机 QQ 扫码和 QQ 音乐 App 扫码的 20279 都在 primaryFailure 里。",
       "match": ["upstreamCode[\"=:]+20279\\b", "auth\\.device-limit\\b"],
       "steps": [
         "打开 QQ 音乐官方客户端，进入「设置 → 设备管理」（在设置页最下面），移除不再使用的登录设备。",

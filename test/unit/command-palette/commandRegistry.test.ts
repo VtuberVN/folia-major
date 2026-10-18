@@ -76,6 +76,7 @@ const createContext = (overrides: CommandPaletteContextOverrides = {}): CommandP
             toggleRemoteControlWindow: vi.fn(async () => true),
             toggleMainWindowAlwaysOnTop: vi.fn(async () => true),
             isWallpaperMode: false,
+            isWindowAlwaysOnTopSupported: true,
         },
         panel: {
             setPanelTab: vi.fn(),
@@ -143,6 +144,7 @@ const createContext = (overrides: CommandPaletteContextOverrides = {}): CommandP
             toggleHideFullscreenButton: vi.fn(),
             toggleNativeMacFullscreenButton: vi.fn(),
             toggleAutoHideCursorWithPlayerChrome: vi.fn(),
+            toggleHideCursorWhenIdle: vi.fn(),
             canAutoScanLocalLibrary: vi.fn(() => false),
             toggleLocalLibraryAutoScan: vi.fn(),
             canReportPlayback: vi.fn(() => false),
@@ -154,6 +156,7 @@ const createContext = (overrides: CommandPaletteContextOverrides = {}): CommandP
             toggleWallpaperMode: vi.fn(),
             toggleCloseToTray: vi.fn(),
             toggleHideRemoteControlTitlebar: vi.fn(),
+            toggleRemoteControlExpandCover: vi.fn(),
             unlockRemoteControl: vi.fn(),
             toggleObsKeepMainWindowAnimation: vi.fn(),
             toggleWallpaperMacAutohideDock: vi.fn(),
@@ -820,6 +823,20 @@ describe('command palette registry', () => {
             expect(topMatch.command.id).toBe('desktop-toggle-main-window-always-on-top');
             await topMatch.command.execute('', context);
             expect(context.navigation.toggleMainWindowAlwaysOnTop).toHaveBeenCalled();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('hides the always-on-top command where the window cannot stay on top (native Wayland)', () => {
+        vi.stubGlobal('window', { electron: {} });
+
+        try {
+            const context = createContext();
+            context.navigation.isWindowAlwaysOnTopSupported = false;
+
+            const matches = getCommandPaletteMatches('主窗口置顶', context);
+            expect(matches.map(match => match.command.id)).not.toContain('desktop-toggle-main-window-always-on-top');
         } finally {
             vi.unstubAllGlobals();
         }

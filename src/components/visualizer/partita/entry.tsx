@@ -1,5 +1,8 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import { Spline } from 'lucide-react';
+import type { PartitaTuning } from '../../../types';
+import { QuickControlToggle } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { PartitaSettingsPanel } from '../settingsPanels';
 
 const VisualizerPartita = React.lazy(() => import('./VisualizerPartita'));
@@ -29,4 +32,13 @@ export default defineVisualizer({
     usesWordSegmentation: true,
     render: props => <VisualizerPartita {...props} />,
     renderSettingsPanel: props => <PartitaSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<PartitaTuning>) => (
+        <QuickControlToggle
+            active={tuning.showGuideLines}
+            label={t('options.partitaGuideLines')}
+            onToggle={() => onTuningChange({ showGuideLines: !tuning.showGuideLines })}
+        >
+            <Spline size={14} />
+        </QuickControlToggle>
+    ),
 });

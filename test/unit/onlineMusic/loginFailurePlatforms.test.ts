@@ -8,6 +8,7 @@ import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry'
 import { requestQq, resetQqTransportRuntimeCache } from '@/services/onlineMusic/qq/qqTransport';
 import type { LoginStep, LoginState } from '@/types/onlineMusic';
 import { loginCaseOf, loginFailureFacts } from '@/services/onlineMusic/login/loginFailureCase';
+import { failureNoteKey } from '@/components/login/window/loginView';
 
 // test/unit/onlineMusic/loginFailurePlatforms.test.ts
 // Which case each platform's own failure sorts to, through the real facade, adapter and
@@ -251,6 +252,136 @@ describe('QQ Music', () => {
         // The upstream code alone is enough: no wait was given, and it is still not an expired code.
         vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 50006 }));
         expect((await answered(() => omni.checkLogin('qq', 'qr-key'))).id).toBe('retry-later');
+    });
+
+    // qq-music-api 3.3.3 loginHints.ts: a failure it recognises carries `failureHint` { key, message }.
+    it('retry-later: 800 whose hint says there were too many sign-ins, with or without an upstream code', async () => {
+        desktop(3300);
+        const hint = { key: 'login.rate-limited', message: 'Too many login attempts. Wait a moment and try again.' };
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', failureStage: 'credential-exchange', failureHint: hint, retryAfterMs: 30000 }));
+        expect(await answered(() => omni.checkLogin('qq', 'qr-key'))).toMatchObject({ id: 'retry-later', retryAfterMs: 30000 });
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 104604, failureHint: hint }));
+        expect((await answered(() => omni.checkLogin('qq', 'qr-key'))).id).toBe('retry-later');
+    });
+
+    it('refused: 800 whose hint says QQ rejected the sign-in, quoting the backend\'s words', async () => {
+        desktop(3300);
+        const message = 'words for login.rejected';
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 1000, failureHint: { key: 'login.rejected', message }, retryAfterMs: 30000 }));
+        const failed = await answered(() => omni.checkLogin('qq', 'qr-key'));
+        expect(failed).toMatchObject({ id: 'refused', code: '800', message, upstreamCode: '1000' });
+        expect(loginCaseOf(failed).action).toBe('wait-then-retry');
+        expect(failureNoteKey({ case: loginCaseOf(failed), facts: failed, at: 0 }, omni.getLoginTexts('qq')?.caseNotes)).toBe('login.noteRetryLater');
+    });
+
+    // The backend's words for these are English defaults it says a front end may replace by key
+    // (qq-music-api 3.3.3 loginHints.ts): the window says in Folia's words what is wrong with the
+    // account, never that trying again later helps, and quotes the answer's own message.
+    it('refused: 800 whose hint names a problem with the account itself, said in Folia\'s words', async () => {
+        desktop(3300);
+        const NOTES: Record<string, string> = {
+            'login.account-banned': 'home.loginCaseQqAccountBanned',
+            'login.account-restricted': 'home.loginCaseQqAccountRestricted',
+            'login.account-binding': 'home.loginCaseQqAccountBinding',
+        };
+        const locales = await Promise.all(['en', 'in', 'zh-CN'].map(name => import(`@/i18n/locales/${name}.ts`)));
+        for (const [key, note] of Object.entries(NOTES)) {
+            vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 1000, failureHint: { key, message: `words for ${key}` }, retryAfterMs: 30000 }));
+            const failed = await answered(() => omni.checkLogin('qq', 'qr-key'));
+            expect(failed, key).toMatchObject({ id: 'refused', code: '800', message: 'QR login failed', upstreamCode: '1000' });
+            expect(failureNoteKey({ case: loginCaseOf(failed), facts: failed, at: 0 }, omni.getLoginTexts('qq')?.caseNotes), key).toBe(note);
+            for (const locale of locales) expect(locale.default.home[note.split('.')[1]], note).toEqual(expect.any(String));
+        }
+        // A new code clears it: a refusal at another step does not carry the account's words.
+        vi.stubGlobal('fetch', answers({ code: 200, data: { unikey: 'next-key', qrimg: 'data:image/png;base64,fixture' } }));
+        await omni.startLogin('qq', 'qq');
+        expect(omni.getLoginTexts('qq')?.caseNotes?.refused).toBeUndefined();
+    });
+
+    // Where Folia reaches the backend: the desktop app's embedded one, a same-origin serverless entry
+    // (Vercel, Cloudflare) and a backend at an address of its own (Docker, Node). The window reads
+    // the same answer the same way on each.
+    const DEPLOYMENTS: Array<[string, () => void]> = [
+        ['the desktop app', () => desktop(3300)],
+        ['a serverless entry', () => {
+            resetQqTransportRuntimeCache();
+            vi.stubGlobal('window', {});
+            vi.stubEnv('VITE_QQ_API_BASE', '/api/qq');
+        }],
+        ['a backend of its own', () => {
+            resetQqTransportRuntimeCache();
+            vi.stubGlobal('window', {});
+            vi.stubEnv('VITE_QQ_API_BASE', 'https://qq-api.example.test');
+        }],
+    ];
+
+    // qq-music-api 3.3.3 qrService.ts: the mobile QQ code exchanged over MQTT fails with 50006 and the
+    // fallback check after it with 1000 when the QQ Music app scanned it.
+    it.each(DEPLOYMENTS)('wrong-scan-app: the code of mobile QQ was scanned with the QQ Music app, on %s', async (_where, reach) => {
+        reach();
+        vi.stubGlobal('fetch', answers({
+            code: 800, message: 'QR login failed', failureStage: 'credential-validation', upstreamCode: 1000,
+            primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 50006 }, fallbackAttempted: true,
+            failureHint: { key: 'login.wrong-scan-app', message: 'If you scanned with the QQ Music app, choose QQ Music app login instead.' },
+        }));
+        const failed = await answered(() => omni.checkLogin('qq', 'qr-key'));
+        // The window says what to do (QQ's caseNotes); the quote stays the backend's own sentence.
+        expect(failed).toMatchObject({ id: 'wrong-scan-app', code: '800', message: 'QR login failed', upstreamCode: '1000' });
+        expect(loginCaseOf(failed)).toMatchObject({ kind: 'C', action: 'refresh-code' });
+    });
+
+    // Any of the three apps may scan a code of the QQ Music app channel, so there a wrong app is not
+    // what went wrong: the same answer reads as a refusal with no name, as it did before the hint.
+    it('no wrong-scan-app for a code asked for on the QQ Music app channel', async () => {
+        desktop(3300);
+        const wrongApp = {
+            code: 800, message: 'QR login failed', failureStage: 'credential-validation', upstreamCode: 1000,
+            primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 50006 }, fallbackAttempted: true,
+            failureHint: { key: 'login.wrong-scan-app', message: 'If you scanned with the QQ Music app, choose QQ Music app login instead.' },
+        };
+        vi.stubGlobal('fetch', vi.fn(async (url: unknown) => Response.json(
+            String(url).includes('/login/qr/key') ? { code: 200, data: { unikey: 'app-key' } }
+                : String(url).includes('/login/qr/create') ? { code: 200, data: { qrimg: 'data:image/png;base64,fixture' } }
+                    : wrongApp,
+        )));
+        await omni.startLogin('qq', 'qqmusic');
+        expect(await answered(() => omni.checkLogin('qq', 'app-key'))).toMatchObject({ id: 'retry-later', code: '800', upstreamCode: '1000' });
+        // Another code than the one asked for on that channel keeps the hint.
+        expect((await answered(() => omni.checkLogin('qq', 'qr-key'))).id).toBe('wrong-scan-app');
+    });
+
+    // The shapes qq-music-api gives for a full device list, by channel and by how the code was read.
+    const hint = { key: 'login.device-limit', message: 'This account has reached its login device limit.' };
+    const DEVICE_LIMITS: Array<[string, Record<string, unknown>]> = [
+        // WeChat: the exchange itself answers 20279 (every deployment).
+        ['wechat', { code: 800, message: 'QR login failed', failureStage: 'credential-exchange', failureReason: 'upstream-rejected', upstreamCode: 20279, upstreamErrorKey: 'auth.device-limit', failureHint: hint }],
+        // Mobile QQ and the QQ Music app over MQTT (desktop, Docker, Node, Cloudflare with a Durable
+        // Object): the fallback check answers last, the exchange's 20279 is in primaryFailure.
+        ['qq over MQTT', { code: 800, message: 'QR login failed', failureStage: 'credential-validation', failureReason: 'upstream-rejected', upstreamCode: 1000, primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 20279, upstreamErrorKey: 'auth.device-limit' }, fallbackAttempted: true, failureHint: hint }],
+        ['qqmusic over MQTT', { code: 800, message: 'QR login failed', failureStage: 'credential-validation', failureReason: 'upstream-rejected', upstreamCode: 1000, primaryFailure: { failureStage: 'credential-exchange', upstreamCode: 20279, upstreamErrorKey: 'auth.device-limit' }, fallbackAttempted: true, failureHint: hint }],
+        // Mobile QQ by the web sign-in (Vercel, Cloudflare without one): 20279 on top, no error key.
+        ['qq by the web sign-in', { code: 800, message: 'QR login failed', failureStage: 'credential-exchange', failureReason: 'upstream-rejected', upstreamCode: 20279, failureHint: hint, retryAfterMs: 15000 }],
+        // A hint alone is enough.
+        ['the hint alone', { code: 800, message: 'QR login failed', failureStage: 'credential-exchange', failureHint: hint, retryAfterMs: 15000 }],
+    ];
+
+    it.each(DEPLOYMENTS)('device-limit: for every channel, on %s', async (_where, reach) => {
+        reach();
+        for (const [channel, shape] of DEVICE_LIMITS) {
+            vi.stubGlobal('fetch', answers(shape));
+            expect((await answered(() => omni.checkLogin('qq', 'qr-key'))).id, channel).toBe('device-limit');
+        }
+    });
+
+    it('keeps the device limit ahead of the hint, and reads an unknown hint as if there were none', async () => {
+        desktop(3300);
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 20279, failureHint: { key: 'login.device-limit', message: 'full' } }));
+        expect((await answered(() => omni.checkLogin('qq', 'qr-key'))).id).toBe('device-limit');
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR login failed', upstreamCode: 50006, failureHint: { key: 'login.something-new', message: 'new' } }));
+        expect(await answered(() => omni.checkLogin('qq', 'qr-key'))).toMatchObject({ id: 'retry-later', message: 'QR login failed' });
+        // A plain expired code carries no hint and stays expired.
+        vi.stubGlobal('fetch', answers({ code: 800, message: 'QR code expired', failureReason: 'qr-timeout', failureStage: 'polling' }));
+        expect(await omni.checkLogin('qq', 'qr-key')).toEqual({ state: 'expired' });
     });
 
     it('retry-later: the backend answers 429, with the wait its answer names or with none', async () => {

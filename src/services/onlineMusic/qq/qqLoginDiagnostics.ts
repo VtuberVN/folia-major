@@ -9,6 +9,8 @@ import { formatBackendApp, formatBackendStartup, formatFields, formatListen, for
 type QqLoginSession = {
     hasSession: boolean;
     channels: readonly string[] | null;
+    // 登录窗口此刻给的方式；只有一种时窗口不显示选择器。没给就不印这一行。
+    shownMethods?: readonly string[];
     lastAccountCheck: LoginDiagnosticLine | null;
 };
 
@@ -29,7 +31,7 @@ const formatAuthEvent = (event: ElectronQqLoginDiagnostics['authEvents'][number]
     return diagnosticLine`  ${formatDiagnosticClock(event.at)} ${event.level} ${event.event}${details ? diagnosticLine` ${details}` : ''}`;
 };
 
-// 报告里 QQ 这一边的行：会话存没存下、后端声明的扫码通道、最近一次读账号的结论；桌面版在前面加上内嵌后端
+// 报告里 QQ 这一边的行：会话存没存下、后端声明的扫码通道、最近一次读账号的结论、窗口给的方式；桌面版在前面加上内嵌后端
 // 的状态与拉起步骤，后面加上包内的失败、qq-auth 事件和上游连接。每一行都由 diagnosticLine 写。
 export const formatQqLoginDiagnostics = (
     state: QqLoginSession,
@@ -41,6 +43,7 @@ export const formatQqLoginDiagnostics = (
         diagnosticLine`session: backend session stored=${state.hasSession ? 'yes' : 'no'}`,
         diagnosticLine`login channels: ${state.channels ? state.channels.join(', ') : 'not declared by the backend'}`,
         diagnosticLine`last account check: ${state.lastAccountCheck ?? 'none'}`,
+        ...(state.shownMethods ? [diagnosticLine`login methods shown: ${state.shownMethods.join(', ') || 'none'}${state.shownMethods.length === 1 ? ' (no picker)' : ''}`] : []),
     ];
     if (!snapshot) return [...(unavailable ? [unavailable] : []), ...lines];
     // 主进程与渲染进程不同版（开发时只热更了一边）也照样出报告：缺的列表按空的算，缺的一段印一行 unknown。

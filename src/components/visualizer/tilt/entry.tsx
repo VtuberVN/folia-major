@@ -1,11 +1,21 @@
 import React from 'react';
-import { defineVisualizer } from '../definition';
+import type { TiltColorScheme, TiltTuning } from '../../../types';
+import { cycleValue, QuickControlChip } from '../../shared/QuickControlChip';
+import { defineVisualizer, type VisualizerQuickControlsProps } from '../definition';
 import { TiltSettingsPanel } from '../settingsPanels';
 
 const VisualizerTilt = React.lazy(() => import('./VisualizerTilt'));
 
 // src/components/visualizer/tilt/entry.tsx
 // Registers Tilt and its preview tuning panel.
+const COLOR_SCHEMES: TiltColorScheme[] = ['default', 'swap', 'accentAll', 'primaryAll'];
+const COLOR_SCHEME_LABEL_KEYS: Record<TiltColorScheme, string> = {
+    default: 'options.tiltColorSchemeDefault',
+    swap: 'options.tiltColorSchemeSwap',
+    accentAll: 'options.tiltColorSchemeAccentAll',
+    primaryAll: 'options.tiltColorSchemePrimaryAll',
+};
+
 export default defineVisualizer({
     mode: 'tilt',
     order: 70,
@@ -27,4 +37,15 @@ export default defineVisualizer({
     },
     render: props => <VisualizerTilt {...props} />,
     renderSettingsPanel: props => <TiltSettingsPanel {...props} />,
+    renderQuickControls: ({ tuning, onTuningChange, t }: VisualizerQuickControlsProps<TiltTuning>) => {
+        const scheme = tuning.colorScheme ?? 'default';
+        const schemeLabel = t(COLOR_SCHEME_LABEL_KEYS[scheme]);
+        return (
+            <QuickControlChip
+                label={schemeLabel}
+                title={`${t('options.tiltColorScheme')}: ${schemeLabel}`}
+                onClick={() => onTuningChange({ colorScheme: cycleValue(COLOR_SCHEMES, scheme) })}
+            />
+        );
+    },
 });
