@@ -28,7 +28,7 @@ const CASE_OF = new Map<string, LoginCaseId>([
 export const ytmLoginFailure = (code: ProviderErrorCode | undefined, reason: unknown, message?: unknown): LoginFailureDetail | undefined => {
     const mainCode = typeof reason === 'string' && reason ? reason : undefined;
     if (!mainCode && code === 'network' && message === YTM_ASKED_TO_WAIT) return { case: 'retry-later', httpStatus: 429 };
-    const named = (mainCode && CASE_OF.get(mainCode)) || (code === 'network' ? 'unreachable' as const : undefined);
+    const named = (mainCode && CASE_OF.get(mainCode)) || (code === 'network' ? ('unreachable' as const) : undefined);
     return mainCode || named ? { ...(mainCode ? { mainCode } : {}), ...(named ? { case: named } : {}) } : undefined;
 };
 
