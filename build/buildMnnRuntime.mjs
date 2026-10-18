@@ -53,6 +53,20 @@ const run = (command, args, options = {}) => {
     return result;
 };
 
+const resolveCmake = () => {
+    if (process.platform === 'win32') {
+        const candidates = [
+            'C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe',
+            'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe',
+            'C:\\Program Files\\CMake\\bin\\cmake.exe',
+        ];
+        for (const candidate of candidates) {
+            if (existsSync(candidate)) return candidate;
+        }
+    }
+    return 'cmake';
+};
+
 const output = (command, args, options = {}) => {
     const result = spawnSync(command, args, { encoding: 'utf8', ...options });
     if (result.error) throw result.error;
@@ -120,11 +134,11 @@ export async function prepareBundledMnn({ platform = process.platform, arch = pr
         configure.push(`-DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHS[arch]}`, `-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_DEPLOYMENT_TARGET}`);
     }
     if (platform === 'win32') configure.push('-A', arch === 'arm64' ? 'ARM64' : 'x64');
-    run('cmake', configure);
+    run(resolveCmake(), configure);
     // A job count, never a bare --parallel: with the Makefile generator that is `make -j` with no limit,
     // which starts every one of MNN's several hundred compiles at once - on a 16GB GitHub Linux runner
     // that ran it out of memory and the runner was shut down mid-build.
-    run('cmake', ['--build', buildDir, '--config', 'Release', '--target', 'folia_mnn', '--parallel', String(availableParallelism())]);
+    run(resolveCmake(), ['--build', buildDir, '--config', 'Release', '--target', 'folia_mnn', '--parallel', String(availableParallelism())]);
 
     // Multi-config generators (Visual Studio) put it under Release/.
     const built = [path.join(buildDir, library), path.join(buildDir, 'Release', library)].find(file => existsSync(file));
