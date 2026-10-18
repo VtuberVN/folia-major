@@ -20,7 +20,7 @@ const SEARCH_FROM = 12;
  * 竖着的那一列里一行的高：平台们平分列的高，每行在 46 到 68 之间。平台少时行到 68 就不再长，下面留空；
  * 多到挤不下 46 就滚。
  */
-const ROW_SIZE = 'min-h-[40px] max-h-[64px] flex-[1_1_0]';
+const ROW_SIZE = 'min-h-[46px] max-h-[68px] flex-[1_1_0]';
 
 /** 竖着的一行名字下面那一句：登录着的是谁，或者这个平台此刻的状态。 */
 const RowNote: React.FC<{ row: ProviderAccountSummary; status: RowStatus }> = ({ row, status }) => {
@@ -56,7 +56,6 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
     const shown = rows.length >= SEARCH_FROM ? filterRows(rows, query) : rows;
     // 高亮在哪一行：指针或方向键指着的；都没有指着就是选中的那一行。
     const [pointed, setPointed] = useState<OnlineProviderId | null>(null);
-    const [keyboardNav, setKeyboardNav] = useState(false);
     const lit = shown.find(row => row.providerId === pointed) ?? shown.find(row => row.providerId === chosenId) ?? null;
     const listRef = useRef<HTMLDivElement>(null);
     const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -130,7 +129,6 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
         if (to !== null) {
             const next = choosable[Math.max(0, Math.min(choosable.length - 1, to))];
             if (next) {
-                setKeyboardNav(true);
                 setPointed(next.providerId);
                 // 键盘移过去的行要看得见。
                 rowOf(next.providerId)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -168,11 +166,10 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                 role="listbox"
                 tabIndex={0}
                 aria-label={t('home.onlineProvider')}
-                aria-activedescendant={keyboardNav && lit ? `login-row-${lit.providerId}` : undefined}
+                aria-activedescendant={lit ? `login-row-${lit.providerId}` : undefined}
                 onKeyDown={handleKeyDown}
                 onScroll={readMore}
-                onMouseMove={() => { if (keyboardNav) setKeyboardNav(false); }}
-                onMouseLeave={() => { setPointed(null); setKeyboardNav(false); }}
+                onMouseLeave={() => setPointed(null)}
                 className={`relative min-h-0 rounded-lg outline-none ${lie === 'column' ? 'st-scroll flex flex-1 flex-col overflow-y-auto overscroll-contain' : 'login-row-scroll flex gap-1 overflow-x-auto overscroll-x-contain'}`}
                 style={fade ? { WebkitMaskImage: fade, maskImage: fade } : undefined}
             >
@@ -197,12 +194,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                             aria-label={state ? `${name} · ${state}` : undefined}
                             aria-selected={chosen}
                             aria-disabled={status === 'off' || undefined}
-                            onMouseEnter={() => {
-                                if (status !== 'off') {
-                                    setKeyboardNav(false);
-                                    setPointed(row.providerId);
-                                }
-                            }}
+                            onMouseEnter={() => { if (status !== 'off') setPointed(row.providerId); }}
                             onClick={() => { if (status !== 'off') onChoose(row); }}
                             className={`st-t-fast relative flex items-center rounded-lg transition-colors ${tall ? `${ROW_SIZE} w-full gap-3 px-2.5` : 'h-9 max-w-[168px] shrink-0 gap-2.5 px-2'} ${status === 'off' ? 'cursor-default opacity-[0.42]' : 'cursor-pointer'} ${bright ? 'text-[color:var(--st-t1)]' : 'text-[color:var(--st-t2)]'}`}
                         >

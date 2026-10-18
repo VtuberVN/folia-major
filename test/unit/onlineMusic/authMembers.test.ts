@@ -33,8 +33,7 @@ const AUTH_MEMBERS: Record<string, string[]> = {
         'opensLoginPageItself', 'signInRanOut', 'startLogin',
     ],
     zing: [
-        'cancelLogin', 'checkLogin', 'getLoginStatus', 'getLoginTexts', 'getLoginTtlMs', 'logout', 'openLoginPage',
-        'opensLoginPageItself', 'startLogin',
+        'getLoginStatus', 'getLoginTexts', 'logout',
     ],
     nct: [
         'getLoginStatus', 'getLoginTexts', 'logout',

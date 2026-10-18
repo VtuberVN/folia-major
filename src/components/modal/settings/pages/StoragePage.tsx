@@ -10,8 +10,6 @@ import { Button, CopyValue, FoldedGroup, Group, Row, Select, Toggle, Value, useS
 import { useSettingsPage } from './settingsPageContext';
 import ConfigTransferRows from './storage/ConfigTransferRows';
 import FolderWatchGroup from './storage/FolderWatchGroup';
-import DownloadLocationRow from '../DownloadLocationRow';
-import AiModelsGroup from '../AiModelsGroup';
 import { BACKUP, CACHE_ROWS, CACHES, MEDIA, O } from './storage/options';
 
 // src/components/modal/settings/pages/StoragePage.tsx
@@ -77,9 +75,6 @@ const StoragePage: React.FC = () => {
                     <Value>{mediaCount} · {cacheSizes.media}</Value>
                 </Row>
             </Group>
-
-            {isElectron && <DownloadLocationRow />}
-            {isElectron && <AiModelsGroup />}
 
             <Group
                 def={CACHES}
