@@ -168,6 +168,7 @@ contextBridge.exposeInMainWorld('electron', {
         cancelDownloadModel: (modelId) => ipcRenderer.invoke('ai-karaoke-cancel-download-model', modelId),
         deleteModel: (modelId) => ipcRenderer.invoke('ai-karaoke-delete-model', modelId),
         getCachedResult: (songId) => ipcRenderer.invoke('ai-karaoke-get-cached-result', songId),
+        getStemAudio: (filePath) => ipcRenderer.invoke('ai-karaoke-get-stem-audio', filePath),
         openModelsDir: () => ipcRenderer.invoke('ai-karaoke-open-models-dir'),
         openOutputDir: (songId) => ipcRenderer.invoke('ai-karaoke-open-output-dir', songId),
         startJob: (payload) => ipcRenderer.invoke('ai-karaoke-start-job', payload),

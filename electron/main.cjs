@@ -8271,6 +8271,11 @@ ipcMain.handle('ai-karaoke-get-cached-result', (_event, songId) => {
   return getAiKaraokeCachedResult(app.getPath('userData'), songId);
 });
 
+ipcMain.handle('ai-karaoke-get-stem-audio', async (_event, filePath) => {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  return await fs.promises.readFile(filePath);
+});
+
 ipcMain.handle('ai-karaoke-open-models-dir', async () => {
   const { shell } = require('electron');
   const dir = getAiModelsDir(app.getPath('userData'));

@@ -61,6 +61,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         jobDetail,
         elapsedSeconds,
         lastResult,
+        isKaraokeBeatMode,
         closeModal,
         setMssModel,
         setAsrModel,
@@ -68,6 +69,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         setRawLyricsText,
         setResult,
         resetJob,
+        toggleKaraokeBeatMode,
     } = useAiKaraokeStore();
 
     const [previewTab, setPreviewTab] = useState<'enhanced' | 'standard'>('enhanced');
@@ -228,6 +230,19 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 <span>Bản Karaoke (Beat & Lời) đã sẵn sàng!</span>
                             </div>
                             <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => void toggleKaraokeBeatMode(activeSong)}
+                                    title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                        isKaraokeBeatMode
+                                            ? 'bg-amber-500 text-white animate-pulse'
+                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    }`}
+                                >
+                                    <Mic size={14} />
+                                    <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
+                                </button>
                                 <button
                                     type="button"
                                     onClick={handleOpenInLrcEditor}

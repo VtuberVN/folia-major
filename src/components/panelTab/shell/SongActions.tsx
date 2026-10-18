@@ -1,9 +1,9 @@
-import React from 'react';
-import { Crosshair, Home as HomeIcon, Mic, Settings, Star } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Crosshair, Home as HomeIcon, Mic, Settings, Sparkles, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayingFromCollection } from '../../app/playing-song-locator/usePlayingFromCollection';
 import { openAddToPlaylist, useAddToPlaylistStore } from '../../../stores/useAddToPlaylistStore';
-import { openAiKaraokeModal } from '../../../stores/useAiKaraokeStore';
+import { openAiKaraokeModal, useAiKaraokeStore } from '../../../stores/useAiKaraokeStore';
 import { Tooltip } from '../../modal/settings/kit/Tooltip';
 import { LikeButton, type SongLike } from './LikeButton';
 import { PanelIconButton } from './PanelIconButton';
@@ -31,6 +31,17 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
     const playingFrom = usePlayingFromCollection();
     const playingFromLabel = playingFrom ? t('ui.playingFrom', { name: playingFrom.name }) : '';
 
+    const isKaraokeBeatMode = useAiKaraokeStore(state => state.isKaraokeBeatMode);
+    const cachedKaraoke = useAiKaraokeStore(state => state.cachedKaraokeForCurrentSong);
+    const toggleKaraokeBeatMode = useAiKaraokeStore(state => state.toggleKaraokeBeatMode);
+    const checkCurrentSongKaraoke = useAiKaraokeStore(state => state.checkCurrentSongKaraoke);
+
+    useEffect(() => {
+        if (currentSong?.id) {
+            void checkCurrentSongKaraoke(currentSong.id);
+        }
+    }, [currentSong?.id, checkCurrentSongKaraoke]);
+
     return (
         <div className="mt-3.5 flex items-center gap-1.5">
             <LikeButton like={like} filled />
@@ -44,7 +55,25 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                     <Star size={17} />
                 </PanelIconButton>
             )}
-            {currentSong && (
+            {currentSong && cachedKaraoke ? (
+                <>
+                    <PanelIconButton
+                        label={isKaraokeBeatMode ? t('karaoke.turnOffBeat', 'Đang phát Beat Karaoke (Bấm để trở lại bản gốc)') : t('karaoke.turnOnBeat', 'Bật chế độ Hát Karaoke (Chỉ phát Beat, tắt lời ca sĩ)')}
+                        filled
+                        onClick={() => void toggleKaraokeBeatMode(currentSong)}
+                        style={isKaraokeBeatMode ? { color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.15)' } : undefined}
+                    >
+                        <Mic size={17} />
+                    </PanelIconButton>
+                    <PanelIconButton
+                        label={t('karaoke.openKaraokeStudio', 'Cài đặt Karaoke & Visual LRC Studio')}
+                        filled
+                        onClick={() => openAiKaraokeModal(currentSong)}
+                    >
+                        <Sparkles size={17} />
+                    </PanelIconButton>
+                </>
+            ) : currentSong ? (
                 <PanelIconButton
                     label={t('karaoke.openKaraoke', 'Tách nhạc & Tạo Karaoke AI (MSS / ASR)')}
                     filled
@@ -52,7 +81,7 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                 >
                     <Mic size={17} />
                 </PanelIconButton>
-            )}
+            ) : null}
             {/* 这首歌所在的歌单或专辑，点一下回到那一页并找到它的卡片。队列不再是那张歌单的歌时不出现。 */}
             {playingFrom && (
                 <Tooltip text={playingFromLabel} className="flex min-w-0">
