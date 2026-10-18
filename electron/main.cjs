@@ -8238,6 +8238,9 @@ const {
   downloadModel: downloadAiKaraokeModel,
   cancelModelDownload: cancelAiKaraokeModelDownload,
   deleteModel: deleteAiKaraokeModel,
+  getCachedKaraoke: getAiKaraokeCachedResult,
+  getAiModelsDir,
+  getKaraokeOutputDir,
 } = require('./aiKaraoke/modelRegistry.cjs');
 const {
   runKaraokePipeline,
@@ -8262,6 +8265,28 @@ ipcMain.handle('ai-karaoke-cancel-download-model', (_event, modelId) => {
 
 ipcMain.handle('ai-karaoke-delete-model', (_event, modelId) => {
   return deleteAiKaraokeModel(app.getPath('userData'), modelId);
+});
+
+ipcMain.handle('ai-karaoke-get-cached-result', (_event, songId) => {
+  return getAiKaraokeCachedResult(app.getPath('userData'), songId);
+});
+
+ipcMain.handle('ai-karaoke-open-models-dir', async () => {
+  const { shell } = require('electron');
+  const dir = getAiModelsDir(app.getPath('userData'));
+  await shell.openPath(dir);
+  return { ok: true, path: dir };
+});
+
+ipcMain.handle('ai-karaoke-open-output-dir', async (_event, songId) => {
+  const { shell } = require('electron');
+  const baseDir = getKaraokeOutputDir(app.getPath('userData'));
+  const targetDir = songId ? path.join(baseDir, String(songId)) : baseDir;
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+  await shell.openPath(targetDir);
+  return { ok: true, path: targetDir };
 });
 
 ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {

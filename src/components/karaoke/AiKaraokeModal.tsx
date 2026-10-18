@@ -1,43 +1,51 @@
 // src/components/karaoke/AiKaraokeModal.tsx
-// Comprehensive AI Karaoke Modal for Folia-major.
-// Handles Music Source Separation (MSS) + ASR / Word-Level Forced Alignment.
+// Comprehensive AI Karaoke Modal for Folia-major using Folia's native Sheet design system.
+// Handles Music Source Separation (MSS) + ASR / Word-Level Forced Alignment with real caching and model progress.
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Mic,
     Sparkles,
-    X,
-    Music2,
-    Sliders,
-    Play,
     Check,
     AlertCircle,
     Download,
     FileText,
-    Share2,
     RefreshCw,
     Layers,
-    Cpu,
+    FolderOpen,
+    Trash2,
+    Sliders,
+    Play,
+    Edit3,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Sheet from '../shared/Sheet';
 import { useAiKaraokeStore } from '../../stores/useAiKaraokeStore';
+import { openVisualLrcEditor } from '../../stores/useLrcEditorStore';
 import {
     fetchAiModels,
     downloadAiModel,
+    deleteAiModel,
     startKaraokeJob,
     cancelCurrentKaraokeJob,
     exportKaraokeLrcFile,
+    openAiKaraokeModelsDirectory,
+    openAiKaraokeOutputDirectory,
 } from '../../services/aiKaraokeService';
 import type { MssModelId, AsrModelId, KaraokeAlignmentMode } from '../../types/aiKaraoke';
-import type { Theme } from '../../types';
+import type { Theme, SongResult } from '../../types';
 
 interface AiKaraokeModalProps {
     theme?: Theme;
+    isDaylight?: boolean;
     onApplyLyrics?: (lrcContent: string) => void;
 }
 
-export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({ theme, onApplyLyrics }) => {
+export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
+    theme,
+    isDaylight = false,
+    onApplyLyrics,
+}) => {
     const { t } = useTranslation();
     const {
         isOpen,
@@ -58,15 +66,18 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({ theme, onApplyLy
         setAsrModel,
         setAlignmentMode,
         setRawLyricsText,
+        setResult,
         resetJob,
     } = useAiKaraokeStore();
 
     const [previewTab, setPreviewTab] = useState<'enhanced' | 'standard'>('enhanced');
     const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             void fetchAiModels();
+            setValidationError(null);
         }
     }, [isOpen]);
 
@@ -77,17 +88,41 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({ theme, onApplyLy
         [models, selectedMssModel],
     );
 
-    const handleDownloadSelectedModel = async (modelId: string) => {
+    const handleDownloadModel = async (modelId: string) => {
         try {
             setDownloadingModelId(modelId);
             await downloadAiModel(modelId);
+        } catch (err) {
+            console.error('Failed to download model:', err);
         } finally {
             setDownloadingModelId(null);
         }
     };
 
+    const handleDeleteModel = async (modelId: string) => {
+        try {
+            await deleteAiModel(modelId);
+        } catch (err) {
+            console.error('Failed to delete model:', err);
+        }
+    };
+
     const handleStartJob = async () => {
         if (!activeSong) return;
+        setValidationError(null);
+
+        // Model validation
+        if (selectedMssModel !== 'htdemucs_mnn' && !selectedMssModelInfo?.isDownloaded) {
+            setValidationError(`Vui lòng tải model "${selectedMssModelInfo?.name || selectedMssModel}" về máy trước khi bắt đầu.`);
+            return;
+        }
+
+        // Lyrics validation: Do not fabricate words from title
+        if (alignmentMode === 'align_existing' && !rawLyricsText.trim()) {
+            setValidationError('Vui lòng dán lời bài hát thô (văn bản không cần mốc thời gian) vào ô bên dưới để AI căn mốc chính xác.');
+            return;
+        }
+
         try {
             await startKaraokeJob({
                 song: activeSong,
@@ -101,348 +136,374 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({ theme, onApplyLy
         }
     };
 
-    const handleApplyToPlayer = () => {
+    const handleApply = () => {
         if (!lastResult) return;
         const textToApply = lastResult.enhancedLrcText || lastResult.lrcText;
-        if (onApplyLyrics) {
-            onApplyLyrics(textToApply);
-        }
+        onApplyLyrics?.(textToApply);
         closeModal();
     };
 
     const handleExportLrc = async () => {
-        if (!lastResult || !activeSong) return;
+        if (!lastResult) return;
+        const defaultName = `${activeSong?.name || 'karaoke'}.lrc`;
         const content = previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText;
-        const artistName = activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || 'Unknown';
-        const defaultName = `${artistName} - ${activeSong.name}${previewTab === 'enhanced' ? '.karaoke' : ''}.lrc`;
         await exportKaraokeLrcFile(content, defaultName);
     };
 
-    if (!isOpen) return null;
+    const handleOpenInLrcEditor = () => {
+        if (!lastResult) return;
+        openVisualLrcEditor(activeSong, lastResult.enhancedLrcText || lastResult.lrcText);
+    };
+
+    const accentBg = theme?.accentColor || theme?.primaryColor || '#ec4899';
+    const cardBg = isDaylight ? 'bg-neutral-100/80 border-neutral-200' : 'bg-neutral-800/40 border-white/5';
+    const cardSelectedBg = isDaylight ? 'bg-neutral-200/90 border-neutral-400' : 'bg-neutral-700/60 border-white/20';
+    const textColor = isDaylight ? 'text-neutral-900' : 'text-neutral-100';
+    const subTextColor = isDaylight ? 'text-neutral-500' : 'text-neutral-400';
+
+    const footerButtons = (
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={closeModal}
+                className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                    isDaylight
+                        ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
+                        : 'border-white/10 hover:bg-white/5 text-neutral-300'
+                }`}
+            >
+                {t('ui.close', 'Đóng')}
+            </button>
+
+            {lastResult && (
+                <button
+                    type="button"
+                    onClick={handleApply}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: accentBg }}
+                >
+                    Áp dụng cho bài hát đang phát
+                </button>
+            )}
+
+            {!isJobRunning && !lastResult && (
+                <button
+                    type="button"
+                    onClick={handleStartJob}
+                    disabled={Boolean(downloadingModelId)}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: accentBg }}
+                >
+                    <Sparkles size={15} />
+                    <span>Bắt đầu Tách nhạc & Tạo Karaoke</span>
+                </button>
+            )}
+        </div>
+    );
+
+    const footerNote = (
+        <span className={`text-xs ${subTextColor}`}>
+            {activeSong ? `${activeSong.name}` : ''} · Xử lý bảo mật trên máy tính
+        </span>
+    );
 
     return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 select-none">
-                {/* Backdrop */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={isJobRunning ? undefined : closeModal}
-                    className="absolute inset-0 bg-black/60 backdrop-blur-md"
-                />
-
-                {/* Dialog Content */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-white/10 bg-[var(--bg-color,#1e1e24)] text-[var(--text-primary,#fff)] shadow-2xl overflow-hidden"
-                    style={{
-                        backdropFilter: 'blur(20px)',
-                    }}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/30">
-                                <Mic size={22} />
+        <Sheet
+            isOpen={isOpen}
+            onClose={closeModal}
+            size="l"
+            title={t('karaoke.modalTitle', 'Tách Beat & Tạo Karaoke AI')}
+            subtitle={activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : undefined}
+            isDaylight={isDaylight}
+            footer={footerButtons}
+            footerNote={footerNote}
+        >
+            <div className="space-y-6 pb-4">
+                {/* 1. Cached Result Banner (If already separated) */}
+                {lastResult && (
+                    <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-bold text-sm">
+                                <Check size={18} className="text-emerald-500" />
+                                <span>Bản Karaoke (Beat & Lời) đã sẵn sàng!</span>
                             </div>
-                            <div>
-                                <h3 className="text-base font-bold flex items-center gap-2">
-                                    {t('karaoke.modalTitle', 'Tách nhạc & Tạo Karaoke AI')}
-                                    <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
-                                        MSS + ASR
-                                    </span>
-                                </h3>
-                                <p className="text-xs text-neutral-400 truncate max-w-md">
-                                    {activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : 'Folia AI Karaoke Engine'}
-                                </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleOpenInLrcEditor}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
+                                    style={{ backgroundColor: accentBg }}
+                                >
+                                    <Edit3 size={14} />
+                                    <span>Sửa lời trong Visual LRC Studio</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
+                                    title="Mở thư mục chứa file Beat và Lời trên máy"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
+                                >
+                                    <FolderOpen size={14} />
+                                    <span>Mở thư mục file</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleExportLrc}
+                                    title="Xuất file .lrc"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
+                                >
+                                    <Download size={14} />
+                                    <span>Xuất .lrc</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setResult(null)}
+                                    title="Tách lại bằng model khác"
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 transition-colors"
+                                >
+                                    Tách lại
+                                </button>
                             </div>
                         </div>
-                        {!isJobRunning && (
+
+                        {/* Collapsible preview box */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs opacity-75">
+                                <span>Xem trước lời Karaoke:</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewTab(previewTab === 'enhanced' ? 'standard' : 'enhanced')}
+                                    className="underline hover:opacity-100"
+                                >
+                                    {previewTab === 'enhanced' ? 'Chuyển sang Standard LRC' : 'Chuyển sang Enhanced LRC (Nhảy từng từ)'}
+                                </button>
+                            </div>
+                            <div className="max-h-36 overflow-y-auto font-mono text-xs p-3 rounded-xl bg-black/40 text-neutral-200 border border-white/5 whitespace-pre st-scroll">
+                                {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Job Running Progress */}
+                {isJobRunning && (
+                    <div className={`p-5 rounded-2xl border space-y-4 ${cardBg}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <RefreshCw size={20} className="animate-spin text-neutral-400" />
+                                <div>
+                                    <p className={`text-sm font-bold ${textColor}`}>{jobMessage}</p>
+                                    <p className={`text-xs ${subTextColor}`}>{jobDetail}</p>
+                                </div>
+                            </div>
+                            <span className="font-mono text-xs tabular-nums font-bold">
+                                {jobProgress}% ({elapsedSeconds}s)
+                            </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                            <div
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{ width: `${jobProgress}%`, backgroundColor: accentBg }}
+                            />
+                        </div>
+
+                        <div className="flex justify-end">
                             <button
                                 type="button"
-                                onClick={closeModal}
-                                className="p-2 rounded-full hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
+                                onClick={() => void cancelCurrentKaraokeJob()}
+                                className="px-3 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-500/10 transition-colors"
                             >
-                                <X size={20} />
+                                Hủy tiến trình
                             </button>
-                        )}
+                        </div>
                     </div>
+                )}
 
-                    {/* Body */}
-                    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-                        {/* Status / Result Banner */}
-                        {lastResult ? (
-                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                                        <Check size={18} />
-                                        <span>{t('karaoke.successBanner', 'Đã tách beat và tạo file Karaoke thành công!')}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setPreviewTab(previewTab === 'enhanced' ? 'standard' : 'enhanced')}
-                                            className="px-3 py-1 rounded-lg text-xs bg-white/10 hover:bg-white/15 transition-colors"
-                                        >
-                                            {previewTab === 'enhanced' ? 'Xem Standard LRC' : 'Xem Enhanced LRC (Nhảy chữ)'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleExportLrc}
-                                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-pink-600 hover:bg-pink-500 text-white font-medium transition-colors"
-                                        >
-                                            <Download size={14} />
-                                            <span>Xuất file .lrc</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="max-h-40 overflow-y-auto font-mono text-xs p-3 rounded-xl bg-black/40 text-neutral-300 border border-white/5 whitespace-pre">
-                                    {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
-                                </div>
+                {/* Validation Error Message */}
+                {validationError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                        <AlertCircle size={16} />
+                        <span>{validationError}</span>
+                    </div>
+                )}
+
+                {/* Configuration Options (When not running and no active result) */}
+                {!isJobRunning && !lastResult && (
+                    <div className="space-y-6">
+                        {/* Section 1: MSS Models */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
+                                    <Layers size={14} />
+                                    <span>1. Mô hình Tách Lời & Nhạc (MSS)</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => void openAiKaraokeModelsDirectory()}
+                                    className={`flex items-center gap-1 text-xs ${subTextColor} hover:opacity-100 transition-opacity`}
+                                    title="Mở thư mục lưu trữ file weights model trên máy tính"
+                                >
+                                    <FolderOpen size={13} />
+                                    <span>Thư mục Model...</span>
+                                </button>
                             </div>
-                        ) : isJobRunning ? (
-                            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <RefreshCw size={18} className="animate-spin text-pink-400" />
-                                        <div>
-                                            <p className="text-sm font-bold text-white">{jobMessage}</p>
-                                            <p className="text-xs text-neutral-400">{jobDetail}</p>
-                                        </div>
-                                    </div>
-                                    <span className="font-mono text-xs tabular-nums text-pink-400 font-bold">
-                                        {jobProgress}% ({elapsedSeconds}s)
-                                    </span>
-                                </div>
 
-                                {/* Progress Bar */}
-                                <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                                    <motion.div
-                                        className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"
-                                        animate={{ width: `${jobProgress}%` }}
-                                        transition={{ duration: 0.3 }}
-                                    />
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {models
+                                    .filter((m) => m.category === 'mss')
+                                    .map((model) => {
+                                        const isSelected = selectedMssModel === model.id;
+                                        const isDownloading = downloadingModelId === model.id;
+                                        const details = model.downloadDetails;
 
-                                <div className="flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => void cancelCurrentKaraokeJob()}
-                                        className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors"
-                                    >
-                                        {t('ui.cancel', 'Hủy tiến trình')}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
-
-                        {/* Configuration Sections (visible when not running) */}
-                        {!isJobRunning && (
-                            <div className="space-y-5">
-                                {/* 1. MSS Model Picker */}
-                                <div className="space-y-2.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                                        <Layers size={14} />
-                                        <span>1. {t('karaoke.selectMssModel', 'Mô hình Tách Lời & Nhạc (MSS)')}</span>
-                                    </label>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                        {[
-                                            {
-                                                id: 'uvr_mdxnet_kara_2' as MssModelId,
-                                                title: 'UVR-MDX-Net Karaoke 2',
-                                                badge: 'Khuyên dùng cho Karaoke',
-                                                size: '66.8 MB (ONNX)',
-                                                speed: '~6-10 giây',
-                                                desc: 'Tách vocal chính, giữ lại vocal bè (backing) trong beat nhạc nền.',
-                                            },
-                                            {
-                                                id: 'kim_vocal_2' as MssModelId,
-                                                title: 'Kim Vocal 2',
-                                                badge: 'Sạch dải tần ASR',
-                                                size: '66.8 MB (ONNX)',
-                                                speed: '~6-10 giây',
-                                                desc: 'Tách vocal siêu sạch, tối ưu hóa để đưa vào nhận diện lời Whisper.',
-                                            },
-                                            {
-                                                id: 'htdemucs_mnn' as MssModelId,
-                                                title: 'HTDemucs v4 (MNN Native)',
-                                                badge: 'Có sẵn trong App',
-                                                size: '80 MB (C++ MNN)',
-                                                speed: '~8-14 giây',
-                                                desc: 'Tách 4 luồng âm: Trống, Bass, Nhạc cụ khác, Giọng hát.',
-                                            },
-                                            {
-                                                id: 'bs_roformer' as MssModelId,
-                                                title: 'BS-RoFormer Studio',
-                                                badge: 'Chuẩn Studio Đỉnh Cao',
-                                                size: '639 MB (SDR 12.97)',
-                                                speed: '~18-30 giây',
-                                                desc: 'Chất lượng cao nhất hiện nay, sạch tiếng vang, không lẹm nhạc nền.',
-                                            },
-                                        ].map((card) => {
-                                            const isSelected = selectedMssModel === card.id;
-                                            const modelMeta = models.find((m) => m.id === card.id);
-                                            const isReady = card.id === 'htdemucs_mnn' || modelMeta?.isDownloaded;
-
-                                            return (
-                                                <div
-                                                    key={card.id}
-                                                    onClick={() => setMssModel(card.id)}
-                                                    className={`cursor-pointer p-3.5 rounded-2xl border transition-all ${
-                                                        isSelected
-                                                            ? 'border-pink-500 bg-pink-500/10 shadow-lg shadow-pink-500/10'
-                                                            : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h4 className="text-sm font-bold text-white">{card.title}</h4>
-                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-neutral-300 font-mono">
-                                                                    {card.badge}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-xs text-neutral-400 mt-1">{card.desc}</p>
+                                        return (
+                                            <div
+                                                key={model.id}
+                                                onClick={() => setMssModel(model.id as MssModelId)}
+                                                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                                    isSelected ? cardSelectedBg : cardBg
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-xs font-bold ${textColor}`}>
+                                                                {model.name}
+                                                            </span>
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/10 text-neutral-400 font-mono">
+                                                                {model.fileSizeMb} MB
+                                                            </span>
                                                         </div>
-                                                        <div className="text-right shrink-0">
-                                                            <span className="text-[11px] font-mono text-neutral-400 block">{card.size}</span>
-                                                            <span className="text-[10px] text-neutral-500">{card.speed}</span>
-                                                        </div>
+                                                        <p className={`text-[11px] ${subTextColor} mt-1 leading-snug line-clamp-2`}>
+                                                            {model.descriptionVi}
+                                                        </p>
                                                     </div>
 
-                                                    <div className="mt-2.5 pt-2.5 border-t border-white/5 flex items-center justify-between text-xs">
-                                                        {isReady ? (
-                                                            <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
-                                                                <Check size={13} /> Đã sẵn sàng
-                                                            </span>
-                                                        ) : (
+                                                    {/* Radio indicator */}
+                                                    <div
+                                                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                            isSelected ? 'border-transparent' : 'border-neutral-500'
+                                                        }`}
+                                                        style={{ backgroundColor: isSelected ? accentBg : 'transparent' }}
+                                                    >
+                                                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                    </div>
+                                                </div>
+
+                                                {/* Download Status & Progress */}
+                                                <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
+                                                    {model.id === 'htdemucs_mnn' ? (
+                                                        <span className="text-[11px] text-emerald-500 font-medium">✓ Có sẵn trong Folia</span>
+                                                    ) : model.isDownloaded ? (
+                                                        <div className="flex items-center justify-between w-full">
+                                                            <span className="text-[11px] text-emerald-500 font-medium">✓ Đã sẵn sàng trên máy</span>
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    void handleDownloadSelectedModel(card.id);
+                                                                    void handleDeleteModel(model.id);
                                                                 }}
-                                                                disabled={downloadingModelId === card.id}
-                                                                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 hover:bg-pink-500/30 transition-colors"
+                                                                title="Xóa model để giải phóng dung lượng ổ cứng"
+                                                                className="text-neutral-400 hover:text-red-400 p-1 rounded"
                                                             >
-                                                                <Download size={12} className={downloadingModelId === card.id ? 'animate-spin' : ''} />
-                                                                <span>{downloadingModelId === card.id ? 'Đang tải...' : 'Tải model'}</span>
+                                                                <Trash2 size={13} />
                                                             </button>
-                                                        )}
-                                                    </div>
+                                                        </div>
+                                                    ) : isDownloading ? (
+                                                        <div className="w-full space-y-1.5">
+                                                            <div className="flex items-center justify-between text-[11px]">
+                                                                <span className="text-amber-500 font-medium animate-pulse">Đang tải: {model.downloadProgress || 0}%</span>
+                                                                {details && details.totalBytes > 0 && (
+                                                                    <span className="font-mono text-[10px] text-neutral-400">
+                                                                        {(details.receivedBytes / 1048576).toFixed(1)} / {(details.totalBytes / 1048576).toFixed(1)} MB
+                                                                        {details.speedBytesPerSec ? ` (${(details.speedBytesPerSec / 1048576).toFixed(1)} MB/s)` : ''}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-amber-500 rounded-full transition-all"
+                                                                    style={{ width: `${model.downloadProgress || 0}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                void handleDownloadModel(model.id);
+                                                            }}
+                                                            className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-black/10 hover:bg-black/20 font-medium transition-colors"
+                                                        >
+                                                            <Download size={12} />
+                                                            <span>Tải về ({model.fileSizeMb} MB)</span>
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* 2. Alignment & ASR Mode */}
-                                <div className="space-y-2.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                                        <Cpu size={14} />
-                                        <span>2. {t('karaoke.selectAsrMode', 'Nhận diện Lời & Căn chỉnh Thời gian (Karaoke Sync)')}</span>
-                                    </label>
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setAlignmentMode('align_existing')}
-                                            className={`flex-1 p-3 rounded-xl border text-left transition-all ${
-                                                alignmentMode === 'align_existing'
-                                                    ? 'border-purple-500 bg-purple-500/10'
-                                                    : 'border-white/10 bg-white/5 hover:bg-white/[0.07]'
-                                            }`}
-                                        >
-                                            <span className="text-xs font-bold block text-white">Đã có lời bài hát (Khuyên dùng)</span>
-                                            <span className="text-[11px] text-neutral-400">
-                                                Căn chỉnh từ theo nhịp hát (Forced Alignment), độ khớp dưới 30-50ms.
-                                            </span>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setAlignmentMode('auto_transcribe')}
-                                            className={`flex-1 p-3 rounded-xl border text-left transition-all ${
-                                                alignmentMode === 'auto_transcribe'
-                                                    ? 'border-purple-500 bg-purple-500/10'
-                                                    : 'border-white/10 bg-white/5 hover:bg-white/[0.07]'
-                                            }`}
-                                        >
-                                            <span className="text-xs font-bold block text-white">Chưa có lời (Whisper ASR)</span>
-                                            <span className="text-[11px] text-neutral-400">
-                                                AI tự nghe giọng hát và chép lại thành chữ kèm mốc thời gian.
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 3. Raw Lyrics Input (if align_existing) */}
-                                {alignmentMode === 'align_existing' && (
-                                    <div className="space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                                                Lời bài hát thô (Lyrics Text)
-                                            </label>
-                                            <span className="text-[11px] text-neutral-500">
-                                                Dán lời bài hát để AI căn chỉnh nhảy chữ
-                                            </span>
-                                        </div>
-                                        <textarea
-                                            value={rawLyricsText}
-                                            onChange={(e) => setRawLyricsText(e.target.value)}
-                                            placeholder="Dán lời bài hát vào đây (không cần mốc thời gian)..."
-                                            rows={4}
-                                            className="w-full rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white placeholder-neutral-500 focus:border-pink-500 focus:outline-none"
-                                        />
-                                    </div>
-                                )}
+                                            </div>
+                                        );
+                                    })}
                             </div>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-black/20">
-                        <button
-                            type="button"
-                            onClick={closeModal}
-                            disabled={isJobRunning}
-                            className="px-4 py-2 rounded-xl text-xs font-medium text-neutral-400 hover:text-white transition-colors"
-                        >
-                            {t('ui.close', 'Đóng')}
-                        </button>
+                        {/* Section 2: Lyrics & Alignment Source */}
+                        <div className="space-y-3">
+                            <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
+                                <FileText size={14} />
+                                <span>2. Nguồn Lời Bài Hát & Căn Chỉnh Mốc (Karaoke Alignment)</span>
+                            </label>
 
-                        <div className="flex items-center gap-2">
-                            {lastResult && (
-                                <button
-                                    type="button"
-                                    onClick={handleApplyToPlayer}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-neutral-200 transition-all shadow-lg active:scale-95"
+                            {/* Mode choice */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div
+                                    onClick={() => setAlignmentMode('align_existing')}
+                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                                        alignmentMode === 'align_existing' ? cardSelectedBg : cardBg
+                                    }`}
                                 >
-                                    <Check size={15} />
-                                    <span>{t('karaoke.applyToPlayer', 'Áp dụng cho bài hát đang phát')}</span>
-                                </button>
-                            )}
+                                    <span className="text-xs font-bold block">Căn mốc từ lời có sẵn (Khuyên dùng)</span>
+                                    <p className={`text-[11px] ${subTextColor} mt-1 leading-relaxed`}>
+                                        Dán lời chữ chuẩn, AI sẽ dùng thuật toán Forced Alignment căn mốc thời gian chuẩn 100% vào giọng hát.
+                                    </p>
+                                </div>
 
-                            {!lastResult && (
-                                <button
-                                    type="button"
-                                    onClick={() => void handleStartJob()}
-                                    disabled={isJobRunning || !activeSong}
-                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white transition-all shadow-lg shadow-pink-500/20 active:scale-95 disabled:opacity-50"
+                                <div
+                                    onClick={() => setAlignmentMode('auto_transcribe')}
+                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                                        alignmentMode === 'auto_transcribe' ? cardSelectedBg : cardBg
+                                    }`}
                                 >
-                                    <Sparkles size={15} />
-                                    <span>{t('karaoke.startSeparation', 'Bắt đầu Tách Nhạc & Tạo Karaoke')}</span>
-                                </button>
+                                    <span className="text-xs font-bold block">Tự nghe toàn bài (Whisper ASR)</span>
+                                    <p className={`text-[11px] ${subTextColor} mt-1 leading-relaxed`}>
+                                        Dùng khi bài hát không thể tìm thấy lời ở bất kỳ đâu trên mạng.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Textarea for raw lyrics */}
+                            {alignmentMode === 'align_existing' && (
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className={`font-medium ${textColor}`}>Lời bài hát thô (Plain Text):</span>
+                                        <span className={subTextColor}>Không cần có [00:00.00]</span>
+                                    </div>
+                                    <textarea
+                                        value={rawLyricsText}
+                                        onChange={(e) => setRawLyricsText(e.target.value)}
+                                        rows={5}
+                                        placeholder="Dán lời bài hát từ Zing MP3 / Google / Genius vào đây..."
+                                        className={`w-full p-3 rounded-xl text-xs leading-relaxed resize-none border ${cardBg} ${textColor} focus:outline-none focus:ring-1 focus:ring-current font-sans`}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>
-                </motion.div>
+                )}
             </div>
-        </AnimatePresence>
+        </Sheet>
     );
 };
 

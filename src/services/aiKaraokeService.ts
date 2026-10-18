@@ -30,7 +30,11 @@ export const initAiKaraokeListeners = (): (() => void) => {
     });
 
     modelProgressUnsub = bridge.onModelProgress((p) => {
-        useAiKaraokeStore.getState().updateModelDownload(p.modelId, p.percent);
+        useAiKaraokeStore.getState().updateModelDownload(p.modelId, p.percent, {
+            receivedBytes: p.receivedBytes,
+            totalBytes: p.totalBytes,
+            speedBytesPerSec: p.speedBytesPerSec,
+        });
     });
 
     return () => {
@@ -179,3 +183,32 @@ export const exportKaraokeLrcFile = async (
         return false;
     }
 };
+
+/**
+ * Opens the system folder where AI models are stored.
+ */
+export const openAiKaraokeModelsDirectory = async (): Promise<boolean> => {
+    const bridge = window.electron?.aiKaraoke;
+    if (!bridge?.openModelsDir) return false;
+    try {
+        const res = await bridge.openModelsDir();
+        return Boolean(res.ok);
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Opens the output folder where karaoke stems and lyrics are cached for a song.
+ */
+export const openAiKaraokeOutputDirectory = async (songId?: string): Promise<boolean> => {
+    const bridge = window.electron?.aiKaraoke;
+    if (!bridge?.openOutputDir) return false;
+    try {
+        const res = await bridge.openOutputDir(songId);
+        return Boolean(res.ok);
+    } catch {
+        return false;
+    }
+};
+

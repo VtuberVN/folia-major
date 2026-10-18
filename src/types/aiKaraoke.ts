@@ -26,6 +26,11 @@ export interface AiModelInfo {
     downloadUrl: string;
     isDownloaded: boolean;
     downloadProgress?: number; // 0-100
+    downloadDetails?: {
+        receivedBytes: number;
+        totalBytes: number;
+        speedBytesPerSec?: number;
+    };
 }
 
 export type KaraokeAlignmentMode =

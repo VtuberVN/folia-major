@@ -197,12 +197,20 @@ const downloadModel = async (userDataPath, modelId, onProgress) => {
                 let receivedBytes = 0;
                 const fileStream = fs.createWriteStream(tmpPath);
 
+                let lastReportTime = Date.now();
+                let lastReportBytes = 0;
+
                 res.on('data', (chunk) => {
                     receivedBytes += chunk.length;
                     fileStream.write(chunk);
-                    if (totalBytes > 0 && onProgress) {
+                    const now = Date.now();
+                    if (totalBytes > 0 && onProgress && (now - lastReportTime >= 250 || receivedBytes === totalBytes)) {
+                        const elapsedSec = (now - lastReportTime) / 1000;
+                        const speedBytesPerSec = elapsedSec > 0 ? (receivedBytes - lastReportBytes) / elapsedSec : 0;
+                        lastReportTime = now;
+                        lastReportBytes = receivedBytes;
                         const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
-                        onProgress({ modelId, percent, receivedBytes, totalBytes });
+                        onProgress({ modelId, percent, receivedBytes, totalBytes, speedBytesPerSec });
                     }
                 });
 
@@ -286,6 +294,30 @@ const deleteModel = (userDataPath, modelId) => {
     return { removed: false };
 };
 
+/**
+ * Retrieves cached karaoke output files (vocals, beat, lrc) for a song.
+ */
+const getCachedKaraoke = (userDataPath, songId) => {
+    if (!songId) return null;
+    const outputDir = path.join(getKaraokeOutputDir(userDataPath), String(songId));
+    const infoPath = path.join(outputDir, 'info.json');
+    if (!fs.existsSync(infoPath)) return null;
+
+    try {
+        const raw = fs.readFileSync(infoPath, 'utf8');
+        const data = JSON.parse(raw);
+        if (data.lrcPath && fs.existsSync(data.lrcPath)) {
+            data.lrcText = fs.readFileSync(data.lrcPath, 'utf8');
+        }
+        if (data.enhancedLrcPath && fs.existsSync(data.enhancedLrcPath)) {
+            data.enhancedLrcText = fs.readFileSync(data.enhancedLrcPath, 'utf8');
+        }
+        return data;
+    } catch {
+        return null;
+    }
+};
+
 module.exports = {
     MODEL_CATALOG,
     getAiModelsDir,
@@ -294,4 +326,5 @@ module.exports = {
     downloadModel,
     cancelModelDownload,
     deleteModel,
+    getCachedKaraoke,
 };

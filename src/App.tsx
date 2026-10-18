@@ -17,6 +17,7 @@ import AppDialogs from './components/app/dialogs/AppDialogs';
 import DownloadProgressWindow from './components/download/DownloadProgressWindow';
 import { initDownloadQueue } from './services/songDownloadService';
 import AiKaraokeModal from './components/karaoke/AiKaraokeModal';
+import { LrcEditorModal } from './components/modal/lyric-editor/LrcEditorModal';
 import { initAiKaraokeListeners } from './services/aiKaraokeService';
 import { parseEnhancedLRC } from './utils/lyrics/parserCore';
 import { useProviderSignOut } from './components/app/dialogs/useProviderSignOut';
@@ -2687,10 +2688,13 @@ export default function App() {
         try {
             const parsed = parseEnhancedLRC(lrcContent);
             setLyrics(parsed);
+            if (currentSong && isLocalPlaybackSong(currentSong)) {
+                void handleUpdateLocalLyrics(lrcContent, false, `${currentSong.name}.lrc`);
+            }
         } catch (err) {
             console.error('[AI Karaoke] Failed to parse and set lyrics', err);
         }
-    }, [setLyrics]);
+    }, [currentSong, handleUpdateLocalLyrics, setLyrics]);
 
     return (
         <AppShell
@@ -2940,7 +2944,14 @@ export default function App() {
             <PlaybackEntryViewPrompt theme={theme} />
             <LatticeFmNotice />
             <DownloadProgressWindow isDaylight={isDaylight} />
-            <AiKaraokeModal theme={theme} onApplyLyrics={handleApplyKaraokeLyrics} />
+            <AiKaraokeModal theme={theme} isDaylight={isDaylight} onApplyLyrics={handleApplyKaraokeLyrics} />
+            <LrcEditorModal
+                currentTime={currentTime}
+                onSeek={seekMainAudio}
+                onSave={handleApplyKaraokeLyrics}
+                theme={theme}
+                isDaylight={isDaylight}
+            />
         </AppShell>
     );
 }

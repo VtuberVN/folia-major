@@ -1044,6 +1044,9 @@ declare global {
         downloadModel: (modelId: string) => Promise<{ success: boolean; localPath: string }>;
         cancelDownloadModel: (modelId: string) => Promise<{ canceled: boolean }>;
         deleteModel: (modelId: string) => Promise<{ removed: boolean; path?: string; error?: string }>;
+        getCachedResult: (songId: string) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult | null>;
+        openModelsDir: () => Promise<{ ok: boolean; path: string }>;
+        openOutputDir: (songId?: string) => Promise<{ ok: boolean; path: string }>;
         startJob: (payload: {
           jobId: string;
           audioPath?: string;
@@ -1058,7 +1061,7 @@ declare global {
         }) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult>;
         cancelJob: (jobId: string) => Promise<{ canceled: boolean }>;
         exportLrcFile: (payload: { defaultFileName?: string; content: string }) => Promise<{ ok?: boolean; canceled?: boolean; filePath?: string }>;
-        onModelProgress: (callback: (progress: { modelId: string; percent: number; receivedBytes: number; totalBytes: number }) => void) => () => void;
+        onModelProgress: (callback: (progress: { modelId: string; percent: number; receivedBytes: number; totalBytes: number; speedBytesPerSec?: number }) => void) => () => void;
         onJobProgress: (callback: (progress: import('./types/aiKaraoke').KaraokeJobProgress & { jobId: string }) => void) => () => void;
       };
       requestTranscodeFallback?: (request: import('./types/playbackRecovery').TranscodeFallbackRequest) => Promise<import('./types/playbackRecovery').TranscodeFallbackResult>;

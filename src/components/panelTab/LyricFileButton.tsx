@@ -9,6 +9,8 @@ import { exportCurrentSongLyrics } from '../../services/lyricExport/currentSongE
 import type { LyricExportFormat } from '../../services/lyricExport/types';
 import { hasExportableLyrics } from '../../utils/lyrics/exportableLyrics';
 import { LYRIC_EXPORT_COMMAND_ID } from '../command-palette/commands/lyricExportCommands';
+import { openVisualLrcEditor } from '../../stores/useLrcEditorStore';
+import { formatLrcTimestamp } from '../../utils/lyrics/lrcSerializer';
 import LyricFileDialog from './LyricFileDialog';
 import { PanelButton } from './shell/PanelButton';
 
@@ -101,6 +103,13 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportL
         setIsPanelOpen(false);
     };
 
+    const handleOpenVisualLrcEditor = () => {
+        close();
+        setIsPanelOpen(false);
+        const rawLrc = lyrics?.lines?.map(l => `[${formatLrcTimestamp(l.startTime)}]${l.fullText}`).join('\n') || '';
+        openVisualLrcEditor(currentSong, rawLrc);
+    };
+
     return (
         <>
             {electron?.toggleMiniLyricBar && (
@@ -132,6 +141,7 @@ const LyricFileButton: React.FC<LyricFileButtonProps> = ({ isDaylight, onImportL
                 isExporting={isExporting}
                 onExportCurrent={format => void exportCurrent(format)}
                 onOpenBatchExport={openBatchExport}
+                onOpenVisualLrcEditor={handleOpenVisualLrcEditor}
             />
         </>
     );

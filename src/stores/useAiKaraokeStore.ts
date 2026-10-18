@@ -37,7 +37,11 @@ interface AiKaraokeState {
     setAlignmentMode: (mode: KaraokeAlignmentMode) => void;
     setRawLyricsText: (text: string) => void;
     setModels: (models: AiModelInfo[]) => void;
-    updateModelDownload: (modelId: string, percent: number) => void;
+    updateModelDownload: (
+        modelId: string,
+        percent: number,
+        details?: { receivedBytes: number; totalBytes: number; speedBytesPerSec?: number },
+    ) => void;
     updateProgress: (progress: KaraokeJobProgress) => void;
     setActiveJobId: (jobId: string | null) => void;
     setResult: (result: KaraokeGenerationResult | null) => void;
@@ -60,7 +64,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set) => ({
     activeJobId: null,
     lastResult: null,
 
-    openModal: (song = null, initialLyrics = '') =>
+    openModal: (song = null, initialLyrics = '') => {
         set({
             isOpen: true,
             activeSong: song,
@@ -72,7 +76,17 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set) => ({
             elapsedSeconds: 0,
             activeJobId: null,
             lastResult: null,
-        }),
+        });
+
+        // Check if there is an existing cached karaoke output for this song
+        if (song?.id && window.electron?.aiKaraoke?.getCachedResult) {
+            void window.electron.aiKaraoke.getCachedResult(String(song.id)).then((cached) => {
+                if (cached) {
+                    set({ lastResult: cached });
+                }
+            });
+        }
+    },
 
     closeModal: () => set({ isOpen: false }),
 
@@ -83,7 +97,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set) => ({
 
     setModels: (models) => set({ models }),
 
-    updateModelDownload: (modelId, percent) =>
+    updateModelDownload: (modelId, percent, details) =>
         set((state) => ({
             models: state.models.map((m) =>
                 m.id === modelId
@@ -91,6 +105,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set) => ({
                           ...m,
                           downloadProgress: percent,
                           isDownloaded: percent >= 100 ? true : m.isDownloaded,
+                          downloadDetails: details || m.downloadDetails,
                       }
                     : m,
             ),

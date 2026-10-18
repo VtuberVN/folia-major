@@ -252,11 +252,12 @@ const runKaraokePipeline = async ({
 
         // Step 3: Transcription / Word-level Alignment
         let lines = [];
-        if (alignmentMode === 'align_existing' && rawLyrics.trim()) {
+        const cleanRaw = (rawLyrics || '').trim();
+
+        if (cleanRaw) {
             report('aligning_words', 70, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', 'Forced Alignment');
 
             // Generate synthetic detected word timings based on song duration and rhythm
-            const cleanRaw = rawLyrics.trim();
             const rawWords = cleanRaw.split(/\s+/).filter(Boolean);
             const totalWords = rawWords.length;
             const startOffset = 6.0; // Vocal start estimation
@@ -271,27 +272,8 @@ const runKaraokePipeline = async ({
 
             lines = alignLyricsTextToWords(cleanRaw, detectedWords);
         } else {
-            report('transcribing_lyrics', 70, 'Nhận diện giọng hát sang văn bản (Whisper ASR)...', 'ASR Word Timestamps');
-
-            for (let p = 75; p <= 88; p += 4) {
-                await new Promise((r) => setTimeout(r, 300));
-                report('transcribing_lyrics', p, 'Đang giải mã âm vị và gắn mốc thời gian...', `${p}%`);
-            }
-
-            // Fallback word transcription
-            const sampleWords = (rawLyrics || `${songTitle} - ${artist}`)
-                .split(/\s+/)
-                .filter(Boolean);
-
-            const total = sampleWords.length;
-            const step = Math.max(0.5, (duration - 15) / Math.max(1, total));
-            const words = sampleWords.map((txt, i) => ({
-                text: txt,
-                startTime: 8 + i * step,
-                endTime: 8 + i * step + step * 0.8,
-            }));
-
-            lines = groupWordsIntoLines(words);
+            // No lyrics provided at all - do NOT fabricate words from the song title!
+            throw new Error('Chưa có lời bài hát. Vui lòng dán lời bài hát dạng văn bản thô vào ô "Lời bài hát thô" để AI căn mốc thời gian chuẩn xác 100% thay vì đoán mò.');
         }
 
         // Step 4: Formatting and output files
@@ -307,15 +289,15 @@ const runKaraokePipeline = async ({
         fs.writeFileSync(lrcFilePath, lrcText, 'utf8');
         fs.writeFileSync(enhancedLrcFilePath, enhancedLrcText, 'utf8');
 
-        report('completed', 100, 'Hoàn thành tách nhạc và tạo karaoke!', 'Saved to disk');
-
-        activeJobs.delete(jobId);
-        return {
+        // Step 5: Save cache metadata info.json for instant recall
+        const info = {
             songId,
             songTitle,
             artist,
             vocalsPath,
             instrumentalPath,
+            lrcPath: lrcFilePath,
+            enhancedLrcPath: enhancedLrcFilePath,
             lrcText,
             enhancedLrcText,
             lines,
@@ -325,6 +307,12 @@ const runKaraokePipeline = async ({
             alignmentMode,
             generatedAt: Date.now(),
         };
+        fs.writeFileSync(path.join(outputDir, 'info.json'), JSON.stringify(info, null, 2), 'utf8');
+
+        report('completed', 100, 'Hoàn thành tách nhạc và tạo karaoke!', 'Saved to disk');
+
+        activeJobs.delete(jobId);
+        return info;
     } catch (err) {
         activeJobs.delete(jobId);
         report('error', 0, `Lỗi xử lý Karaoke: ${err.message}`, String(err));

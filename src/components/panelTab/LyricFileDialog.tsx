@@ -16,6 +16,7 @@ import type { LyricExportFormat } from '../../services/lyricExport/types';
 const LYRIC_IMPORT_ACCEPT = '.lrc,.vtt,.ttml,.qrc,.yrc,.krc,.txt,.fia,.json';
 
 const IMPORT_GROUP: SettingsGroupDef = { id: 'lyricFileImport', titleKey: 'lyricFile.importHeading' };
+const STUDIO_GROUP: SettingsGroupDef = { id: 'lyricStudio', titleKey: 'lyricEditor.title' };
 const EXPORT_GROUP: SettingsGroupDef = { id: 'lyricFileExport', titleKey: 'lyricFile.exportHeading' };
 const BATCH_GROUP: SettingsGroupDef = { id: 'lyricFileBatch', titleKey: 'lyricFile.batchTitle' };
 
@@ -29,6 +30,7 @@ type LyricFileDialogProps = {
     isExporting: boolean;
     onExportCurrent: (format: LyricExportFormat) => void;
     onOpenBatchExport: () => void;
+    onOpenVisualLrcEditor?: () => void;
 };
 
 const LyricFileDialog: React.FC<LyricFileDialogProps> = ({
@@ -40,6 +42,7 @@ const LyricFileDialog: React.FC<LyricFileDialogProps> = ({
     isExporting,
     onExportCurrent,
     onOpenBatchExport,
+    onOpenVisualLrcEditor,
 }) => {
     const { t } = useTranslation();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +68,17 @@ const LyricFileDialog: React.FC<LyricFileDialogProps> = ({
                         />
                     </Group>
                 )}
+
+                <Group def={STUDIO_GROUP}>
+                    <Row
+                        label={t('lyricEditor.title', 'Trình chỉnh sửa lời trực quan (LRC Studio)')}
+                        hint={t('lyricEditor.desc', 'Chỉnh sửa câu chữ, mốc thời gian và gõ nhịp Tap-to-Sync')}
+                        onClick={() => {
+                            onClose();
+                            onOpenVisualLrcEditor?.();
+                        }}
+                    />
+                </Group>
 
                 <Group def={EXPORT_GROUP} foot={canExportCurrent ? undefined : t('lyricExport.noLyrics')}>
                     <Row
