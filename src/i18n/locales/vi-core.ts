@@ -966,7 +966,9 @@ export default {
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
-    "amll": "AMLLDB"
+    "amll": "AMLLDB",
+    "zing": "Zing MP3",
+    "nct": "NhacCuaTui"
   },
   "globalLyricOffset": {
     "title": "Độ lệch thời gian toàn cục",

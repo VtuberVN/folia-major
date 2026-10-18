@@ -2483,7 +2483,9 @@ const vi = {
     "qq": "QQ Music",
     "kugou": "Kugou Music",
     "spotify": "Spotify",
-    "amll": "AMLLDB"
+    "amll": "AMLLDB",
+    "zing": "Zing MP3",
+    "nct": "NhacCuaTui"
   },
   "globalLyricOffset": {
     "title": "Độ lệch thời gian toàn cục",

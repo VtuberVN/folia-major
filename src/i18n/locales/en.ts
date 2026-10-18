@@ -1706,6 +1706,8 @@ export default {
     "kugou": "Kugou Music",
     "spotify": "Spotify",
     "amll": "AMLLDB",
+    "zing": "Zing MP3",
+    "nct": "NhacCuaTui",
   },
   "globalLyricOffset": {
     "title": "Global Timing Offset",

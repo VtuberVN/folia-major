@@ -1667,7 +1667,9 @@ export default {
     "qq": "QQ Music",
     "kugou": "Kugou Music",
     "spotify": "Spotify",
-    "amll": "AMLLDB"
+    "amll": "AMLLDB",
+    "zing": "Zing MP3",
+    "nct": "NhacCuaTui"
   },
   "globalLyricOffset": {
     "title": "Offset Waktu Global",
