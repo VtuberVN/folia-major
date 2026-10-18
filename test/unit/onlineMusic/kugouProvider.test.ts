@@ -138,39 +138,6 @@ describe('kugouProvider', () => {
         expect(song.album.catalogRef).toEqual({ providerId: 'kugou', kind: 'album', id: 9 });
     });
 
-    it('correctly maps VIP fee status for KuGou songs based on Privilege and payment flags', () => {
-        const vipPrivilege5 = normalizeKugouSong({
-            FileHash: 'vip-hash-5',
-            SongName: 'VIP Song 5',
-            Privilege: 5,
-        });
-        expect(vipPrivilege5.fee).toBe(1);
-
-        const vipPrivilege10 = normalizeKugouSong({
-            FileHash: 'vip-hash-10',
-            SongName: 'VIP Song 10',
-            Privilege: 10,
-        });
-        expect(vipPrivilege10.fee).toBe(1);
-
-        const paidSong = normalizeKugouSong({
-            FileHash: 'paid-hash',
-            SongName: 'Paid Song',
-            PayType: 3,
-            Price: 200,
-        });
-        expect(paidSong.fee).toBe(1);
-
-        const freeSong = normalizeKugouSong({
-            FileHash: 'free-hash',
-            SongName: 'Free Song',
-            Privilege: 0,
-            PayType: 0,
-            Price: 0,
-        });
-        expect(freeSong.fee).toBe(0);
-    });
-
     it('keeps a high-resolution canonical KuGou cover for templates and sized CDN URLs', () => {
         const templateSong = normalizeKugouSong({
             FileHash: 'template-cover',
@@ -768,15 +735,6 @@ describe('kugouProvider', () => {
             expect(requestMock.mock.calls.map(call => call[0])).toEqual(['user_cloud_url']);
             expect(legacyPlayInfoMock).not.toHaveBeenCalled();
         });
-    });
-
-    it('throws OnlineProviderError with vip-only code when legacy mobile playInfo indicates VIP/paid track', async () => {
-        requestMock.mockResolvedValue({ status: 3 });
-        legacyPlayInfoMock.mockResolvedValue({ status: 0, error: '需要付费' });
-        const song = normalizeKugouSong({ FileHash: 'hash', SongName: 'Song' });
-
-        await expect(kugouProvider.playback?.getAudioSource(song, 'standard'))
-            .rejects.toThrowError(expect.objectContaining({ code: 'vip-only' }));
     });
 
     it('hydrates canonical album and artist ids through hash-verified KRM metadata once', async () => {

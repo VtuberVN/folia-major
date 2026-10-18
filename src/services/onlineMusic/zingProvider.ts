@@ -237,6 +237,10 @@ export const zingProvider: OnlineMusicProvider = {
         },
     },
     auth: {
+        getLoginTexts: () => ({
+            title: 'home.loginTitleZing',
+            note: 'home.loginNoteZing',
+        }),
         async getLoginStatus(): Promise<ProviderUser | null> {
             const cookie = getStoredZingCookie();
             if (!cookie) return null;

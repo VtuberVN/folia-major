@@ -166,4 +166,12 @@ export const nctProvider: OnlineMusicProvider = {
             };
         },
     },
+    auth: {
+        getLoginTexts: () => ({
+            title: 'home.loginTitleNct',
+            note: 'home.loginNoteNct',
+        }),
+        getLoginStatus: async () => null,
+        logout: async () => {},
+    },
 };

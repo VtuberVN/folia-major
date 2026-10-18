@@ -133,7 +133,6 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
         }
     };
 
-    const fade = (more.before || more.after) ? `linear-gradient(${lie === 'column' ? 'to bottom' : 'to right'}, ${more.before ? 'transparent, #000 30px' : '#000'}, ${more.after ? '#000 calc(100% - 30px), transparent' : '#000'})` : undefined;
     const stateText = (status: ReturnType<typeof rowStatus>): string | null => (
         status === 'signed-in' ? t('login.rowSignedIn') : status === 'ran-out' ? t('login.rowRanOut') : status === 'off' ? t('home.providerNotConfigured') : null
     );
@@ -163,7 +162,6 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                 onScroll={readMore}
                 onMouseLeave={() => setPointed(null)}
                 className={`relative min-h-0 rounded-lg outline-none ${lie === 'column' ? 'st-scroll flex flex-1 flex-col overflow-y-auto overscroll-contain' : 'login-row-scroll flex gap-1 overflow-x-auto overscroll-x-contain'}`}
-                style={fade ? { WebkitMaskImage: fade, maskImage: fade } : undefined}
             >
                 <div
                     aria-hidden

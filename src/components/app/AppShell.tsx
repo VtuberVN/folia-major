@@ -7,6 +7,7 @@ import { SettingsKitThemeContext } from '../modal/settings/kit/kitTheme';
 import { SheetLayerContext } from '../shared/Sheet';
 import TitlebarDragZone from '../TitlebarDragZone';
 import WindowControls from '../WindowControls';
+import AppErrorBoundary from './AppErrorBoundary';
 import { usePlayerOverlayRoot, usePlayerOverlayReservation } from '../../hooks/usePlayerOverlayLayout';
 import type { FoliumLayoutRect } from '../../mods/folium/contract';
 
@@ -219,7 +220,9 @@ const AppShell: React.FC<AppShellProps> = ({
             {audioElement}
             <SettingsKitThemeContext.Provider value={kitTheme}>
                 <SheetLayerContext.Provider value={sheetLayer}>
-                    {children}
+                    <AppErrorBoundary>
+                        {children}
+                    </AppErrorBoundary>
                 </SheetLayerContext.Provider>
             </SettingsKitThemeContext.Provider>
             {/* Dialogs are drawn here: after every page and window of the app, inside its colour variables. */}
