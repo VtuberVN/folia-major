@@ -4,7 +4,6 @@
 
 import { create } from 'zustand';
 import type { SongResult } from '../types';
-import { usePlaybackStore } from './usePlaybackStore';
 import { setStatusMessage } from './useStatusMessageStore';
 import type {
     AiModelInfo,
@@ -60,7 +59,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     isOpen: false,
     activeSong: null,
     models: [],
-    selectedMssModel: 'uvr_mdxnet_kara_2',
+    selectedMssModel: 'htdemucs_mnn',
     selectedAsrModel: 'whisper_turbo',
     alignmentMode: 'align_existing',
     rawLyricsText: '',
@@ -163,6 +162,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
 
     toggleKaraokeBeatMode: async (song) => {
         const state = get();
+        const { usePlaybackStore } = await import('./usePlaybackStore');
         if (state.isKaraokeBeatMode) {
             // Turning OFF: restore original audio source
             const original = state.originalTrackSrc;

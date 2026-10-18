@@ -3,6 +3,7 @@
 // model downloads, and karaoke lyric alignment jobs.
 
 import { useAiKaraokeStore } from '../stores/useAiKaraokeStore';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import type { SongResult } from '../types';
 import type {
     AiModelInfo,
@@ -124,13 +125,19 @@ export const startKaraokeJob = async (
     const alignmentMode = options.alignmentMode || store.alignmentMode;
     const rawLyrics = options.rawLyrics !== undefined ? options.rawLyrics : store.rawLyricsText;
 
+    const audioSrc = usePlaybackStore.getState().audioSrc || '';
+    const songAny = options.song as any;
+    const audioPath = songAny.filePath || songAny.path || '';
+
     try {
         const result = await bridge.startJob({
             jobId,
             songId: String(options.song.id),
             songTitle: options.song.name,
-            artist: options.song.artists?.map(a => a.name).join(', ') || (options.song as any).artist || '',
-            duration: Math.round((options.song.durationMs || 0) / 1000) || (options.song as any).duration || 200,
+            artist: options.song.artists?.map(a => a.name).join(', ') || songAny.artist || '',
+            duration: Math.round((options.song.durationMs || 0) / 1000) || songAny.duration || 200,
+            audioPath,
+            audioSrc,
             rawLyrics,
             mssModel,
             asrModel,

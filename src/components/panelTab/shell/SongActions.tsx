@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
-import { Crosshair, Home as HomeIcon, Mic, Settings, Sparkles, Star } from 'lucide-react';
+import { Crosshair, Download, Home as HomeIcon, Mic, Settings, Sparkles, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayingFromCollection } from '../../app/playing-song-locator/usePlayingFromCollection';
 import { openAddToPlaylist, useAddToPlaylistStore } from '../../../stores/useAddToPlaylistStore';
 import { openAiKaraokeModal, useAiKaraokeStore } from '../../../stores/useAiKaraokeStore';
+import { usePlaybackStore } from '../../../stores/usePlaybackStore';
+import { startSongDownloads } from '../../../services/songDownloadService';
+import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { Tooltip } from '../../modal/settings/kit/Tooltip';
 import { LikeButton, type SongLike } from './LikeButton';
 import { PanelIconButton } from './PanelIconButton';
@@ -42,6 +45,15 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
         }
     }, [currentSong?.id, checkCurrentSongKaraoke]);
 
+    const handleOpenKaraoke = () => {
+        const lyricsState = usePlaybackStore.getState().lyrics;
+        const initialLyrics = lyricsState?.lines
+            ?.map((l) => (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim())
+            .filter(Boolean)
+            .join('\n') || '';
+        openAiKaraokeModal(currentSong, initialLyrics);
+    };
+
     return (
         <div className="mt-3.5 flex items-center gap-1.5">
             <LikeButton like={like} filled />
@@ -68,7 +80,7 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                     <PanelIconButton
                         label={t('karaoke.openKaraokeStudio', 'Cài đặt Karaoke & Visual LRC Studio')}
                         filled
-                        onClick={() => openAiKaraokeModal(currentSong)}
+                        onClick={handleOpenKaraoke}
                     >
                         <Sparkles size={17} />
                     </PanelIconButton>
@@ -77,11 +89,23 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                 <PanelIconButton
                     label={t('karaoke.openKaraoke', 'Tách nhạc & Tạo Karaoke AI (MSS / ASR)')}
                     filled
-                    onClick={() => openAiKaraokeModal(currentSong)}
+                    onClick={handleOpenKaraoke}
                 >
                     <Mic size={17} />
                 </PanelIconButton>
             ) : null}
+            {currentSong && (
+                <PanelIconButton
+                    label={t('download.downloadCurrentSong', 'Tải bài hát này về máy')}
+                    filled
+                    onClick={() => {
+                        const quality = useAudioSettingsStore.getState().audioQuality || 'lossless';
+                        void startSongDownloads([currentSong], quality);
+                    }}
+                >
+                    <Download size={17} />
+                </PanelIconButton>
+            )}
             {/* 这首歌所在的歌单或专辑，点一下回到那一页并找到它的卡片。队列不再是那张歌单的歌时不出现。 */}
             {playingFrom && (
                 <Tooltip text={playingFromLabel} className="flex min-w-0">

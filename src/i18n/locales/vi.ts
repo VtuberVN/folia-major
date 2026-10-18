@@ -6199,6 +6199,7 @@ const vi = {
     }
   },
   "download": {
+    "downloadCurrentSong": "Tải bài hát này về máy",
     "downloadSongs": "Tải bài hát về máy",
     "selectSongs": "Chọn bài hát muốn tải về",
     "songCount": "{{count}} bài hát",
@@ -6232,7 +6233,10 @@ const vi = {
     "successBanner": "Đã tách beat và tạo file Karaoke thành công!",
     "builtIn": "Tích hợp sẵn",
     "ready": "Sẵn sàng",
-    "notDownloaded": "Chưa tải"
+    "notDownloaded": "Chưa tải",
+    "turnOnBeat": "Bật chế độ Hát Karaoke (Chỉ phát Beat, tắt lời ca sĩ)",
+    "turnOffBeat": "Đang phát Beat Karaoke (Bấm để trở lại bản gốc)",
+    "openKaraokeStudio": "Cài đặt Karaoke & Visual LRC Studio"
   }
 } as const;
 

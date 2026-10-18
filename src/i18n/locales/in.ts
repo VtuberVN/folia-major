@@ -5317,5 +5317,46 @@ export default {
         "noMatch": "“Jangan gunakan metadata online” di kiri bawah membuat lagu ini hanya memakai milik berkasnya."
       }
     }
+  },
+  "download": {
+    "downloadCurrentSong": "Unduh lagu ini",
+    "downloadSongs": "Unduh lagu",
+    "selectSongs": "Pilih lagu yang ingin diunduh",
+    "songCount": "{{count}} lagu",
+    "selectAll": "Pilih semua",
+    "deselectAll": "Batalkan semua",
+    "selectedCount": "{{count}} lagu dipilih",
+    "start": "Mulai unduh",
+    "windowTitle": "Unduhan",
+    "progress": "Selesai {{done}}/{{total}} lagu",
+    "activeCount": "Mengunduh {{count}} lagu",
+    "pendingCount": "Tersisa {{count}} lagu",
+    "openFolder": "Buka folder",
+    "clearFinished": "Bersihkan yang selesai",
+    "hide": "Sembunyikan",
+    "unavailable": "Tidak tersedia untuk diunduh",
+    "continue": "Lanjutkan unduh",
+    "queued": "Dalam antrean",
+    "remove": "Hapus",
+    "pause": "Jeda",
+    "resume": "Lanjutkan",
+    "pauseAll": "Jeda semua",
+    "paused": "Dijeda"
+  },
+  "karaoke": {
+    "openKaraoke": "Pemisahan Musik & Karaoke AI (MSS / ASR)",
+    "modalTitle": "Pemisahan Beat & Karaoke AI",
+    "selectMssModel": "Model Pemisahan Vokal & Musik (MSS)",
+    "selectAsrMode": "Sinkronisasi Lirik Kata Demi Kata (ASR Sync)",
+    "startSeparation": "Mulai Pisahkan Musik & Buat Karaoke",
+    "applyToPlayer": "Terapkan ke pemutar",
+    "successBanner": "Beat Karaoke dan lirik berhasil dibuat!",
+    "builtIn": "Bawaan aplikasi",
+    "ready": "Siap",
+    "notDownloaded": "Belum diunduh",
+    "turnOnBeat": "Mode Karaoke (Hanya Beat, bisukan vokal)",
+    "turnOffBeat": "Kembali ke lagu asli",
+    "openKaraokeStudio": "Pengaturan Karaoke & Visual LRC Studio"
   }
 } as const;
+

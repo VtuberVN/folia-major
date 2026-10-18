@@ -5423,6 +5423,7 @@ export default {
     }
   },
   "download": {
+    "downloadCurrentSong": "Download this song",
     "downloadSongs": "Download Songs",
     "selectSongs": "Select songs to download",
     "songCount": "{{count}} songs",
@@ -5456,6 +5457,9 @@ export default {
     "successBanner": "Successfully separated stems and generated Karaoke lyrics!",
     "builtIn": "Built-in",
     "ready": "Ready",
-    "notDownloaded": "Not downloaded"
+    "notDownloaded": "Not downloaded",
+    "turnOnBeat": "Karaoke Mode (Play Instrumental Beat only)",
+    "turnOffBeat": "Playing Beat (Click to restore original vocals)",
+    "openKaraokeStudio": "Karaoke & Visual LRC Studio Settings"
   }
 } as const;

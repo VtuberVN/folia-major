@@ -21,6 +21,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
 import { useAiKaraokeStore } from '../../stores/useAiKaraokeStore';
+import { usePlaybackStore } from '../../stores/usePlaybackStore';
 import { openVisualLrcEditor } from '../../stores/useLrcEditorStore';
 import {
     fetchAiModels,
@@ -119,12 +120,6 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
             return;
         }
 
-        // Lyrics validation: Do not fabricate words from title
-        if (alignmentMode === 'align_existing' && !rawLyricsText.trim()) {
-            setValidationError('Vui lòng dán lời bài hát thô (văn bản không cần mốc thời gian) vào ô bên dưới để AI căn mốc chính xác.');
-            return;
-        }
-
         try {
             await startKaraokeJob({
                 song: activeSong,
@@ -191,13 +186,13 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
             {!isJobRunning && !lastResult && (
                 <button
                     type="button"
-                    onClick={handleStartJob}
+                    onClick={jobStage === 'error' ? resetJob : handleStartJob}
                     disabled={Boolean(downloadingModelId)}
                     className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-50"
                     style={{ backgroundColor: accentBg }}
                 >
                     <Sparkles size={15} />
-                    <span>Bắt đầu Tách nhạc & Tạo Karaoke</span>
+                    <span>{jobStage === 'error' ? 'Thử lại' : 'Bắt đầu Tách nhạc & Tạo Karaoke'}</span>
                 </button>
             )}
         </div>
@@ -331,6 +326,28 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 className="px-3 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-500/10 transition-colors"
                             >
                                 Hủy tiến trình
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. Job Error Display */}
+                {jobStage === 'error' && (
+                    <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-red-50 border-red-200 text-red-950' : 'bg-red-950/30 border-red-500/40 text-red-200'}`}>
+                        <div className="flex items-start gap-3">
+                            <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1 min-w-0 flex-1">
+                                <p className="text-sm font-bold">Xảy ra lỗi trong quá trình xử lý</p>
+                                <p className="text-xs opacity-90 leading-relaxed font-mono whitespace-pre-wrap">{jobMessage || jobDetail}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2 border-t border-current/10">
+                            <button
+                                type="button"
+                                onClick={resetJob}
+                                className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm"
+                            >
+                                Đóng lỗi & Thử lại
                             </button>
                         </div>
                     </div>
@@ -503,15 +520,39 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 <div className="space-y-1.5">
                                     <div className="flex items-center justify-between text-xs">
                                         <span className={`font-medium ${textColor}`}>Lời bài hát thô (Plain Text):</span>
-                                        <span className={subTextColor}>Không cần có [00:00.00]</span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const currentLyrics = usePlaybackStore.getState().lyrics;
+                                                    if (currentLyrics?.lines?.length) {
+                                                        const text = currentLyrics.lines
+                                                            .map((l) => (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim())
+                                                            .filter(Boolean)
+                                                            .join('\n');
+                                                        setRawLyricsText(text);
+                                                    }
+                                                }}
+                                                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-black/10 hover:bg-black/20 text-neutral-300 transition-colors"
+                                            >
+                                                <Sparkles size={12} />
+                                                <span>Lấy lời từ trình phát</span>
+                                            </button>
+                                            <span className={subTextColor}>Không cần có [00:00.00]</span>
+                                        </div>
                                     </div>
                                     <textarea
                                         value={rawLyricsText}
                                         onChange={(e) => setRawLyricsText(e.target.value)}
                                         rows={5}
-                                        placeholder="Dán lời bài hát từ Zing MP3 / Google / Genius vào đây..."
+                                        placeholder="Dán lời bài hát thô vào đây (hoặc để trống nếu bạn chỉ muốn tách Beat Karaoke)..."
                                         className={`w-full p-3 rounded-xl text-xs leading-relaxed resize-none border ${cardBg} ${textColor} focus:outline-none focus:ring-1 focus:ring-current font-sans`}
                                     />
+                                    {!rawLyricsText.trim() && (
+                                        <p className="text-[11px] text-amber-500/90 leading-normal">
+                                            * Lưu ý: Nếu để trống lời bài hát, AI vẫn tách và lưu Beat Karaoke (.wav) bình thường để bạn hát, và sẽ bỏ qua bước tạo file lời Karaoke .lrc.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>

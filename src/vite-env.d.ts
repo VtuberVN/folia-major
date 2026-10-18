@@ -1051,6 +1051,7 @@ declare global {
         startJob: (payload: {
           jobId: string;
           audioPath?: string;
+          audioSrc?: string;
           songId: string;
           songTitle: string;
           artist: string;

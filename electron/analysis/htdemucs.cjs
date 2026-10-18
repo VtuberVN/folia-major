@@ -41,7 +41,7 @@ const buildWindow = (segment) => {
  * the shapes, the position tables and the overlap-add normaliser are each cut for one window - so a
  * constant beside it would only be a second answer, and the two disagreeing is wrong audio, not a crash.
  */
-const separate = async (model, left, right) => {
+const separate = async (model, left, right, onProgress) => {
     const total = left.length;
     const segment = model.inputShape(0)[2];
     if (!(segment > 0)) throw new Error(`the model's input is not [1, 2, segment]: [${model.inputShape(0)}]`);
@@ -70,6 +70,9 @@ const separate = async (model, left, right) => {
             }
         }
         for (let i = 0; i < n; i += 1) weight[start + i] += win[i];
+        if (typeof onProgress === 'function') {
+            onProgress(c + 1, chunks);
+        }
     }
 
     for (let i = 0; i < total; i += 1) weight[i] = Math.max(weight[i], 1e-8);
