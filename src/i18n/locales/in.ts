@@ -736,6 +736,8 @@ export default {
       "settings-navidrome": { "title": "Server Navidrome", "description": "Langsung ke pengaturan koneksi server Navidrome" },
       "settings-spotify": { "title": "Integrasi Spotify Web API", "description": "Konfigurasikan dan hubungkan Spotify Web API" },
       "settings-spotify-local": { "title": "Integrasi Spotify Lokal", "description": "Membaca aplikasi desktop Spotify lokal tanpa otorisasi Web API" },
+      "ai-karaoke-separate": { "title": "Pemisahan Vokal & Karaoke AI", "description": "Pisahkan vokal dan instrumen serta buat lirik karaoke sinkron kata" },
+      "ai-karaoke-library": { "title": "Pustaka Trek Karaoke AI", "description": "Kelola dan putar ulang instrumen dan vokal hasil pemisahan AI" },
       "settings-stage-mode": { "title": "Mode Stage", "description": "Langsung ke pengaturan pemutar eksternal Stage" },
       "settings-media-cache": { "title": "Cache media", "description": "Langsung ke cache audio yang telah diunduh" },
       "filter-view": { "title": "Saring tampilan ini", "description": "Persempit kartu di layar berdasarkan nama" },

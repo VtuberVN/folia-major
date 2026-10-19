@@ -7795,8 +7795,9 @@ const {
   getModelsStatus: getAiKaraokeModelsStatus,
   downloadModel: downloadAiKaraokeModel,
   cancelModelDownload: cancelAiKaraokeModelDownload,
-  deleteModel: deleteAiKaraokeModel,
   getCachedKaraoke: getAiKaraokeCachedResult,
+  listAllKaraokeOutputs: listAiKaraokeOutputs,
+  deleteKaraokeOutput: deleteAiKaraokeOutput,
   getAiModelsDir,
   getKaraokeOutputDir,
 } = require('./aiKaraoke/modelRegistry.cjs');
@@ -7827,6 +7828,14 @@ ipcMain.handle('ai-karaoke-delete-model', (_event, modelId) => {
 
 ipcMain.handle('ai-karaoke-get-cached-result', (_event, songId) => {
   return getAiKaraokeCachedResult(app.getPath('userData'), songId);
+});
+
+ipcMain.handle('ai-karaoke-list-outputs', () => {
+  return listAiKaraokeOutputs(app.getPath('userData'));
+});
+
+ipcMain.handle('ai-karaoke-delete-output', (_event, songId) => {
+  return deleteAiKaraokeOutput(app.getPath('userData'), songId);
 });
 
 ipcMain.handle('ai-karaoke-get-stem-audio', async (_event, filePath) => {

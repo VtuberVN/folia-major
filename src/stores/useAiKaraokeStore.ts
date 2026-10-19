@@ -13,12 +13,16 @@ import type {
     KaraokeJobProgress,
     KaraokeJobStage,
     KaraokeGenerationResult,
+    KaraokeOutputSummary,
 } from '../types/aiKaraoke';
 
 interface AiKaraokeState {
     isOpen: boolean;
+    activeTab: 'process' | 'library';
     activeSong: SongResult | null;
     models: AiModelInfo[];
+    outputs: KaraokeOutputSummary[];
+    isLoadingOutputs: boolean;
     selectedMssModel: MssModelId;
     selectedAsrModel: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
@@ -36,8 +40,13 @@ interface AiKaraokeState {
     instrumentalBlobUrl: string | null;
     cachedKaraokeForCurrentSong: KaraokeGenerationResult | null;
 
-    openModal: (song?: SongResult | null, initialLyrics?: string) => void;
+    openModal: (song?: SongResult | null, initialLyrics?: string, initialTab?: 'process' | 'library') => void;
     closeModal: () => void;
+    setActiveTab: (tab: 'process' | 'library') => void;
+    setOutputs: (outputs: KaraokeOutputSummary[]) => void;
+    fetchOutputs: () => Promise<KaraokeOutputSummary[]>;
+    deleteOutput: (songId: string) => Promise<boolean>;
+    playOutputStem: (output: KaraokeOutputSummary, stem: 'beat' | 'vocal') => Promise<boolean>;
     setMssModel: (model: MssModelId) => void;
     setAsrModel: (model: AsrModelId) => void;
     setAlignmentMode: (mode: KaraokeAlignmentMode) => void;
@@ -59,8 +68,11 @@ interface AiKaraokeState {
 
 export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     isOpen: false,
+    activeTab: 'process',
     activeSong: null,
     models: [],
+    outputs: [],
+    isLoadingOutputs: false,
     selectedMssModel: 'htdemucs_mnn',
     selectedAsrModel: 'whisper_turbo',
     alignmentMode: 'align_existing',
@@ -78,9 +90,10 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     instrumentalBlobUrl: null,
     cachedKaraokeForCurrentSong: null,
 
-    openModal: (song = null, initialLyrics = '') => {
+    openModal: (song = null, initialLyrics = '', initialTab = 'process') => {
         set({
             isOpen: true,
+            activeTab: initialTab,
             activeSong: song,
             rawLyricsText: initialLyrics || '',
             jobStage: 'idle',
@@ -91,6 +104,9 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             activeJobId: null,
             lastResult: null,
         });
+
+        // Always refresh outputs list when modal opens
+        void get().fetchOutputs();
 
         // Check if there is an existing cached karaoke output for this song
         if (song?.id && window.electron?.aiKaraoke?.getCachedResult) {
@@ -103,6 +119,85 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     },
 
     closeModal: () => set({ isOpen: false }),
+    setActiveTab: (activeTab) => set({ activeTab }),
+    setOutputs: (outputs) => set({ outputs }),
+
+    fetchOutputs: async () => {
+        const bridge = window.electron?.aiKaraoke;
+        if (!bridge?.listOutputs) return [];
+        set({ isLoadingOutputs: true });
+        try {
+            const list = await bridge.listOutputs();
+            set({ outputs: list, isLoadingOutputs: false });
+            return list;
+        } catch {
+            set({ isLoadingOutputs: false });
+            return [];
+        }
+    },
+
+    deleteOutput: async (songId: string) => {
+        const bridge = window.electron?.aiKaraoke;
+        if (!bridge?.deleteOutput) return false;
+        try {
+            const res = await bridge.deleteOutput(songId);
+            if (res.ok) {
+                await get().fetchOutputs();
+                setStatusMessage({ type: 'info', text: 'Đã xóa bản tách Karaoke thành công' });
+                return true;
+            }
+            return false;
+        } catch (err) {
+            setStatusMessage({ type: 'error', text: `Lỗi khi xóa bản tách: ${String(err)}` });
+            return false;
+        }
+    },
+
+    playOutputStem: async (output, stem) => {
+        const filePath = stem === 'beat' ? output.instrumentalPath : output.vocalsPath;
+        if (!filePath) {
+            setStatusMessage({ type: 'error', text: 'Tệp âm thanh không tồn tại trên đĩa.' });
+            return false;
+        }
+        try {
+            const audioBuffer = await window.electron?.aiKaraoke?.getStemAudio?.(filePath);
+            if (!audioBuffer) {
+                setStatusMessage({ type: 'error', text: 'Không thể nạp tệp âm thanh từ đĩa.' });
+                return false;
+            }
+            const blob = new Blob([audioBuffer as BlobPart], { type: 'audio/wav' });
+            const blobUrl = URL.createObjectURL(blob);
+            const { usePlaybackStore } = await import('./usePlaybackStore');
+            const { getActiveAudioElement } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+            const audioElement = getActiveAudioElement();
+
+            usePlaybackStore.getState().setCurrentSong((prev) =>
+                prev
+                    ? { ...prev, name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]` }
+                    : {
+                          id: `karaoke-stem-${output.songId}-${stem}`,
+                          name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]`,
+                          artists: output.artist ? [{ id: 0, name: output.artist }] : [],
+                          album: { id: 0, name: 'AI Karaoke Stems' },
+                          durationMs: (output.duration || 0) * 1000,
+                      },
+            );
+            usePlaybackStore.getState().setAudioSrc(blobUrl);
+            if (audioElement) {
+                audioElement.src = blobUrl;
+                audioElement.currentTime = 0;
+                void audioElement.play().catch(() => {});
+            }
+            setStatusMessage({
+                type: 'info',
+                text: `Đang phát ${stem === 'beat' ? 'Beat Karaoke' : 'Giọng hát'}: ${output.songTitle}`,
+            });
+            return true;
+        } catch (err) {
+            setStatusMessage({ type: 'error', text: `Lỗi phát stem: ${String(err)}` });
+            return false;
+        }
+    },
 
     setMssModel: (selectedMssModel) => set({ selectedMssModel }),
     setAsrModel: (selectedAsrModel) => set({ selectedAsrModel }),
@@ -244,6 +339,14 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     },
 }));
 
-export const openAiKaraokeModal = (song?: SongResult | null, initialLyrics?: string) => {
-    useAiKaraokeStore.getState().openModal(song, initialLyrics);
+export const openAiKaraokeModal = (
+    song?: SongResult | null,
+    initialLyrics?: string,
+    initialTab: 'process' | 'library' = 'process',
+) => {
+    useAiKaraokeStore.getState().openModal(song, initialLyrics, initialTab);
+};
+
+export const openAiKaraokeLibraryModal = () => {
+    useAiKaraokeStore.getState().openModal(null, '', 'library');
 };

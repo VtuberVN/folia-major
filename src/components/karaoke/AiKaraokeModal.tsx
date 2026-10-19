@@ -36,6 +36,7 @@ import {
     openAiKaraokeModelsDirectory,
     openAiKaraokeOutputDirectory,
 } from '../../services/aiKaraokeService';
+import { KaraokeOutputsLibraryTab } from './KaraokeOutputsLibraryTab';
 import type { MssModelId, AsrModelId, KaraokeAlignmentMode, KaraokeDevicePreference } from '../../types/aiKaraoke';
 import type { Theme, SongResult } from '../../types';
 
@@ -53,8 +54,10 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
     const { t } = useTranslation();
     const {
         isOpen,
+        activeTab,
         activeSong,
         models,
+        outputs,
         selectedMssModel,
         selectedAsrModel,
         alignmentMode,
@@ -68,6 +71,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         lastResult,
         isKaraokeBeatMode,
         closeModal,
+        setActiveTab,
         setMssModel,
         setAsrModel,
         setAlignmentMode,
@@ -164,7 +168,30 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
     const textColor = isDaylight ? 'text-neutral-900' : 'text-neutral-100';
     const subTextColor = isDaylight ? 'text-neutral-500' : 'text-neutral-400';
 
-    const footerButtons = (
+    const footerButtons = activeTab === 'library' ? (
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={closeModal}
+                className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                    isDaylight
+                        ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
+                        : 'border-white/10 hover:bg-white/5 text-neutral-300'
+                }`}
+            >
+                {t('ui.close', 'Đóng')}
+            </button>
+            <button
+                type="button"
+                onClick={() => setActiveTab('process')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
+                style={{ backgroundColor: accentBg }}
+            >
+                <Sparkles size={14} />
+                <span>Tách bài hát mới</span>
+            </button>
+        </div>
+    ) : (
         <div className="flex items-center gap-2">
             {isJobRunning ? (
                 <button
@@ -220,7 +247,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         </div>
     );
 
-    const footerNote = (
+    const footerNote = activeTab === 'library' ? (
+        <span className={`text-xs ${subTextColor}`}>
+            Quản lý độc lập tệp Beat & Vocal · Không ảnh hưởng thư mục nhạc cục bộ
+        </span>
+    ) : (
         <span className={`text-xs ${subTextColor}`}>
             {activeSong ? `${activeSong.name}` : ''} · Xử lý bảo mật trên máy tính
         </span>
@@ -232,13 +263,57 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
             onClose={closeModal}
             size="l"
             title={t('karaoke.modalTitle', 'Tách Beat & Tạo Karaoke AI')}
-            subtitle={activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : undefined}
+            subtitle={activeTab === 'process' && activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : undefined}
             isDaylight={isDaylight}
             footer={footerButtons}
             footerNote={footerNote}
         >
             <div className="space-y-6 pb-4">
-                {/* 1. Cached Result Banner (If already separated) */}
+                {/* Mode switcher tabs: Tách nhạc vs Thư viện bài đã tách */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 w-fit">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('process')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            activeTab === 'process'
+                                ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-sm'
+                                : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+                        }`}
+                    >
+                        <Sparkles size={14} style={{ color: activeTab === 'process' ? accentBg : undefined }} />
+                        <span>Tách nhạc & Tạo lời</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('library')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            activeTab === 'library'
+                                ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-sm'
+                                : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+                        }`}
+                    >
+                        <Layers size={14} style={{ color: activeTab === 'library' ? accentBg : undefined }} />
+                        <span>Thư viện bài đã tách</span>
+                        {outputs.length > 0 && (
+                            <span
+                                className="px-1.5 py-0.2 rounded-full text-[10px] text-white font-mono"
+                                style={{ backgroundColor: accentBg }}
+                            >
+                                {outputs.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {activeTab === 'library' ? (
+                    <KaraokeOutputsLibraryTab
+                        theme={theme}
+                        isDaylight={isDaylight}
+                        onSelectSongForReprocess={() => setActiveTab('process')}
+                    />
+                ) : (
+                    <>
+                    {/* 1. Cached Result Banner (If already separated) */}
                 {lastResult && (
                     <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
                         <div className="flex items-center justify-between">
@@ -796,6 +871,8 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                             )}
                         </div>
                     </div>
+                )}
+                    </>
                 )}
             </div>
         </Sheet>

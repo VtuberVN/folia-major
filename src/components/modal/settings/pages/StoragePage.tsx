@@ -10,6 +10,7 @@ import { Button, CopyValue, FoldedGroup, Group, Row, Select, Toggle, Value, useS
 import { useSettingsPage } from './settingsPageContext';
 import ConfigTransferRows from './storage/ConfigTransferRows';
 import FolderWatchGroup from './storage/FolderWatchGroup';
+import AiModelsGroup from '../AiModelsGroup';
 import { BACKUP, CACHE_ROWS, CACHES, MEDIA, O } from './storage/options';
 
 // src/components/modal/settings/pages/StoragePage.tsx
@@ -106,6 +107,8 @@ const StoragePage: React.FC = () => {
                     </Row>
                 ))}
             </Group>
+
+            {isElectron && <AiModelsGroup />}
 
             <FolderWatchGroup />
 

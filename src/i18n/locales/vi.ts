@@ -1295,6 +1295,14 @@ const vi = {
         "title": "Tích hợp Spotify cục bộ",
         "description": "Đọc ứng dụng Spotify máy tính mà không cần cấp quyền Web API"
       },
+      "ai-karaoke-separate": {
+        "title": "Tách nhạc & Tạo Karaoke AI",
+        "description": "Tách giọng hát, nhạc nền beat và tạo file lời bài hát Karaoke nhảy chữ"
+      },
+      "ai-karaoke-library": {
+        "title": "Thư viện bài hát đã tách lời AI",
+        "description": "Quản lý, nghe lại Beat/Vocal và xuất lời các bài hát đã tách bằng AI"
+      },
       "settings-stage-mode": {
         "title": "Chế độ Stage",
         "description": "Đi tới cài đặt trình phát ngoài Stage"

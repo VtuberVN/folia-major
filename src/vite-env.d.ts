@@ -1039,6 +1039,8 @@ declare global {
         cancelDownloadModel: (modelId: string) => Promise<{ canceled: boolean }>;
         deleteModel: (modelId: string) => Promise<{ removed: boolean; path?: string; error?: string }>;
         getCachedResult: (songId: string) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult | null>;
+        listOutputs: () => Promise<import('./types/aiKaraoke').KaraokeOutputSummary[]>;
+        deleteOutput: (songId: string) => Promise<{ ok: boolean; removed?: boolean; error?: string }>;
         getStemAudio: (filePath: string) => Promise<ArrayBuffer | Uint8Array | null>;
         openModelsDir: () => Promise<{ ok: boolean; path: string }>;
         openOutputDir: (songId?: string) => Promise<{ ok: boolean; path: string }>;

@@ -1,12 +1,17 @@
-// src/components/modal/settings/AiModelsGroup.tsx
-// Settings group managing AI Karaoke models (MSS & ASR): download, delete, and disk usage.
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Trash2, Check, RefreshCw, Cpu, Sparkles } from 'lucide-react';
+import { Download, Trash2, Check, RefreshCw, Cpu, Sparkles, Layers, FolderOpen } from 'lucide-react';
 import { Group, Row, Button, Value, type SettingsGroupDef } from './kit';
-import { useAiKaraokeStore } from '../../../stores/useAiKaraokeStore';
-import { fetchAiModels, downloadAiModel, deleteAiModel } from '../../../services/aiKaraokeService';
+import { useAiKaraokeStore, openAiKaraokeLibraryModal } from '../../../stores/useAiKaraokeStore';
+import {
+    fetchAiModels,
+    downloadAiModel,
+    deleteAiModel,
+    fetchKaraokeOutputs,
+    openAiKaraokeOutputDirectory,
+} from '../../../services/aiKaraokeService';
+import { formatByteSize } from '../../../utils/formatByteSize';
+import { closeSettings } from '../../../stores/useSettingsModalStore';
 import type { AiModelInfo } from '../../../types/aiKaraoke';
 
 const AI_MODELS_GROUP_DEF: SettingsGroupDef = {
@@ -18,10 +23,17 @@ const AI_MODELS_GROUP_DEF: SettingsGroupDef = {
 export const AiModelsGroup: React.FC = () => {
     const { t } = useTranslation();
     const models = useAiKaraokeStore((state) => state.models);
+    const outputs = useAiKaraokeStore((state) => state.outputs);
     const [operatingModelId, setOperatingModelId] = useState<string | null>(null);
+
+    const totalBytes = useMemo(
+        () => outputs.reduce((sum, item) => sum + (item.totalSizeBytes || 0), 0),
+        [outputs],
+    );
 
     useEffect(() => {
         void fetchAiModels();
+        void fetchKaraokeOutputs();
     }, []);
 
     const handleDownload = async (modelId: string) => {
@@ -54,12 +66,48 @@ export const AiModelsGroup: React.FC = () => {
                 </p>
             }
             action={
-                <Button variant="quiet" onClick={() => void fetchAiModels()}>
+                <Button
+                    variant="quiet"
+                    onClick={() => {
+                        void fetchAiModels();
+                        void fetchKaraokeOutputs();
+                    }}
+                >
                     <RefreshCw size={13} className={operatingModelId ? 'animate-spin' : ''} />
                     <span>{t('ui.refresh', 'Làm mới')}</span>
                 </Button>
             }
         >
+            <Row
+                label={t('options.karaokeOutputsTitle', 'Bài hát đã tách lời AI')}
+                hint={t(
+                    'options.karaokeOutputsHint',
+                    'Danh sách file Beat & Vocal lưu trữ riêng biệt, không bị trộn lẫn vào thư mục nhạc cục bộ.',
+                )}
+            >
+                <div className="flex items-center gap-3">
+                    <Value>
+                        {outputs.length} {t('karaoke.tracks', 'bài')} · {formatByteSize(totalBytes)}
+                    </Value>
+                    <Button
+                        variant="quiet"
+                        onClick={() => void openAiKaraokeOutputDirectory()}
+                    >
+                        <FolderOpen size={13} />
+                        <span>{t('options.openFolder', 'Mở thư mục')}</span>
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            closeSettings();
+                            openAiKaraokeLibraryModal();
+                        }}
+                    >
+                        <Layers size={13} />
+                        <span>{t('options.manageSeparatedSongs', 'Quản lý bài đã tách')}</span>
+                    </Button>
+                </div>
+            </Row>
+
             {models.length === 0 ? (
                 <Row label={t('options.loadingAiModels', 'Đang tải danh sách mô hình...')}>
                     <Value>...</Value>

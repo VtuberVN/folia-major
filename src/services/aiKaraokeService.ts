@@ -276,3 +276,36 @@ export const openAiKaraokeOutputDirectory = async (songId?: string): Promise<boo
     }
 };
 
+/**
+ * Fetches all karaoke output records from disk.
+ */
+export const fetchKaraokeOutputs = async (): Promise<import('../types/aiKaraoke').KaraokeOutputSummary[]> => {
+    const bridge = window.electron?.aiKaraoke;
+    if (!bridge?.listOutputs) return [];
+    try {
+        const list = await bridge.listOutputs();
+        useAiKaraokeStore.getState().setOutputs(list);
+        return list;
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Deletes a karaoke output folder for a song to free space.
+ */
+export const deleteKaraokeOutput = async (songId: string): Promise<boolean> => {
+    const bridge = window.electron?.aiKaraoke;
+    if (!bridge?.deleteOutput) return false;
+    try {
+        const res = await bridge.deleteOutput(songId);
+        if (res.ok) {
+            await fetchKaraokeOutputs();
+            return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
+};
+

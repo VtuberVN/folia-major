@@ -87,3 +87,23 @@ export interface KaraokeJobProgress {
     detail?: string;
     elapsedSeconds: number;
 }
+
+export interface KaraokeOutputSummary {
+    songId: string;
+    songTitle: string;
+    artist: string;
+    duration: number;
+    mssModelUsed: MssModelId;
+    asrModelUsed: AsrModelId;
+    alignmentMode: KaraokeAlignmentMode;
+    deviceUsed?: KaraokeDevicePreference;
+    generatedAt: number;
+    vocalsPath: string;
+    instrumentalPath: string;
+    lrcPath: string;
+    enhancedLrcPath: string;
+    hasVocals: boolean;
+    hasInstrumental: boolean;
+    hasLrc: boolean;
+    totalSizeBytes: number;
+}

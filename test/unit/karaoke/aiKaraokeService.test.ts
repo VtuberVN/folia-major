@@ -156,4 +156,60 @@ describe('aiKaraokeService', () => {
             defaultFileName: 'test.lrc',
         });
     });
+
+    it('fetches separated karaoke outputs and populates the store', async () => {
+        const { fetchKaraokeOutputs } = await import('@/services/aiKaraokeService');
+        const mockOutputs = [
+            {
+                songId: 'song-1',
+                songTitle: 'Test Song',
+                artist: 'Test Artist',
+                duration: 200,
+                mssModelUsed: 'htdemucs_mnn' as const,
+                asrModelUsed: 'whisper_turbo' as const,
+                alignmentMode: 'forced_alignment' as const,
+                generatedAt: 1700000000,
+                vocalsPath: 'c:/output/vocals.wav',
+                instrumentalPath: 'c:/output/instrumental.wav',
+                lrcPath: 'c:/output/lyrics.lrc',
+                enhancedLrcPath: 'c:/output/lyrics.karaoke.lrc',
+                hasVocals: true,
+                hasInstrumental: true,
+                hasLrc: true,
+                totalSizeBytes: 50000000,
+            },
+        ];
+
+        window.electron = {
+            ...window.electron,
+            // @ts-expect-error test mock
+            aiKaraoke: {
+                listOutputs: vi.fn().mockResolvedValue(mockOutputs),
+            },
+        };
+
+        const res = await fetchKaraokeOutputs();
+        expect(res).toEqual(mockOutputs);
+        expect(useAiKaraokeStore.getState().outputs).toEqual(mockOutputs);
+    });
+
+    it('deletes a separated karaoke output and refreshes the store', async () => {
+        const { deleteKaraokeOutput } = await import('@/services/aiKaraokeService');
+        const deleteMock = vi.fn().mockResolvedValue({ ok: true });
+        const listMock = vi.fn().mockResolvedValue([]);
+
+        window.electron = {
+            ...window.electron,
+            // @ts-expect-error test mock
+            aiKaraoke: {
+                deleteOutput: deleteMock,
+                listOutputs: listMock,
+            },
+        };
+
+        const ok = await deleteKaraokeOutput('song-1');
+        expect(ok).toBe(true);
+        expect(deleteMock).toHaveBeenCalledWith('song-1');
+        expect(listMock).toHaveBeenCalled();
+    });
 });

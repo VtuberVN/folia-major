@@ -774,6 +774,8 @@ export default {
       "settings-navidrome": { "title": "Navidrome 服务器", "description": "直接跳到 Navidrome 服务器连接设置" },
       "settings-spotify": { "title": "Spotify Web API 集成", "description": "配置并连接 Spotify Web API" },
       "settings-spotify-local": { "title": "Spotify 本地应用集成", "description": "无需 Web API 授权直接读取本地 Spotify 桌面端" },
+      "ai-karaoke-separate": { "title": "AI 卡拉OK与伴奏人声分离", "description": "分离伴奏人声并生成逐字对齐卡拉OK歌词" },
+      "ai-karaoke-library": { "title": "AI 分离伴奏曲库", "description": "管理并回放已分离的人声与伴奏文件" },
       "settings-stage-mode": { "title": "Stage 模式", "description": "直接跳到 Stage 外部播放器设置" },
       "settings-media-cache": { "title": "媒体缓存", "description": "直接跳到已下载音频的缓存" },
       "filter-view": { "title": "筛选当前视图", "description": "按名称缩小屏幕上的卡片范围" },

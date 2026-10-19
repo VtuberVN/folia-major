@@ -318,6 +318,97 @@ const getCachedKaraoke = (userDataPath, songId) => {
     }
 };
 
+/**
+ * Lists all cached karaoke outputs from disk with metadata, sorted newest first.
+ */
+const listAllKaraokeOutputs = (userDataPath) => {
+    const baseDir = getKaraokeOutputDir(userDataPath);
+    if (!fs.existsSync(baseDir)) return [];
+
+    try {
+        const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+        const results = [];
+
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const songDir = path.join(baseDir, entry.name);
+            const infoPath = path.join(songDir, 'info.json');
+            if (!fs.existsSync(infoPath)) continue;
+
+            try {
+                const raw = fs.readFileSync(infoPath, 'utf8');
+                const data = JSON.parse(raw);
+
+                let totalSizeBytes = 0;
+                let hasVocals = false;
+                let hasInstrumental = false;
+                let hasLrc = false;
+
+                if (data.vocalsPath && fs.existsSync(data.vocalsPath)) {
+                    hasVocals = true;
+                    try { totalSizeBytes += fs.statSync(data.vocalsPath).size; } catch {}
+                }
+                if (data.instrumentalPath && fs.existsSync(data.instrumentalPath)) {
+                    hasInstrumental = true;
+                    try { totalSizeBytes += fs.statSync(data.instrumentalPath).size; } catch {}
+                }
+                if (data.lrcPath && fs.existsSync(data.lrcPath)) {
+                    hasLrc = true;
+                    try { totalSizeBytes += fs.statSync(data.lrcPath).size; } catch {}
+                }
+                if (data.enhancedLrcPath && fs.existsSync(data.enhancedLrcPath)) {
+                    try { totalSizeBytes += fs.statSync(data.enhancedLrcPath).size; } catch {}
+                }
+
+                results.push({
+                    songId: String(data.songId || entry.name),
+                    songTitle: data.songTitle || entry.name,
+                    artist: data.artist || '',
+                    duration: Number(data.duration) || 0,
+                    mssModelUsed: data.mssModelUsed || 'htdemucs_mnn',
+                    asrModelUsed: data.asrModelUsed || 'whisper_turbo',
+                    alignmentMode: data.alignmentMode || 'forced_alignment',
+                    deviceUsed: data.deviceUsed || 'cpu',
+                    generatedAt: Number(data.generatedAt) || (fs.statSync(infoPath).mtimeMs || 0),
+                    vocalsPath: data.vocalsPath || '',
+                    instrumentalPath: data.instrumentalPath || '',
+                    lrcPath: data.lrcPath || '',
+                    enhancedLrcPath: data.enhancedLrcPath || '',
+                    hasVocals,
+                    hasInstrumental,
+                    hasLrc,
+                    totalSizeBytes,
+                });
+            } catch (err) {
+                console.warn(`[aiKaraoke] Error reading info.json in ${entry.name}:`, err);
+            }
+        }
+
+        results.sort((a, b) => b.generatedAt - a.generatedAt);
+        return results;
+    } catch (err) {
+        console.error('[aiKaraoke] Error listing karaoke outputs:', err);
+        return [];
+    }
+};
+
+/**
+ * Deletes a cached karaoke output directory for a song.
+ */
+const deleteKaraokeOutput = (userDataPath, songId) => {
+    if (!songId) return { ok: false, error: 'invalid_song_id' };
+    const outputDir = path.join(getKaraokeOutputDir(userDataPath), String(songId));
+    if (!fs.existsSync(outputDir)) return { ok: true, removed: false };
+
+    try {
+        fs.rmSync(outputDir, { recursive: true, force: true });
+        return { ok: true, removed: true, songId: String(songId) };
+    } catch (err) {
+        console.error(`[aiKaraoke] Error deleting karaoke output for ${songId}:`, err);
+        return { ok: false, error: String((err && err.message) || err) };
+    }
+};
+
 module.exports = {
     MODEL_CATALOG,
     getAiModelsDir,
@@ -327,4 +418,6 @@ module.exports = {
     cancelModelDownload,
     deleteModel,
     getCachedKaraoke,
+    listAllKaraokeOutputs,
+    deleteKaraokeOutput,
 };

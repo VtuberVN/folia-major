@@ -1,12 +1,13 @@
 // src/components/command-palette/commands/aiKaraokeCommands.ts
 // Command palette integration for Folia AI Karaoke.
 
-import { Mic } from 'lucide-react';
+import { Mic, Layers } from 'lucide-react';
 import { defineCommand } from '../commandFactories';
 import type { CommandPaletteCommand, CommandPaletteContext } from '../types';
-import { openAiKaraokeModal } from '../../../stores/useAiKaraokeStore';
+import { openAiKaraokeModal, openAiKaraokeLibraryModal } from '../../../stores/useAiKaraokeStore';
 
 export const AI_KARAOKE_COMMAND_ID = 'ai-karaoke-separate';
+export const AI_KARAOKE_LIBRARY_COMMAND_ID = 'ai-karaoke-library';
 
 export const aiKaraokeCommands: CommandPaletteCommand[] = [
     defineCommand({
@@ -34,6 +35,28 @@ export const aiKaraokeCommands: CommandPaletteCommand[] = [
             const { currentSong } = context.shared;
             if (!currentSong) return false;
             openAiKaraokeModal(currentSong);
+            return true;
+        },
+    }),
+    defineCommand({
+        id: AI_KARAOKE_LIBRARY_COMMAND_ID,
+        group: 'playback',
+        title: 'Thư viện bài hát đã tách lời AI (Karaoke Stems)',
+        description: 'Quản lý, nghe lại Beat/Vocal và xuất lời các bài hát đã tách bằng AI',
+        keywords: [
+            'karaoke library',
+            'thu vien karaoke',
+            'bai da tach',
+            'stems',
+            'stems library',
+            'karaoke stems',
+            'danh sach tach loi',
+            'beat library',
+        ],
+        icon: Layers,
+        isAvailable: () => true,
+        execute: async () => {
+            openAiKaraokeLibraryModal();
             return true;
         },
     }),

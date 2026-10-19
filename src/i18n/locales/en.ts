@@ -774,6 +774,8 @@ export default {
       "settings-navidrome": { "title": "Navidrome server", "description": "Jump to the Navidrome server connection" },
       "settings-spotify": { "title": "Spotify Web API integration", "description": "Configure and connect Spotify Web API" },
       "settings-spotify-local": { "title": "Spotify Local integration", "description": "Read the local Spotify desktop app without Web API authorization" },
+      "ai-karaoke-separate": { "title": "AI Karaoke & Audio Separation", "description": "Separate vocals and instrumental beat and generate word-level synced karaoke lyrics" },
+      "ai-karaoke-library": { "title": "AI Karaoke Stems Library", "description": "Manage, play back separated beats and vocals, and edit lyrics" },
       "settings-stage-mode": { "title": "Stage mode", "description": "Jump to the Stage external player settings" },
       "settings-media-cache": { "title": "Media cache", "description": "Jump to the downloaded audio cache" },
       "filter-view": { "title": "Filter this view", "description": "Narrow the cards on screen by name" },
