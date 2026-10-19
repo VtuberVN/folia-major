@@ -1048,6 +1048,7 @@ declare global {
           jobId: string;
           audioPath?: string;
           audioSrc?: string;
+          audioCacheKey?: string;
           songId: string;
           songTitle: string;
           artist: string;

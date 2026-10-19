@@ -1175,6 +1175,10 @@ const vi = {
         "title": "Cài đặt tương tác",
         "description": "Mở cài đặt bàn phím, phím tắt và tương tác lưới"
       },
+      "settings-global-shortcuts": {
+        "title": "Phím tắt toàn cục",
+        "description": "Đi đến phần gán phím tắt điều khiển phát nhạc toàn hệ thống"
+      },
       "settings-custom-shortcut": {
         "title": "Phím tắt tùy chỉnh",
         "description": "Đi đến phần gán phím tắt bàn phím tùy chỉnh"
@@ -1359,6 +1363,10 @@ const vi = {
         "title": "Tạm dừng",
         "description": "Tạm dừng phát bài hiện tại"
       },
+      "playback-toggle": {
+        "title": "Phát / Tạm dừng",
+        "description": "Tạm dừng khi đang phát, phát tiếp khi đang tạm dừng"
+      },
       "playback-next": {
         "title": "Bài tiếp theo",
         "description": "Phát bài tiếp theo"
@@ -1386,6 +1394,14 @@ const vi = {
       "playback-mute": {
         "title": "Tắt tiếng",
         "description": "Tắt tiếng hoặc bật lại âm thanh"
+      },
+      "playback-volume-up": {
+        "title": "Tăng âm lượng",
+        "description": "Tăng âm lượng thêm 5%"
+      },
+      "playback-volume-down": {
+        "title": "Giảm âm lượng",
+        "description": "Giảm âm lượng đi 5%"
       },
       "playback-shuffle": {
         "title": "Xáo trộn hàng đợi",
@@ -1658,6 +1674,7 @@ const vi = {
     }
   },
   "ui": {
+    "visualizerRandom": "Ngẫu nhiên",
     "noTrack": "Không có bài hát",
     "selectPlaceholder": "Vui lòng chọn...",
     "previousTrack": "Bài trước",
@@ -2598,6 +2615,16 @@ const vi = {
     "lyricMatchPriorityDesc": "Khi nhiều nguồn lời đều có kết quả khớp độ tin cậy cao, ưu tiên nguồn này trước."
   },
   "options": {
+    "randomVisualizerModes": "Phong cách tham gia ngẫu nhiên",
+    "randomVisualizerSelectAll": "Chọn tất cả",
+    "randomVisualizerCurrentStyle": "Phong cách hiện tại",
+    "randomVisualizerAtLeastOne": "Chọn ít nhất một phong cách",
+    "randomVisualizerReroll": "Đổi ngẫu nhiên phong cách khác",
+    "previewGlobalSettings": "Cài đặt chung",
+    "randomPool": "Kho phong cách ngẫu nhiên",
+    "randomPoolCount": "Đã chọn {{selected}}/{{total}}",
+    "randomPoolDesc": "Mỗi bài hát sẽ chuyển sang một trong các phong cách đã chọn, áp dụng thiết lập đã lưu của riêng phong cách đó.",
+    "randomPoolChoose": "Chọn kho ngẫu nhiên",
     "ponderHints": "Gợi ý Khám phá",
     "ponderHintsDesc": "Rê chuột vào nút hỗ trợ sẽ hiển thị gợi ý giữ G để mở hướng dẫn cử chỉ động.",
     "ponderHintsAlways": "Luôn hiển thị",
@@ -2633,6 +2660,7 @@ const vi = {
     "settingsHeadingStreaming": "Phát trực tiếp & Sân khấu",
     "settingsHeadingCommandPalette": "Bảng lệnh nhanh",
     "settingsHeadingGrids": "Tường áp phích",
+    "settingsHeadingGlobalShortcuts": "Phím tắt toàn cục",
     "settingsSearchTitle": "Tìm kiếm",
     "settingsWindowName": "Cài đặt",
     "settingsSearchCount": "{{n}} mục",
@@ -2669,6 +2697,21 @@ const vi = {
     "customShortcutNoCommand": "Chưa chọn",
     "customShortcutTaken": "Phím này đã được gán cho phím tắt khác",
     "customShortcutLettersOnly": "Chỉ chấp nhận chữ cái A–Z",
+    "globalShortcuts": "Phím tắt toàn cục",
+    "globalShortcutsDesc": "Các phím điều khiển phát nhạc vẫn hoạt động ngay cả khi Folia đang chạy nền.",
+    "globalShortcutsNote": "Các phím bổ trợ được cố định là Ctrl+Alt+Shift (Control+Option+Shift trên macOS); bạn chỉ cần chọn phím cuối cùng. Tổ hợp phím đã bị phần mềm khác sử dụng sẽ được đánh dấu trên dòng tương ứng.",
+    "globalShortcutsPortalDesc": "Trên Wayland, môi trường desktop của bạn sẽ phụ trách gán các phím này.",
+    "globalShortcutsPortalNote": "Sau khi đăng ký, hãy gán phím cho từng mục theo hướng dẫn của desktop. Phím đề xuất cho mỗi mục:",
+    "globalShortcutPortalRegister": "Đăng ký với desktop",
+    "globalShortcutPortalUnregister": "Hủy đăng ký",
+    "globalShortcutPortalRegistered": "Đã đăng ký. Vui lòng gán phím trong cài đặt desktop của bạn.",
+    "globalShortcutSlot": "Phím tắt {{index}}",
+    "globalShortcutCommand": "Lệnh cho phím tắt {{index}}",
+    "globalShortcutNoCommand": "Chưa chọn",
+    "globalShortcutLettersAndDigits": "Chỉ chấp nhận chữ cái A–Z và số 0–9",
+    "globalShortcutReserved": "GNOME dùng Ctrl+Alt+Shift+R để quay màn hình; vui lòng chọn phím khác",
+    "globalShortcutDuplicate": "Một phím tắt toàn cục khác đã sử dụng phím này",
+    "globalShortcutTakenBySystem": "Một ứng dụng khác đã sử dụng tổ hợp phím này",
     "replayGainMode": "Chế độ ReplayGain (Cân bằng âm lượng)",
     "replayGainModeDesc": "Chuẩn hóa âm lượng phát bằng siêu dữ liệu ReplayGain của bài hát hoặc album khi khả dụng.",
     "transitionSettings": "Chuyển tiếp Folia",
@@ -3347,7 +3390,8 @@ const vi = {
     "beatFxUnavailable_noGpu": "Không tìm thấy WebGPU khả dụng trên thiết bị này, do đó các hiệu ứng nhịp sẽ không có tác dụng.",
     "beatFxUnavailable_desktopOnly": "Hiệu ứng nhịp chỉ khả dụng trên ứng dụng máy tính.",
     "beatEffects": "Hiệu ứng nhịp",
-    "beatEffectsNeedSmartBeat": "Bật chế độ nhịp thông minh ở trên để các hiệu ứng này hoạt động.",
+    "beatEffectsNeedSmartBeat": "Bật chế độ nhịp thông minh trong thẻ «Cài đặt chung» để các hiệu ứng này hoạt động.",
+    "beatEffectsOpenSmartBeat": "Đến thẻ «Cài đặt chung»",
     "beatEffectStrength": "Độ mạnh",
     "beatEffectNeedsDrums": "Thiếu mô hình HTDemucs trong bản cài đặt này; vui lòng cài đặt lại Folia. Đối với bài hát không có tiếng trống, hiệu ứng cũng sẽ không hiển thị.",
     "beatEffect_sonnetLensTear": "Xé ống kính",
