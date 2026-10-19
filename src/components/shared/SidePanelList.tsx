@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Plus } from 'lucide-react';
+import { X, Play, Plus, Download } from 'lucide-react';
 import { List as VirtualList } from 'react-window';
 import { useTranslation } from 'react-i18next';
 import { getSizedCoverUrl } from '../../utils/coverUrl';
@@ -165,10 +165,11 @@ export const TrackListItem = React.memo<{
     style: React.CSSProperties;
     onPlay: () => void;
     onAddToQueue?: () => void;
+    onDownload?: () => void;
     isUnavailable?: boolean;
     isActive?: boolean;
     albumTrackLabel?: string | null;
-}>(({ track, index, style, onPlay, onAddToQueue, isUnavailable, isActive, albumTrackLabel }) => {
+}>(({ track, index, style, onPlay, onAddToQueue, onDownload, isUnavailable, isActive, albumTrackLabel }) => {
     const { t } = useTranslation();
     const coverUrl = getSongCoverUrl(track) || '';
     const artistName = getSongArtistLabel(track).split(',')[0]?.trim() || 'Unknown Artist';
@@ -224,6 +225,19 @@ export const TrackListItem = React.memo<{
                     </div>
                     <div className="text-[10px] opacity-60 truncate leading-tight mt-0.5">{artistName}</div>
                 </div>
+                {!isUnavailable && onDownload && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDownload();
+                        }}
+                        className="p-2 ml-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        title={t('download.downloadCurrentSong', 'Tải bài hát này về máy')}
+                        style={{ color: 'var(--text-secondary)' }}
+                    >
+                        <Download size={16} />
+                    </button>
+                )}
                 {!isUnavailable && onAddToQueue && (
                     <button
                         onClick={(e) => {

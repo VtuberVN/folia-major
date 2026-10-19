@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { motion, useMotionValue, animate, AnimatePresence, useDragControls, useIsPresent } from 'framer-motion';
 import { ChevronLeft, Crosshair, Disc, Download, Play, Plus, Loader2, Heart, ListPlus, Pencil, RefreshCw, Trash2, Star, Tags } from 'lucide-react';
 import GridPanelToggleIndicator from '../shared/GridPanelToggleIndicator';
+import SongDownloadDialog from '../../../../components/download/SongDownloadDialog';
+import { startSongDownloads } from '../../../../services/songDownloadService';
+import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { useTranslation } from 'react-i18next';
 import { SongResult, type LocalSong, type StatusMessage, Theme, type UnifiedSong } from '../../../../types';
 import { isSongUnavailable } from '../../../../services/onlineMusic/songAvailability';
@@ -463,6 +466,7 @@ export const GridView: React.FC<GridViewProps> = ({
     const [isPlaylistPickerOpen, setIsPlaylistPickerOpen] = useState(false);
     const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
     const [isDeleteFolderOpen, setIsDeleteFolderOpen] = useState(false);
+    const [isDownloadPickerOpen, setIsDownloadPickerOpen] = useState(false);
     const [showCutInPanel, setShowCutInPanel] = useState(false);
     const [showSidePanel, setShowSidePanel] = useState(false);
     // 退场动画期间旧网格仍挂着：只有在场的那一个接键盘、筛选框和命令面板，
@@ -2025,6 +2029,14 @@ export const GridView: React.FC<GridViewProps> = ({
                                         ? t('playlist.addFilteredTracksToQueue', { count: contextActionTracks.length })
                                         : t('navidrome.addToQueue')}
                                 </button>
+                                <button
+                                    onClick={() => setIsDownloadPickerOpen(true)}
+                                    disabled={playableTracks.length === 0}
+                                    className="w-full py-2.5 rounded-full text-xs font-semibold bg-zinc-800/10 dark:bg-zinc-100/10 hover:bg-zinc-900 hover:text-zinc-100 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer"
+                                >
+                                    <Download size={14} />
+                                    {t('download.downloadSongs')}
+                                </button>
                                 {canAddNavidromeToPlaylist && (
                                     <button
                                         onClick={() => setIsPlaylistPickerOpen(true)}
@@ -2244,10 +2256,21 @@ export const GridView: React.FC<GridViewProps> = ({
                             onAddToQueue={onAddTrackToQueue ? () => {
                                 onAddTrackToQueue(track);
                             } : undefined}
+                            onDownload={() => {
+                                const quality = useAudioSettingsStore.getState().audioQuality || 'lossless';
+                                void startSongDownloads([track], quality);
+                            }}
                         />
                     )}
                 />
             )}
+
+            <SongDownloadDialog
+                isOpen={isDownloadPickerOpen}
+                songs={playableTracks}
+                onClose={() => setIsDownloadPickerOpen(false)}
+                theme={theme}
+            />
         </motion.div>
     );
 };
