@@ -70,17 +70,17 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                 </PanelIconButton>
             )}
             {currentSong && isJobRunning ? (
-                <PanelIconButton
-                    label={`Đang tách Beat AI (${jobProgress}%) · Bấm để xem chi tiết`}
-                    filled
-                    onClick={handleOpenKaraoke}
-                    style={{ color: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.2)' }}
-                >
-                    <span className="flex items-center gap-1 text-[11px] font-bold">
-                        <Mic size={14} className="animate-pulse" />
-                        <span>{jobProgress}%</span>
-                    </span>
-                </PanelIconButton>
+                <Tooltip text={`Đang tách Beat AI (${jobProgress}%) · Bấm để xem chi tiết`} className="inline-flex shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleOpenKaraoke}
+                        className="st-t-fast st-focus-inside flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                        style={{ color: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.2)' }}
+                    >
+                        <Mic size={15} className="animate-pulse shrink-0" />
+                        <span className="font-mono text-[11px] font-bold tracking-tight">Tách Beat: {jobProgress}%</span>
+                    </button>
+                </Tooltip>
             ) : currentSong && cachedKaraoke ? (
                 <>
                     <PanelIconButton

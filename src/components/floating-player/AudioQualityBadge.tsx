@@ -49,16 +49,21 @@ export default function AudioQualityBadge({
 
     const isExclusive = wasapiExclusiveEnabled || wasapiMode === 'exclusive' || snapshot?.backend === 'wasapi-exclusive';
 
-    // If we have WASAPI support on Windows, fallback label with audio specs when no stream info exists but engine is running
-    if (!label && hasWasapi && (isExclusive || wasapiMode === 'shared' || snapshot)) {
-        if (isExclusive) {
-            label = snapshot?.sampleRate
-                ? `${(snapshot.sampleRate / 1000).toFixed(1)} kHz · ${snapshot.bitsPerSample || 16}-bit`
-                : t('options.wasapiModeExclusive', 'Exclusive');
-        } else {
-            // Default shared Chromium audio output pipeline format
-            label = '44.1 kHz · 16-bit';
+    // Fallback audio specs for Windows audio pipeline when stream info is missing or partial
+    if (!label) {
+        if (hasWasapi) {
+            if (isExclusive) {
+                label = snapshot?.sampleRate
+                    ? `${(snapshot.sampleRate / 1000).toFixed(1)} kHz · ${snapshot.bitsPerSample || 16}-bit`
+                    : t('options.wasapiModeExclusive', 'Exclusive');
+            } else {
+                // Windows Shared audio output pipeline format
+                label = '44.1 kHz · 16-bit';
+            }
         }
+    } else if (hasWasapi && !isExclusive && !effectiveInfo?.sampleRate && !effectiveInfo?.bitDepth) {
+        // If stream has bitrate/codec but lacks sample rate / bit depth, append Windows shared format
+        label = `${label} · 44.1 kHz · 16-bit`;
     }
 
     // Hide only if there's neither format info nor WASAPI toggle available

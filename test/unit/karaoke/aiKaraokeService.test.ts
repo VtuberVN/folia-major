@@ -212,4 +212,50 @@ describe('aiKaraokeService', () => {
         expect(deleteMock).toHaveBeenCalledWith('song-1');
         expect(listMock).toHaveBeenCalled();
     });
+
+    it('gracefully handles user cancellation without setting error stage', async () => {
+        window.electron = {
+            ...window.electron,
+            // @ts-expect-error test mock
+            aiKaraoke: {
+                startJob: vi.fn().mockResolvedValue({ canceled: true }),
+            },
+        };
+
+        const song: SongResult = {
+            id: 'song-cancel',
+            name: 'Cancel Test Song',
+            artists: [{ id: 0, name: 'Artist' }],
+            album: { id: 0, name: 'Album' },
+            durationMs: 120000,
+        };
+
+        const result = await startKaraokeJob({ song });
+        expect(result.canceled).toBe(true);
+        expect(useAiKaraokeStore.getState().activeJobId).toBeNull();
+        expect(useAiKaraokeStore.getState().jobStage).toBe('idle');
+    });
+
+    it('gracefully catches Canceled by user error without throwing or setting error stage', async () => {
+        window.electron = {
+            ...window.electron,
+            // @ts-expect-error test mock
+            aiKaraoke: {
+                startJob: vi.fn().mockRejectedValue(new Error('Canceled by user')),
+            },
+        };
+
+        const song: SongResult = {
+            id: 'song-cancel-2',
+            name: 'Cancel Test Song 2',
+            artists: [{ id: 0, name: 'Artist' }],
+            album: { id: 0, name: 'Album' },
+            durationMs: 120000,
+        };
+
+        const result = await startKaraokeJob({ song });
+        expect(result.canceled).toBe(true);
+        expect(useAiKaraokeStore.getState().activeJobId).toBeNull();
+        expect(useAiKaraokeStore.getState().jobStage).toBe('idle');
+    });
 });

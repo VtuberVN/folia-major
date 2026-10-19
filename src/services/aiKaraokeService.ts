@@ -229,9 +229,15 @@ export const startKaraokeJob = async (
 
         if (result && !result.canceled) {
             store.setResult(result);
+        } else if (result?.canceled) {
+            store.resetJob();
         }
         return result;
     } catch (err) {
+        if (err instanceof Error && (err.message.includes('Canceled by user') || err.message.includes('Canceled'))) {
+            store.resetJob();
+            return { canceled: true } as any;
+        }
         store.updateProgress({
             stage: 'error',
             progress: 0,

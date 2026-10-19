@@ -627,10 +627,25 @@ const writeWavFile = (filePath, left, right, sampleRate = 44100) => {
     fs.writeFileSync(filePath, buffer);
 };
 
+const readPcmFromWavBuf = (wavBuf) => {
+    const dataStart = 44;
+    if (wavBuf.length <= dataStart) {
+        throw new Error('Tệp âm thanh trống hoặc không chứa dữ liệu audio.');
+    }
+    const numSamples = Math.floor((wavBuf.length - dataStart) / 4);
+    const left = new Float32Array(numSamples);
+    const right = new Float32Array(numSamples);
+    for (let i = 0; i < numSamples; i++) {
+        left[i] = wavBuf.readInt16LE(dataStart + i * 4) / 32768.0;
+        right[i] = wavBuf.readInt16LE(dataStart + i * 4 + 2) / 32768.0;
+    }
+    return { left, right, sampleRate: 44100 };
+};
+
 /**
  * Decodes input audio into stereo Float32Array PCM at 44.1kHz using FFmpeg.
  */
-const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTitle, artist, userDataPath, activeJob }) => {
+const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTitle, artist, userDataPath, activeJob, onProgress }) => {
     let targetPath = null;
 
     // 1. Direct path from audioPath
@@ -720,130 +735,157 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTi
         }
     }
 
-    // If targetPath was found: decode from local file
+    // If targetPath was found: decode from local file via temp WAV
     if (targetPath) {
-        return new Promise((resolve, reject) => {
-            if (activeJob?.aborted) {
-                reject(new Error('Canceled by user'));
-                return;
-            }
-
-            const args = ['-i', targetPath, '-vn', '-f', 'wav', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', 'pipe:1'];
-            const proc = spawn(ffmpegBin, args, { windowsHide: true });
-            if (activeJob) {
-                activeJob.activeProc = proc;
-            }
-
-            const chunks = [];
-            let errOutput = '';
-
-            proc.stdout.on('data', chunk => chunks.push(chunk));
-            proc.stderr.on('data', data => { errOutput += data.toString(); });
-
-            proc.on('error', err => {
-                if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
-                reject(new Error(`FFmpeg spawn error: ${err.message}`));
-            });
-            proc.on('close', code => {
-                if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
-                if (activeJob?.aborted) {
-                    reject(new Error('Canceled by user'));
-                    return;
-                }
-                if (code !== 0) {
-                    reject(new Error(`FFmpeg exited with code ${code}: ${errOutput.slice(-300)}`));
-                    return;
-                }
-                const wavBuf = Buffer.concat(chunks);
-                const dataStart = 44;
-                if (wavBuf.length <= dataStart) {
-                    reject(new Error('Tệp âm thanh trống hoặc không chứa dữ liệu audio.'));
-                    return;
-                }
-                const numSamples = Math.floor((wavBuf.length - dataStart) / 4);
-                const left = new Float32Array(numSamples);
-                const right = new Float32Array(numSamples);
-                for (let i = 0; i < numSamples; i++) {
-                    left[i] = wavBuf.readInt16LE(dataStart + i * 4) / 32768.0;
-                    right[i] = wavBuf.readInt16LE(dataStart + i * 4 + 2) / 32768.0;
-                }
-                resolve({ left, right, sampleRate: 44100 });
-            });
-        });
-    }
-
-    // 6. If audioSrc is HTTP/HTTPS or folia scheme online stream: download & pipe to ffmpeg stdin
-    if (audioSrc && typeof audioSrc === 'string' && (/^https?:\/\//i.test(audioSrc) || /^folia-[a-z0-9_-]+:\/\//i.test(audioSrc))) {
-        return new Promise(async (resolve, reject) => {
-            try {
+        const tempWavFile = path.join(os.tmpdir(), `folia-dec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.wav`);
+        try {
+            await new Promise((resolve, reject) => {
                 if (activeJob?.aborted) {
                     reject(new Error('Canceled by user'));
                     return;
                 }
 
-                let electronNet = null;
-                try {
-                    const electron = require('electron');
-                    if (electron && electron.net) {
-                        electronNet = electron.net;
-                    }
-                } catch {}
-
-                const fetchFn = (electronNet && electronNet.fetch) ? electronNet.fetch : (typeof fetch === 'function' ? fetch : null);
-                if (!fetchFn) {
-                    reject(new Error('Không có HTTP client để tải stream nhạc'));
-                    return;
-                }
-
-                const referer = getRefererForUrl(audioSrc);
-                const reqHeaders = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    ...(referer ? { Referer: referer } : {}),
-                };
-
-                let resp = null;
-                try {
-                    resp = await fetchFn(audioSrc, {
-                        headers: reqHeaders,
-                        signal: activeJob?.abortController?.signal,
-                    });
-                } catch (fetchErr) {
-                    if (typeof fetch === 'function' && fetchFn !== fetch) {
-                        resp = await fetch(audioSrc, {
-                            headers: reqHeaders,
-                            signal: activeJob?.abortController?.signal,
-                        });
-                    } else {
-                        throw fetchErr;
-                    }
-                }
-
-                if (!resp || !resp.ok) {
-                    reject(new Error(`Lỗi tải stream âm thanh HTTP ${resp?.status || 'Unknown'}: ${resp?.statusText || ''}`));
-                    return;
-                }
-
-                if (activeJob?.aborted) {
-                    reject(new Error('Canceled by user'));
-                    return;
-                }
-
-                const args = ['-i', 'pipe:0', '-vn', '-f', 'wav', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', 'pipe:1'];
+                const args = ['-i', targetPath, '-vn', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', '-y', tempWavFile];
                 const proc = spawn(ffmpegBin, args, { windowsHide: true });
                 if (activeJob) {
                     activeJob.activeProc = proc;
                 }
 
-                const chunks = [];
                 let errOutput = '';
-
-                proc.stdout.on('data', chunk => chunks.push(chunk));
                 proc.stderr.on('data', data => { errOutput += data.toString(); });
 
-                const arrayBuffer = await resp.arrayBuffer();
-                proc.stdin.write(Buffer.from(arrayBuffer));
-                proc.stdin.end();
+                proc.on('error', err => {
+                    if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                    reject(new Error(`FFmpeg spawn error: ${err.message}`));
+                });
+                proc.on('close', code => {
+                    if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                    if (activeJob?.aborted) {
+                        reject(new Error('Canceled by user'));
+                        return;
+                    }
+                    if (code !== 0) {
+                        reject(new Error(`FFmpeg exited with code ${code}: ${errOutput.slice(-300)}`));
+                        return;
+                    }
+                    resolve();
+                });
+            });
 
+            if (!fs.existsSync(tempWavFile)) {
+                throw new Error('Không tạo được tệp âm thanh giải mã WAV.');
+            }
+            const wavBuf = fs.readFileSync(tempWavFile);
+            return readPcmFromWavBuf(wavBuf);
+        } finally {
+            try { if (fs.existsSync(tempWavFile)) fs.unlinkSync(tempWavFile); } catch {}
+        }
+    }
+
+    // 6. If audioSrc is HTTP/HTTPS or folia scheme online stream: download & decode to temp WAV file
+    if (audioSrc && typeof audioSrc === 'string' && (/^https?:\/\//i.test(audioSrc) || /^folia-[a-z0-9_-]+:\/\//i.test(audioSrc))) {
+        const tempAudioFile = path.join(os.tmpdir(), `folia-stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.tmp`);
+        const tempWavFile = path.join(os.tmpdir(), `folia-dec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.wav`);
+
+        try {
+            if (activeJob?.aborted) {
+                throw new Error('Canceled by user');
+            }
+
+            let electronNet = null;
+            try {
+                const electron = require('electron');
+                if (electron && electron.net) {
+                    electronNet = electron.net;
+                }
+            } catch {}
+
+            const fetchFn = (electronNet && electronNet.fetch) ? electronNet.fetch : (typeof fetch === 'function' ? fetch : null);
+            if (!fetchFn) {
+                throw new Error('Không có HTTP client để tải stream nhạc');
+            }
+
+            const referer = getRefererForUrl(audioSrc);
+            const reqHeaders = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                ...(referer ? { Referer: referer } : {}),
+            };
+
+            onProgress?.(6, 'Đang kết nối luồng âm thanh bài hát...', 'HTTP Stream');
+
+            let resp = null;
+            try {
+                resp = await fetchFn(audioSrc, {
+                    headers: reqHeaders,
+                    signal: activeJob?.abortController?.signal,
+                });
+            } catch (fetchErr) {
+                if (typeof fetch === 'function' && fetchFn !== fetch) {
+                    resp = await fetch(audioSrc, {
+                        headers: reqHeaders,
+                        signal: activeJob?.abortController?.signal,
+                    });
+                } else {
+                    throw fetchErr;
+                }
+            }
+
+            if (!resp || !resp.ok) {
+                throw new Error(`Lỗi tải stream âm thanh HTTP ${resp?.status || 'Unknown'}: ${resp?.statusText || ''}`);
+            }
+
+            if (activeJob?.aborted) {
+                throw new Error('Canceled by user');
+            }
+
+            const contentLength = Number(resp.headers.get('content-length')) || 0;
+            let downloadedBytes = 0;
+            const fileStream = fs.createWriteStream(tempAudioFile);
+
+            if (resp.body && typeof resp.body.getReader === 'function') {
+                const reader = resp.body.getReader();
+                while (true) {
+                    if (activeJob?.aborted) {
+                        try { reader.cancel(); } catch {}
+                        fileStream.destroy();
+                        throw new Error('Canceled by user');
+                    }
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        downloadedBytes += value.length;
+                        fileStream.write(Buffer.from(value));
+                        if (contentLength > 0) {
+                            const pct = Math.min(14, Math.round(6 + (downloadedBytes / contentLength) * 8));
+                            onProgress?.(pct, 'Đang tải dữ liệu bài hát...', `${Math.round(downloadedBytes / 1024)} KB / ${Math.round(contentLength / 1024)} KB`);
+                        } else {
+                            onProgress?.(8, 'Đang tải dữ liệu bài hát...', `${Math.round(downloadedBytes / 1024)} KB`);
+                        }
+                    }
+                }
+                await new Promise((res, rej) => {
+                    fileStream.end(err => err ? rej(err) : res());
+                });
+            } else if (resp.arrayBuffer) {
+                const arrayBuffer = await resp.arrayBuffer();
+                fs.writeFileSync(tempAudioFile, Buffer.from(arrayBuffer));
+            }
+
+            if (activeJob?.aborted) {
+                throw new Error('Canceled by user');
+            }
+
+            onProgress?.(15, 'Đang giải mã âm thanh chuẩn PCM 44.1kHz...', 'FFmpeg Native');
+
+            // Now decode tempAudioFile -> tempWavFile
+            await new Promise((resolve, reject) => {
+                const args = ['-i', tempAudioFile, '-vn', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', '-y', tempWavFile];
+                const proc = spawn(ffmpegBin, args, { windowsHide: true });
+                if (activeJob) {
+                    activeJob.activeProc = proc;
+                }
+                let errOutput = '';
+                proc.stderr.on('data', data => { errOutput += data.toString(); });
                 proc.on('error', err => {
                     if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
                     reject(new Error(`FFmpeg spawn error: ${err.message}`));
@@ -858,25 +900,20 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTi
                         reject(new Error(`FFmpeg stream decode error (${code}): ${errOutput.slice(-300)}`));
                         return;
                     }
-                    const wavBuf = Buffer.concat(chunks);
-                    const dataStart = 44;
-                    if (wavBuf.length <= dataStart) {
-                        reject(new Error('Stream âm thanh không chứa dữ liệu audio.'));
-                        return;
-                    }
-                    const numSamples = Math.floor((wavBuf.length - dataStart) / 4);
-                    const left = new Float32Array(numSamples);
-                    const right = new Float32Array(numSamples);
-                    for (let i = 0; i < numSamples; i++) {
-                        left[i] = wavBuf.readInt16LE(dataStart + i * 4) / 32768.0;
-                        right[i] = wavBuf.readInt16LE(dataStart + i * 4 + 2) / 32768.0;
-                    }
-                    resolve({ left, right, sampleRate: 44100 });
+                    resolve();
                 });
-            } catch (err) {
-                reject(err);
+            });
+
+            if (!fs.existsSync(tempWavFile)) {
+                throw new Error('Không tạo được tệp âm thanh giải mã WAV.');
             }
-        });
+
+            const wavBuf = fs.readFileSync(tempWavFile);
+            return readPcmFromWavBuf(wavBuf);
+        } finally {
+            try { if (fs.existsSync(tempAudioFile)) fs.unlinkSync(tempAudioFile); } catch {}
+            try { if (fs.existsSync(tempWavFile)) fs.unlinkSync(tempWavFile); } catch {}
+        }
     }
 
     throw new Error('Không tìm thấy nguồn âm thanh bài hát để giải mã. Hãy bấm phát bài hát này một vài giây trên Folia hoặc tải bài hát về máy rồi bấm Thử lại.');
@@ -908,7 +945,7 @@ const runKaraokePipeline = async ({
     const startTime = Date.now();
 
     const report = (stage, progress, message, detail) => {
-        if (activeJobs.get(jobId)?.aborted) {
+        if (stage !== 'idle' && stage !== 'error' && activeJobs.get(jobId)?.aborted) {
             throw new Error('Canceled by user');
         }
         const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -990,13 +1027,18 @@ const runKaraokePipeline = async ({
                 artist,
                 userDataPath,
                 activeJob: jobRecord,
+                onProgress: (pct, msg, detail) => {
+                    report('separating_audio', pct, msg, detail);
+                },
             });
         } catch (decodeErr) {
             if (model) {
                 try { model.release(); } catch {}
             }
-            if (jobRecord.aborted || decodeErr.message === 'Canceled by user') {
-                report('idle', 0, 'Tiến trình đã được hủy bởi người dùng.', 'Canceled');
+            if (jobRecord.aborted || decodeErr.message === 'Canceled by user' || String(decodeErr).includes('Canceled')) {
+                try {
+                    onProgress?.({ jobId, stage: 'idle', progress: 0, message: 'Tiến trình đã được hủy bởi người dùng.', detail: 'Canceled', elapsedSeconds: 0 });
+                } catch {}
                 return { canceled: true };
             }
             throw new Error(`Không thể giải mã âm thanh: ${decodeErr.message}`);
@@ -1116,11 +1158,15 @@ const runKaraokePipeline = async ({
         report('completed', 100, 'Đã tách xong Beat Karaoke và tạo file lời thành công!', 'Saved to disk');
         return info;
     } catch (err) {
-        if (activeJobs.get(jobId)?.aborted || err.message === 'Canceled by user') {
-            report('idle', 0, 'Tiến trình đã được hủy bởi người dùng.', 'Canceled');
+        if (activeJobs.get(jobId)?.aborted || err.message === 'Canceled by user' || String(err).includes('Canceled')) {
+            try {
+                onProgress?.({ jobId, stage: 'idle', progress: 0, message: 'Tiến trình đã được hủy bởi người dùng.', detail: 'Canceled', elapsedSeconds: 0 });
+            } catch {}
             return { canceled: true };
         }
-        report('error', 0, `Lỗi xử lý Karaoke: ${err.message}`, String(err));
+        try {
+            report('error', 0, `Lỗi xử lý Karaoke: ${err.message}`, String(err));
+        } catch {}
         throw err;
     } finally {
         activeJobs.delete(jobId);

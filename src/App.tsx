@@ -17,7 +17,6 @@ import AppDialogs from './components/app/dialogs/AppDialogs';
 import DownloadProgressWindow from './components/download/DownloadProgressWindow';
 import { initDownloadQueue } from './services/songDownloadService';
 import AiKaraokeModal from './components/karaoke/AiKaraokeModal';
-import AiKaraokeFloatingPill from './components/karaoke/AiKaraokeFloatingPill';
 import { LrcEditorModal } from './components/modal/lyric-editor/LrcEditorModal';
 import { initAiKaraokeListeners } from './services/aiKaraokeService';
 import { parseEnhancedLRC } from './utils/lyrics/parserCore';
@@ -2955,7 +2954,6 @@ export default function App() {
             <LatticeFmNotice />
             <DownloadProgressWindow isDaylight={isDaylight} />
             <AiKaraokeModal theme={theme} isDaylight={isDaylight} onApplyLyrics={handleApplyKaraokeLyrics} />
-            <AiKaraokeFloatingPill />
             <LrcEditorModal
                 currentTime={currentTime}
                 onSeek={seekMainAudio}

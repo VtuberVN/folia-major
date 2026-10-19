@@ -140,7 +140,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         }
 
         try {
-            await startKaraokeJob({
+            const res = await startKaraokeJob({
                 song: songToProcess,
                 rawLyrics: rawLyricsText,
                 mssModel: selectedMssModel,
@@ -148,7 +148,13 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 alignmentMode,
                 devicePreference,
             });
+            if (res?.canceled) {
+                return;
+            }
         } catch (err: any) {
+            if (err?.message?.includes('Canceled')) {
+                return;
+            }
             console.error('Failed to run karaoke job:', err);
             setValidationError(err?.message || 'Có lỗi xảy ra khi bắt đầu tiến trình tách nhạc.');
         }

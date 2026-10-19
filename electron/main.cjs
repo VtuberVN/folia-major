@@ -7899,17 +7899,24 @@ ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
     } catch {}
   }
 
-  return runKaraokePipeline({
-    ...payload,
-    audioPath: resolvedAudioPath,
-    userDataPath: app.getPath('userData'),
-    appModelsDir: getBundledModelsDirectory?.(),
-    onProgress: (progress) => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send('ai-karaoke-job-progress', progress);
-      }
-    },
-  });
+  try {
+    return await runKaraokePipeline({
+      ...payload,
+      audioPath: resolvedAudioPath,
+      userDataPath: app.getPath('userData'),
+      appModelsDir: getBundledModelsDirectory?.(),
+      onProgress: (progress) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('ai-karaoke-job-progress', progress);
+        }
+      },
+    });
+  } catch (err) {
+    if (err?.message === 'Canceled by user' || String(err).includes('Canceled')) {
+      return { canceled: true };
+    }
+    throw err;
+  }
 });
 
 ipcMain.handle('ai-karaoke-cancel-job', (_event, jobId) => {
