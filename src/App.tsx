@@ -68,7 +68,7 @@ import {
 } from './components/app/search/searchCollectionAdapters';
 import { usePlayerPanelModel } from './components/app/player-panel/usePlayerPanelModel';
 import { createQueueMutations } from './components/app/player-panel/createQueueMutations';
-import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, UnifiedSong } from './types';
+import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, StageSource, UnifiedSong } from './types';
 import type { LocalSong } from './types';
 import { getLocalSongArrayBuffer } from './services/localMusicService';
 import { registerLocalTrackFileReader } from './services/analysis/trackAudio';
@@ -810,6 +810,7 @@ export default function App() {
         stageLyricsSession,
         stageMediaSession,
         nowPlayingConnectionStatus,
+        nowPlayingConnectionError,
         nowPlayingTrack,
         nowPlayingLyricPayload,
         nowPlayingProgressMs,
@@ -1718,6 +1719,19 @@ export default function App() {
         loadCurrentSongLyricPreview,
         setLyrics: setLyricsStable,
     }), [loadCurrentSongLyricPreview, setLyricsStable]);
+    const setStageSourceFromCommandPalette = useCallback(async (source: StageSource) => {
+        if (!window.electron?.setStageSource) {
+            return false;
+        }
+        try {
+            const nextStatus = await window.electron.setStageSource(source);
+            setStageStatus(nextStatus);
+            return true;
+        } catch (error) {
+            console.warn('[CommandPalette] Failed to select Stage source:', error);
+            return false;
+        }
+    }, [setStageStatus]);
     const commandPaletteContext = useCommandPaletteContext({
 
         currentSearchSourceTab: currentSearchSourceTabInPalette,
@@ -1778,6 +1792,7 @@ export default function App() {
         setThemeGenerationSource: handleThemeGenerationSourceChange,
         voiceInputPauseSupported: isElectronWindow && runsOnWindows(),
         canUseTransitionPerformance,
+        setStageSource: setStageSourceFromCommandPalette,
     }, lyricSegmentationActions);
     const commandPalette = useCommandPalette({
         isBlocked: isSettingsModalOpen
@@ -2820,6 +2835,8 @@ export default function App() {
                 stageSource={stageSource}
                 stageActiveEntryKind={stageActiveEntryKind}
                 nowPlayingConnectionStatus={nowPlayingConnectionStatus}
+                nowPlayingConnectionError={nowPlayingConnectionError}
+                hasNowPlayingTrack={Boolean(nowPlayingTrack)}
                 playerCapConnectionStatus={playerCapConnectionStatus}
             />
 

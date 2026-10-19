@@ -12,6 +12,8 @@ const Store = require('electron-store').default || require('electron-store');
 const crypto = require('crypto');
 const { createStageApi } = require('./stageApi.cjs');
 const { getWindowState } = require('./windowState.cjs');
+const { createSpotifyController } = require('./spotify.cjs');
+const { createSpotifyLocalController } = require('./spotifyLocal.cjs');
 const { createModSystem } = require('./modSystem/modSystem.cjs');
 const { MOD_PROTOCOL_PRIVILEGED_SCHEME } = require('./modSystem/modProtocol.cjs');
 const { createWindowPlaybackHandoffStore } = require('./windowPlaybackHandoff.cjs');
@@ -2579,6 +2581,15 @@ const lyricApi = createLyricApi({
   enabledSettingKey: LYRIC_API_ENABLED_SETTING_KEY,
   port: DEFAULT_LYRIC_API_PORT,
 });
+
+const spotifyPrivateStore = new Store({ projectName: 'Folia', name: 'spotify-auth' });
+const spotify = createSpotifyController({
+  privateStore: spotifyPrivateStore,
+  shell,
+  safeStorage,
+  getMainWindow: () => mainWindow,
+});
+const spotifyLocal = createSpotifyLocalController();
 
 const discordPresence = createDiscordPresenceController({
   getApplicationId: () => normalizeDiscordApplicationId(store.get(DISCORD_RICH_PRESENCE_APPLICATION_ID_SETTING_KEY)) || DEFAULT_DISCORD_APPLICATION_ID,
@@ -6365,6 +6376,7 @@ app.on('before-quit', (event) => {
   }
   voiceInputPauseMonitor.stop();
   displaySleepBlocker.stop();
+  spotify.stop();
   if (miniLyricBarWindow && !miniLyricBarWindow.isDestroyed()) {
     miniLyricBarWindow.close();
   }
@@ -7909,6 +7921,48 @@ ipcMain.handle('stage-regenerate-token', async () => {
 
 ipcMain.handle('stage-clear-state', async () => {
   return stageApi.clearStageState();
+});
+
+ipcMain.handle('spotify-get-status', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read Spotify status.');
+  }
+  return spotify.buildStatus();
+});
+
+ipcMain.handle('spotify-connect', (event, clientId) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to start Spotify authorization.');
+  }
+  return spotify.connect(clientId);
+});
+
+ipcMain.handle('spotify-disconnect', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to disconnect Spotify.');
+  }
+  return spotify.disconnect();
+});
+
+ipcMain.handle('spotify-get-playback', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read Spotify playback.');
+  }
+  return spotify.getPlayback();
+});
+
+ipcMain.handle('spotify-local-get-playback', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read local Spotify playback.');
+  }
+  return spotifyLocal.getPlayback();
+});
+
+ipcMain.handle('spotify-control-playback', (event, command) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to control Spotify playback.');
+  }
+  return spotify.controlPlayback(command);
 });
 
 ipcMain.handle('stage-complete-external-play', (event, result) => {

@@ -25,7 +25,7 @@ import { useSleepTimerStore } from '../../../stores/useSleepTimerStore';
 import { useTypographySettingsStore } from '../../../stores/useTypographySettingsStore';
 import { useThemeQuickEditorStore } from '../../../stores/useThemeQuickEditorStore';
 import { usePlayerBottomBarLayoutStore } from '../../../stores/usePlayerBottomBarLayoutStore';
-import type { SongResult } from '../../../types';
+import type { SongResult, StageSource } from '../../../types';
 import { cycleSubtitleContentMode } from '../../../utils/lyrics/alternateText';
 
 // src/components/app/command-palette-context/buildSettingsCommandContext.ts
@@ -52,6 +52,8 @@ export type SettingsCommandContextDeps = {
     voiceInputPauseSupported: boolean;
     /** A getter: the answer changes when a model download finishes, with nothing re-rendering. */
     canUseTransitionPerformance: () => boolean;
+    /** Pushes the Stage source through Electron and refreshes App's stageStatus; false when unavailable. */
+    setStageSource: (source: StageSource) => Promise<boolean>;
 };
 
 export const buildSettingsCommandContext = (
@@ -84,6 +86,7 @@ export const buildSettingsCommandContext = (
         toggleSubtitleOverlayBackground: () => typography.handleToggleSubtitleOverlayBackground(
             !useTypographySettingsStore.getState().subtitleOverlayBackground,
         ),
+        setStageSource: deps.setStageSource,
         playbackEntryView: entryView.playbackEntryView,
         setPlaybackEntryView: entryView.setPlaybackEntryView,
         librarySuiteOptions: listLibrarySuiteOptions,

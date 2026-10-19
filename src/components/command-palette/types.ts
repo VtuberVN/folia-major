@@ -2,7 +2,7 @@ import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { SearchReturnView, SearchSource } from '../../stores/useSearchNavigationStore';
 import type { LocalLibraryDisplayCatalog } from '../../services/playbackAdapters';
-import type { HomeViewTab, LatentBackgroundTuning, LocalSong, LyricData, PlayerState, ReplayGainMode, SongResult, StatusMessage, SubtitleContentMode, VisualizerMode, VisualizerBackgroundMode, MonetBackgroundTuning } from '../../types';
+import type { HomeViewTab, LatentBackgroundTuning, LocalSong, LyricData, PlayerState, ReplayGainMode, SongResult, StageSource, StatusMessage, SubtitleContentMode, VisualizerMode, VisualizerBackgroundMode, MonetBackgroundTuning } from '../../types';
 import type { LyricSegmentationRecord, LyricSegmentationSource } from '../../types/lyricSegmentation';
 import type { AppLanguagePreference } from '../../i18n/config';
 import type { PanelTab } from '../UnifiedPanel';
@@ -233,6 +233,8 @@ export type CommandPaletteSettingsContext = {
     subtitleContentMode: SubtitleContentMode;
     cycleSubtitleContentMode: () => void;
     toggleSubtitleOverlayBackground: () => void;
+    /** Selects a Stage source the same way the Integration settings picker does; false when unavailable. */
+    setStageSource: (source: StageSource) => Promise<boolean>;
     /** Which surface pressing play opens; see usePlaybackEntryViewStore. */
     playbackEntryView: PlaybackEntryView;
     setPlaybackEntryView: (view: PlaybackEntryView) => void;

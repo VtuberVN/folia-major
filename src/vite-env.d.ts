@@ -1128,6 +1128,13 @@ declare global {
       onStageExternalPlayRequest: (callback: (request: StageExternalPlayRequest) => void) => () => void;
       onStagePlayerControlRequest: (callback: (request: StagePlayerControlRequest) => void) => () => void;
       onStagePlayerQueueRequest: (callback: (request: StagePlayerQueueRequest) => void) => () => void;
+      getSpotifyStatus: () => Promise<ElectronSpotifyStatus>;
+      connectSpotify: (clientId: string) => Promise<ElectronSpotifyStatus>;
+      disconnectSpotify: () => Promise<ElectronSpotifyStatus>;
+      getSpotifyPlayback: () => Promise<ElectronSpotifyPlaybackResponse>;
+      getSpotifyLocalPlayback: () => Promise<ElectronSpotifyPlaybackResponse>;
+      controlSpotifyPlayback: (command: ElectronSpotifyPlaybackControlCommand) => Promise<ElectronSpotifyPlaybackControlResponse>;
+      onSpotifyStatusChanged: (callback: (status: ElectronSpotifyStatus) => void) => () => void;
       mods?: {
         listMods: () => Promise<{ mods: ModRuntimeInfo[]; ffmpeg: ModFfmpegStatus; directories: string[]; startSkipped?: boolean }>;
         setModEnabled: (modId: string, enabled: boolean) => Promise<{ ok: boolean; error?: string; mods: ModRuntimeInfo[] }>;

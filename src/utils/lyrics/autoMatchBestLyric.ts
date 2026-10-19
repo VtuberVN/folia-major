@@ -42,6 +42,8 @@ export interface AutoMatchProviderCandidate {
 export interface AutoMatchBestLyricOptions {
     album?: string;
     preferredSource?: LyricProviderSource;
+    /** Spotify Stage: prefer a line-synced fallback with a real timeline over an untimed one. */
+    allowLineSyncedFallback?: boolean;
     metadataCandidate?: LocalSongMetadataLyricCandidate;
     exactMatchOnly?: boolean;
     providerCandidate?: AutoMatchProviderCandidate;
@@ -74,6 +76,41 @@ export type AutoMatchBestLyricPureMusic = {
 };
 
 export type AutoMatchBestLyricResult = AutoMatchBestLyricMatch | AutoMatchBestLyricPureMusic | null;
+
+// True when the lyrics carry a usable timeline (timed words spanning >=0.5s or timed lines spanning >=1s).
+export const hasSynchronizedLyricTimeline = (lyrics: LyricData | null): lyrics is LyricData => {
+    if (!lyrics || lyrics.lines.length === 0) {
+        return false;
+    }
+
+    const timedLines = lyrics.lines.filter(line => (
+        Number.isFinite(line.startTime)
+        && Number.isFinite(line.endTime)
+        && line.startTime >= 0
+        && line.endTime > line.startTime
+        && line.fullText.trim().length > 0
+    ));
+    const timedWords = timedLines.flatMap(line => line.words).filter(word => (
+        Number.isFinite(word.startTime)
+        && Number.isFinite(word.endTime)
+        && word.endTime > word.startTime
+    ));
+    if (timedWords.length >= 2) {
+        const firstWordStart = Math.min(...timedWords.map(word => word.startTime));
+        const lastWordEnd = Math.max(...timedWords.map(word => word.endTime));
+        if (lastWordEnd - firstWordStart >= 0.5) {
+            return true;
+        }
+    }
+
+    if (timedLines.length < 2) {
+        return false;
+    }
+
+    const firstLineStart = Math.min(...timedLines.map(line => line.startTime));
+    const lastLineEnd = Math.max(...timedLines.map(line => line.endTime));
+    return lastLineEnd - firstLineStart >= 1;
+};
 
 // Whether `song` is the song picked for `source` in the metadata dialog.
 const isSelectedMetadataCandidate = (
@@ -189,6 +226,21 @@ async function matchUnderArtist(
     const bestCandidates = new Map<LyricProviderSource, SongResult | null>();
     // Written by the steps below; the cast keeps the type wide for the reads after them.
     let lineByLineFallback = null as AutoMatchBestLyricMatch | null;
+
+    // Keeps the first line-by-line fallback; with allowLineSyncedFallback, a later timed candidate replaces an untimed one.
+    const rememberFallback = (candidate: AutoMatchBestLyricMatch) => {
+        if (!lineByLineFallback) {
+            lineByLineFallback = candidate;
+            return;
+        }
+        if (
+            options.allowLineSyncedFallback
+            && !hasSynchronizedLyricTimeline(lineByLineFallback.lyrics)
+            && hasSynchronizedLyricTimeline(candidate.lyrics)
+        ) {
+            lineByLineFallback = candidate;
+        }
+    };
 
     // A preferred source that is not on offer (Spotify with no account signed in) counts as none chosen.
     const preferredSource = options.preferredSource && isLyricMatchSourceOffered(options.preferredSource)
@@ -366,7 +418,7 @@ async function matchUnderArtist(
             console.log(`[autoMatchBestLyric] Found accepted ${source} lyric match!`);
             return match;
         }
-        lineByLineFallback ??= match;
+        rememberFallback(match);
         console.log(`[autoMatchBestLyric] Keeping ${source} line-by-line lyrics as fallback while checking for word-by-word lyrics.`);
         return null;
     };
@@ -382,7 +434,7 @@ async function matchUnderArtist(
                     if (result.lyrics.isWordByWord) {
                         return result;
                     }
-                    lineByLineFallback ??= result;
+                    rememberFallback(result);
                 }
             }
         }
@@ -398,7 +450,7 @@ async function matchUnderArtist(
             if (result.lyrics.isWordByWord) {
                 return result;
             }
-            lineByLineFallback ??= result;
+            rememberFallback(result);
         }
         console.log('[autoMatchBestLyric] AMLLDB auto probe finished after NCM miss; QQ AMLLDB probing is reserved for manual matching.');
         return null;

@@ -353,6 +353,17 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('stage-player-queue-request', listener);
         return () => ipcRenderer.removeListener('stage-player-queue-request', listener);
     },
+    getSpotifyStatus: () => ipcRenderer.invoke('spotify-get-status'),
+    connectSpotify: (clientId) => ipcRenderer.invoke('spotify-connect', clientId),
+    disconnectSpotify: () => ipcRenderer.invoke('spotify-disconnect'),
+    getSpotifyPlayback: () => ipcRenderer.invoke('spotify-get-playback'),
+    getSpotifyLocalPlayback: () => ipcRenderer.invoke('spotify-local-get-playback'),
+    controlSpotifyPlayback: (command) => ipcRenderer.invoke('spotify-control-playback', command),
+    onSpotifyStatusChanged: (callback) => {
+        const listener = (_event, status) => callback(status);
+        ipcRenderer.on('spotify-status-changed', listener);
+        return () => ipcRenderer.removeListener('spotify-status-changed', listener);
+    },
     debugGetRenderedFonts: (selector) => ipcRenderer.invoke('debug-get-rendered-fonts', selector),
     mods: {
         listMods: () => ipcRenderer.invoke('folia-mods:list'),

@@ -9,6 +9,8 @@ import { Button, CopyValue, Reveal, Row, Segmented, Select, Status, TextField, T
 import ObsLinkRows from '../ObsLinkRows';
 import { useSettingsPage } from '../settingsPageContext';
 import { O } from './options';
+import SpotifySettingsCard from '../../SpotifySettingsCard';
+import SpotifyLocalSettingsCard from '../../SpotifyLocalSettingsCard';
 
 // src/components/modal/settings/pages/integration/StageModeRows.tsx
 // The stage mode rows of the 连接与集成 page. The desktop app and the web build each have their
@@ -127,7 +129,7 @@ const NowPlayingRow: React.FC = () => {
 /** The desktop app's stage mode: the app serves or follows one of three sources. */
 export const DesktopStageRows: React.FC = () => {
     const { t } = useTranslation();
-    const { stageStatus, stageSource, onToggleStageMode, onStageSourceChange, onRegenerateStageToken } = useSettingsPage().viewProps.integration.stage;
+    const { stageStatus, stageSource, onToggleStageMode, onStageSourceChange, onRegenerateStageToken, nowPlayingConnectionStatus } = useSettingsPage().viewProps.integration.stage;
     const [regenerating, setRegenerating] = useState(false);
     if (!stageStatus) {
         return null;
@@ -157,6 +159,8 @@ export const DesktopStageRows: React.FC = () => {
                             { value: 'stage-api', label: 'Stage API' },
                             { value: 'now-playing', label: 'Now Playing' },
                             { value: 'playercap', label: 'PlayerCap' },
+                            { value: 'spotify', label: t('options.stageSourceSpotifyWebApi', 'Spotify (Web API)') },
+                            { value: 'spotify-local', label: t('options.stageSourceSpotifyLocal', 'Spotify (Desktop)') },
                         ]}
                         onChange={next => void onStageSourceChange?.(next)}
                     />
@@ -166,6 +170,30 @@ export const DesktopStageRows: React.FC = () => {
                 </Reveal>
                 <Reveal when={source === 'now-playing'}>
                     <NowPlayingRow />
+                </Reveal>
+                <Reveal when={source === 'spotify'}>
+                    <div className="pt-2">
+                        <SpotifySettingsCard
+                            settingsCardClass="border-white/10 bg-white/[0.03]"
+                            onCopyText={async (text) => {
+                                await navigator.clipboard?.writeText(text);
+                            }}
+                        />
+                    </div>
+                </Reveal>
+                <Reveal when={source === 'spotify-local'}>
+                    <div className="pt-2">
+                        <SpotifyLocalSettingsCard
+                            connectionError={null}
+                            connectionStatus={nowPlayingConnectionStatus}
+                            errorBgColor="bg-red-500/10"
+                            errorTextColor="text-red-400"
+                            isDaylight={false}
+                            settingsCardClass="border-white/10 bg-white/[0.03]"
+                            successBgColor="bg-emerald-500/10"
+                            successTextColor="text-emerald-400"
+                        />
+                    </div>
                 </Reveal>
                 <Reveal when={source === 'stage-api'}>
                     <Row sub label={t('options.stageAddress')}>

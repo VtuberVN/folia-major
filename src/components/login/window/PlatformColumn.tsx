@@ -72,15 +72,35 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
         setBox(current => (current?.x === next?.x && current?.y === next?.y && current?.w === next?.w && current?.h === next?.h ? current : next));
     }, [lit?.providerId, lie, shown.length]);
 
+    const scrollRowIntoView = (target: HTMLElement | null) => {
+        const list = listRef.current;
+        if (!target || !list) return;
+        if (lie === 'column') {
+            const targetTop = target.offsetTop;
+            const targetBottom = targetTop + target.offsetHeight;
+            if (targetTop < list.scrollTop) {
+                list.scrollTop = targetTop;
+            } else if (targetBottom > list.scrollTop + list.clientHeight) {
+                list.scrollTop = targetBottom - list.clientHeight;
+            }
+        } else {
+            target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+    };
+
     // 选中的行换了，把它滚进来。指针指着的行不滚：列表不在指针底下自己动，指针移开也不跳回去。
     useLayoutEffect(() => {
-        rowOf(chosenId)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        scrollRowIntoView(rowOf(chosenId));
     }, [chosenId, lie]);
 
     const readMore = () => {
         const list = listRef.current;
         if (!list) return;
         const [at, room, all] = lie === 'column' ? [list.scrollTop, list.clientHeight, list.scrollHeight] : [list.scrollLeft, list.clientWidth, list.scrollWidth];
+        if (all - room <= 4) {
+            setMore(current => (!current.before && !current.after ? current : { before: false, after: false }));
+            return;
+        }
         const next = { before: at > 2, after: at + room < all - 2 };
         setMore(current => (current.before === next.before && current.after === next.after ? current : next));
     };
@@ -131,7 +151,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
             if (next) {
                 setPointed(next.providerId);
                 // 键盘移过去的行要看得见。
-                rowOf(next.providerId)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                scrollRowIntoView(rowOf(next.providerId));
             }
             event.preventDefault();
         } else if (event.key === 'Enter' || (!inField && event.key === ' ')) {
@@ -170,7 +190,7 @@ export const PlatformColumn: React.FC<PlatformColumnProps> = ({ rows, chosenId, 
                 onKeyDown={handleKeyDown}
                 onScroll={readMore}
                 onMouseLeave={() => setPointed(null)}
-                className={`relative min-h-0 rounded-lg outline-none ${lie === 'column' ? 'st-scroll flex flex-1 flex-col overflow-y-auto overscroll-contain' : 'login-row-scroll flex gap-1 overflow-x-auto overscroll-x-contain'}`}
+                className={`relative min-h-0 rounded-lg outline-none ${lie === 'column' ? 'st-scroll flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain' : 'login-row-scroll flex gap-1 overflow-x-auto overscroll-x-contain'}`}
                 style={fade ? { WebkitMaskImage: fade, maskImage: fade } : undefined}
             >
                 <div
