@@ -802,16 +802,42 @@ const writeWavFile = (filePath, left, right, sampleRate = 44100) => {
 };
 
 const readPcmFromWavBuf = (wavBuf) => {
-    const dataStart = 44;
-    if (wavBuf.length <= dataStart) {
+    if (!wavBuf || wavBuf.length < 44) {
         throw new Error('Tệp âm thanh trống hoặc không chứa dữ liệu audio.');
     }
-    const numSamples = Math.floor((wavBuf.length - dataStart) / 4);
+
+    // Robust RIFF chunk parsing to locate the 'data' chunk
+    let dataOffset = -1;
+    let dataSize = 0;
+    let offset = 12; // Start after 'RIFF' (4) + size (4) + 'WAVE' (4)
+
+    while (offset + 8 <= wavBuf.length) {
+        const chunkId = wavBuf.toString('ascii', offset, offset + 4);
+        const chunkSize = wavBuf.readUInt32LE(offset + 4);
+        if (chunkId === 'data') {
+            dataOffset = offset + 8;
+            dataSize = Math.min(chunkSize, wavBuf.length - dataOffset);
+            break;
+        }
+        offset += 8 + chunkSize + (chunkSize % 2);
+    }
+
+    // Fallback if data chunk not found through iteration
+    if (dataOffset === -1 || dataOffset >= wavBuf.length) {
+        dataOffset = 44;
+        dataSize = wavBuf.length - dataOffset;
+    }
+
+    const numSamples = Math.floor(dataSize / 4);
+    if (numSamples <= 0) {
+        throw new Error('Không có mẫu âm thanh PCM hợp lệ trong tệp audio.');
+    }
+
     const left = new Float32Array(numSamples);
     const right = new Float32Array(numSamples);
     for (let i = 0; i < numSamples; i++) {
-        left[i] = wavBuf.readInt16LE(dataStart + i * 4) / 32768.0;
-        right[i] = wavBuf.readInt16LE(dataStart + i * 4 + 2) / 32768.0;
+        left[i] = wavBuf.readInt16LE(dataOffset + i * 4) / 32768.0;
+        right[i] = wavBuf.readInt16LE(dataOffset + i * 4 + 2) / 32768.0;
     }
     return { left, right, sampleRate: 44100 };
 };
@@ -889,9 +915,10 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTi
         }
     }
 
-    // 5. Check Folia Audio Cache
-    if (!targetPath && songId) {
+    // 5. Check Folia Audio Cache (media-cache, cache/audio, audio-cache)
+    if (!targetPath && songId && userDataPath) {
         const cacheDirs = [
+            path.join(userDataPath, 'media-cache', 'audio'),
             path.join(userDataPath, 'cache', 'audio'),
             path.join(userDataPath, 'audio-cache'),
         ];
@@ -899,7 +926,24 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTi
             if (fs.existsSync(cDir)) {
                 try {
                     const files = fs.readdirSync(cDir);
-                    const match = files.find(f => f.includes(String(songId)) && f.endsWith('.bin'));
+                    // 5a. Direct match by filename
+                    let match = files.find(f => f.includes(String(songId)) && f.endsWith('.bin'));
+                    // 5b. Match via .json metadata cacheKey
+                    if (!match) {
+                        const jsonFiles = files.filter(f => f.endsWith('.json'));
+                        for (const jf of jsonFiles) {
+                            try {
+                                const meta = JSON.parse(fs.readFileSync(path.join(cDir, jf), 'utf8'));
+                                if (meta.cacheKey && meta.cacheKey.includes(String(songId))) {
+                                    const binCandidate = jf.replace(/\.json$/, '.bin');
+                                    if (files.includes(binCandidate)) {
+                                        match = binCandidate;
+                                        break;
+                                    }
+                                }
+                            } catch {}
+                        }
+                    }
                     if (match) {
                         targetPath = path.join(cDir, match);
                         break;

@@ -2840,6 +2840,139 @@ function updateWindowThumbarButtons(state = {}) {
   }
 }
 
+const DOWNLOAD_DIRECTORY_SETTING_KEY = 'DOWNLOAD_DIRECTORY';
+// songId -> { fileName, name, updatedAt }: lets a repeat playlist download skip what is already on
+// disk instead of saving " (1)" copies, and survives a restart.
+const DOWNLOAD_INDEX_SETTING_KEY = 'DOWNLOAD_INDEX';
+// Songs still queued from a previous session, so the download window can offer to continue.
+const DOWNLOAD_QUEUE_SETTING_KEY = 'DOWNLOAD_QUEUE';
+
+function getDefaultDownloadDirectory() {
+  return path.join(app.getPath('downloads'), 'Folia');
+}
+
+function getConfiguredDownloadDirectory() {
+  const configured = store.get(DOWNLOAD_DIRECTORY_SETTING_KEY);
+  return typeof configured === 'string' && configured.trim().length > 0
+    ? configured
+    : getDefaultDownloadDirectory();
+}
+
+function getDownloadDirectory() {
+  return getConfiguredDownloadDirectory();
+}
+
+function getDownloadIndex() {
+  const value = store.get(DOWNLOAD_INDEX_SETTING_KEY);
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function recordDownloadedSong(songId, fileName, name) {
+  if (!songId) return;
+  const index = getDownloadIndex();
+  index[String(songId)] = { fileName, name, updatedAt: Date.now() };
+  store.set(DOWNLOAD_INDEX_SETTING_KEY, index);
+}
+
+// Returns the on-disk file for a song already downloaded, or null. The stored name is checked
+// against the current download folder, so a moved-but-present file is still found.
+function findExistingDownload(songId) {
+  if (!songId) return null;
+  const entry = getDownloadIndex()[String(songId)];
+  if (!entry || !entry.fileName) return null;
+  const candidate = path.join(getDownloadDirectory(), entry.fileName);
+  if (!fs.existsSync(candidate)) return null;
+  return { path: candidate, name: entry.name || entry.fileName };
+}
+
+// Moves every file from one download folder to another, renaming on name collisions. Used when the
+// listener changes the download location so already-downloaded songs come along.
+async function migrateDownloadFiles(fromDirectory, toDirectory) {
+  const result = { moved: 0, failed: 0 };
+  if (!fromDirectory || !toDirectory || path.resolve(fromDirectory) === path.resolve(toDirectory)) {
+    return result;
+  }
+  let entries;
+  try {
+    entries = await fs.promises.readdir(fromDirectory, { withFileTypes: true });
+  } catch {
+    return result;
+  }
+  await fs.promises.mkdir(toDirectory, { recursive: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const source = path.join(fromDirectory, entry.name);
+    let target = path.join(toDirectory, entry.name);
+    if (fs.existsSync(target)) {
+      const parsed = path.parse(entry.name);
+      let index = 1;
+      while (fs.existsSync(target)) {
+        target = path.join(toDirectory, `${parsed.name} (${index})${parsed.ext}`);
+        index += 1;
+      }
+    }
+    try {
+      await fs.promises.rename(source, target);
+    } catch (error) {
+      if (error && error.code === 'EXDEV') {
+        try {
+          await fs.promises.copyFile(source, target);
+          await fs.promises.rm(source, { force: true });
+        } catch {
+          result.failed += 1;
+          continue;
+        }
+      } else {
+        result.failed += 1;
+        continue;
+      }
+    }
+    result.moved += 1;
+  }
+  return result;
+}
+
+const activeDownloads = new Map();
+
+// Aborts a download's controller. Electron's network Session can throw the AbortError reason
+// synchronously back out of `abort()` (its internal abort listener rethrows), which the app's
+// uncaughtException crash handler would otherwise report as a crash. The transfer's own promise
+// still settles, so swallowing it here is safe.
+function abortDownloadEntry(entry) {
+  if (!entry || !entry.controller) return;
+  try {
+    if (!entry.controller.signal.aborted) entry.controller.abort();
+  } catch {
+    // See above: a synchronous AbortError from the network layer is not a real failure.
+  }
+}
+
+function sendDownloadProgress(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-progress', payload);
+  }
+}
+
+function sanitizeDownloadFileName(name, fallback = 'download') {
+  const cleaned = String(name || '')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || fallback;
+}
+
+// Never overwrite an existing file: append " (1)", " (2)", ... before the extension.
+function resolveUniqueDownloadPath(directory, fileName) {
+  const parsed = path.parse(fileName);
+  let candidate = path.join(directory, fileName);
+  let index = 1;
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(directory, `${parsed.name} (${index})${parsed.ext}`);
+    index += 1;
+  }
+  return candidate;
+}
+
 function getDefaultCacheDirectory() {
   return path.join(app.getPath('userData'), 'media-cache');
 }
