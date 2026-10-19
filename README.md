@@ -48,9 +48,16 @@ Nếu bạn muốn sử dụng trên thiết bị di động hoặc trải nghi�
 ## Tải về nhanh
 
 > [!TIP]
+<<<<<<< HEAD
 > - **GitHub**: [Bản phát hành mới nhất](https://github.com/VtuberVN/folia-major/releases/latest), cung cấp gói cài đặt cho Windows / macOS / Linux (bao gồm cả bộ cài Setup và bản nén giải nén Portable Zip).
 > - **Bản gốc Upstream**: [Release Upstream](https://github.com/chthollyphile/folia-major/releases/latest).
 > - Xem thêm các cách tải và cài đặt khác (Web, Docker, AUR, Flatpak, bản Android cộng đồng) tại phần [Cách tải về & Cài đặt](#cách-tải-về--cài-đặt).
+=======
+> - **GitHub**：[Latest Release](https://github.com/chthollyphile/folia-major/releases/latest)，提供 Windows / macOS / Linux 全平台安装包。
+> - **网盘**：[夸克网盘](https://pan.quark.cn/s/6e4c6fa3bc6f) · [百度云](https://pan.baidu.com/s/1f0x3g-8PMcNCO-TJ5z1rPw?pwd=flia)（提取码 `flia`），适合国内网络，仅提供 Windows 与 Apple silicon 的正式版安装包。
+>
+> 更多获取方式（Web 部署、Docker、AUR、Flatpak、移动端）见下方 [获取方式](#获取方式)。
+>>>>>>> upstream/main
 
 ## Trình diễn
 
@@ -170,14 +177,16 @@ Trên Vercel và Cloudflare, QQ Music không cần triển khai một API riêng
 
 Người dùng tự host máy chủ có thể sử dụng [Docker Compose toàn diện](deploy/docker/README.md).
 
-#### Thiết bị di động:
-Hiện khuyến nghị người dùng di động sau khi triển khai bản Web / Self-host, sử dụng Chrome trên Android hoặc Safari trên iOS để tạo ứng dụng **PWA** (thêm trang web vào màn hình chính). Folia bản Web hỗ trợ cài đặt PWA hoàn chỉnh.
+### Thiết bị di động:
 
-Người dùng có kinh nghiệm kỹ thuật có thể sử dụng Capacitor để đóng gói bản Web thành ứng dụng Android APK, tham khảo kho mẫu: [chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet).
+| Phương thức | Chi tiết |
+| --- | --- |
+| **PWA (Khuyên dùng)** | Triển khai phiên bản Web hoặc Self-host, sau đó dùng Chrome trên Android hoặc Safari trên iOS thêm trang vào màn hình chính để dùng như ứng dụng PWA hoàn chỉnh. |
+| **Bản port cộng đồng (Android)** | [maimai993/folia-sonnet](https://github.com/maimai993/folia-sonnet) · [whycfawa/folia-android](https://github.com/whycfawa/folia-android) |
+| **Tự đóng gói (Android)** | Người dùng có kinh nghiệm kỹ thuật có thể dùng Capacitor đóng gói bản Web thành tệp APK, tham khảo kho mẫu [chthollyphile/folia-sonnet](https://github.com/chthollyphile/folia-sonnet). |
 
----
-
-Bạn cũng có thể sử dụng bản Android do cộng đồng chuyển đổi tại [maimai993/folia-sonnet](https://github.com/maimai993/folia-sonnet). Phiên bản này do cộng đồng tự duy trì độc lập, các tính năng sẽ có sự khác biệt so với bản máy tính chính thức; nếu gặp vấn đề vui lòng báo cáo tại kho lưu trữ đó.
+> [!NOTE]
+> Các bản port cộng đồng là dự án của bên thứ ba, do cộng đồng tự duy trì độc lập, các tính năng sẽ có sự khác biệt so với bản máy tính chính thức. Nếu gặp vấn đề vui lòng phản hồi tại các kho lưu trữ tương ứng.
 
 ---
 

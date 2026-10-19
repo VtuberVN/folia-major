@@ -7,7 +7,7 @@ import { getCachedCoverUrl, loadCachedOrFetchCover } from '../../../../services/
 import { ensureLocalSongCoverAsset } from '../../../../services/localMusicService';
 import { addSongsToLocalPlaylist, buildCanonicalLocalSongIdIndex, createLocalPlaylist, getLocalPlaylists, setLocalSongFavorite } from '../../../../services/localPlaylistService';
 import { applyLocalLibraryEntityDisplay, buildLocalQueue, buildNavidromeQueue, buildUnifiedLocalSong, buildUnifiedNavidromeSong, resolveLocalSongMetadata } from '../../../../services/playbackAdapters';
-import { getPrefetchedData } from '../../../../services/prefetchService';
+import { getPrefetchedData, prefetchNearbySongs } from '../../../../services/prefetchService';
 import { retireBlobUrl } from '../../../../services/playbackBlobUrls';
 import type { ThemeCacheSongKey } from '../../../../services/themeCache';
 import { hasRenderableLyrics } from '../../../../utils/appPlaybackHelpers';
@@ -708,6 +708,11 @@ export function useLibraryPlaybackController({
                 : [initialMeta.unifiedSong];
         setPlayQueue(finalQueue);
         void persistLastPlaybackCache(initialMeta.unifiedSong, finalQueue);
+        // As playSong does for an online song: this song and the one after it are analysed for the
+        // blend between them, and online songs queued nearby are fetched ahead.
+        if (finalQueue.length > 1) {
+            void prefetchNearbySongs(initialMeta.unifiedSong, finalQueue, audioQuality, userId);
+        }
 
         if (options.shouldNavigateToPlayer ?? true) {
             navigateToPlaybackView();
@@ -778,6 +783,7 @@ export function useLibraryPlaybackController({
             }
         })();
     }, [
+        audioQuality,
         blobUrlRef,
         currentTime,
         handleLocalSongMatch,
@@ -796,6 +802,7 @@ export function useLibraryPlaybackController({
         setPlayQueue,
         setStatusMsg,
         shouldAutoPlayRef,
+        userId,
     ]);
 
     const onPlayNavidromeSong = useCallback(async (
@@ -1011,6 +1018,10 @@ export function useLibraryPlaybackController({
                     : [unifiedSong];
             setPlayQueue(finalQueue);
             void persistLastPlaybackCache(unifiedSong, finalQueue);
+            // As in onPlayLocalSong.
+            if (finalQueue.length > 1) {
+                void prefetchNearbySongs(unifiedSong, finalQueue, audioQuality, userId);
+            }
 
             if (shouldNavigateToPlayer) {
                 navigateToPlaybackView();
@@ -1031,6 +1042,7 @@ export function useLibraryPlaybackController({
             notifyPlaybackFailed({ song: navidromeSong, reason: null, phase: 'play', willAutoSkip: false });
         }
     }, [
+        audioQuality,
         currentTime,
         interruptStagePlaybackForMainTransition,
         lyricsLoadingWritesRef,
@@ -1046,6 +1058,7 @@ export function useLibraryPlaybackController({
         setStatusMsg,
         shouldAutoPlayRef,
         t,
+        userId,
     ]);
 
     const onMatchNavidromeSong = useCallback(async () => {

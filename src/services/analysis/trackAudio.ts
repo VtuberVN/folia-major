@@ -103,7 +103,7 @@ export const readLocalTrackBytes = async (
         }
     }
 
-    // A local track with no URL in hand - the next-up head (prefetch skips local files), or any
+    // A local track with no URL in hand - the next-up head (the prefetcher has none to give), or any
     // track whose blob: URL belongs to a deck rather than to us. Its file is read off its handle.
     // A caller's own reader is asked whatever the source; it knows which songs it can read.
     const read = readLocalFile ?? (() => readLocalTrackFile(song));

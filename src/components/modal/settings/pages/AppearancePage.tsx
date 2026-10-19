@@ -78,6 +78,7 @@ const AppearancePage: React.FC = () => {
         setFollowSystemTheme: state.setFollowSystemTheme,
     })));
     const visualizerMode = useVisualizerSettingsStore(state => state.visualizerMode);
+    const randomEnabled = useVisualizerSettingsStore(state => state.randomVisualizerModePerSong);
     const nativeBlurEnabled = usePlayerChromeSettingsStore(state => state.enablePlayerPageNativeBlur);
 
     const usesOpenAi = electronSettings.AI_PROVIDER === 'openai';
@@ -110,7 +111,7 @@ const AppearancePage: React.FC = () => {
             <Group def={LYRICS} bare>
                 {nativeBlurEnabled && <Row notice={t('options.nativeBlurBackgroundNotice')} />}
                 <Row option={O.lyricsAnimation} hint={t('options.lyricsRendererDesc')} onClick={onOpenVisPlayground}>
-                    <Value>{getVisualizerModeLabel(visualizerMode, t)}</Value>
+                    <Value>{randomEnabled ? t('ui.visualizerRandom') : getVisualizerModeLabel(visualizerMode, t)}</Value>
                 </Row>
             </Group>
 

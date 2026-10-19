@@ -13,6 +13,7 @@ import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 import { useAppViewStore } from '../../stores/useAppViewStore';
 import { useInteractionSettingsStore } from '../../stores/useInteractionSettingsStore';
 import { resolveCustomShortcutCommand } from './customShortcut';
+import { useGlobalShortcuts } from './globalShortcuts/useGlobalShortcuts';
 
 // src/components/command-palette/useCommandPalette.ts
 import { effectiveKeyCode, hasOpenSheet, isCommandPaletteShortcut, isTextEntryTarget } from '../../utils/keyboardTargets';
@@ -265,6 +266,18 @@ export const useCommandPalette = ({
         recordRecentCommand(command);
         void command.execute('', liveContext);
     }, [openCommand, recordRecentCommand]);
+
+    // The desktop app's system-wide playback shortcuts. Asked against the live context like a pinned
+    // command, but not recorded: volume and next track pressed dozens of times a day would push
+    // everything else out of the palette's recent list and its ranking.
+    const runGlobalShortcutCommand = useCallback((commandId: string) => {
+        const liveContext = contextRef.current;
+        const command = COMMAND_PALETTE_COMMANDS.find(entry => entry.id === commandId);
+        if (command && !command.surface && !command.requiresInput && isCommandPaletteCommandEnabled(command, liveContext)) {
+            void command.execute('', liveContext);
+        }
+    }, []);
+    useGlobalShortcuts(runGlobalShortcutCommand);
 
     const executeMatch = useCallback(async (index: number) => {
         if (isExecuting) {

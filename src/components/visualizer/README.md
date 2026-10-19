@@ -109,7 +109,7 @@ App / ThemePark / VisPlayground / OBS source
 
 ### 智能动感模式（beat FX）
 
-全局一个总开关，加每个「动感效果」自己的开关和强度（`SmartBeatSettings`，store 的 `smartBeat`：`enabled` 和按效果 id 存的 `effects`），不属于任何一个模式的 tuning。总开关在可视化设置窗口「歌词动画」页的最上面（`SmartBeatSettingsCard.tsx`）；效果在各模式自己的设置里，样式选项上面（`BeatEffectsGroup.tsx`）：每个效果一行，四字名、说明、开关，开着时下面一条强度滑杆，0–2×，1× 是调好的样子，在滑杆正中间，没动过的效果按 1×。
+全局一个总开关，加每个「动感效果」自己的开关和强度（`SmartBeatSettings`，store 的 `smartBeat`：`enabled` 和按效果 id 存的 `effects`），不属于任何一个模式的 tuning。总开关单独在可视化设置窗口的「全局」页（`SmartBeatSettingsCard.tsx`）；效果在「歌词动画」页各模式自己的设置里，样式选项上面（`BeatEffectsGroup.tsx`），总开关关着时那里的提示带一颗直达「全局」页的按钮：每个效果一行，四字名、说明、开关，开着时下面一条强度滑杆，0–2×，1× 是调好的样子，在滑杆正中间，没动过的效果按 1×。
 
 效果登记在模式和背景的 entry 上（`beatEffects`，类型和 id 在 `services/beatFx/beatEffects.ts`）：每个效果有 id（`<模式>.<名字>`，存盘和导出都用它）、名字和说明的 i18n key、读哪路数据（`source`：`'beats'` 是 beat_this 的拍点，`'drums'` 是 htdemucs 分出的鼓点）。一个模式以后可以有好几个效果，加一条就行，设置界面和模型调度自动跟上。现在的效果：商籁「推镜裂光」（beats）、镜台「水镜涟漪」（beats）、时计「仿真鼓面」（drums）。`retired: true` 的效果代码和登记都在，但不跑也不出现在设置里：时计的「齿轮随拍」和隐现背景的「潮汐脉动」（2026-10-17 用户先搁置）。
 

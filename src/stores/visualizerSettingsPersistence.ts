@@ -13,6 +13,19 @@ import type { StoredTuning } from '../components/visualizer/tuningDefinition';
 import { BEAT_EFFECT_DEFAULT, BEAT_EFFECT_STRENGTH_MAX, LEGACY_BEAT_LIST_EFFECT_IDS } from '../services/beatFx/beatEffects';
 import { parseVisualizerFrameRate, VISUALIZER_FRAME_RATE_STORAGE_KEY } from '../utils/frameRateLimiter';
 
+import { getStoredString } from './storagePrimitives';
+import { normalizeRandomVisualizerModes } from '../utils/randomVisualizerModes';
+
+export const RANDOM_VISUALIZER_MODES_STORAGE_KEY = 'random_visualizer_modes';
+
+export const readStoredRandomVisualizerModes = () => {
+    try {
+        return normalizeRandomVisualizerModes(JSON.parse(getStoredString(RANDOM_VISUALIZER_MODES_STORAGE_KEY, 'null')));
+    } catch {
+        return normalizeRandomVisualizerModes(null);
+    }
+};
+
 export const VISUALIZER_OPACITY_STORAGE_KEY = 'visualizer_opacity';
 
 // src/stores/visualizerSettingsPersistence.ts

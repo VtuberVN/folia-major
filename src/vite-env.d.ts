@@ -1173,6 +1173,11 @@ declare global {
       onPlaybackSyncBridgeStatusChanged: (callback: (status: ElectronPlaybackSyncBridgeStatus) => void) => () => void;
       onDiscordPresenceStatusChanged: (callback: (status: ElectronDiscordPresenceStatus) => void) => () => void;
       onObsBrowserSourceStatusChanged: (callback: (status: ElectronObsBrowserSourceStatus) => void) => () => void;
+      /** Replaces the registered system-wide shortcuts. `portal` means the desktop binds the keys (native Wayland). */
+      /** 'portal' on native Wayland, where the desktop binds the keys. */
+      getGlobalShortcutBackend: () => Promise<'native' | 'portal'>;
+      setGlobalShortcuts: (accelerators: string[]) => Promise<{ backend: 'native' | 'portal'; results: Array<{ accelerator: string; registered: boolean }> }>;
+      onGlobalShortcut: (callback: (accelerator: string) => void) => () => void;
       updateTaskbarControls: (state: ElectronTaskbarControlState) => Promise<boolean>;
       onTaskbarControl: (callback: (action: ElectronTaskbarControlAction) => void) => () => void;
       openRemoteControl: () => Promise<boolean>;

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, screen, dialog, shell, nativeImage, webContents: electronWebContents, Menu, Tray, nativeTheme, powerSaveBlocker, safeStorage, protocol, crashReporter, net: electronNet } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, session, screen, dialog, shell, nativeImage, webContents: electronWebContents, Menu, Tray, nativeTheme, powerSaveBlocker, safeStorage, protocol, crashReporter, net: electronNet } = require('electron');
 // 必须先于其它模块加载：TEMP / TMP 里没展开的 %USERPROFILE% 会让 os.tmpdir() 变成相对路径（#690）。
 for (const repair of require('./tempDirEnvironment.cjs').repairTempDirEnvironment()) {
   console.warn(`[TempDir] expanded ${repair.key}: ${repair.from} -> ${repair.to}`);
@@ -83,7 +83,9 @@ const { createDebugHost, runtimeLine } = require('./debug/debugHost.cjs');
 const { createCrashLog, installCrashHandlers } = require('./debug/crashLog.cjs');
 const { measureLeftovers, removeDownloadedLeftovers } = require('./analysis/modelPaths.cjs');
 const { resolveLinuxPasswordStore } = require('./linuxPasswordStore.cjs');
+const { resolveLinuxVulkanChoice, logLinuxVulkanChoice } = require('./linuxVulkan.cjs');
 const { isWindowAlwaysOnTopSupported } = require('./windowAlwaysOnTopSupport.cjs');
+const { createGlobalShortcutController, usesGlobalShortcutsPortal } = require('./globalShortcuts.cjs');
 const { createTranscodeService } = require('./transcode/service.cjs');
 const { TRANSCODE_PROTOCOL_SCHEME } = require('./transcode/protocol.cjs');
 const { sanitizeDualTheme: sanitizeGeneratedDualTheme } = require('../shared/themeSanitizer.cjs');
@@ -165,6 +167,12 @@ app.on('certificate-error', (event, _webContents, requestUrl, error, _certificat
   callback(false);
 });
 
+// Logged once the debug host captures the console, so the decision also reaches the in-app log.
+const linuxVulkan = resolveLinuxVulkanChoice({
+  ozonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+  graphicsMode: linuxGraphicsMode,
+});
+
 // Fix for Arch Linux / Wayland & Vulkan compatibility issues
 if (process.platform === 'linux') {
   // Must run before the ready event: Chromium reads the password backend once while initialising
@@ -174,10 +182,20 @@ if (process.platform === 'linux') {
     app.commandLine.appendSwitch('password-store', linuxPasswordStore);
   }
 
-  app.commandLine.appendSwitch('disable-vulkan');
-  app.commandLine.appendSwitch('disable-features', 'Vulkan');
+  if (linuxVulkan.enabled) {
+    appendChromiumFeature('Vulkan');
+  } else {
+    app.commandLine.appendSwitch('disable-vulkan');
+    appendChromiumFeature('Vulkan', 'disable-features');
+  }
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
   app.commandLine.appendSwitch('log-level', '3');
+
+  // Native Wayland cannot grab keys, so the global playback shortcuts go through the desktop's
+  // GlobalShortcuts portal; the listener binds them in their desktop's settings (globalShortcuts.cjs).
+  if (usesGlobalShortcutsPortal({ ozonePlatform: app.commandLine.getSwitchValue('ozone-platform') })) {
+    appendChromiumFeature('GlobalShortcutsPortal');
+  }
 
   if (linuxGraphicsMode === 'software') {
     // Hard fallback: safest, but usually slower.
@@ -190,7 +208,7 @@ if (process.platform === 'linux') {
     app.commandLine.appendSwitch('use-angle', 'swiftshader');
     app.commandLine.appendSwitch('enable-unsafe-swiftshader');
   } else {
-    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations');
+    appendChromiumFeature('WaylandWindowDecorations');
   }
 }
 
@@ -205,13 +223,14 @@ if (process.platform === 'linux') {
 // therefore subscribes to `devicechange` while the device picker is open and unsubscribes when it
 // closes, purely to trigger the timer -- see src/hooks/useAudioOutputDevices.ts. Removing that
 // subscription re-pins the capture service for the lifetime of the process.
-function appendChromiumFeature(featureName) {
+// Pass 'disable-features' as switchName to turn a feature off the same way.
+function appendChromiumFeature(featureName, switchName = 'enable-features') {
   // base::CommandLine keeps one value per switch, so a plain appendSwitch would drop features the
   // user passed on the command line, or any appended earlier here.
-  const enabledFeatures = app.commandLine.getSwitchValue('enable-features');
+  const listedFeatures = app.commandLine.getSwitchValue(switchName);
   app.commandLine.appendSwitch(
-    'enable-features',
-    enabledFeatures ? `${enabledFeatures},${featureName}` : featureName,
+    switchName,
+    listedFeatures ? `${listedFeatures},${featureName}` : featureName,
   );
 }
 
@@ -2612,6 +2631,7 @@ const displaySleepBlocker = createDisplaySleepBlocker(powerSaveBlocker);
 // The developer debug module: the runtime log and the memory monitor, both switched from
 // Settings > Developer. Created BEFORE the analysis host, which logs through it.
 createDebugHost({ app, ipcMain, store, BrowserWindow });
+logLinuxVulkanChoice(linuxVulkan, linuxGraphicsMode);
 
 const analysisHost = createAnalysisHost({
   app, ipcMain, getModelsDir: getBundledModelsDirectory,
@@ -8466,6 +8486,43 @@ ipcMain.handle('stage-complete-player-queue', (event, result) => {
   }
 
   return stageApi.completeStagePlayerQueueRequest(result);
+});
+
+// Created on first use: globalShortcut only works once the app is ready, and the renderer asks
+// only after its window has loaded.
+let globalShortcutController = null;
+const getGlobalShortcutController = () => {
+  if (!globalShortcutController) {
+    globalShortcutController = createGlobalShortcutController({
+      globalShortcut,
+      backend: usesGlobalShortcutsPortal({ ozonePlatform: app.commandLine.getSwitchValue('ozone-platform') }) ? 'portal' : 'native',
+      // TODO: macOS keeps the app running after its window closes, so the keys stay held and a
+      // press with no window does nothing. Reopening the window, or letting the keys go on `closed`,
+      // is undecided until it can be tried on a Mac.
+      onTrigger: (accelerator) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('global-shortcut-triggered', accelerator);
+        }
+      },
+    });
+  }
+  return globalShortcutController;
+};
+
+ipcMain.handle('global-shortcuts-backend', () => (
+  usesGlobalShortcutsPortal({ ozonePlatform: app.commandLine.getSwitchValue('ozone-platform') }) ? 'portal' : 'native'
+));
+
+ipcMain.handle('global-shortcuts-set', (event, accelerators) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to set global shortcuts.');
+  }
+
+  return getGlobalShortcutController().apply(accelerators);
+});
+
+app.on('will-quit', () => {
+  globalShortcutController?.dispose();
 });
 
 ipcMain.handle('thumbar-update-buttons', (event, state) => {

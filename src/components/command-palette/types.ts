@@ -146,6 +146,8 @@ export type CommandPalettePlaybackContext = {
     volume: number;
     isMuted: boolean;
     setVolume: (volume: number) => void;
+    /** Moves the volume by `delta` from its value at the moment of the call, clamped to 0–1. */
+    stepVolume: (delta: number) => void;
     previewVolume: (volume: number) => void;
     togglePlay: () => void;
     toggleLoop: () => void;

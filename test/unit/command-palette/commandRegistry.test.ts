@@ -34,6 +34,7 @@ const createContext = (overrides: CommandPaletteContextOverrides = {}): CommandP
             volume: 0.5,
             isMuted: false,
             setVolume: vi.fn(),
+            stepVolume: vi.fn(),
             toggleMute: vi.fn(),
             toggleSongLike: vi.fn(),
             isSongLiked: false,

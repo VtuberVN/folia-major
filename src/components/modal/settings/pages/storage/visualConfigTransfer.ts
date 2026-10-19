@@ -124,7 +124,10 @@ export const applyImportedConfig = (config: any, keys: string[], theme: ConfigTh
 
     // 2. Restore Visualizer Setup
     if (has('visualizerMode') && config.visualizerMode) {
-        storeVisualizer.handleSetVisualizerMode(config.visualizerMode);
+        storeVisualizer.handleSetVisualizerMode(config.visualizerMode, { preserveRandom: true });
+    }
+    if (has('randomVisualizerModes')) {
+        storeVisualizer.handleSetRandomVisualizerModes(config.randomVisualizerModes);
     }
     if (has('randomVisualizerModePerSong')) {
         storeVisualizer.handleToggleRandomVisualizerModePerSong(Boolean(config.randomVisualizerModePerSong));

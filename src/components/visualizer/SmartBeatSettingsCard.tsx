@@ -5,9 +5,9 @@ import { Group, Row, type SettingsGroupDef } from '../modal/settings/kit';
 import { ToggleRow } from './panelRows';
 
 // src/components/visualizer/SmartBeatSettingsCard.tsx
-// 智能动感模式's one switch, at the top of the lyric style tab: it is a setting of the whole picture,
+// 智能动感模式's one switch, alone on the lyric style window's 全局 tab: it is a setting of the whole picture,
 // over every mode's beat effects, so it sits with no one mode's panel. Each effect's own switch and
-// strength sit in the mode's settings below it (BeatEffectsGroup.tsx), with what its model needs.
+// strength sit in the mode's settings on the 歌词动画 tab (BeatEffectsGroup.tsx), with what its model needs.
 // Reads and writes the settings store itself; nothing about it is a per-mode draft.
 
 const SMART_BEAT_GROUP: SettingsGroupDef = { id: 'vis-smart-beat', titleKey: 'options.smartBeat' };

@@ -55,6 +55,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     gridActionButton: { section: 'interaction' },
     gridPaletteHotkey: { section: 'interaction' },
     customShortcut: { section: 'interaction' },
+    globalShortcuts: { section: 'interaction' },
 
     // pages/IntegrationPage — the desktop app and the web build draw stage mode with different
     // rows; it is one destination.
