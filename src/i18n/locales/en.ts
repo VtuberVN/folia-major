@@ -5442,5 +5442,45 @@ export default {
         "noMatch": "“Don't use online metadata” at the bottom left makes the song use only what the file has."
       }
     }
+  },
+  "download": {
+    "downloadCurrentSong": "Download this song",
+    "downloadSongs": "Download Songs",
+    "selectSongs": "Select songs to download",
+    "songCount": "{{count}} songs",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectedCount": "{{count}} selected",
+    "start": "Download",
+    "windowTitle": "Downloads",
+    "progress": "{{done}}/{{total}} done",
+    "activeCount": "{{count}} downloading",
+    "pendingCount": "{{count}} pending",
+    "openFolder": "Open folder",
+    "clearFinished": "Clear finished",
+    "hide": "Minimize",
+    "unavailable": "Not available for download",
+    "continue": "Continue download",
+    "queued": "Queued",
+    "remove": "Remove",
+    "pause": "Pause",
+    "resume": "Resume",
+    "pauseAll": "Pause all",
+    "paused": "Paused"
+  },
+  "karaoke": {
+    "openKaraoke": "AI Karaoke Separation & Alignment (MSS / ASR)",
+    "modalTitle": "AI Karaoke Separation & Alignment",
+    "selectMssModel": "Music Source Separation Model (MSS)",
+    "selectAsrMode": "Lyric Recognition & Alignment Mode (Karaoke Sync)",
+    "startSeparation": "Start Separation & Karaoke Generation",
+    "applyToPlayer": "Apply to Current Playing Song",
+    "successBanner": "Successfully separated stems and generated Karaoke lyrics!",
+    "builtIn": "Built-in",
+    "ready": "Ready",
+    "notDownloaded": "Not downloaded",
+    "turnOnBeat": "Karaoke Mode (Play Instrumental Beat only)",
+    "turnOffBeat": "Playing Beat (Click to restore original vocals)",
+    "openKaraokeStudio": "Karaoke & Visual LRC Studio Settings"
   }
 } as const;

@@ -14,6 +14,13 @@ import Home from './components/app/Home';
 import PlayerPanel from './components/app/PlayerPanel';
 import ThemeQuickEditorHost from './components/panelTab/ThemeQuickEditor';
 import AppDialogs from './components/app/dialogs/AppDialogs';
+import DownloadProgressWindow from './components/download/DownloadProgressWindow';
+import { initDownloadQueue } from './services/songDownloadService';
+import AiKaraokeModal from './components/karaoke/AiKaraokeModal';
+import AiKaraokeFloatingPill from './components/karaoke/AiKaraokeFloatingPill';
+import { LrcEditorModal } from './components/modal/lyric-editor/LrcEditorModal';
+import { initAiKaraokeListeners } from './services/aiKaraokeService';
+import { parseEnhancedLRC } from './utils/lyrics/parserCore';
 import { useProviderSignOut } from './components/app/dialogs/useProviderSignOut';
 import LoginHost from './components/login/LoginHost';
 import { useSettingsDialogModel } from './components/app/dialogs/useSettingsDialogModel';
@@ -2684,6 +2691,19 @@ export default function App() {
             }}
         />
     );
+
+    const handleApplyKaraokeLyrics = useCallback((lrcContent: string) => {
+        try {
+            const parsed = parseEnhancedLRC(lrcContent);
+            setLyrics(parsed);
+            if (currentSong && isLocalPlaybackSong(currentSong)) {
+                void handleUpdateLocalLyrics(lrcContent, false, `${currentSong.name}.lrc`);
+            }
+        } catch (err) {
+            console.error('[AI Karaoke] Failed to parse and set lyrics', err);
+        }
+    }, [currentSong, handleUpdateLocalLyrics, setLyrics]);
+
     return (
         <AppShell
             appStyle={appStyle}
@@ -2933,6 +2953,16 @@ export default function App() {
             <UserGuideModal theme={theme} />
             <PlaybackEntryViewPrompt theme={theme} />
             <LatticeFmNotice />
+            <DownloadProgressWindow isDaylight={isDaylight} />
+            <AiKaraokeModal theme={theme} isDaylight={isDaylight} onApplyLyrics={handleApplyKaraokeLyrics} />
+            <AiKaraokeFloatingPill />
+            <LrcEditorModal
+                currentTime={currentTime}
+                onSeek={seekMainAudio}
+                onSave={handleApplyKaraokeLyrics}
+                theme={theme}
+                isDaylight={isDaylight}
+            />
         </AppShell>
     );
 }

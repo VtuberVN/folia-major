@@ -6218,6 +6218,46 @@ const vi = {
         "noMatch": "Tùy chọn \"Không sử dụng dữ liệu trực tuyến\" ở góc dưới bên trái sẽ giúp bài hát chỉ sử dụng dữ liệu gốc trong tệp."
       }
     }
+  },
+  "download": {
+    "downloadCurrentSong": "Tải bài hát này về máy",
+    "downloadSongs": "Tải bài hát về máy",
+    "selectSongs": "Chọn bài hát muốn tải về",
+    "songCount": "{{count}} bài hát",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "selectedCount": "Đã chọn {{count}} bài",
+    "start": "Tải về",
+    "windowTitle": "Tải về",
+    "progress": "Đã xong {{done}}/{{total}} bài",
+    "activeCount": "Đang tải {{count}} bài",
+    "pendingCount": "Còn lại {{count}} bài",
+    "openFolder": "Mở thư mục",
+    "clearFinished": "Xóa mục đã hoàn thành",
+    "hide": "Thu nhỏ",
+    "unavailable": "Không khả dụng để tải về",
+    "continue": "Tiếp tục tải",
+    "queued": "Đang trong hàng đợi",
+    "remove": "Xóa bỏ",
+    "pause": "Tạm dừng",
+    "resume": "Tiếp tục",
+    "pauseAll": "Tạm dừng tất cả",
+    "paused": "Đã tạm dừng"
+  },
+  "karaoke": {
+    "openKaraoke": "Tách nhạc & Tạo Karaoke AI (MSS / ASR)",
+    "modalTitle": "Tách nhạc & Tạo Karaoke AI",
+    "selectMssModel": "Mô hình Tách Lời & Nhạc (MSS)",
+    "selectAsrMode": "Nhận diện Lời & Căn chỉnh Thời gian (Karaoke Sync)",
+    "startSeparation": "Bắt đầu Tách Nhạc & Tạo Karaoke",
+    "applyToPlayer": "Áp dụng cho bài hát đang phát",
+    "successBanner": "Đã tách beat và tạo file Karaoke thành công!",
+    "builtIn": "Tích hợp sẵn",
+    "ready": "Sẵn sàng",
+    "notDownloaded": "Chưa tải",
+    "turnOnBeat": "Bật chế độ Hát Karaoke (Chỉ phát Beat, tắt lời ca sĩ)",
+    "turnOffBeat": "Đang phát Beat Karaoke (Bấm để trở lại bản gốc)",
+    "openKaraokeStudio": "Cài đặt Karaoke & Visual LRC Studio"
   }
 } as const;
 

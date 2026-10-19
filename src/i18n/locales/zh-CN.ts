@@ -5442,5 +5442,45 @@ export default {
         "noMatch": "左下角的「不使用在线数据」让这首歌只用文件自己的信息。"
       }
     }
+  },
+  "download": {
+    "downloadCurrentSong": "下载这首歌曲",
+    "downloadSongs": "下载歌曲到本地",
+    "selectSongs": "选择要下载的歌曲",
+    "songCount": "{{count}} 首歌曲",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "selectedCount": "已选择 {{count}} 首",
+    "start": "开始下载",
+    "windowTitle": "下载管理器",
+    "progress": "已完成 {{done}}/{{total}} 首",
+    "activeCount": "{{count}} 首正在下载",
+    "pendingCount": "{{count}} 首排队中",
+    "openFolder": "打开文件夹",
+    "clearFinished": "清除已完成",
+    "hide": "最小化",
+    "unavailable": "此歌曲不可下载",
+    "continue": "继续下载",
+    "queued": "排队中",
+    "remove": "移除",
+    "pause": "暂停",
+    "resume": "继续",
+    "pauseAll": "全部暂停",
+    "paused": "已暂停"
+  },
+  "karaoke": {
+    "openKaraoke": "AI 伴奏提取与卡拉OK制作 (MSS / ASR)",
+    "modalTitle": "AI 伴奏提取与卡拉OK制作",
+    "selectMssModel": "分轨模型 (MSS)",
+    "selectAsrMode": "歌词逐字时间戳对齐 (Karaoke Sync)",
+    "startSeparation": "开始提取伴奏与卡拉OK",
+    "applyToPlayer": "应用到当前正在播放",
+    "successBanner": "已成功提取伴奏与卡拉OK逐字歌词！",
+    "builtIn": "内置",
+    "ready": "就绪",
+    "notDownloaded": "未下载",
+    "turnOnBeat": "卡拉OK伴奏模式 (仅播放伴奏，静音人声)",
+    "turnOffBeat": "正在播放伴奏 (点击切回原版原唱)",
+    "openKaraokeStudio": "卡拉OK设置与 Visual LRC 工作室"
   }
 } as const;
