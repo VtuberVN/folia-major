@@ -8303,8 +8303,19 @@ ipcMain.handle('ai-karaoke-open-output-dir', async (_event, songId) => {
 });
 
 ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
+  let resolvedAudioPath = (payload && payload.audioPath) || '';
+  if (!resolvedAudioPath && payload && payload.songId) {
+    try {
+      const existing = findExistingDownload(String(payload.songId));
+      if (existing && existing.path && fs.existsSync(existing.path)) {
+        resolvedAudioPath = existing.path;
+      }
+    } catch {}
+  }
+
   return runKaraokePipeline({
     ...payload,
+    audioPath: resolvedAudioPath,
     userDataPath: app.getPath('userData'),
     appModelsDir: getBundledModelsDirectory?.(),
     onProgress: (progress) => {

@@ -37,6 +37,8 @@ export type KaraokeAlignmentMode =
     | 'auto_transcribe' // Pure ASR: Whisper listens and transcribes words + timestamps
     | 'align_existing'; // Forced Alignment: Aligns existing lyrics text to separated vocal audio
 
+export type KaraokeDevicePreference = 'gpu' | 'cpu'; // WebGPU vs C++ MNN AVX2 CPU
+
 export interface WordTiming {
     text: string;
     startTime: number; // in seconds
@@ -64,6 +66,7 @@ export interface KaraokeGenerationResult {
     asrModelUsed: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
     generatedAt: number;
+    canceled?: boolean;
 }
 
 export type KaraokeJobStage =

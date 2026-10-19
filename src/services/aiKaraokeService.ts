@@ -103,6 +103,7 @@ export interface StartKaraokeJobOptions {
     mssModel?: MssModelId;
     asrModel?: AsrModelId;
     alignmentMode?: KaraokeAlignmentMode;
+    devicePreference?: import('../types/aiKaraoke').KaraokeDevicePreference;
 }
 
 /**
@@ -123,11 +124,30 @@ export const startKaraokeJob = async (
     const mssModel = options.mssModel || store.selectedMssModel;
     const asrModel = options.asrModel || store.selectedAsrModel;
     const alignmentMode = options.alignmentMode || store.alignmentMode;
+    const devicePreference = options.devicePreference || store.devicePreference || 'gpu';
     const rawLyrics = options.rawLyrics !== undefined ? options.rawLyrics : store.rawLyricsText;
 
     let audioSrc = usePlaybackStore.getState().audioSrc || '';
     const songAny = options.song as any;
     let audioPath = songAny.filePath || songAny.path || '';
+
+    // 0. Check if song has been downloaded via Folia's download service/store
+    if (!audioPath && options.song?.id) {
+        try {
+            const { useDownloadStore } = await import('../stores/useDownloadStore');
+            const dlItem = useDownloadStore.getState().items.find(it => String(it.songId) === String(options.song.id) && it.status === 'done');
+            if (dlItem?.path) {
+                audioPath = dlItem.path;
+            }
+            if (!audioPath && window.electron?.download?.checkDownloaded) {
+                const checks = await window.electron.download.checkDownloaded([String(options.song.id)]);
+                const hit = checks?.[String(options.song.id)];
+                if (hit?.path) {
+                    audioPath = hit.path;
+                }
+            }
+        } catch {}
+    }
 
     // 1. If local song but no filePath, attempt to resolve from IndexedDB
     if (!audioPath && options.song) {
@@ -169,9 +189,12 @@ export const startKaraokeJob = async (
             mssModel,
             asrModel,
             alignmentMode,
+            devicePreference,
         });
 
-        store.setResult(result);
+        if (result && !result.canceled) {
+            store.setResult(result);
+        }
         return result;
     } catch (err) {
         store.updateProgress({
@@ -189,14 +212,21 @@ export const startKaraokeJob = async (
  */
 export const cancelCurrentKaraokeJob = async (): Promise<boolean> => {
     const bridge = window.electron?.aiKaraoke;
-    const activeJobId = useAiKaraokeStore.getState().activeJobId;
-    if (!bridge?.cancelJob || !activeJobId) return false;
+    const store = useAiKaraokeStore.getState();
+    const activeJobId = store.activeJobId;
+    if (!bridge?.cancelJob || !activeJobId) {
+        store.resetJob();
+        return false;
+    }
 
     try {
         const res = await bridge.cancelJob(activeJobId);
-        useAiKaraokeStore.getState().setActiveJobId(null);
+        store.resetJob();
+        const { setStatusMessage } = await import('../stores/useStatusMessageStore');
+        setStatusMessage({ type: 'info', text: 'Đã hủy tiến trình AI Karaoke' });
         return res.canceled;
     } catch {
+        store.resetJob();
         return false;
     }
 };

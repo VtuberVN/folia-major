@@ -19,6 +19,12 @@ import type { OnlineRecovery } from './restore/createOnlineRecoveryController';
 //
 // A ref that only one hook reads does NOT belong here - it belongs inside that hook.
 
+let globalActiveAudioRef: { current: HTMLAudioElement | null } | null = null;
+
+export const getActiveAudioElement = (): HTMLAudioElement | null => {
+    return globalActiveAudioRef?.current ?? null;
+};
+
 export type PlaybackRuntimeRefs = ReturnType<typeof usePlaybackRuntimeRefs>;
 
 export const usePlaybackRuntimeRefs = () => {
@@ -26,6 +32,10 @@ export const usePlaybackRuntimeRefs = () => {
     // downstream - transport, progress, lyrics, media session - reads playback through here and
     // stays unaware that there are two elements.
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    globalActiveAudioRef = audioRef;
+    if (typeof window !== 'undefined') {
+        (window as any).__folia_active_audio_ref = audioRef;
+    }
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const gainNodeRef = useRef<GainNode | null>(null);

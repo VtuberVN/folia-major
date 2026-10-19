@@ -107,4 +107,16 @@ describe('useAiKaraokeStore', () => {
         expect(state.jobMessage).toBe('Đang tách beat và vocal');
         expect(state.elapsedSeconds).toBe(5);
     });
+
+    it('handles devicePreference switching', () => {
+        const store = useAiKaraokeStore.getState();
+        expect(store.devicePreference).toBe('gpu');
+
+        store.setDevicePreference('cpu');
+        expect(useAiKaraokeStore.getState().devicePreference).toBe('cpu');
+
+        store.setDevicePreference('gpu');
+        expect(useAiKaraokeStore.getState().devicePreference).toBe('gpu');
+    });
 });
+

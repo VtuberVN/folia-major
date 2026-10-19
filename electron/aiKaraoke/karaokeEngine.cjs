@@ -115,7 +115,39 @@ const groupWordsIntoLines = (words, maxWords = 8, maxGap = 1.2) => {
 };
 
 /**
+ * Estimates spoken syllable weight of a token.
+ * For numbers (e.g. '1234234'): counts individual digits as spoken syllables,
+ * so '1234234' takes 7 syllables ("một hai ba bốn hai ba bốn") instead of 1 token duration.
+ */
+const estimateSyllableWeight = (token) => {
+    if (!token) return 1;
+    const clean = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!clean) return 1;
+
+    const digitsMatch = clean.match(/\d/g);
+    if (digitsMatch) {
+        const nonDigits = clean.replace(/\d/g, '');
+        return Math.max(digitsMatch.length, 1) + (nonDigits.length > 0 ? 1 : 0);
+    }
+
+    const vowels = clean.match(/[aeiouyáàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]+/gi);
+    return vowels ? Math.max(1, vowels.length) : Math.max(1, Math.round(clean.length / 3));
+};
+
+/**
+ * Parses timestamp from line start: [mm:ss.xx] or [mm:ss]
+ */
+const parseLrcTimestamp = (str) => {
+    const match = str.match(/^\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/);
+    if (!match) return null;
+    const min = parseInt(match[1], 10);
+    const sec = parseFloat(match[2]);
+    return min * 60 + sec;
+};
+
+/**
  * Aligns raw lyrics text to detected words and spans.
+ * Accurately weights multi-digit numbers and preserves existing LRC timestamps.
  */
 const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
     const rawLines = rawLyrics
@@ -128,27 +160,112 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
         return groupWordsIntoLines(detectedWords);
     }
 
-    if (!detectedWords || detectedWords.length === 0) {
-        return rawLines.map((text, idx) => ({
-            startTime: idx * 4,
-            endTime: (idx + 1) * 4,
-            text,
-            words: [],
-        }));
+    // Check if lines have embedded LRC timestamps
+    const parsedLines = rawLines.map((line, idx) => {
+        const lineTimestamp = parseLrcTimestamp(line);
+        const cleanText = line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]\s*/, '').trim();
+        const tokens = cleanText.split(/\s+/).filter(Boolean);
+        const weights = tokens.map(estimateSyllableWeight);
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        return {
+            idx,
+            originalLine: line,
+            cleanText,
+            lineTimestamp,
+            tokens,
+            weights,
+            totalWeight: Math.max(1, totalWeight),
+        };
+    }).filter(it => it.cleanText.length > 0 || it.lineTimestamp !== null);
+
+    const hasTimestampTags = parsedLines.some(it => it.lineTimestamp !== null);
+
+    // Case 1: Raw lyrics already contain line timestamps [mm:ss.xx]
+    if (hasTimestampTags) {
+        const result = [];
+        for (let i = 0; i < parsedLines.length; i++) {
+            const cur = parsedLines[i];
+            const lineStart = cur.lineTimestamp !== null
+                ? cur.lineTimestamp
+                : (result.length > 0 ? result[result.length - 1].endTime : 0);
+
+            // Find next line timestamp for bounding
+            let nextStart = null;
+            for (let j = i + 1; j < parsedLines.length; j++) {
+                if (parsedLines[j].lineTimestamp !== null) {
+                    nextStart = parsedLines[j].lineTimestamp;
+                    break;
+                }
+            }
+
+            const estimatedDuration = Math.max(2.0, cur.totalWeight * 0.38);
+            const lineEnd = nextStart !== null
+                ? Math.min(nextStart, lineStart + Math.max(estimatedDuration, nextStart - lineStart))
+                : lineStart + estimatedDuration;
+
+            const totalSpan = Math.max(0.5, lineEnd - lineStart);
+            let currentOffset = lineStart;
+            const lineWords = cur.tokens.map((token, tIdx) => {
+                const tokenWeight = cur.weights[tIdx];
+                const tokenDuration = (tokenWeight / cur.totalWeight) * totalSpan;
+                const start = currentOffset;
+                const end = start + tokenDuration;
+                currentOffset += tokenDuration;
+                return {
+                    text: token,
+                    startTime: Math.round(start * 100) / 100,
+                    endTime: Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100),
+                };
+            });
+
+            result.push({
+                startTime: Math.round(lineStart * 100) / 100,
+                endTime: Math.round(lineEnd * 100) / 100,
+                text: cur.cleanText,
+                words: lineWords,
+            });
+        }
+        return result;
     }
 
-    const lineTokens = rawLines.map((line, idx) => ({
-        idx,
-        tokens: line.split(/\s+/).filter(Boolean),
-    }));
+    // Case 2: Plain text without timestamps - use syllable weighting across detectedWords or timeline
+    if (!detectedWords || detectedWords.length === 0) {
+        let runningTime = 0;
+        return parsedLines.map((it) => {
+            const lineDuration = Math.max(2.5, it.totalWeight * 0.4);
+            const lineStart = runningTime;
+            const lineEnd = lineStart + lineDuration;
+            runningTime = lineEnd + 0.5;
 
-    const totalRawTokens = lineTokens.reduce((s, it) => s + it.tokens.length, 0);
+            let currentOffset = lineStart;
+            const lineWords = it.tokens.map((token, tIdx) => {
+                const tokenDuration = (it.weights[tIdx] / it.totalWeight) * lineDuration;
+                const start = currentOffset;
+                const end = start + tokenDuration;
+                currentOffset += tokenDuration;
+                return {
+                    text: token,
+                    startTime: Math.round(start * 100) / 100,
+                    endTime: Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100),
+                };
+            });
+
+            return {
+                startTime: Math.round(lineStart * 100) / 100,
+                endTime: Math.round(lineEnd * 100) / 100,
+                text: it.cleanText,
+                words: lineWords,
+            };
+        });
+    }
+
+    const totalRawWeight = parsedLines.reduce((s, it) => s + it.totalWeight, 0);
     let wordCursor = 0;
     const result = [];
 
-    for (const it of lineTokens) {
+    for (const it of parsedLines) {
         if (it.tokens.length === 0) continue;
-        const ratio = it.tokens.length / Math.max(1, totalRawTokens);
+        const ratio = it.totalWeight / Math.max(1, totalRawWeight);
         const count = Math.max(1, Math.round(ratio * detectedWords.length));
         const wordsForLine = detectedWords.slice(wordCursor, wordCursor + count);
         wordCursor += wordsForLine.length;
@@ -158,7 +275,7 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
             result.push({
                 startTime: lastEnd,
                 endTime: lastEnd + 3,
-                text: rawLines[it.idx],
+                text: it.cleanText,
                 words: [],
             });
             continue;
@@ -166,23 +283,26 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
 
         const lineStart = wordsForLine[0].startTime;
         const lineEnd = wordsForLine[wordsForLine.length - 1].endTime;
-        const tokenDuration = (lineEnd - lineStart) / it.tokens.length;
+        const totalSpan = Math.max(0.5, lineEnd - lineStart);
 
+        let currentOffset = lineStart;
         const lineWords = it.tokens.map((token, tIdx) => {
-            const detected = wordsForLine[tIdx];
-            const start = detected ? detected.startTime : lineStart + tIdx * tokenDuration;
-            const end = detected ? detected.endTime : start + tokenDuration;
+            const tokenWeight = it.weights[tIdx];
+            const tokenDuration = (tokenWeight / it.totalWeight) * totalSpan;
+            const start = currentOffset;
+            const end = start + tokenDuration;
+            currentOffset += tokenDuration;
             return {
                 text: token,
-                startTime: start,
-                endTime: Math.max(end, start + 0.05),
+                startTime: Math.round(start * 100) / 100,
+                endTime: Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100),
             };
         });
 
         result.push({
-            startTime: lineStart,
-            endTime: Math.max(lineEnd, lineStart + 0.1),
-            text: rawLines[it.idx],
+            startTime: Math.round(lineStart * 100) / 100,
+            endTime: Math.max(Math.round(lineEnd * 100) / 100, Math.round((lineStart + 0.1) * 100) / 100),
+            text: it.cleanText,
             words: lineWords,
         });
     }
@@ -280,7 +400,7 @@ const writeWavFile = (filePath, left, right, sampleRate = 44100) => {
 /**
  * Decodes input audio into stereo Float32Array PCM at 44.1kHz using FFmpeg.
  */
-const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDataPath }) => {
+const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTitle, artist, userDataPath, activeJob }) => {
     let targetPath = null;
 
     // 1. Direct path from audioPath
@@ -300,8 +420,26 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
         } catch {}
     }
 
-    // 3. Check Folia Download directory
-    if (!targetPath && songId) {
+    // 3. Check electron-store config.json in userDataPath (contains downloadedSongs index & custom downloadDirectory)
+    if (!targetPath && userDataPath) {
+        try {
+            const configPath = path.join(userDataPath, 'config.json');
+            if (fs.existsSync(configPath)) {
+                const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                const dlIndex = cfg.downloadedSongs || {};
+                const customDlDir = cfg.downloadDirectory || path.join(os.homedir(), 'Downloads', 'Folia');
+                if (songId && dlIndex[String(songId)]?.fileName) {
+                    const cand = path.join(customDlDir, dlIndex[String(songId)].fileName);
+                    if (fs.existsSync(cand)) {
+                        targetPath = cand;
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    // 4. Check Folia Download directory by songId, songTitle or artist
+    if (!targetPath && (songId || songTitle)) {
         const dlDirs = [
             path.join(os.homedir(), 'Downloads', 'Folia'),
             path.join(userDataPath, 'downloads'),
@@ -310,7 +448,19 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
             if (fs.existsSync(dlDir)) {
                 try {
                     const files = fs.readdirSync(dlDir);
-                    const match = files.find(f => f.includes(String(songId)));
+                    // 4a. Check match by songId
+                    let match = songId ? files.find(f => f.includes(String(songId))) : null;
+                    // 4b. Check match by sanitized songTitle
+                    if (!match && songTitle) {
+                        const cleanTitle = songTitle.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+                        const titleTokens = cleanTitle.split(/\s+/).filter(t => t.length > 2);
+                        if (titleTokens.length > 0) {
+                            match = files.find(f => {
+                                const fLow = f.toLowerCase();
+                                return titleTokens.every(t => fLow.includes(t));
+                            });
+                        }
+                    }
                     if (match) {
                         targetPath = path.join(dlDir, match);
                         break;
@@ -320,7 +470,7 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
         }
     }
 
-    // 4. Check Folia Audio Cache
+    // 5. Check Folia Audio Cache
     if (!targetPath && songId) {
         const cacheDirs = [
             path.join(userDataPath, 'cache', 'audio'),
@@ -343,16 +493,33 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
     // If targetPath was found: decode from local file
     if (targetPath) {
         return new Promise((resolve, reject) => {
+            if (activeJob?.aborted) {
+                reject(new Error('Canceled by user'));
+                return;
+            }
+
             const args = ['-i', targetPath, '-vn', '-f', 'wav', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', 'pipe:1'];
             const proc = spawn(ffmpegBin, args, { windowsHide: true });
+            if (activeJob) {
+                activeJob.activeProc = proc;
+            }
+
             const chunks = [];
             let errOutput = '';
 
             proc.stdout.on('data', chunk => chunks.push(chunk));
             proc.stderr.on('data', data => { errOutput += data.toString(); });
 
-            proc.on('error', err => reject(new Error(`FFmpeg spawn error: ${err.message}`)));
+            proc.on('error', err => {
+                if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                reject(new Error(`FFmpeg spawn error: ${err.message}`));
+            });
             proc.on('close', code => {
+                if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                if (activeJob?.aborted) {
+                    reject(new Error('Canceled by user'));
+                    return;
+                }
                 if (code !== 0) {
                     reject(new Error(`FFmpeg exited with code ${code}: ${errOutput.slice(-300)}`));
                     return;
@@ -375,10 +542,15 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
         });
     }
 
-    // 5. If audioSrc is HTTP/HTTPS or folia scheme online stream: download & pipe to ffmpeg stdin
+    // 6. If audioSrc is HTTP/HTTPS or folia scheme online stream: download & pipe to ffmpeg stdin
     if (audioSrc && typeof audioSrc === 'string' && (/^https?:\/\//i.test(audioSrc) || /^folia-[a-z0-9_-]+:\/\//i.test(audioSrc))) {
         return new Promise(async (resolve, reject) => {
             try {
+                if (activeJob?.aborted) {
+                    reject(new Error('Canceled by user'));
+                    return;
+                }
+
                 let electronNet = null;
                 try {
                     const electron = require('electron');
@@ -397,14 +569,24 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                     },
+                    signal: activeJob?.abortController?.signal,
                 });
                 if (!resp.ok) {
                     reject(new Error(`Lỗi tải stream âm thanh HTTP ${resp.status}: ${resp.statusText}`));
                     return;
                 }
 
+                if (activeJob?.aborted) {
+                    reject(new Error('Canceled by user'));
+                    return;
+                }
+
                 const args = ['-i', 'pipe:0', '-vn', '-f', 'wav', '-c:a', 'pcm_s16le', '-ac', '2', '-ar', '44100', 'pipe:1'];
                 const proc = spawn(ffmpegBin, args, { windowsHide: true });
+                if (activeJob) {
+                    activeJob.activeProc = proc;
+                }
+
                 const chunks = [];
                 let errOutput = '';
 
@@ -415,8 +597,16 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
                 proc.stdin.write(Buffer.from(arrayBuffer));
                 proc.stdin.end();
 
-                proc.on('error', err => reject(new Error(`FFmpeg spawn error: ${err.message}`)));
+                proc.on('error', err => {
+                    if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                    reject(new Error(`FFmpeg spawn error: ${err.message}`));
+                });
                 proc.on('close', code => {
+                    if (activeJob && activeJob.activeProc === proc) activeJob.activeProc = null;
+                    if (activeJob?.aborted) {
+                        reject(new Error('Canceled by user'));
+                        return;
+                    }
                     if (code !== 0) {
                         reject(new Error(`FFmpeg stream decode error (${code}): ${errOutput.slice(-300)}`));
                         return;
@@ -460,11 +650,14 @@ const runKaraokePipeline = async ({
     mssModel = 'htdemucs_mnn',
     asrModel = 'whisper_turbo',
     alignmentMode = 'align_existing',
+    devicePreference = 'gpu',
     userDataPath,
     appModelsDir,
     onProgress,
 }) => {
-    activeJobs.set(jobId, { aborted: false });
+    const abortController = new AbortController();
+    const jobRecord = { aborted: false, activeProc: null, abortController };
+    activeJobs.set(jobId, jobRecord);
     const startTime = Date.now();
 
     const report = (stage, progress, message, detail) => {
@@ -477,7 +670,13 @@ const runKaraokePipeline = async ({
 
     try {
         // Step 1: Model validation & loading
-        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel}`);
+        const isGpu = devicePreference === 'gpu';
+        const cpuCount = (os.cpus() || []).length;
+        // Limit threads so CPU never pegs at 100% and PC remains smooth
+        const optimalThreads = isGpu ? 2 : Math.max(2, Math.min(4, Math.floor(cpuCount / 2) || 2));
+        const deviceLabel = isGpu ? 'WebGPU / GPU Hardware Acceleration' : `C++ MNN AVX2 (${optimalThreads} luồng CPU)`;
+
+        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${deviceLabel}`);
         const ffmpegBin = locateFfmpeg();
 
         let mnn = null;
@@ -496,8 +695,6 @@ const runKaraokePipeline = async ({
                     mnn.preferFastCores();
                 }
             } catch {}
-            const cpuCount = (os.cpus() || []).length;
-            const optimalThreads = Math.max(2, Math.min(6, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4));
             model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
         } else {
             const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
@@ -514,8 +711,6 @@ const runKaraokePipeline = async ({
                         mnn.preferFastCores();
                     }
                 } catch {}
-                const cpuCount = (os.cpus() || []).length;
-                const optimalThreads = Math.max(2, Math.min(6, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4));
                 model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
             } else {
                 throw new Error(`Chưa có runtime cho model ${mssModel}. Vui lòng chọn HTDemucs v4 (Folia Native).`);
@@ -539,17 +734,24 @@ const runKaraokePipeline = async ({
                 audioSrc,
                 ffmpegBin,
                 songId,
+                songTitle,
+                artist,
                 userDataPath,
+                activeJob: jobRecord,
             });
         } catch (decodeErr) {
             if (model) {
                 try { model.release(); } catch {}
             }
+            if (jobRecord.aborted || decodeErr.message === 'Canceled by user') {
+                report('idle', 0, 'Tiến trình đã được hủy bởi người dùng.', 'Canceled');
+                return { canceled: true };
+            }
             throw new Error(`Không thể giải mã âm thanh: ${decodeErr.message}`);
         }
 
         // Step 3: Music Source Separation with HTDemucs
-        report('separating_audio', 20, 'Đang tách giọng hát (Vocals) và beat nhạc (Instrumental)...', '0%');
+        report('separating_audio', 20, `Đang tách giọng hát (Vocals) và beat qua ${deviceLabel}...`, '0%');
         const { left, right } = audioPcm;
         const totalSamples = left.length;
 
@@ -560,7 +762,7 @@ const runKaraokePipeline = async ({
                     throw new Error('Canceled by user');
                 }
                 const pct = Math.round(20 + (curChunk / totalChunks) * 48);
-                report('separating_audio', pct, 'Đang tách tần số âm thanh bằng C++ MNN HTDemucs...', `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
+                report('separating_audio', pct, `Đang tách tần số âm thanh (${deviceLabel})...`, `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
             });
         } finally {
             if (model) {
@@ -664,17 +866,22 @@ const runKaraokePipeline = async ({
             mssModelUsed: mssModel,
             asrModelUsed: asrModel,
             alignmentMode,
+            deviceUsed: devicePreference,
             generatedAt: Date.now(),
         };
         fs.writeFileSync(path.join(outputDir, 'info.json'), JSON.stringify(info, null, 2), 'utf8');
 
         report('completed', 100, 'Đã tách xong Beat Karaoke và tạo file lời thành công!', 'Saved to disk');
-        activeJobs.delete(jobId);
         return info;
     } catch (err) {
-        activeJobs.delete(jobId);
+        if (activeJobs.get(jobId)?.aborted || err.message === 'Canceled by user') {
+            report('idle', 0, 'Tiến trình đã được hủy bởi người dùng.', 'Canceled');
+            return { canceled: true };
+        }
         report('error', 0, `Lỗi xử lý Karaoke: ${err.message}`, String(err));
         throw err;
+    } finally {
+        activeJobs.delete(jobId);
     }
 };
 
@@ -685,7 +892,13 @@ const cancelKaraokeJob = (jobId) => {
     const job = activeJobs.get(jobId);
     if (job) {
         job.aborted = true;
-        activeJobs.delete(jobId);
+        if (job.abortController) {
+            try { job.abortController.abort(); } catch {}
+        }
+        if (job.activeProc) {
+            try { job.activeProc.kill('SIGKILL'); } catch {}
+            job.activeProc = null;
+        }
         return { canceled: true };
     }
     return { canceled: false };

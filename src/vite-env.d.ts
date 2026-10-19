@@ -1060,6 +1060,7 @@ declare global {
           mssModel: import('./types/aiKaraoke').MssModelId;
           asrModel: import('./types/aiKaraoke').AsrModelId;
           alignmentMode: import('./types/aiKaraoke').KaraokeAlignmentMode;
+          devicePreference?: import('./types/aiKaraoke').KaraokeDevicePreference;
         }) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult>;
         cancelJob: (jobId: string) => Promise<{ canceled: boolean }>;
         exportLrcFile: (payload: { defaultFileName?: string; content: string }) => Promise<{ ok?: boolean; canceled?: boolean; filePath?: string }>;

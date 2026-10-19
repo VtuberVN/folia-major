@@ -92,7 +92,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '1 - 2s',
         description: 'Ép khớp lời bài hát text có sẵn vào file giọng hát với độ lệch dưới 30-50ms (hỗ trợ hơn 1100 ngôn ngữ).',
         descriptionVi: 'Ép khớp lời bài hát text có sẵn vào file giọng hát với độ lệch dưới 30-50ms (hỗ trợ hơn 1100 ngôn ngữ).',
-        downloadUrl: 'https://huggingface.co/facebook/mms-1b-all/resolve/main/mms_fa.pt',
+        downloadUrl: 'https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt',
     },
 ];
 

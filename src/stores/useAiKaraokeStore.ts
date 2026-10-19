@@ -22,6 +22,7 @@ interface AiKaraokeState {
     selectedMssModel: MssModelId;
     selectedAsrModel: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
+    devicePreference: 'gpu' | 'cpu';
     rawLyricsText: string;
     jobStage: KaraokeJobStage;
     jobProgress: number;
@@ -40,6 +41,7 @@ interface AiKaraokeState {
     setMssModel: (model: MssModelId) => void;
     setAsrModel: (model: AsrModelId) => void;
     setAlignmentMode: (mode: KaraokeAlignmentMode) => void;
+    setDevicePreference: (preference: 'gpu' | 'cpu') => void;
     setRawLyricsText: (text: string) => void;
     setModels: (models: AiModelInfo[]) => void;
     updateModelDownload: (
@@ -62,6 +64,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     selectedMssModel: 'htdemucs_mnn',
     selectedAsrModel: 'whisper_turbo',
     alignmentMode: 'align_existing',
+    devicePreference: 'gpu',
     rawLyricsText: '',
     jobStage: 'idle',
     jobProgress: 0,
@@ -104,6 +107,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     setMssModel: (selectedMssModel) => set({ selectedMssModel }),
     setAsrModel: (selectedAsrModel) => set({ selectedAsrModel }),
     setAlignmentMode: (alignmentMode) => set({ alignmentMode }),
+    setDevicePreference: (devicePreference) => set({ devicePreference }),
     setRawLyricsText: (rawLyricsText) => set({ rawLyricsText }),
 
     setModels: (models) => set({ models }),
@@ -163,10 +167,12 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     toggleKaraokeBeatMode: async (song) => {
         const state = get();
         const { usePlaybackStore } = await import('./usePlaybackStore');
+        const { getActiveAudioElement } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+        const audioElement = getActiveAudioElement() || (document.querySelector('audio') as HTMLAudioElement | null);
+
         if (state.isKaraokeBeatMode) {
             // Turning OFF: restore original audio source
             const original = state.originalTrackSrc;
-            const audioElement = document.querySelector('audio') as HTMLAudioElement | null;
             const currentTime = audioElement ? audioElement.currentTime : 0;
             const isPlaying = audioElement ? !audioElement.paused : false;
 
@@ -212,7 +218,6 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
 
         const blob = new Blob([audioBuffer as ArrayBuffer], { type: 'audio/wav' });
         const blobUrl = URL.createObjectURL(blob);
-        const audioElement = document.querySelector('audio') as HTMLAudioElement | null;
         const currentTime = audioElement ? audioElement.currentTime : 0;
         const isPlaying = audioElement ? !audioElement.paused : false;
         const currentSrc = usePlaybackStore.getState().audioSrc;

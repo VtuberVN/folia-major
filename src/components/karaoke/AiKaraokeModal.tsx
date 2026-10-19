@@ -17,6 +17,8 @@ import {
     Sliders,
     Play,
     Edit3,
+    Cpu,
+    Zap,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
@@ -33,7 +35,7 @@ import {
     openAiKaraokeModelsDirectory,
     openAiKaraokeOutputDirectory,
 } from '../../services/aiKaraokeService';
-import type { MssModelId, AsrModelId, KaraokeAlignmentMode } from '../../types/aiKaraoke';
+import type { MssModelId, AsrModelId, KaraokeAlignmentMode, KaraokeDevicePreference } from '../../types/aiKaraoke';
 import type { Theme, SongResult } from '../../types';
 
 interface AiKaraokeModalProps {
@@ -56,6 +58,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         selectedAsrModel,
         alignmentMode,
         rawLyricsText,
+        devicePreference,
         jobStage,
         jobProgress,
         jobMessage,
@@ -68,6 +71,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         setAsrModel,
         setAlignmentMode,
         setRawLyricsText,
+        setDevicePreference,
         setResult,
         resetJob,
         toggleKaraokeBeatMode,
@@ -127,6 +131,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 mssModel: selectedMssModel,
                 asrModel: selectedAsrModel,
                 alignmentMode,
+                devicePreference,
             });
         } catch {
             // Handled in store
@@ -292,6 +297,23 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
                             </div>
                         </div>
+
+                        {/* File Output Paths */}
+                        {lastResult.instrumentalPath && (
+                            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-black/20 border border-white/5 text-[11px] font-mono">
+                                <span className="truncate opacity-80" title={lastResult.instrumentalPath}>
+                                    🎵 File Beat: <span className="text-emerald-400 font-semibold">{lastResult.instrumentalPath}</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
+                                    className="shrink-0 flex items-center gap-1 font-sans text-xs underline font-medium hover:opacity-100 text-emerald-400"
+                                >
+                                    <FolderOpen size={12} />
+                                    <span>Mở thư mục</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -319,11 +341,24 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                             />
                         </div>
 
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="flex items-center gap-1.5 text-[11px] opacity-75">
+                                {devicePreference === 'gpu' ? (
+                                    <>
+                                        <Zap size={13} className="text-amber-400" />
+                                        <span>Tăng tốc phần cứng: WebGPU / DirectML</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Cpu size={13} className="text-blue-400" />
+                                        <span>Tăng tốc CPU: C++ MNN AVX2 (đa luồng an toàn)</span>
+                                    </>
+                                )}
+                            </span>
                             <button
                                 type="button"
                                 onClick={() => void cancelCurrentKaraokeJob()}
-                                className="px-3 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-500/10 transition-colors"
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
                             >
                                 Hủy tiến trình
                             </button>
@@ -364,6 +399,65 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 {/* Configuration Options (When not running and no active result) */}
                 {!isJobRunning && !lastResult && (
                     <div className="space-y-6">
+                        {/* Section 0: Hardware Acceleration (GPU vs CPU) */}
+                        <div className="space-y-2.5">
+                            <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
+                                <Zap size={14} className="text-amber-400" />
+                                <span>Tăng tốc Phần cứng (Hardware Acceleration)</span>
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div
+                                    onClick={() => setDevicePreference('gpu')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                        devicePreference === 'gpu' ? cardSelectedBg : cardBg
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Zap size={15} className="text-amber-400" />
+                                            <span className={`text-xs font-bold ${textColor}`}>GPU / Card đồ họa rời (Khuyên dùng)</span>
+                                        </div>
+                                        <div
+                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                devicePreference === 'gpu' ? 'border-transparent' : 'border-neutral-500'
+                                            }`}
+                                            style={{ backgroundColor: devicePreference === 'gpu' ? accentBg : 'transparent' }}
+                                        >
+                                            {devicePreference === 'gpu' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                        </div>
+                                    </div>
+                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
+                                        Tận dụng WebGPU / DirectML (NVIDIA, AMD, Intel, Apple Silicon). Xử lý cực nhanh, không gây đơ hoặc giật lag CPU máy tính.
+                                    </p>
+                                </div>
+
+                                <div
+                                    onClick={() => setDevicePreference('cpu')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                        devicePreference === 'cpu' ? cardSelectedBg : cardBg
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Cpu size={15} className="text-blue-400" />
+                                            <span className={`text-xs font-bold ${textColor}`}>CPU (C++ MNN AVX2 Đa luồng)</span>
+                                        </div>
+                                        <div
+                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                devicePreference === 'cpu' ? 'border-transparent' : 'border-neutral-500'
+                                            }`}
+                                            style={{ backgroundColor: devicePreference === 'cpu' ? accentBg : 'transparent' }}
+                                        >
+                                            {devicePreference === 'cpu' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                        </div>
+                                    </div>
+                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
+                                        Tự động giới hạn luồng xử lý CPU (tối đa 4 luồng an toàn) để máy tính không bị quá tải 100% CPU.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Section 1: MSS Models */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
