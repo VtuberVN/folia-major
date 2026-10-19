@@ -8,6 +8,7 @@ import {
     type LyricMetadata,
     rawLrcToEditableLines,
     editableLinesToLrc,
+    shiftLineTime,
 } from '../utils/lyrics/lyricEditorModel';
 
 const MAX_HISTORY_STEPS = 30;
@@ -121,7 +122,9 @@ export const useLrcEditorStore = create<LrcEditorState>((set, get) => ({
         if (activeLineIndex < 0 || activeLineIndex >= lines.length) return;
 
         const roundedTime = Math.max(0, Math.round(currentTimeSeconds * 100) / 100);
-        const updated = lines.map((l, i) => (i === activeLineIndex ? { ...l, startTime: roundedTime } : l));
+        const line = lines[activeLineIndex];
+        const delta = roundedTime - line.startTime;
+        const updated = shiftLineTime(lines, line.id, delta);
 
         setLines(updated, true);
 

@@ -97,4 +97,53 @@ describe('lyricEditorModel', () => {
         expect(merged[0].text).toBe('Hello world Second line here');
         expect(merged[1].text).toBe('Third line ending');
     });
+
+    describe('Enhanced word-level karaoke LRC support', () => {
+        const enhancedLrc = `[01:31.32]<01:31.32>Việc <01:31.55>của <01:31.80>em <01:32.10>là <01:32.40>yêu <01:32.70>anh <01:33.20>`;
+
+        it('parses enhanced LRC word tags into line.words', () => {
+            const lines = rawLrcToEditableLines(enhancedLrc);
+            expect(lines).toHaveLength(1);
+            expect(lines[0].text).toBe('Việc của em là yêu anh');
+            expect(lines[0].startTime).toBe(91.32);
+            expect(lines[0].words).toBeDefined();
+            expect(lines[0].words).toHaveLength(6);
+            expect(lines[0].words![0].text).toBe('Việc');
+            expect(lines[0].words![0].startTime).toBe(91.32);
+            expect(lines[0].words![0].endTime).toBe(91.55);
+            expect(lines[0].words![5].text).toBe('anh');
+            expect(lines[0].words![5].startTime).toBe(92.7);
+            expect(lines[0].words![5].endTime).toBe(93.2);
+        });
+
+        it('serializes lines with words back into enhanced LRC format', () => {
+            const lines = rawLrcToEditableLines(enhancedLrc);
+            const serialized = editableLinesToLrc(lines);
+            expect(serialized).toContain('[01:31.32]');
+            expect(serialized).toContain('<01:31.32>Việc');
+            expect(serialized).toContain('<01:31.55>của');
+            expect(serialized).toContain('<01:32.70>anh');
+            expect(serialized).toContain('<01:33.20>');
+        });
+
+        it('shifts word timestamps when shifting line time', () => {
+            const lines = rawLrcToEditableLines(enhancedLrc);
+            const shifted = shiftLineTime(lines, lines[0].id, 1.0);
+            expect(shifted[0].startTime).toBe(92.32);
+            expect(shifted[0].words![0].startTime).toBe(92.32);
+            expect(shifted[0].words![0].endTime).toBe(92.55);
+            expect(shifted[0].words![5].startTime).toBe(93.7);
+            expect(shifted[0].words![5].endTime).toBe(94.2);
+        });
+
+        it('keeps word timestamps in sync when correcting text with same word count', () => {
+            const lines = rawLrcToEditableLines(enhancedLrc);
+            const updated = updateLineText(lines, lines[0].id, 'Việc của mình là yêu em');
+            expect(updated[0].text).toBe('Việc của mình là yêu em');
+            expect(updated[0].words![2].text).toBe('mình');
+            expect(updated[0].words![2].startTime).toBe(91.8);
+            expect(updated[0].words![5].text).toBe('em');
+            expect(updated[0].words![5].startTime).toBe(92.7);
+        });
+    });
 });

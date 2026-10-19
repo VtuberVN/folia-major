@@ -105,7 +105,7 @@ self.onmessage = async (event: MessageEvent<Request>) => {
                 inputL.set(request.left.subarray(start, end), 0);
                 inputR.set(request.right.subarray(start, end), 0);
 
-                const result = await htdemucs.run(inputL, inputR, { slice: 'auto' });
+                const result = await htdemucs.run(inputL, inputR, { slice: 'none' });
 
                 for (let i = 0; i < n; i += 1) {
                     vocalsL[start + i] += result.left[i] * win[i];

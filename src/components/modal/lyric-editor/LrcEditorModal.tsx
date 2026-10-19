@@ -186,7 +186,7 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -361,12 +361,13 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
                                         const isPlaybackActive =
                                             liveCurrentTime >= line.startTime &&
                                             (idx === lines.length - 1 || liveCurrentTime < lines[idx + 1].startTime);
+                                        const hasWords = Boolean(line.words && line.words.length > 0);
 
                                         return (
                                             <div
                                                 key={line.id}
                                                 ref={isCurrentSyncLine ? activeRowRef : null}
-                                                className={`group flex items-center gap-3 p-2.5 rounded-xl border transition-all ${
+                                                className={`group flex ${hasWords ? 'items-start' : 'items-center'} gap-3 p-2.5 rounded-xl border transition-all ${
                                                     isCurrentSyncLine
                                                         ? 'border-amber-400 bg-amber-500/15 shadow-md ring-1 ring-amber-400/50'
                                                         : isPlaybackActive
@@ -375,7 +376,7 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
                                                 }`}
                                             >
                                                 {/* Line Number */}
-                                                <span className={`w-7 text-[11px] font-mono text-center ${subTextColor}`}>
+                                                <span className={`w-7 text-[11px] font-mono text-center ${subTextColor} ${hasWords ? 'mt-1.5' : ''}`}>
                                                     #{idx + 1}
                                                 </span>
 
@@ -384,13 +385,13 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
                                                     type="button"
                                                     onClick={() => onSeek(line.startTime)}
                                                     title={`Nghe thử từ ${formatLrcTimestamp(line.startTime)}`}
-                                                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                                    className={`p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors ${hasWords ? 'mt-0.5' : ''}`}
                                                 >
                                                     <Play size={14} />
                                                 </button>
 
                                                 {/* Timestamp Input & Quick Nudge Buttons */}
-                                                <div className="flex items-center gap-1 font-mono">
+                                                <div className={`flex items-center gap-1 font-mono ${hasWords ? 'mt-0.5' : ''}`}>
                                                     <span className="text-xs font-bold px-2 py-1 rounded bg-black/30 border border-white/5 tabular-nums">
                                                         [{formatLrcTimestamp(line.startTime)}]
                                                     </span>
@@ -438,17 +439,36 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
                                                     </button>
                                                 </div>
 
-                                                {/* Text Input */}
-                                                <input
-                                                    type="text"
-                                                    value={line.text}
-                                                    onChange={(e) => setLines(updateLineText(lines, line.id, e.target.value), false)}
-                                                    placeholder="Nội dung câu hát..."
-                                                    className="flex-1 bg-transparent px-2.5 py-1 text-xs focus:outline-none focus:bg-white/5 rounded border border-transparent focus:border-white/20 transition-all font-sans"
-                                                />
+                                                {/* Text Input & Word-level Karaoke Chips */}
+                                                <div className="flex-1 flex flex-col gap-1 min-w-0">
+                                                    <input
+                                                        type="text"
+                                                        value={line.text}
+                                                        onChange={(e) => setLines(updateLineText(lines, line.id, e.target.value), false)}
+                                                        placeholder="Nội dung câu hát..."
+                                                        className="w-full bg-transparent px-2.5 py-1 text-xs focus:outline-none focus:bg-white/5 rounded border border-transparent focus:border-white/20 transition-all font-sans"
+                                                    />
+                                                    {line.words && line.words.length > 0 && (
+                                                        <div className="flex flex-wrap items-center gap-1 px-1 pt-0.5">
+                                                            <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                                                Karaoke ({line.words.length} từ)
+                                                            </span>
+                                                            {line.words.map((w, wIdx) => (
+                                                                <span
+                                                                    key={wIdx}
+                                                                    title={`${formatLrcTimestamp(w.startTime)}${w.endTime !== undefined ? ' -> ' + formatLrcTimestamp(w.endTime) : ''}`}
+                                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
+                                                                >
+                                                                    <span className="text-neutral-400">&lt;{formatLrcTimestamp(w.startTime)}&gt;</span>
+                                                                    <span className="font-sans text-neutral-200">{w.text}</span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
 
                                                 {/* Action Buttons */}
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${hasWords ? 'mt-1' : ''}`}>
                                                     <button
                                                         type="button"
                                                         onClick={() => setLines(insertLineAfter(lines, idx))}
