@@ -9,6 +9,7 @@ import { canAnalyseTracks } from '../../../../services/automix/transitionStrateg
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { useAutomixSettingsStore } from '../../../../stores/useAutomixSettingsStore';
 import { useDesktopSettingsStore } from '../../../../stores/useDesktopSettingsStore';
+import { useSongUnlockSettingsStore } from '../../../../stores/useSongUnlockSettingsStore';
 import { runsOnWindows } from '../../../../utils/platform';
 import { Button, Chips, Group, Reveal, Row, Segmented, Slider, Status, Toggle, option, type SettingsGroupDef, type SettingsOptionDef } from '../kit';
 import AudioOutputDeviceRow from './AudioOutputDeviceRow';
@@ -21,6 +22,7 @@ import { useSettingsPage } from './settingsPageContext';
 
 const TRANSITION: SettingsGroupDef = { id: 'transitionSettings', titleKey: 'options.transitionSettings' };
 const SOUND: SettingsGroupDef = { id: 'audioOutputSettings', titleKey: 'options.settingsHeadingSound' };
+const UNLOCK: SettingsGroupDef = { id: 'songUnlock', titleKey: 'options.songUnlock' };
 const BEHAVIOR: SettingsGroupDef = { id: 'queueSettings', titleKey: 'options.settingsHeadingPlaybackBehavior' };
 
 const O = {
@@ -37,6 +39,10 @@ const O = {
     transcode: option(SOUND, 'transcodeFallback', 'options.transcodeFallback', { electronOnly: true }),
     wasapiExclusive: option(SOUND, 'wasapiExclusive', 'options.wasapiExclusive', { electronOnly: true, available: () => runsOnWindows() && Boolean(window.electron?.wasapi) }),
     showSignalPath: option(SOUND, 'showSignalPath', 'options.showSignalPath'),
+    songUnlock: option(UNLOCK, 'songUnlock', 'options.songUnlockEnable'),
+    unlockNetease: option(UNLOCK, 'songUnlockServerNetease', 'options.songUnlockServerNetease'),
+    unlockBodian: option(UNLOCK, 'songUnlockServerBodian', 'options.songUnlockServerBodian'),
+    unlockKuwo: option(UNLOCK, 'songUnlockServerKuwo', 'options.songUnlockServerKuwo'),
     queueBehavior: option(BEHAVIOR, 'queueDefaultBehavior', 'options.queueDefaultBehavior'),
     autoSkipUnplayable: option(BEHAVIOR, 'autoSkipUnplayable', 'options.autoSkipUnplayable'),
     preventSleep: option(BEHAVIOR, 'preventDisplaySleepDuringPlayback', 'options.preventDisplaySleepDuringPlayback', { electronOnly: true }),
@@ -90,6 +96,17 @@ const PlaybackPage: React.FC = () => {
     })));
     const preventSleep = useDesktopSettingsStore(state => state.preventDisplaySleepDuringPlayback);
     const setPreventSleep = useDesktopSettingsStore(state => state.handleTogglePreventDisplaySleepDuringPlayback);
+    const {
+        useSongUnlock,
+        songUnlockServers,
+        onToggleSongUnlock,
+        onToggleSongUnlockServer,
+    } = useSongUnlockSettingsStore(useShallow(state => ({
+        useSongUnlock: state.useSongUnlock,
+        songUnlockServers: state.songUnlockServers,
+        onToggleSongUnlock: state.handleToggleSongUnlock,
+        onToggleSongUnlockServer: state.handleToggleSongUnlockServer,
+    })));
 
     // Asked on every render, not kept: whether the models are on disk can change while the page is
     // open, and the subscription below only makes the page render again when it does.
@@ -223,6 +240,35 @@ const PlaybackPage: React.FC = () => {
                 <Row option={O.showSignalPath} hint={t('options.showSignalPathDesc')}>
                     <Toggle checked={audio.showSignalPath} onChange={audio.setShowSignalPath} />
                 </Row>
+            </Group>
+
+            <Group def={UNLOCK}>
+                <Row option={O.songUnlock} hint={t('options.songUnlockDesc')}>
+                    <Toggle checked={useSongUnlock} onChange={onToggleSongUnlock} />
+                </Row>
+                <Reveal when={useSongUnlock}>
+                    {songUnlockServers.map((server) => {
+                        const opt = server.key === 'netease'
+                            ? O.unlockNetease
+                            : server.key === 'bodian'
+                                ? O.unlockBodian
+                                : O.unlockKuwo;
+                        const hintKey = 'options.songUnlockServerDesc' + server.key.charAt(0).toUpperCase() + server.key.slice(1);
+                        return (
+                            <Row
+                                key={server.key}
+                                sub
+                                option={opt}
+                                hint={t(hintKey)}
+                            >
+                                <Toggle
+                                    checked={server.enabled}
+                                    onChange={(enabled) => onToggleSongUnlockServer(server.key, enabled)}
+                                />
+                            </Row>
+                        );
+                    })}
+                </Reveal>
             </Group>
 
             <Group def={BEHAVIOR}>

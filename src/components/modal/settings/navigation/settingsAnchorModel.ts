@@ -39,6 +39,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     transitionSettings: { section: 'playback' },
     replayGainSettings: { section: 'playback' },
     audioOutputSettings: { section: 'playback' },
+    songUnlock: { section: 'playback' },
     lyrics: { section: 'lyrics' },
     scrobbleSettings: { section: 'integration' },
 

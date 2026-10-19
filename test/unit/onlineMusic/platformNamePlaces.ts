@@ -69,6 +69,7 @@ export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'src/components/modal/settings/pages/IntegrationPage.tsx': { n: { netease: 4 }, kind: 'stored', why: 'the stored setting neteaseScrobbleEnabled and its i18n keys' },
     'src/components/modal/settings/pages/integration/StageModeRows.tsx': { n: { spotify: 8 }, kind: 'stored', why: 'Stage mode rows for Spotify and Spotify Local' },
     'src/components/modal/settings/pages/LyricsPage.tsx': { n: { spotify: 1 }, kind: 'lyric', why: 'which of two hand-written descriptions of the lyric sources is shown' },
+    'src/components/modal/settings/pages/PlaybackPage.tsx': { n: { netease: 3, bodian: 3 }, kind: 'stored', why: 'song unlock platform server options' },
     'src/components/modal/settings/pages/integration/options.ts': { n: { netease: 1 }, kind: 'stored', why: 'an i18n key' },
     'src/components/panelTab/FmTab.tsx': { n: { qq: 1, bodian: 1 }, kind: 'doc' },
     'src/components/shared/CoverSizeAuditPanel.tsx': { n: { netease: 6 }, kind: 'question', why: 'a developer panel: a filter for the cover requests that go to one picture host' },

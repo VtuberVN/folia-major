@@ -399,6 +399,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         UPDATE_CHANNEL: DEFAULT_UPDATE_CHANNEL,
         STAGE_MODE_SOURCE: 'stage-api',
         DISCORD_RICH_PRESENCE_ENABLED: false,
+        DISCORD_RICH_PRESENCE_APPLICATION_ID: '',
     });
     const [electronSettingsLoaded, setElectronSettingsLoaded] = useState(false);
     // Keys stay in the main process; the renderer only knows which ones are saved, and the endpoint
@@ -598,6 +599,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         };
         setElectronSettings(nextSettings);
         await window.electron?.saveSettings?.('DISCORD_RICH_PRESENCE_ENABLED', enabled);
+        const status = await window.electron?.getDiscordPresenceStatus?.();
+        if (status) {
+            setDiscordPresenceStatus(status);
+        }
+    };
+
+    const handleSaveDiscordApplicationId = async (nextId: string) => {
+        if (!window.electron?.saveSettings) return;
+        await window.electron.saveSettings('DISCORD_RICH_PRESENCE_APPLICATION_ID', nextId);
+        setElectronSettings(prev => ({ ...prev, DISCORD_RICH_PRESENCE_APPLICATION_ID: nextId }));
         const status = await window.electron?.getDiscordPresenceStatus?.();
         if (status) {
             setDiscordPresenceStatus(status);
@@ -1082,7 +1093,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 },
                 discord: {
                     enabled: electronSettings.DISCORD_RICH_PRESENCE_ENABLED,
+                    applicationId: electronSettings.DISCORD_RICH_PRESENCE_APPLICATION_ID,
                     onToggle: handleToggleDiscordPresence,
+                    onSaveApplicationId: handleSaveDiscordApplicationId,
                     status: discordPresenceStatus,
                 },
                 lyricApi: {

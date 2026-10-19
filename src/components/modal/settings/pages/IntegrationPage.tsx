@@ -9,6 +9,7 @@ import NavidromeRows from './integration/NavidromeRows';
 import { O, SERVICES, STREAMING } from './integration/options';
 import { DesktopStageRows, WebStageRows } from './integration/StageModeRows';
 import SyncServerRows from './integration/SyncServerRows';
+import DiscordApplicationIdField from '../DiscordApplicationIdField';
 import { useSettingsPage } from './settingsPageContext';
 
 // src/components/modal/settings/pages/IntegrationPage.tsx
@@ -73,6 +74,16 @@ const IntegrationPage: React.FC = () => {
                             )}
                             <Toggle checked={discord.enabled} onChange={enabled => void discord.onToggle(enabled)} />
                         </Row>
+                        <Reveal when={discord.enabled && Boolean(discord.onSaveApplicationId)}>
+                            <Row sub>
+                                <div className="w-full">
+                                    <DiscordApplicationIdField
+                                        value={discord.applicationId ?? ''}
+                                        onSave={discord.onSaveApplicationId!}
+                                    />
+                                </div>
+                            </Row>
+                        </Reveal>
                         <Reveal when={Boolean(discord.status?.error)}>
                             <Row sub label={<Status tone="error">{discord.status?.error}</Status>} />
                         </Reveal>

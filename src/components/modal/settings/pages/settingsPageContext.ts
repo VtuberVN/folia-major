@@ -35,6 +35,7 @@ export type ElectronSettingsState = {
     UPDATE_CHANNEL: 'vietnamese' | 'realeco' | 'limo' | 'cielo' | 'internal';
     STAGE_MODE_SOURCE: string;
     DISCORD_RICH_PRESENCE_ENABLED: boolean;
+    DISCORD_RICH_PRESENCE_APPLICATION_ID: string;
 };
 
 export type SettingsPageContextValue = {
@@ -104,7 +105,9 @@ export type SettingsPageContextValue = {
             };
             discord: {
                 enabled: boolean;
+                applicationId?: string;
                 onToggle: (enabled: boolean) => Promise<void> | void;
+                onSaveApplicationId?: (value: string) => Promise<void>;
                 status?: ElectronDiscordPresenceStatus | null;
             };
             lyricApi: {
