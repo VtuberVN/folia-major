@@ -670,11 +670,16 @@ const runKaraokePipeline = async ({
 
     try {
         // Step 1: Model validation & loading
-        const isGpu = devicePreference === 'gpu';
+        const isTurbo = devicePreference === 'gpu';
         const cpuCount = (os.cpus() || []).length;
-        // Limit threads so CPU never pegs at 100% and PC remains smooth
-        const optimalThreads = isGpu ? 2 : Math.max(2, Math.min(4, Math.floor(cpuCount / 2) || 2));
-        const deviceLabel = isGpu ? 'WebGPU / GPU Hardware Acceleration' : `C++ MNN AVX2 (${optimalThreads} luồng CPU)`;
+        // In Turbo mode: allocate up to 8 threads on performance cores for maximum speed
+        // In Balanced mode: allocate 4 threads to keep PC cool & smooth
+        const optimalThreads = isTurbo
+            ? Math.max(4, Math.min(8, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4))
+            : Math.max(2, Math.min(4, Math.floor(cpuCount / 2) || 2));
+        const deviceLabel = isTurbo
+            ? `C++ MNN AVX2 Turbo (${optimalThreads} luồng P-Cores)`
+            : `C++ MNN AVX2 Tiết kiệm (${optimalThreads} luồng)`;
 
         report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${deviceLabel}`);
         const ffmpegBin = locateFfmpeg();

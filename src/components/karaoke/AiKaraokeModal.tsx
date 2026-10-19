@@ -19,6 +19,7 @@ import {
     Edit3,
     Cpu,
     Zap,
+    Minimize2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
@@ -165,17 +166,33 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
 
     const footerButtons = (
         <div className="flex items-center gap-2">
-            <button
-                type="button"
-                onClick={closeModal}
-                className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
-                    isDaylight
-                        ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
-                        : 'border-white/10 hover:bg-white/5 text-neutral-300'
-                }`}
-            >
-                {t('ui.close', 'Đóng')}
-            </button>
+            {isJobRunning ? (
+                <button
+                    type="button"
+                    onClick={closeModal}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                        isDaylight
+                            ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-800'
+                            : 'border-white/20 hover:bg-white/10 text-neutral-100'
+                    }`}
+                    title="Thu nhỏ cửa sổ và tiếp tục xử lý ngầm trong nền"
+                >
+                    <Minimize2 size={13} />
+                    <span>Thu nhỏ & Chạy nền</span>
+                </button>
+            ) : (
+                <button
+                    type="button"
+                    onClick={closeModal}
+                    className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                        isDaylight
+                            ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
+                            : 'border-white/10 hover:bg-white/5 text-neutral-300'
+                    }`}
+                >
+                    {t('ui.close', 'Đóng')}
+                </button>
+            )}
 
             {lastResult && (
                 <button
@@ -346,22 +363,37 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 {devicePreference === 'gpu' ? (
                                     <>
                                         <Zap size={13} className="text-amber-400" />
-                                        <span>Tăng tốc phần cứng: WebGPU / DirectML</span>
+                                        <span>Tốc độ Tối đa: C++ MNN AVX2 Turbo (P-Cores)</span>
                                     </>
                                 ) : (
                                     <>
                                         <Cpu size={13} className="text-blue-400" />
-                                        <span>Tăng tốc CPU: C++ MNN AVX2 (đa luồng an toàn)</span>
+                                        <span>Tiết kiệm CPU: 4 luồng an toàn (Êm ái)</span>
                                     </>
                                 )}
                             </span>
-                            <button
-                                type="button"
-                                onClick={() => void cancelCurrentKaraokeJob()}
-                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
-                            >
-                                Hủy tiến trình
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeModal}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 transition-colors"
+                                    title="Thu nhỏ và tiếp tục chạy nền"
+                                >
+                                    <Minimize2 size={13} />
+                                    <span>Thu nhỏ</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void cancelCurrentKaraokeJob()}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+                                >
+                                    Hủy tiến trình
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-black/10 border border-white/5 text-[11px] text-neutral-400 leading-relaxed">
+                            💡 <b>Mẹo:</b> Bạn có thể bấm <b>"Thu nhỏ"</b> để nghe nhạc hoặc làm việc khác. Thanh hiển thị tiến trình ở góc màn hình sẽ thông báo và cho phép mở lại bất cứ lúc nào.
                         </div>
                     </div>
                 )}
@@ -399,11 +431,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 {/* Configuration Options (When not running and no active result) */}
                 {!isJobRunning && !lastResult && (
                     <div className="space-y-6">
-                        {/* Section 0: Hardware Acceleration (GPU vs CPU) */}
+                        {/* Section 0: Hardware Acceleration (Turbo vs Balanced) */}
                         <div className="space-y-2.5">
                             <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
                                 <Zap size={14} className="text-amber-400" />
-                                <span>Tăng tốc Phần cứng (Hardware Acceleration)</span>
+                                <span>Chế độ Tăng tốc Xử lý (AI Acceleration Mode)</span>
                             </label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div
@@ -415,7 +447,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-2">
                                             <Zap size={15} className="text-amber-400" />
-                                            <span className={`text-xs font-bold ${textColor}`}>GPU / Card đồ họa rời (Khuyên dùng)</span>
+                                            <span className={`text-xs font-bold ${textColor}`}>Tốc độ Tối đa (Turbo Đa luồng C++ AVX2)</span>
                                         </div>
                                         <div
                                             className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
@@ -427,7 +459,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         </div>
                                     </div>
                                     <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
-                                        Tận dụng WebGPU / DirectML (NVIDIA, AMD, Intel, Apple Silicon). Xử lý cực nhanh, không gây đơ hoặc giật lag CPU máy tính.
+                                        Tận dụng tối đa các nhân Performance (P-Cores) với C++ Native MNN AVX2/AVX-512. Tốc độ tách cực nhanh, chỉ mất khoảng 40–60 giây cho cả bài hát.
                                     </p>
                                 </div>
 
@@ -440,7 +472,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-2">
                                             <Cpu size={15} className="text-blue-400" />
-                                            <span className={`text-xs font-bold ${textColor}`}>CPU (C++ MNN AVX2 Đa luồng)</span>
+                                            <span className={`text-xs font-bold ${textColor}`}>Tiết kiệm CPU (Chạy nền Êm ái)</span>
                                         </div>
                                         <div
                                             className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
@@ -452,7 +484,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         </div>
                                     </div>
                                     <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
-                                        Tự động giới hạn luồng xử lý CPU (tối đa 4 luồng an toàn) để máy tính không bị quá tải 100% CPU.
+                                        Tự động giới hạn luồng xử lý CPU (tối đa 4 luồng an toàn), giữ CPU máy tính ở mức vừa phải (~30-40%) để không gây giật lag khi chơi game.
                                     </p>
                                 </div>
                             </div>

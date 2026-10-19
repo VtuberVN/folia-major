@@ -38,6 +38,8 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
     const cachedKaraoke = useAiKaraokeStore(state => state.cachedKaraokeForCurrentSong);
     const toggleKaraokeBeatMode = useAiKaraokeStore(state => state.toggleKaraokeBeatMode);
     const checkCurrentSongKaraoke = useAiKaraokeStore(state => state.checkCurrentSongKaraoke);
+    const isJobRunning = useAiKaraokeStore(state => state.jobStage !== 'idle' && state.jobStage !== 'completed' && state.jobStage !== 'error');
+    const jobProgress = useAiKaraokeStore(state => state.jobProgress);
 
     useEffect(() => {
         if (currentSong?.id) {
@@ -67,7 +69,19 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                     <Star size={17} />
                 </PanelIconButton>
             )}
-            {currentSong && cachedKaraoke ? (
+            {currentSong && isJobRunning ? (
+                <PanelIconButton
+                    label={`Đang tách Beat AI (${jobProgress}%) · Bấm để xem chi tiết`}
+                    filled
+                    onClick={handleOpenKaraoke}
+                    style={{ color: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.2)' }}
+                >
+                    <span className="flex items-center gap-1 text-[11px] font-bold">
+                        <Mic size={14} className="animate-pulse" />
+                        <span>{jobProgress}%</span>
+                    </span>
+                </PanelIconButton>
+            ) : currentSong && cachedKaraoke ? (
                 <>
                     <PanelIconButton
                         label={isKaraokeBeatMode ? t('karaoke.turnOffBeat', 'Đang phát Beat Karaoke (Bấm để trở lại bản gốc)') : t('karaoke.turnOnBeat', 'Bật chế độ Hát Karaoke (Chỉ phát Beat, tắt lời ca sĩ)')}
