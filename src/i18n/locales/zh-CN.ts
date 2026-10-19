@@ -772,6 +772,8 @@ export default {
       "settings-audio-output": { "title": "音频输出", "description": "直接跳到音频输出设备与格式设置" },
       "settings-transition": { "title": "智能过渡", "description": "直接跳到 FOLIA 智能过渡设置" },
       "settings-navidrome": { "title": "Navidrome 服务器", "description": "直接跳到 Navidrome 服务器连接设置" },
+      "settings-spotify": { "title": "Spotify Web API 集成", "description": "配置并连接 Spotify Web API" },
+      "settings-spotify-local": { "title": "Spotify 本地应用集成", "description": "无需 Web API 授权直接读取本地 Spotify 桌面端" },
       "settings-stage-mode": { "title": "Stage 模式", "description": "直接跳到 Stage 外部播放器设置" },
       "settings-media-cache": { "title": "媒体缓存", "description": "直接跳到已下载音频的缓存" },
       "filter-view": { "title": "筛选当前视图", "description": "按名称缩小屏幕上的卡片范围" },

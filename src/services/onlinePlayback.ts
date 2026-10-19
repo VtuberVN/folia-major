@@ -22,6 +22,8 @@ import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
 import { saveLyricCacheSongMetadata } from './lyricExport/lyricCacheMetadata';
 import { errorFields } from '../utils/errorText';
+import { getUnlockAudioSource } from './songUnlockService';
+import { useSongUnlockSettingsStore } from '../stores/useSongUnlockSettingsStore';
 
 // How long playback waits for a stored copy's header to give its play length (`wholeCopy`). Past
 // it the copy plays untested: the check must not hold up a song that starts from the cache.
@@ -148,9 +150,41 @@ export async function loadOnlineSongAudioSource(
         }
         const url = thrown === undefined ? toPlayableAudioUrl(source?.url) : null;
         if (url) {
+            const isPreview = omni.isPreviewAudioSource(url) || Boolean(source?.preview);
+            if (isPreview) {
+                const unlockSettings = useSongUnlockSettingsStore.getState();
+                if (unlockSettings.useSongUnlock) {
+                    try {
+                        const unlockResult = await getUnlockAudioSource(song, unlockSettings.songUnlockServers);
+                        const unlockUrl = toPlayableAudioUrl(unlockResult?.url);
+                        if (unlockUrl) {
+                            console.log(`[OnlinePlayback] VIP preview upgraded to full track via ${unlockResult.source} for "${song.name}"`);
+                            updatePrefetchedAudioUrl(song, unlockUrl, audioQuality);
+                            return { kind: 'ok', audioSrc: unlockUrl, replayGain: song.replayGain, preview: false };
+                        }
+                    } catch (unlockErr) {
+                        console.warn('[OnlinePlayback] Failed to unlock VIP preview', unlockErr);
+                    }
+                }
+            }
             const replayGain = applyOnlineAudioSourceMetadata(song, source?.replayGain).replayGain;
             updatePrefetchedAudioUrl(song, url, audioQuality, replayGain);
-            return { kind: 'ok', audioSrc: url, replayGain, preview: omni.isPreviewAudioSource(url) };
+            return { kind: 'ok', audioSrc: url, replayGain, preview: isPreview };
+        }
+
+        const unlockSettings = useSongUnlockSettingsStore.getState();
+        if (unlockSettings.useSongUnlock) {
+            try {
+                const unlockResult = await getUnlockAudioSource(song, unlockSettings.songUnlockServers);
+                const unlockUrl = toPlayableAudioUrl(unlockResult?.url);
+                if (unlockUrl) {
+                    console.log(`[OnlinePlayback] Unavailable song unlocked via ${unlockResult.source} for "${song.name}"`);
+                    updatePrefetchedAudioUrl(song, unlockUrl, audioQuality);
+                    return { kind: 'ok', audioSrc: unlockUrl, replayGain: song.replayGain, preview: false };
+                }
+            } catch (unlockErr) {
+                console.warn('[OnlinePlayback] Failed to unlock unavailable song', unlockErr);
+            }
         }
         const failure = thrown === undefined
             // A provider (a mod's) that answers null, or an address that may not be played.

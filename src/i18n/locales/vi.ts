@@ -1287,6 +1287,14 @@ const vi = {
         "title": "Máy chủ Navidrome",
         "description": "Đi tới kết nối máy chủ Navidrome"
       },
+      "settings-spotify": {
+        "title": "Tích hợp Spotify Web API",
+        "description": "Cấu hình và kết nối Spotify Web API"
+      },
+      "settings-spotify-local": {
+        "title": "Tích hợp Spotify cục bộ",
+        "description": "Đọc ứng dụng Spotify máy tính mà không cần cấp quyền Web API"
+      },
       "settings-stage-mode": {
         "title": "Chế độ Stage",
         "description": "Đi tới cài đặt trình phát ngoài Stage"
