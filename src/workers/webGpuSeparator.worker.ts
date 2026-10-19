@@ -26,12 +26,24 @@ let htdemucs: HtdemucsWgsl | null = null;
 let device: GPUDevice | null = null;
 let f16 = false;
 let lost: string | null = null;
+let adapterLabel = 'WebGPU';
 
 const openDevice = async (): Promise<GPUDevice> => {
     if (device) return device;
     if (!navigator.gpu) throw new Error('no WebGPU in this worker');
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
     if (!adapter) throw new Error('no WebGPU adapter');
+
+    try {
+        const info = (adapter as any).info || (typeof (adapter as any).requestAdapterInfo === 'function' ? await (adapter as any).requestAdapterInfo() : null);
+        if (info) {
+            const desc = info.description || info.device || '';
+            const vendor = info.vendor || '';
+            const arch = info.architecture || '';
+            adapterLabel = desc || `${vendor} ${arch}`.trim() || 'WebGPU';
+        }
+    } catch {}
+
     f16 = adapter.features.has('shader-f16');
     const opened = await adapter.requestDevice({ requiredFeatures: f16 ? ['shader-f16'] : [] });
     opened.lost.then((info) => {
@@ -52,7 +64,7 @@ self.onmessage = async (event: MessageEvent<Request>) => {
                 // source: 3 is VOCALS in HTDemucs (0: drums, 1: bass, 2: other, 3: vocals)
                 htdemucs = await HtdemucsWgsl.create(dev, request.weights, request.manifest, { source: 3, f16 });
             }
-            self.postMessage({ id: request.id, ok: true });
+            self.postMessage({ id: request.id, ok: true, deviceLabel: adapterLabel });
             return;
         }
 
@@ -107,6 +119,7 @@ self.onmessage = async (event: MessageEvent<Request>) => {
                     curChunk: c + 1,
                     totalChunks: chunks,
                     percent: Math.round(((c + 1) / chunks) * 100),
+                    deviceLabel: adapterLabel,
                 });
             }
 
@@ -116,7 +129,7 @@ self.onmessage = async (event: MessageEvent<Request>) => {
                 vocalsR[i] /= w;
             }
 
-            self.postMessage(
+            (self as any).postMessage(
                 {
                     id: request.id,
                     result: {

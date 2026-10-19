@@ -118,7 +118,14 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
         }
     };
 
-    const handleOpenInEditor = (item: KaraokeOutputSummary) => {
+    const handleOpenInEditor = async (item: KaraokeOutputSummary) => {
+        let lrcText = '';
+        if (window.electron?.aiKaraoke?.getCachedResult) {
+            try {
+                const cached = await window.electron.aiKaraoke.getCachedResult(item.songId);
+                lrcText = cached?.enhancedLrcText || cached?.lrcText || '';
+            } catch {}
+        }
         openVisualLrcEditor(
             {
                 id: item.songId,
@@ -127,14 +134,22 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                 album: { id: 0, name: 'AI Karaoke Stems' },
                 durationMs: (item.duration || 0) * 1000,
             },
-            '',
+            lrcText,
         );
     };
 
     const handleExportLrc = async (item: KaraokeOutputSummary) => {
         const defaultName = `${item.songTitle || 'karaoke'}.lrc`;
-        // Read file content via electron bridge if needed
-        const lrcContent = `[ti:${item.songTitle}]\n[ar:${item.artist}]\n[by:Folia AI Karaoke]`;
+        let lrcContent = '';
+        if (window.electron?.aiKaraoke?.getCachedResult) {
+            try {
+                const cached = await window.electron.aiKaraoke.getCachedResult(item.songId);
+                lrcContent = cached?.enhancedLrcText || cached?.lrcText || '';
+            } catch {}
+        }
+        if (!lrcContent) {
+            lrcContent = `[ti:${item.songTitle}]\n[ar:${item.artist}]\n[by:Folia AI Karaoke]`;
+        }
         await exportKaraokeLrcFile(lrcContent, defaultName);
     };
 

@@ -15,6 +15,7 @@ interface WorkerReply {
     curChunk?: number;
     totalChunks?: number;
     percent?: number;
+    deviceLabel?: string;
     result?: {
         left: Float32Array;
         right: Float32Array;
@@ -24,7 +25,7 @@ interface WorkerReply {
 }
 
 const pendingRequests = new Map<number, (reply: WorkerReply) => void>();
-let progressCallback: ((curChunk: number, totalChunks: number, pct: number) => void) | null = null;
+let progressCallback: ((curChunk: number, totalChunks: number, pct: number, deviceLabel?: string) => void) | null = null;
 
 const getWorker = (): Worker | null => {
     if (worker) return worker;
@@ -34,7 +35,7 @@ const getWorker = (): Worker | null => {
         worker.onmessage = (event: MessageEvent<WorkerReply>) => {
             const data = event.data;
             if (data.kind === 'progress') {
-                progressCallback?.(data.curChunk || 0, data.totalChunks || 1, data.percent || 0);
+                progressCallback?.(data.curChunk || 0, data.totalChunks || 1, data.percent || 0, data.deviceLabel);
                 return;
             }
             if (typeof data.id === 'number') {
@@ -137,7 +138,7 @@ export const ensureWebGpuModelLoaded = async (): Promise<boolean> => {
 export const separateAudioWithWebGpu = async (
     left: Float32Array,
     right: Float32Array,
-    onProgress?: (curChunk: number, totalChunks: number, pct: number) => void
+    onProgress?: (curChunk: number, totalChunks: number, pct: number, deviceLabel?: string) => void
 ): Promise<{ left: Float32Array; right: Float32Array }> => {
     const loaded = await ensureWebGpuModelLoaded();
     if (!loaded) throw new Error('Không thể khởi tạo mô hình WebGPU trên card đồ họa');
@@ -190,8 +191,8 @@ export const initWebGpuSeparationIpcBridge = () => {
 
     bridge.onRunWebGpuSeparation(async ({ sepJobId, left, right }) => {
         try {
-            const vocals = await separateAudioWithWebGpu(left, right, (curChunk, totalChunks, pct) => {
-                bridge.sendWebGpuProgress?.(sepJobId, curChunk, totalChunks, pct);
+            const vocals = await separateAudioWithWebGpu(left, right, (curChunk, totalChunks, pct, deviceLabel) => {
+                bridge.sendWebGpuProgress?.(sepJobId, curChunk, totalChunks, pct, deviceLabel);
             });
             bridge.sendWebGpuDone?.(sepJobId, { vocals }, null);
         } catch (err) {

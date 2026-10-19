@@ -50,7 +50,19 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
     const handleOpenKaraoke = () => {
         const lyricsState = usePlaybackStore.getState().lyrics;
         const initialLyrics = lyricsState?.lines
-            ?.map((l) => (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim())
+            ?.map((l) => {
+                const text = (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim();
+                if (!text) return '';
+                if (typeof l.startTime === 'number' && l.startTime >= 0) {
+                    const totalCentis = Math.round(l.startTime * 100);
+                    const min = Math.floor(totalCentis / 6000);
+                    const sec = Math.floor((totalCentis % 6000) / 100);
+                    const cs = totalCentis % 100;
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    return `[${pad(min)}:${pad(sec)}.${pad(cs)}]${text}`;
+                }
+                return text;
+            })
             .filter(Boolean)
             .join('\n') || '';
         openAiKaraokeModal(currentSong, initialLyrics);

@@ -91,10 +91,35 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         if (isOpen) {
             void fetchAiModels();
             setValidationError(null);
-            if (!activeSong) {
-                const current = usePlaybackStore.getState().currentSong;
-                if (current) {
-                    useAiKaraokeStore.getState().openModal(current);
+            const songToUse = activeSong || usePlaybackStore.getState().currentSong;
+            if (!activeSong && songToUse) {
+                useAiKaraokeStore.getState().openModal(songToUse);
+            }
+            // Auto prefill lyrics from playback store if currently empty
+            if (!rawLyricsText.trim()) {
+                const currentLyrics = usePlaybackStore.getState().lyrics;
+                const currentPlaying = usePlaybackStore.getState().currentSong;
+                const matchesCurrent = !songToUse || !currentPlaying || String(songToUse.id) === String(currentPlaying.id);
+                if (matchesCurrent && currentLyrics?.lines?.length) {
+                    const text = currentLyrics.lines
+                        .map((l) => {
+                            const lineStr = (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim();
+                            if (!lineStr) return '';
+                            if (typeof l.startTime === 'number' && l.startTime >= 0) {
+                                const totalCentis = Math.round(l.startTime * 100);
+                                const min = Math.floor(totalCentis / 6000);
+                                const sec = Math.floor((totalCentis % 6000) / 100);
+                                const cs = totalCentis % 100;
+                                const pad = (n: number) => String(n).padStart(2, '0');
+                                return `[${pad(min)}:${pad(sec)}.${pad(cs)}]${lineStr}`;
+                            }
+                            return lineStr;
+                        })
+                        .filter(Boolean)
+                        .join('\n');
+                    if (text) {
+                        setRawLyricsText(text);
+                    }
                 }
             }
         }

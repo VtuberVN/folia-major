@@ -147,7 +147,58 @@ export const startKaraokeJob = async (
     const asrModel = options.asrModel || store.selectedAsrModel;
     const alignmentMode = options.alignmentMode || store.alignmentMode;
     const devicePreference = options.devicePreference || store.devicePreference || 'gpu';
-    const rawLyrics = options.rawLyrics !== undefined ? options.rawLyrics : store.rawLyricsText;
+    let rawLyrics = (options.rawLyrics !== undefined ? options.rawLyrics : store.rawLyricsText) || '';
+
+    // If lyrics are not provided, auto-fetch from playback store or omni lyrics provider
+    if (!rawLyrics.trim() && options.song) {
+        try {
+            const playbackLyrics = usePlaybackStore.getState().lyrics;
+            const currentPlaying = usePlaybackStore.getState().currentSong;
+            if (currentPlaying && String(currentPlaying.id) === String(options.song.id) && playbackLyrics?.lines?.length) {
+                rawLyrics = playbackLyrics.lines
+                    .map((l) => {
+                        const text = (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim();
+                        if (!text) return '';
+                        if (typeof l.startTime === 'number' && l.startTime >= 0) {
+                            const totalCentis = Math.round(l.startTime * 100);
+                            const min = Math.floor(totalCentis / 6000);
+                            const sec = Math.floor((totalCentis % 6000) / 100);
+                            const cs = totalCentis % 100;
+                            const pad = (n: number) => String(n).padStart(2, '0');
+                            return `[${pad(min)}:${pad(sec)}.${pad(cs)}]${text}`;
+                        }
+                        return text;
+                    })
+                    .filter(Boolean)
+                    .join('\n');
+            }
+        } catch {}
+
+        if (!rawLyrics.trim()) {
+            try {
+                const { omni } = await import('./onlineMusic/omni');
+                const lyricRes = await omni.getLyrics(options.song);
+                if (lyricRes?.lyrics?.lines?.length) {
+                    rawLyrics = lyricRes.lyrics.lines
+                        .map((l) => {
+                            const text = (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim();
+                            if (!text) return '';
+                            if (typeof l.startTime === 'number' && l.startTime >= 0) {
+                                const totalCentis = Math.round(l.startTime * 100);
+                                const min = Math.floor(totalCentis / 6000);
+                                const sec = Math.floor((totalCentis % 6000) / 100);
+                                const cs = totalCentis % 100;
+                                const pad = (n: number) => String(n).padStart(2, '0');
+                                return `[${pad(min)}:${pad(sec)}.${pad(cs)}]${text}`;
+                            }
+                            return text;
+                        })
+                        .filter(Boolean)
+                        .join('\n');
+                }
+            } catch {}
+        }
+    }
 
     let audioSrc = usePlaybackStore.getState().audioSrc || '';
     const songAny = options.song as any;

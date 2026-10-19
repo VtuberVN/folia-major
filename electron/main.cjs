@@ -7993,7 +7993,7 @@ ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
           const progressHandler = (_e, p) => {
             if (p && p.sepJobId === sepJobId) {
               try {
-                onChunkProgress(p.curChunk, p.totalChunks);
+                onChunkProgress(p.curChunk, p.totalChunks, p.deviceLabel);
               } catch (err) {
                 cleanup();
                 reject(err);

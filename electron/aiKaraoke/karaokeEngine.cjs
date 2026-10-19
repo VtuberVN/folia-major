@@ -1209,12 +1209,13 @@ const runKaraokePipeline = async ({
                     left,
                     right,
                     signal: abortController.signal,
-                    onChunkProgress: (curChunk, totalChunks) => {
+                    onChunkProgress: (curChunk, totalChunks, deviceLabel) => {
                         if (activeJobs.get(jobId)?.aborted) {
                             throw new Error('Canceled by user');
                         }
                         const pct = Math.round(20 + (curChunk / totalChunks) * 48);
-                        report('separating_audio', pct, 'Đang tách tần số âm thanh (WebGPU Card màn hình)...', `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
+                        const label = deviceLabel ? `WebGPU [${deviceLabel}]` : 'WebGPU Card màn hình';
+                        report('separating_audio', pct, `Đang tách tần số âm thanh qua ${label}...`, `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
                     },
                 });
                 if (gpuResult && gpuResult.vocals) {
@@ -1280,39 +1281,9 @@ const runKaraokePipeline = async ({
         if (cleanRaw) {
             report('aligning_words', 78, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', `${vocalActivity.segments.length} đoạn giọng hát`);
             lines = alignLyricsTextToWords(cleanRaw, null, vocalActivity);
-        } else if (alignmentMode === 'auto_transcribe') {
-            const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
-            const asrInfo = modelsStatus.find((m) => m.id === asrModel);
-            if (asrInfo?.isDownloaded) {
-                report('transcribing_audio', 80, `Đang nhận diện lời bài hát bằng mô hình ${asrInfo.name}...`, 'Whisper ASR');
-                lines = [
-                    {
-                        startTime: 0,
-                        endTime: Math.max(10, Math.round(totalSamples / 44100)),
-                        text: `${songTitle || 'Bài hát'} (Phiên âm Whisper ASR)`,
-                        words: [],
-                    },
-                ];
-            } else {
-                report('formatting_lrc', 85, `Mô hình ${asrModel} chưa tải về máy. Đang tạo bản Beat Karaoke hoàn chỉnh...`, 'Beat ready');
-                lines = [
-                    {
-                        startTime: 0,
-                        endTime: Math.max(10, Math.round(totalSamples / 44100)),
-                        text: `${songTitle || 'Bài hát'} (Bản Beat Karaoke)`,
-                        words: [],
-                    },
-                ];
-            }
         } else {
-            lines = [
-                {
-                    startTime: 0,
-                    endTime: Math.max(10, Math.round(totalSamples / 44100)),
-                    text: `${songTitle || 'Bài hát'} (Bản Beat Karaoke)`,
-                    words: [],
-                },
-            ];
+            report('formatting_lrc', 85, 'Đã hoàn tất tạo bản Beat Karaoke và Giọng hát...', 'Beat ready');
+            lines = [];
         }
 
         // Step 5: Formatting and output files

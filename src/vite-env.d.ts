@@ -1064,7 +1064,7 @@ declare global {
         onModelProgress: (callback: (progress: { modelId: string; percent: number; receivedBytes: number; totalBytes: number; speedBytesPerSec?: number }) => void) => () => void;
         onJobProgress: (callback: (progress: import('./types/aiKaraoke').KaraokeJobProgress & { jobId: string }) => void) => () => void;
         onRunWebGpuSeparation?: (callback: (payload: { sepJobId: string; left: Float32Array; right: Float32Array }) => void) => () => void;
-        sendWebGpuProgress?: (sepJobId: string, curChunk: number, totalChunks: number, pct: number) => void;
+        sendWebGpuProgress?: (sepJobId: string, curChunk: number, totalChunks: number, pct: number, deviceLabel?: string) => void;
         sendWebGpuDone?: (sepJobId: string, result: { vocals: { left: Float32Array; right: Float32Array } } | null, error?: string | null) => void;
       };
 

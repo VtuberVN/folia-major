@@ -185,8 +185,8 @@ contextBridge.exposeInMainWorld('electron', {
             ipcRenderer.on('ai-karaoke-run-webgpu-separation', listener);
             return () => ipcRenderer.removeListener('ai-karaoke-run-webgpu-separation', listener);
         },
-        sendWebGpuProgress: (sepJobId, curChunk, totalChunks, pct) => {
-            ipcRenderer.send('ai-karaoke-webgpu-progress', { sepJobId, curChunk, totalChunks, pct });
+        sendWebGpuProgress: (sepJobId, curChunk, totalChunks, pct, deviceLabel) => {
+            ipcRenderer.send('ai-karaoke-webgpu-progress', { sepJobId, curChunk, totalChunks, pct, deviceLabel });
         },
         sendWebGpuDone: (sepJobId, result, error) => {
             ipcRenderer.send(`ai-karaoke-webgpu-done-${sepJobId}`, { result, error });
