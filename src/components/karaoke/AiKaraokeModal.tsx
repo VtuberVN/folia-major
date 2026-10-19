@@ -90,8 +90,14 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         if (isOpen) {
             void fetchAiModels();
             setValidationError(null);
+            if (!activeSong) {
+                const current = usePlaybackStore.getState().currentSong;
+                if (current) {
+                    useAiKaraokeStore.getState().openModal(current);
+                }
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, activeSong]);
 
     const isJobRunning = jobStage !== 'idle' && jobStage !== 'completed' && jobStage !== 'error';
 
@@ -120,7 +126,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
     };
 
     const handleStartJob = async () => {
-        if (!activeSong) return;
+        const songToProcess = activeSong || usePlaybackStore.getState().currentSong;
+        if (!songToProcess) {
+            setValidationError('Chưa chọn bài hát nào để tách lời. Vui lòng mở phát bài hát hoặc chọn một bài hát từ danh sách trước.');
+            return;
+        }
         setValidationError(null);
 
         // Model validation
@@ -131,15 +141,16 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
 
         try {
             await startKaraokeJob({
-                song: activeSong,
+                song: songToProcess,
                 rawLyrics: rawLyricsText,
                 mssModel: selectedMssModel,
                 asrModel: selectedAsrModel,
                 alignmentMode,
                 devicePreference,
             });
-        } catch {
-            // Handled in store
+        } catch (err: any) {
+            console.error('Failed to run karaoke job:', err);
+            setValidationError(err?.message || 'Có lỗi xảy ra khi bắt đầu tiến trình tách nhạc.');
         }
     };
 

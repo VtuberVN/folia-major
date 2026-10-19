@@ -81,6 +81,7 @@ export type KaraokeJobStage =
     | 'error';
 
 export interface KaraokeJobProgress {
+    jobId?: string;
     stage: KaraokeJobStage;
     progress: number; // 0-100
     message: string;

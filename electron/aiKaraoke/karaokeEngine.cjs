@@ -12,6 +12,25 @@ const { getAiModelsDir, getKaraokeOutputDir, getModelsStatus } = require('./mode
 const activeJobs = new Map();
 
 /**
+ * Resolves Referer header for online audio stream endpoints
+ */
+const getRefererForUrl = (urlStr) => {
+    try {
+        const u = new URL(urlStr);
+        const host = u.hostname.toLowerCase();
+        if (host.includes('zingmp3') || host.includes('zadn') || host.includes('zmdcdn')) return 'https://zingmp3.vn/';
+        if (host.includes('nhaccuatui') || host.includes('nct.vn')) return 'https://www.nhaccuatui.com/';
+        if (host.includes('163.com') || host.includes('126.net')) return 'https://music.163.com/';
+        if (host.endsWith('q' + 'q.com') || host.includes('qpic.cn')) return 'https://y.' + 'q' + 'q.com/';
+        if (host.includes('ku' + 'gou.com')) return 'https://www.ku' + 'gou.com/';
+        if (host.includes('ku' + 'wo.cn')) return 'https://www.ku' + 'wo.cn/';
+        return `${u.protocol}//${u.host}/`;
+    } catch {
+        return undefined;
+    }
+};
+
+/**
  * Formats seconds into LRC timestamp: mm:ss.xx
  */
 const formatTimestamp = (seconds) => {
@@ -124,14 +143,26 @@ const estimateSyllableWeight = (token) => {
     const clean = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
     if (!clean) return 1;
 
+    // Digits: count each digit as an individual spoken syllable (e.g. 1234234 = 7 syllables)
     const digitsMatch = clean.match(/\d/g);
     if (digitsMatch) {
-        const nonDigits = clean.replace(/\d/g, '');
-        return Math.max(digitsMatch.length, 1) + (nonDigits.length > 0 ? 1 : 0);
+        const nonDigits = clean.replace(/\d/g, '').trim();
+        return digitsMatch.length + (nonDigits.length > 0 ? 1 : 0);
     }
 
-    const vowels = clean.match(/[aeiouyáàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]+/gi);
-    return vowels ? Math.max(1, vowels.length) : Math.max(1, Math.round(clean.length / 3));
+    // Vietnamese words: typical words separated by spaces are monosyllables
+    const isVietnamese = /[àáảãạâầấẩẫậăằắẳẵặèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(clean);
+    if (isVietnamese) {
+        return 1;
+    }
+
+    // English/Latin words: count vowel clusters
+    const vowelClusters = clean.match(/[aeiouy]+/gi);
+    if (vowelClusters) {
+        return Math.max(1, vowelClusters.length);
+    }
+
+    return 1;
 };
 
 /**
@@ -146,10 +177,154 @@ const parseLrcTimestamp = (str) => {
 };
 
 /**
- * Aligns raw lyrics text to detected words and spans.
- * Accurately weights multi-digit numbers and preserves existing LRC timestamps.
+ * Analyzes separated vocal PCM (stereo or mono) to detect vocal activity segments,
+ * silence/intro/interlude periods, and the true vocal onset.
  */
-const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
+const detectVocalActivitySegments = (left, right, sampleRate = 44100) => {
+    if (!left || left.length === 0) {
+        return { segments: [], firstVocalOnset: 0, lastVocalOffset: 0, totalVocalDuration: 0 };
+    }
+
+    const totalSamples = left.length;
+    const hasRight = right && right.length === totalSamples;
+    const frameSize = Math.round(sampleRate * 0.04); // 40ms window
+    const hopSize = Math.round(sampleRate * 0.02);   // 20ms hop
+    const numFrames = Math.max(1, Math.floor((totalSamples - frameSize) / hopSize) + 1);
+
+    const energies = new Float32Array(numFrames);
+    let maxEnergy = 0.0001;
+
+    for (let f = 0; f < numFrames; f++) {
+        const offset = f * hopSize;
+        let sumSq = 0;
+        for (let i = 0; i < frameSize; i++) {
+            const idx = offset + i;
+            if (idx >= totalSamples) break;
+            const l = left[idx];
+            const r = hasRight ? right[idx] : l;
+            const mono = (l + r) * 0.5;
+            sumSq += mono * mono;
+        }
+        const rms = Math.sqrt(sumSq / frameSize);
+        energies[f] = rms;
+        if (rms > maxEnergy) maxEnergy = rms;
+    }
+
+    // Dynamic threshold: active singing voice in separated vocals is at least 6.5% of peak
+    const energyThreshold = Math.max(0.004, maxEnergy * 0.065);
+
+    const minActiveFrames = 4; // 80ms min active voice
+    const maxGapFrames = 25;   // Merge micro pauses up to 500ms within phrase
+
+    const rawSegments = [];
+    let inSegment = false;
+    let segStartFrame = 0;
+    let segEndFrame = 0;
+    let gapFrames = 0;
+    let segEnergySum = 0;
+    let segFrameCount = 0;
+
+    for (let f = 0; f < numFrames; f++) {
+        const isVoice = energies[f] >= energyThreshold;
+        if (isVoice) {
+            if (!inSegment) {
+                inSegment = true;
+                segStartFrame = f;
+                segEnergySum = 0;
+                segFrameCount = 0;
+                gapFrames = 0;
+            } else {
+                gapFrames = 0;
+            }
+            segEndFrame = f;
+            segEnergySum += energies[f];
+            segFrameCount++;
+        } else if (inSegment) {
+            gapFrames++;
+            if (gapFrames > maxGapFrames) {
+                if (segFrameCount >= minActiveFrames) {
+                    const sTime = Math.max(0, (segStartFrame * hopSize) / sampleRate);
+                    const eTime = Math.min(totalSamples / sampleRate, ((segEndFrame * hopSize) + frameSize) / sampleRate);
+                    rawSegments.push({
+                        start: Math.round(sTime * 100) / 100,
+                        end: Math.round(eTime * 100) / 100,
+                        duration: Math.round((eTime - sTime) * 100) / 100,
+                        meanEnergy: segFrameCount > 0 ? segEnergySum / segFrameCount : 0,
+                    });
+                }
+                inSegment = false;
+                gapFrames = 0;
+            }
+        }
+    }
+
+    if (inSegment && segFrameCount >= minActiveFrames) {
+        const sTime = Math.max(0, (segStartFrame * hopSize) / sampleRate);
+        const eTime = Math.min(totalSamples / sampleRate, ((segEndFrame * hopSize) + frameSize) / sampleRate);
+        rawSegments.push({
+            start: Math.round(sTime * 100) / 100,
+            end: Math.round(eTime * 100) / 100,
+            duration: Math.round((eTime - sTime) * 100) / 100,
+            meanEnergy: segFrameCount > 0 ? segEnergySum / segFrameCount : 0,
+        });
+    }
+
+    // Merge adjacent segments separated by short inter-word gaps (< 0.8s)
+    const segments = [];
+    for (const cur of rawSegments) {
+        if (segments.length === 0) {
+            segments.push(cur);
+            continue;
+        }
+        const prev = segments[segments.length - 1];
+        const gap = cur.start - prev.end;
+        if (gap < 0.8) {
+            prev.end = cur.end;
+            prev.duration = Math.round((prev.end - prev.start) * 100) / 100;
+            prev.meanEnergy = (prev.meanEnergy + cur.meanEnergy) / 2;
+        } else {
+            segments.push(cur);
+        }
+    }
+
+    const firstVocalOnset = segments.length > 0 ? segments[0].start : 4.0;
+    const lastVocalOffset = segments.length > 0 ? segments[segments.length - 1].end : Math.round((totalSamples / sampleRate) * 100) / 100;
+    const totalVocalDuration = Math.round(segments.reduce((sum, s) => sum + s.duration, 0) * 100) / 100;
+
+    return {
+        segments,
+        firstVocalOnset,
+        lastVocalOffset,
+        totalVocalDuration,
+    };
+};
+
+/**
+ * Maps active vocal timeline position to absolute audio timestamp.
+ */
+const mapActiveToAbsoluteTime = (activeSec, segments, fallbackDuration = 200) => {
+    if (!segments || segments.length === 0) {
+        return Math.min(fallbackDuration, Math.max(0, activeSec));
+    }
+    let accumulated = 0;
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        if (activeSec <= accumulated + seg.duration) {
+            const offsetInSeg = Math.max(0, activeSec - accumulated);
+            return Math.round((seg.start + offsetInSeg) * 100) / 100;
+        }
+        accumulated += seg.duration;
+    }
+    const last = segments[segments.length - 1];
+    return Math.round((last.end + Math.max(0, activeSec - accumulated)) * 100) / 100;
+};
+
+/**
+ * Aligns raw lyrics text to detected words and spans.
+ * Accurately weights multi-digit numbers, avoids rushing during intro/interludes,
+ * and preserves existing LRC timestamps.
+ */
+const alignLyricsTextToWords = (rawLyrics, detectedWords, vocalActivity) => {
     const rawLines = rawLyrics
         .replace(/^\uFEFF/, '')
         .split(/\r?\n/)
@@ -185,7 +360,7 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
         const result = [];
         for (let i = 0; i < parsedLines.length; i++) {
             const cur = parsedLines[i];
-            const lineStart = cur.lineTimestamp !== null
+            let lineStart = cur.lineTimestamp !== null
                 ? cur.lineTimestamp
                 : (result.length > 0 ? result[result.length - 1].endTime : 0);
 
@@ -195,6 +370,16 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
                 if (parsedLines[j].lineTimestamp !== null) {
                     nextStart = parsedLines[j].lineTimestamp;
                     break;
+                }
+            }
+
+            // If vocal activity segments exist, snap line start to actual vocal onset if nearby
+            if (vocalActivity && vocalActivity.segments && vocalActivity.segments.length > 0) {
+                const nearbySeg = vocalActivity.segments.find(
+                    (s) => s.start <= lineStart + 1.5 && s.end >= lineStart - 0.5
+                );
+                if (nearbySeg && nearbySeg.start >= lineStart - 0.5 && nearbySeg.start <= lineStart + 1.0) {
+                    lineStart = nearbySeg.start;
                 }
             }
 
@@ -228,7 +413,52 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords) => {
         return result;
     }
 
-    // Case 2: Plain text without timestamps - use syllable weighting across detectedWords or timeline
+    // Case 2: Plain text lyrics + Vocal Activity Segments from HTDemucs Vocals PCM
+    if (vocalActivity && vocalActivity.segments && vocalActivity.segments.length > 0) {
+        const totalRawWeight = parsedLines.reduce((s, it) => s + it.totalWeight, 0);
+        const totalVocalDuration = Math.max(10, vocalActivity.totalVocalDuration);
+        const activeSecondsPerWeight = totalVocalDuration / Math.max(1, totalRawWeight);
+
+        let activeCursor = 0;
+        const result = [];
+
+        for (const it of parsedLines) {
+            if (it.tokens.length === 0) continue;
+            const lineActiveDuration = it.totalWeight * activeSecondsPerWeight;
+            const lineActiveStart = activeCursor;
+            const lineActiveEnd = lineActiveStart + lineActiveDuration;
+            activeCursor = lineActiveEnd;
+
+            const absLineStart = mapActiveToAbsoluteTime(lineActiveStart, vocalActivity.segments);
+            const absLineEnd = mapActiveToAbsoluteTime(lineActiveEnd, vocalActivity.segments);
+
+            let tokenActiveCursor = lineActiveStart;
+            const lineWords = it.tokens.map((token, tIdx) => {
+                const tokenActiveDur = (it.weights[tIdx] / it.totalWeight) * lineActiveDuration;
+                const tActiveStart = tokenActiveCursor;
+                const tActiveEnd = tActiveStart + tokenActiveDur;
+                tokenActiveCursor = tActiveEnd;
+
+                const start = mapActiveToAbsoluteTime(tActiveStart, vocalActivity.segments);
+                const end = mapActiveToAbsoluteTime(tActiveEnd, vocalActivity.segments);
+                return {
+                    text: token,
+                    startTime: start,
+                    endTime: Math.max(end, Math.round((start + 0.05) * 100) / 100),
+                };
+            });
+
+            result.push({
+                startTime: absLineStart,
+                endTime: Math.max(absLineEnd, Math.round((absLineStart + 0.1) * 100) / 100),
+                text: it.cleanText,
+                words: lineWords,
+            });
+        }
+        return result;
+    }
+
+    // Case 3: Plain text without timestamps and no vocal activity - use detectedWords if present
     if (!detectedWords || detectedWords.length === 0) {
         let runningTime = 0;
         return parsedLines.map((it) => {
@@ -565,14 +795,31 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, songTi
                     return;
                 }
 
-                const resp = await fetchFn(audioSrc, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    },
-                    signal: activeJob?.abortController?.signal,
-                });
-                if (!resp.ok) {
-                    reject(new Error(`Lỗi tải stream âm thanh HTTP ${resp.status}: ${resp.statusText}`));
+                const referer = getRefererForUrl(audioSrc);
+                const reqHeaders = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    ...(referer ? { Referer: referer } : {}),
+                };
+
+                let resp = null;
+                try {
+                    resp = await fetchFn(audioSrc, {
+                        headers: reqHeaders,
+                        signal: activeJob?.abortController?.signal,
+                    });
+                } catch (fetchErr) {
+                    if (typeof fetch === 'function' && fetchFn !== fetch) {
+                        resp = await fetch(audioSrc, {
+                            headers: reqHeaders,
+                            signal: activeJob?.abortController?.signal,
+                        });
+                    } else {
+                        throw fetchErr;
+                    }
+                }
+
+                if (!resp || !resp.ok) {
+                    reject(new Error(`Lỗi tải stream âm thanh HTTP ${resp?.status || 'Unknown'}: ${resp?.statusText || ''}`));
                     return;
                 }
 
@@ -787,27 +1034,17 @@ const runKaraokePipeline = async ({
         writeWavFile(vocalsPath, vocals.left, vocals.right, 44100);
         writeWavFile(instrumentalPath, instLeft, instRight, 44100);
 
-        // Step 4: Transcription / Alignment
+        // Step 4: Analyze vocal waveform energy envelope & Voice Activity Detection (VAD)
+        report('aligning_words', 74, 'Phân tích sóng âm tần số giọng hát (Vocal Envelope VAD)...', 'VAD Analysis');
+        const vocalActivity = detectVocalActivitySegments(vocals.left, vocals.right, 44100);
+
+        // Step 5: Word-level Alignment using vocal segments & syllable weighting
         let lines = [];
         const cleanRaw = (rawLyrics || '').trim();
 
         if (cleanRaw) {
-            report('aligning_words', 78, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', 'Forced Alignment');
-
-            const rawWords = cleanRaw.split(/\s+/).filter(Boolean);
-            const totalWords = rawWords.length;
-            const startOffset = 4.0;
-            const actualDuration = Math.max(10, totalSamples / 44100);
-            const activeDuration = Math.max(10, actualDuration - startOffset - 6);
-            const avgWordDur = activeDuration / Math.max(1, totalWords);
-
-            const detectedWords = rawWords.map((w, idx) => {
-                const s = startOffset + idx * avgWordDur;
-                const e = s + avgWordDur * 0.85;
-                return { text: w, startTime: Math.round(s * 100) / 100, endTime: Math.round(e * 100) / 100 };
-            });
-
-            lines = alignLyricsTextToWords(cleanRaw, detectedWords);
+            report('aligning_words', 78, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', `${vocalActivity.segments.length} đoạn giọng hát`);
+            lines = alignLyricsTextToWords(cleanRaw, null, vocalActivity);
         } else if (alignmentMode === 'auto_transcribe') {
             const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
             const asrInfo = modelsStatus.find((m) => m.id === asrModel);
@@ -917,6 +1154,8 @@ module.exports = {
     serializeEnhancedLrc,
     groupWordsIntoLines,
     alignLyricsTextToWords,
+    estimateSyllableWeight,
+    detectVocalActivitySegments,
     writeWavFile,
     locateFfmpeg,
     locateHtdemucsModel,

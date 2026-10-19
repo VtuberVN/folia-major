@@ -120,6 +120,14 @@ export const startKaraokeJob = async (
     const store = useAiKaraokeStore.getState();
     const jobId = `karaoke-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     store.setActiveJobId(jobId);
+    store.updateProgress({
+        jobId,
+        stage: 'checking_models',
+        progress: 5,
+        message: 'Đang chuẩn bị mô hình và phân tích nguồn âm thanh...',
+        detail: 'Khởi tạo tiến trình tách nhạc...',
+        elapsedSeconds: 0,
+    });
 
     const mssModel = options.mssModel || store.selectedMssModel;
     const asrModel = options.asrModel || store.selectedAsrModel;
@@ -173,6 +181,33 @@ export const startKaraokeJob = async (
             }
         } catch (e) {
             console.warn('[aiKaraoke] Could not auto-resolve online audio source:', e);
+        }
+    }
+
+    // 2b. Fallback: Song Unlock Servers (skip in unit test environment)
+    const isTestEnv = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST);
+    if (!audioPath && !audioSrc && !isTestEnv) {
+        try {
+            const { useSongUnlockSettingsStore } = await import('../stores/useSongUnlockSettingsStore');
+            const { getUnlockAudioSource } = await import('./songUnlockService');
+            const unlockSettings = useSongUnlockSettingsStore.getState();
+            if (unlockSettings.useSongUnlock) {
+                const unlockResult = await getUnlockAudioSource(options.song, unlockSettings.songUnlockServers);
+                if (unlockResult?.url) {
+                    audioSrc = unlockResult.url;
+                }
+            }
+        } catch (unlockErr) {
+            console.warn('[aiKaraoke] unlock fallback failed:', unlockErr);
+        }
+    }
+
+    // 2c. Fallback: Currently playing track source
+    if (!audioPath && !audioSrc) {
+        const currentPlaying = usePlaybackStore.getState().currentSong;
+        const currentSrc = usePlaybackStore.getState().audioSrc;
+        if (currentPlaying && String(currentPlaying.id) === String(options.song.id) && currentSrc && !currentSrc.startsWith('blob:')) {
+            audioSrc = currentSrc;
         }
     }
 

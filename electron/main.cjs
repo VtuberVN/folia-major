@@ -7638,6 +7638,22 @@ ipcMain.handle('download-queue-set', (_event, queue) => {
   return true;
 });
 
+const getRefererForUrl = (urlStr) => {
+  try {
+    const u = new URL(urlStr);
+    const host = u.hostname.toLowerCase();
+    if (host.includes('zingmp3') || host.includes('zadn') || host.includes('zmdcdn')) return 'https://zingmp3.vn/';
+    if (host.includes('nhaccuatui') || host.includes('nct.vn')) return 'https://www.nhaccuatui.com/';
+    if (host.includes('163.com') || host.includes('126.net')) return 'https://music.163.com/';
+    if (host.endsWith('q' + 'q.com') || host.includes('qpic.cn')) return 'https://y.' + 'q' + 'q.com/';
+    if (host.includes('ku' + 'gou.com')) return 'https://www.ku' + 'gou.com/';
+    if (host.includes('ku' + 'wo.cn')) return 'https://www.ku' + 'wo.cn/';
+    return `${u.protocol}//${u.host}/`;
+  } catch {
+    return undefined;
+  }
+};
+
 ipcMain.handle('download-start', async (_event, payload) => {
   const id = String((payload && payload.id) || '');
   const songId = payload && payload.songId != null ? String(payload.songId) : '';
@@ -7720,12 +7736,23 @@ ipcMain.handle('download-start', async (_event, payload) => {
       writeFlags = startOffset > 0 ? 'a' : 'w';
       source = fs.createReadStream(sourcePath, { start: startOffset, signal: controller.signal }).pipe(counted);
     } else {
+      const referer = getRefererForUrl(url);
       const requestHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        ...(referer ? { Referer: referer } : {}),
         ...(startOffset > 0 ? { Range: `bytes=${startOffset}-` } : {}),
       };
       const fetchFn = (typeof electronNet !== 'undefined' && electronNet && electronNet.fetch) ? electronNet.fetch : fetch;
-      const response = await fetchFn(url, { redirect: 'follow', signal: controller.signal, headers: requestHeaders });
+      let response = null;
+      try {
+        response = await fetchFn(url, { redirect: 'follow', signal: controller.signal, headers: requestHeaders });
+      } catch (fetchErr) {
+        if (typeof fetch === 'function' && fetchFn !== fetch) {
+          response = await fetch(url, { redirect: 'follow', signal: controller.signal, headers: requestHeaders });
+        } else {
+          throw fetchErr;
+        }
+      }
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
       if (startOffset > 0 && response.status === 206) {
         const length = Number(response.headers.get('content-length')) || 0;

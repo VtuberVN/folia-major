@@ -85,7 +85,41 @@ const resolveDownload = async (
         return { url: toSafePlaybackUrl(streamUrl) || streamUrl, fileName: sanitizeDownloadFileName(`${songLabel(song)}${ext}`) };
     }
 
-    const source = await omni.getAudioSource(song, quality);
+    let source: { url?: string | null; quality?: string } | null = null;
+    try {
+        source = await omni.getAudioSource(song, quality);
+    } catch (omniErr) {
+        console.warn('[songDownload] omni.getAudioSource failed, attempting unlock fallback:', omniErr);
+    }
+
+    // Fallback: Song Unlock Servers - skip in test environment
+    const isTestEnv = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.VITEST);
+    if (!source?.url && !isTestEnv) {
+        try {
+            const { useSongUnlockSettingsStore } = await import('../stores/useSongUnlockSettingsStore');
+            const { getUnlockAudioSource } = await import('./songUnlockService');
+            const unlockSettings = useSongUnlockSettingsStore.getState();
+            if (unlockSettings.useSongUnlock) {
+                const unlockResult = await getUnlockAudioSource(song, unlockSettings.songUnlockServers);
+                if (unlockResult?.url) {
+                    source = { url: unlockResult.url, quality: 'high' };
+                }
+            }
+        } catch (unlockErr) {
+            console.warn('[songDownload] unlock fallback failed:', unlockErr);
+        }
+    }
+
+    // Fallback: Currently playing song audioSrc
+    if (!source?.url) {
+        const { usePlaybackStore } = await import('../stores/usePlaybackStore');
+        const currentPlaying = usePlaybackStore.getState().currentSong;
+        const currentSrc = usePlaybackStore.getState().audioSrc;
+        if (currentPlaying && String(currentPlaying.id) === String(song.id) && currentSrc && !currentSrc.startsWith('blob:')) {
+            source = { url: currentSrc, quality: 'high' };
+        }
+    }
+
     if (!source?.url) return null;
     const url = toSafePlaybackUrl(source.url) || source.url;
     const ext = extensionFromPath(source.url) || (url.includes('flac') ? '.flac' : '.mp3');
