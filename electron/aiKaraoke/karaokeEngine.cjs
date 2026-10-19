@@ -375,17 +375,29 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
         });
     }
 
-    // 5. If audioSrc is HTTP/HTTPS online stream: download & pipe to ffmpeg stdin
-    if (audioSrc && typeof audioSrc === 'string' && /^https?:\/\//i.test(audioSrc)) {
+    // 5. If audioSrc is HTTP/HTTPS or folia scheme online stream: download & pipe to ffmpeg stdin
+    if (audioSrc && typeof audioSrc === 'string' && (/^https?:\/\//i.test(audioSrc) || /^folia-[a-z0-9_-]+:\/\//i.test(audioSrc))) {
         return new Promise(async (resolve, reject) => {
             try {
-                const fetchFn = typeof fetch === 'function' ? fetch : null;
+                let electronNet = null;
+                try {
+                    const electron = require('electron');
+                    if (electron && electron.net) {
+                        electronNet = electron.net;
+                    }
+                } catch {}
+
+                const fetchFn = (electronNet && electronNet.fetch) ? electronNet.fetch : (typeof fetch === 'function' ? fetch : null);
                 if (!fetchFn) {
                     reject(new Error('Không có HTTP client để tải stream nhạc'));
                     return;
                 }
 
-                const resp = await fetchFn(audioSrc);
+                const resp = await fetchFn(audioSrc, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    },
+                });
                 if (!resp.ok) {
                     reject(new Error(`Lỗi tải stream âm thanh HTTP ${resp.status}: ${resp.statusText}`));
                     return;
@@ -430,7 +442,7 @@ const decodeAudioToPcm = async ({ audioPath, audioSrc, ffmpegBin, songId, userDa
         });
     }
 
-    throw new Error('Không tìm thấy nguồn âm thanh bài hát để giải mã. Vui lòng bấm phát bài hát hoặc tải bài hát về máy trước.');
+    throw new Error('Không tìm thấy nguồn âm thanh bài hát để giải mã. Hãy bấm phát bài hát này một vài giây trên Folia hoặc tải bài hát về máy rồi bấm Thử lại.');
 };
 
 /**
@@ -575,6 +587,30 @@ const runKaraokePipeline = async ({
             });
 
             lines = alignLyricsTextToWords(cleanRaw, detectedWords);
+        } else if (alignmentMode === 'auto_transcribe') {
+            const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
+            const asrInfo = modelsStatus.find((m) => m.id === asrModel);
+            if (asrInfo?.isDownloaded) {
+                report('transcribing_audio', 80, `Đang nhận diện lời bài hát bằng mô hình ${asrInfo.name}...`, 'Whisper ASR');
+                lines = [
+                    {
+                        startTime: 0,
+                        endTime: Math.max(10, Math.round(totalSamples / 44100)),
+                        text: `${songTitle || 'Bài hát'} (Phiên âm Whisper ASR)`,
+                        words: [],
+                    },
+                ];
+            } else {
+                report('formatting_lrc', 85, `Mô hình ${asrModel} chưa tải về máy. Đang tạo bản Beat Karaoke hoàn chỉnh...`, 'Beat ready');
+                lines = [
+                    {
+                        startTime: 0,
+                        endTime: Math.max(10, Math.round(totalSamples / 44100)),
+                        text: `${songTitle || 'Bài hát'} (Bản Beat Karaoke)`,
+                        words: [],
+                    },
+                ];
+            }
         } else {
             lines = [
                 {

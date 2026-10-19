@@ -555,6 +555,119 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     )}
                                 </div>
                             )}
+
+                            {/* ASR / STT Model Selection when auto_transcribe is active */}
+                            {alignmentMode === 'auto_transcribe' && (
+                                <div className="space-y-3 pt-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
+                                            <Sparkles size={13} className="text-amber-400" />
+                                            <span>Mô hình Nhận diện Giọng nói (ASR / STT)</span>
+                                        </span>
+                                        <span className={`text-[11px] ${subTextColor}`}>
+                                            Tự động bóc tách từ giọng hát vocal
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {models
+                                            .filter((m) => m.category === 'asr')
+                                            .map((model) => {
+                                                const isSelected = selectedAsrModel === model.id;
+                                                const isDownloading = downloadingModelId === model.id;
+                                                const details = model.downloadDetails;
+
+                                                return (
+                                                    <div
+                                                        key={model.id}
+                                                        onClick={() => setAsrModel(model.id as AsrModelId)}
+                                                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                                            isSelected ? cardSelectedBg : cardBg
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-xs font-bold ${textColor}`}>
+                                                                        {model.name}
+                                                                    </span>
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/10 text-neutral-400 font-mono">
+                                                                        {model.fileSizeMb} MB
+                                                                    </span>
+                                                                </div>
+                                                                <p className={`text-[11px] ${subTextColor} mt-1 leading-snug line-clamp-2`}>
+                                                                    {model.descriptionVi}
+                                                                </p>
+                                                            </div>
+
+                                                            {/* Radio indicator */}
+                                                            <div
+                                                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                                    isSelected ? 'border-transparent' : 'border-neutral-500'
+                                                                }`}
+                                                                style={{ backgroundColor: isSelected ? accentBg : 'transparent' }}
+                                                            >
+                                                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Download Status & Progress */}
+                                                        <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
+                                                            {model.isDownloaded ? (
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <span className="text-[11px] text-emerald-500 font-medium">✓ Đã sẵn sàng trên máy</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            void handleDeleteModel(model.id);
+                                                                        }}
+                                                                        title="Xóa model để giải phóng dung lượng ổ cứng"
+                                                                        className="text-neutral-400 hover:text-red-400 p-1 rounded"
+                                                                    >
+                                                                        <Trash2 size={13} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : isDownloading ? (
+                                                                <div className="w-full space-y-1.5">
+                                                                    <div className="flex items-center justify-between text-[11px]">
+                                                                        <span className="text-amber-500 font-medium animate-pulse">Đang tải: {model.downloadProgress || 0}%</span>
+                                                                        {details && details.totalBytes > 0 && (
+                                                                            <span className="font-mono text-[10px] text-neutral-400">
+                                                                                {(details.receivedBytes / 1048576).toFixed(1)} / {(details.totalBytes / 1048576).toFixed(1)} MB
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-amber-500 rounded-full transition-all"
+                                                                            style={{ width: `${model.downloadProgress || 0}%` }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        void handleDownloadModel(model.id);
+                                                                    }}
+                                                                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-black/10 hover:bg-black/20 font-medium transition-colors"
+                                                                >
+                                                                    <Download size={12} />
+                                                                    <span>Tải về ({model.fileSizeMb} MB)</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                    <p className={`text-[11px] ${subTextColor} leading-relaxed`}>
+                                        * Lưu ý: AI Whisper sẽ nghe giọng hát ca sĩ bóc tách từ âm thanh để nhận diện. Với các ca khúc tiếng Việt remix/sped up, phương thức <b>Căn mốc từ lời có sẵn</b> sẽ đảm bảo từ ngữ chuẩn xác nhất.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

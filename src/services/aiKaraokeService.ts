@@ -125,9 +125,36 @@ export const startKaraokeJob = async (
     const alignmentMode = options.alignmentMode || store.alignmentMode;
     const rawLyrics = options.rawLyrics !== undefined ? options.rawLyrics : store.rawLyricsText;
 
-    const audioSrc = usePlaybackStore.getState().audioSrc || '';
+    let audioSrc = usePlaybackStore.getState().audioSrc || '';
     const songAny = options.song as any;
-    const audioPath = songAny.filePath || songAny.path || '';
+    let audioPath = songAny.filePath || songAny.path || '';
+
+    // 1. If local song but no filePath, attempt to resolve from IndexedDB
+    if (!audioPath && options.song) {
+        try {
+            const { getLocalSongs } = await import('./db');
+            const localSongs = await getLocalSongs();
+            const songId = songAny.localRef?.songId || options.song.id;
+            const match = localSongs.find(s => String(s.id) === String(songId));
+            if (match?.filePath) {
+                audioPath = match.filePath;
+            }
+        } catch {}
+    }
+
+    // 2. If online song and audioSrc is missing or belongs to another song, resolve dynamically via omni
+    if (!audioPath && (!audioSrc || String(usePlaybackStore.getState().currentSong?.id) !== String(options.song.id))) {
+        try {
+            const { omni } = await import('./onlineMusic/omni');
+            const { toSafePlaybackUrl } = await import('../utils/appPlaybackHelpers');
+            const source = await omni.getAudioSource(options.song, 'high');
+            if (source?.url) {
+                audioSrc = toSafePlaybackUrl(source.url) || source.url;
+            }
+        } catch (e) {
+            console.warn('[aiKaraoke] Could not auto-resolve online audio source:', e);
+        }
+    }
 
     try {
         const result = await bridge.startJob({

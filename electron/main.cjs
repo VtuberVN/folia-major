@@ -8170,8 +8170,12 @@ ipcMain.handle('download-start', async (_event, payload) => {
       writeFlags = startOffset > 0 ? 'a' : 'w';
       source = fs.createReadStream(sourcePath, { start: startOffset, signal: controller.signal }).pipe(counted);
     } else {
-      const headers = startOffset > 0 ? { Range: `bytes=${startOffset}-` } : undefined;
-      const response = await fetch(url, { redirect: 'follow', signal: controller.signal, headers });
+      const requestHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        ...(startOffset > 0 ? { Range: `bytes=${startOffset}-` } : {}),
+      };
+      const fetchFn = (typeof electronNet !== 'undefined' && electronNet && electronNet.fetch) ? electronNet.fetch : fetch;
+      const response = await fetchFn(url, { redirect: 'follow', signal: controller.signal, headers: requestHeaders });
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
       if (startOffset > 0 && response.status === 206) {
         const length = Number(response.headers.get('content-length')) || 0;
@@ -8185,7 +8189,11 @@ ipcMain.handle('download-start', async (_event, payload) => {
         total = Number(response.headers.get('content-length')) || 0;
         writeFlags = 'w';
       }
-      source = Readable.fromWeb(response.body).pipe(counted);
+      source = (typeof Readable.fromWeb === 'function' && response.body && typeof response.body.getReader === 'function')
+        ? Readable.fromWeb(response.body).pipe(counted)
+        : (response.body && typeof response.body.pipe === 'function')
+          ? response.body.pipe(counted)
+          : Readable.from(response.body).pipe(counted);
     }
     report('downloading');
     await pipeline(source, fs.createWriteStream(partPath, { flags: writeFlags }), { signal: controller.signal });
