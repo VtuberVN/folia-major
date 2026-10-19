@@ -180,7 +180,19 @@ contextBridge.exposeInMainWorld('electron', {
             ipcRenderer.on('ai-karaoke-job-progress', listener);
             return () => ipcRenderer.removeListener('ai-karaoke-job-progress', listener);
         },
+        onRunWebGpuSeparation: (callback) => {
+            const listener = (_event, payload) => callback(payload);
+            ipcRenderer.on('ai-karaoke-run-webgpu-separation', listener);
+            return () => ipcRenderer.removeListener('ai-karaoke-run-webgpu-separation', listener);
+        },
+        sendWebGpuProgress: (sepJobId, curChunk, totalChunks, pct) => {
+            ipcRenderer.send('ai-karaoke-webgpu-progress', { sepJobId, curChunk, totalChunks, pct });
+        },
+        sendWebGpuDone: (sepJobId, result, error) => {
+            ipcRenderer.send(`ai-karaoke-webgpu-done-${sepJobId}`, { result, error });
+        },
     },
+
     requestTranscodeFallback: (request) => ipcRenderer.invoke('transcode-fallback-request', request),
     cancelTranscodeFallback: (requestId) => ipcRenderer.invoke('transcode-fallback-cancel', requestId),
     getCoverCache: (cacheKey) => ipcRenderer.invoke('get-cover-cache', cacheKey),

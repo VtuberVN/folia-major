@@ -1063,7 +1063,11 @@ declare global {
         exportLrcFile: (payload: { defaultFileName?: string; content: string }) => Promise<{ ok?: boolean; canceled?: boolean; filePath?: string }>;
         onModelProgress: (callback: (progress: { modelId: string; percent: number; receivedBytes: number; totalBytes: number; speedBytesPerSec?: number }) => void) => () => void;
         onJobProgress: (callback: (progress: import('./types/aiKaraoke').KaraokeJobProgress & { jobId: string }) => void) => () => void;
+        onRunWebGpuSeparation?: (callback: (payload: { sepJobId: string; left: Float32Array; right: Float32Array }) => void) => () => void;
+        sendWebGpuProgress?: (sepJobId: string, curChunk: number, totalChunks: number, pct: number) => void;
+        sendWebGpuDone?: (sepJobId: string, result: { vocals: { left: Float32Array; right: Float32Array } } | null, error?: string | null) => void;
       };
+
       requestTranscodeFallback?: (request: import('./types/playbackRecovery').TranscodeFallbackRequest) => Promise<import('./types/playbackRecovery').TranscodeFallbackResult>;
       cancelTranscodeFallback?: (requestId: string) => Promise<boolean>;
       getCoverCache: (cacheKey: string) => Promise<ElectronAudioCacheEntry>;

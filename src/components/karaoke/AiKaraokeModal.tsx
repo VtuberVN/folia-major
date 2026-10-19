@@ -449,8 +449,9 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         {devicePreference === 'gpu' ? (
                                             <>
                                                 <Zap size={13} className="text-amber-400" />
-                                                <span>Tốc độ Tối đa: C++ MNN AVX2 Turbo (P-Cores)</span>
+                                                <span>Tăng tốc GPU: WebGPU Shaders / C++ MNN AVX2</span>
                                             </>
+
                                         ) : (
                                             <>
                                                 <Cpu size={13} className="text-blue-400" />
@@ -668,7 +669,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-2">
                                             <Zap size={15} className="text-amber-400" />
-                                            <span className={`text-xs font-bold ${textColor}`}>Tốc độ Tối đa (Turbo Đa luồng C++ AVX2)</span>
+                                            <span className={`text-xs font-bold ${textColor}`}>Tăng tốc Card màn hình (WebGPU / Turbo AVX2)</span>
                                         </div>
                                         <div
                                             className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
@@ -680,9 +681,10 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         </div>
                                     </div>
                                     <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
-                                        Tận dụng tối đa các nhân Performance (P-Cores) với C++ Native MNN AVX2/AVX-512. Tốc độ tách cực nhanh, chỉ mất khoảng 40–60 giây cho cả bài hát.
+                                        Xử lý trực tiếp trên GPU (NVIDIA, AMD, Intel) bằng WebGPU Shaders với tốc độ siêu tốc. Tự động dự phòng qua C++ MNN AVX2 đa luồng nếu thiết bị không hỗ trợ WebGPU.
                                     </p>
                                 </div>
+
 
                                 <div
                                     onClick={() => setDevicePreference('cpu')}

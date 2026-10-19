@@ -12,6 +12,7 @@ import type {
     AsrModelId,
     KaraokeAlignmentMode,
 } from '../types/aiKaraoke';
+import { initWebGpuSeparationIpcBridge } from './analysis/webGpuSeparator';
 
 let progressUnsub: (() => void) | null = null;
 let modelProgressUnsub: (() => void) | null = null;
@@ -23,7 +24,14 @@ export const initAiKaraokeListeners = (): (() => void) => {
     const bridge = window.electron?.aiKaraoke;
     if (!bridge) return () => {};
 
+    try {
+        initWebGpuSeparationIpcBridge();
+    } catch (e) {
+        console.warn('[aiKaraokeService] initWebGpuSeparationIpcBridge error:', e);
+    }
+
     if (progressUnsub) progressUnsub();
+
     if (modelProgressUnsub) modelProgressUnsub();
 
     if (typeof bridge.onJobProgress === 'function') {

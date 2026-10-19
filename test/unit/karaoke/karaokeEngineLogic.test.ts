@@ -189,5 +189,87 @@ describe('karaokeEngineLogic', () => {
             expect(lines[0].startTime).toBeCloseTo(75.5, 1);
             expect(lines[1].startTime).toBeCloseTo(80.0, 1);
         });
+
+        it('anchors words to real vocal onsets and avoids rushing during pre-singing pause', () => {
+            // Simulated 20-second audio:
+            // 0s - 10s: Silence / intro
+            // 10s - 12s: Silence within line tag [00:10.00]
+            // 12.0s - 17.0s: Actual singing of "Anh nói anh hết yêu em rồi" (onsets at 12.0, 12.7, 13.4, 14.1, 14.8, 15.5, 16.2)
+            // 17.0s - 25.0s: Post-singing silence before next line
+            const mockVocalActivity = {
+                firstVocalOnset: 12.0,
+                lastVocalOffset: 17.0,
+                totalVocalDuration: 5.0,
+                segments: [{ start: 12.0, end: 17.0, duration: 5.0, meanEnergy: 0.3 }],
+                onsets: [
+                    { time: 12.0, energy: 0.35 },
+                    { time: 12.7, energy: 0.38 },
+                    { time: 13.4, energy: 0.32 },
+                    { time: 14.1, energy: 0.40 },
+                    { time: 14.8, energy: 0.36 },
+                    { time: 15.5, energy: 0.33 },
+                    { time: 16.2, energy: 0.31 },
+                ],
+                voicedSpans: [
+                    { start: 12.0, end: 17.0, peakTime: 14.1, energy: 0.35 },
+                ],
+            };
+
+            const rawLyrics = '[00:10.00]Anh nói anh hết yêu em rồi\n[00:25.00]Dòng tiếp theo';
+            const lines = alignLyricsTextToWords(rawLyrics, null, mockVocalActivity);
+
+            expect(lines.length).toBe(2);
+            const words = lines[0].words;
+            expect(words.length).toBe(7);
+
+            // Word "Anh" must anchor to the real onset (>= 11.8s), NEVER start early at 10.0s!
+            expect(words[0].text).toBe('Anh');
+            expect(words[0].startTime).toBeGreaterThanOrEqual(11.8);
+            expect(words[0].startTime).toBeLessThanOrEqual(12.3);
+
+            // Words should progress matching the onset intervals (~0.7s each), not stretching to 25.0s!
+            expect(words[3].text).toBe('hết');
+            expect(words[3].startTime).toBeGreaterThanOrEqual(13.8);
+            expect(words[3].startTime).toBeLessThanOrEqual(14.5);
+
+            // The last word "rồi" must end around 17.0s, NOT stretching all the way to 25.0s!
+            const lastWord = words[words.length - 1];
+            expect(lastWord.text).toBe('rồi');
+            expect(lastWord.endTime).toBeLessThanOrEqual(18.0);
+        });
+    });
+
+    describe('detectVocalOnsets', () => {
+        it('detects distinct acoustic attack peaks from vocal waveform PCM', () => {
+            const { detectVocalOnsets } = require('../../../electron/aiKaraoke/karaokeEngine.cjs');
+            const sampleRate = 44100;
+            const durationSec = 4;
+            const totalSamples = sampleRate * durationSec;
+            const left = new Float32Array(totalSamples);
+
+            // Create two distinct bursts: at 1.0s and at 2.5s
+            const burst1Start = 1.0 * sampleRate;
+            const burst1End = 1.5 * sampleRate;
+            for (let i = burst1Start; i < burst1End; i++) {
+                left[i] = Math.sin((2 * Math.PI * 440 * i) / sampleRate) * 0.5;
+            }
+
+            const burst2Start = 2.5 * sampleRate;
+            const burst2End = 3.0 * sampleRate;
+            for (let i = burst2Start; i < burst2End; i++) {
+                left[i] = Math.sin((2 * Math.PI * 440 * i) / sampleRate) * 0.5;
+            }
+
+            const onsets = detectVocalOnsets(left, left, sampleRate);
+            expect(onsets.length).toBeGreaterThanOrEqual(2);
+
+            const firstPeak = onsets.find((o: { time: number }) => Math.abs(o.time - 1.0) < 0.15);
+            const secondPeak = onsets.find((o: { time: number }) => Math.abs(o.time - 2.5) < 0.15);
+
+            expect(firstPeak).toBeDefined();
+            expect(secondPeak).toBeDefined();
+
+        });
     });
 });
+

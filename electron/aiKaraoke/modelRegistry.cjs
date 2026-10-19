@@ -397,17 +397,22 @@ const listAllKaraokeOutputs = (userDataPath) => {
  */
 const deleteKaraokeOutput = (userDataPath, songId) => {
     if (!songId) return { ok: false, error: 'invalid_song_id' };
-    const outputDir = path.join(getKaraokeOutputDir(userDataPath), String(songId));
+    const cleanSongId = path.basename(String(songId || '')).replace(/[^\p{L}\p{N}_.-]/gu, '');
+    if (!cleanSongId) return { ok: false, error: 'invalid_song_id' };
+    const baseDir = path.resolve(getKaraokeOutputDir(userDataPath));
+    const outputDir = path.resolve(baseDir, cleanSongId);
+    if (!outputDir.startsWith(baseDir + path.sep)) return { ok: false, error: 'invalid_path' };
     if (!fs.existsSync(outputDir)) return { ok: true, removed: false };
 
     try {
         fs.rmSync(outputDir, { recursive: true, force: true });
-        return { ok: true, removed: true, songId: String(songId) };
+        return { ok: true, removed: true, songId: cleanSongId };
     } catch (err) {
         console.error(`[aiKaraoke] Error deleting karaoke output for ${songId}:`, err);
         return { ok: false, error: String((err && err.message) || err) };
     }
 };
+
 
 module.exports = {
     MODEL_CATALOG,

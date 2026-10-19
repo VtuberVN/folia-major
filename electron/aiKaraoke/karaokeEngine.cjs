@@ -177,13 +177,83 @@ const parseLrcTimestamp = (str) => {
 };
 
 /**
+ * Detects vocal onset peaks (acoustic attacks) from stereo/mono Float32Array PCM.
+ * Uses 20ms frames, 10ms hops, RMS energy difference (novelty) and dynamic peak picking.
+ */
+const detectVocalOnsets = (left, right, sampleRate = 44100) => {
+    if (!left || left.length === 0) return [];
+    const totalSamples = left.length;
+    const hasRight = right && right.length === totalSamples;
+
+    const frameSize = Math.round(sampleRate * 0.02); // 20ms frame
+    const hopSize = Math.round(sampleRate * 0.01);   // 10ms hop
+    const numFrames = Math.max(1, Math.floor((totalSamples - frameSize) / hopSize) + 1);
+
+    const energies = new Float32Array(numFrames);
+    let maxEnergy = 0.0001;
+
+    for (let f = 0; f < numFrames; f++) {
+        const offset = f * hopSize;
+        let sumSq = 0;
+        for (let i = 0; i < frameSize; i++) {
+            const idx = offset + i;
+            if (idx >= totalSamples) break;
+            const l = left[idx];
+            const r = hasRight ? right[idx] : l;
+            const mono = (l + r) * 0.5;
+            sumSq += mono * mono;
+        }
+        const rms = Math.sqrt(sumSq / frameSize);
+        energies[f] = rms;
+        if (rms > maxEnergy) maxEnergy = rms;
+    }
+
+    const minOnsetEnergy = Math.max(0.004, maxEnergy * 0.06);
+
+    // Compute novelty (positive first difference of energy)
+    const diffs = new Float32Array(numFrames);
+    let maxDiff = 0.0001;
+    for (let f = 1; f < numFrames; f++) {
+        const d = Math.max(0, energies[f] - energies[f - 1]);
+        diffs[f] = d;
+        if (d > maxDiff) maxDiff = d;
+    }
+
+    const diffThreshold = Math.max(0.002, maxDiff * 0.10);
+    const minHopDistance = Math.round(0.08 / (hopSize / sampleRate)); // at least 80ms between onsets
+
+    const onsets = [];
+    let lastOnsetFrame = -minHopDistance;
+
+    for (let f = 1; f < numFrames - 1; f++) {
+        const d = diffs[f];
+        if (d >= diffThreshold && energies[f] >= minOnsetEnergy) {
+            // Local peak in energy rise
+            if (d >= diffs[f - 1] && d >= diffs[f + 1] && (f - lastOnsetFrame) >= minHopDistance) {
+                const time = Math.round((f * hopSize / sampleRate) * 100) / 100;
+                onsets.push({
+                    time,
+                    energy: Math.round(energies[f] * 1000) / 1000,
+                    strength: Math.round(d * 1000) / 1000,
+                });
+                lastOnsetFrame = f;
+            }
+        }
+    }
+
+    return onsets;
+};
+
+/**
  * Analyzes separated vocal PCM (stereo or mono) to detect vocal activity segments,
- * silence/intro/interlude periods, and the true vocal onset.
+ * silence/intro/interlude periods, acoustic onsets, and the true vocal onset.
  */
 const detectVocalActivitySegments = (left, right, sampleRate = 44100) => {
     if (!left || left.length === 0) {
-        return { segments: [], firstVocalOnset: 0, lastVocalOffset: 0, totalVocalDuration: 0 };
+        return { segments: [], onsets: [], voicedSpans: [], firstVocalOnset: 0, lastVocalOffset: 0, totalVocalDuration: 0 };
     }
+
+    const onsets = detectVocalOnsets(left, right, sampleRate);
 
     const totalSamples = left.length;
     const hasRight = right && right.length === totalSamples;
@@ -287,17 +357,20 @@ const detectVocalActivitySegments = (left, right, sampleRate = 44100) => {
         }
     }
 
-    const firstVocalOnset = segments.length > 0 ? segments[0].start : 4.0;
+    const firstVocalOnset = onsets.length > 0 ? onsets[0].time : (segments.length > 0 ? segments[0].start : 4.0);
     const lastVocalOffset = segments.length > 0 ? segments[segments.length - 1].end : Math.round((totalSamples / sampleRate) * 100) / 100;
     const totalVocalDuration = Math.round(segments.reduce((sum, s) => sum + s.duration, 0) * 100) / 100;
 
     return {
         segments,
+        onsets,
+        voicedSpans: rawSegments,
         firstVocalOnset,
         lastVocalOffset,
         totalVocalDuration,
     };
 };
+
 
 /**
  * Maps active vocal timeline position to absolute audio timestamp.
@@ -374,44 +447,107 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords, vocalActivity) => {
             }
 
             // If vocal activity segments exist, snap line start to actual vocal onset if nearby
-            if (vocalActivity && vocalActivity.segments && vocalActivity.segments.length > 0) {
-                const nearbySeg = vocalActivity.segments.find(
-                    (s) => s.start <= lineStart + 1.5 && s.end >= lineStart - 0.5
+            let voiceStart = lineStart;
+            let voiceEnd = null;
+
+            if (vocalActivity) {
+                const candidateOnsets = (vocalActivity.onsets || []).filter(
+                    (o) => o.time >= lineStart - 0.4 && (nextStart === null || o.time < nextStart - 0.2)
                 );
-                if (nearbySeg && nearbySeg.start >= lineStart - 0.5 && nearbySeg.start <= lineStart + 1.0) {
-                    lineStart = nearbySeg.start;
+
+                const seg = vocalActivity.segments?.find(
+                    (s) => (s.start <= lineStart + 3.5 && s.end >= lineStart) ||
+                           (s.start >= lineStart && (nextStart === null || s.start < nextStart))
+                );
+
+                if (candidateOnsets.length > 0) {
+                    const firstOnset = candidateOnsets[0].time;
+                    if (firstOnset >= lineStart - 0.4 && firstOnset <= lineStart + 4.0) {
+                        voiceStart = firstOnset;
+                    }
+                } else if (seg && seg.start >= lineStart - 0.5 && seg.start <= lineStart + 3.0) {
+                    voiceStart = seg.start;
+                }
+
+                if (seg) {
+                    voiceEnd = nextStart !== null ? Math.min(nextStart, seg.end) : seg.end;
                 }
             }
 
-            const estimatedDuration = Math.max(2.0, cur.totalWeight * 0.38);
-            const lineEnd = nextStart !== null
-                ? Math.min(nextStart, lineStart + Math.max(estimatedDuration, nextStart - lineStart))
-                : lineStart + estimatedDuration;
+            const estimatedDuration = Math.max(1.8, cur.totalWeight * 0.38);
+            if (voiceEnd === null || voiceEnd <= voiceStart) {
+                voiceEnd = nextStart !== null
+                    ? Math.min(nextStart, voiceStart + Math.max(estimatedDuration, Math.min(estimatedDuration * 1.5, nextStart - voiceStart)))
+                    : voiceStart + estimatedDuration;
+            } else {
+                voiceEnd = Math.min(voiceEnd, voiceStart + Math.max(estimatedDuration * 1.6, 2.5));
+                if (nextStart !== null && voiceEnd > nextStart) {
+                    voiceEnd = nextStart;
+                }
+            }
 
-            const totalSpan = Math.max(0.5, lineEnd - lineStart);
-            let currentOffset = lineStart;
-            const lineWords = cur.tokens.map((token, tIdx) => {
-                const tokenWeight = cur.weights[tIdx];
-                const tokenDuration = (tokenWeight / cur.totalWeight) * totalSpan;
-                const start = currentOffset;
-                const end = start + tokenDuration;
-                currentOffset += tokenDuration;
-                return {
-                    text: token,
-                    startTime: Math.round(start * 100) / 100,
-                    endTime: Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100),
-                };
-            });
+            const totalSpan = Math.max(0.5, voiceEnd - voiceStart);
+            const lineOnsets = (vocalActivity?.onsets || []).filter(
+                (o) => o.time >= voiceStart - 0.25 && o.time <= voiceEnd + 0.25
+            );
+
+            let lineWords = [];
+            if (lineOnsets.length >= Math.max(2, Math.floor(cur.tokens.length * 0.5))) {
+                let prevWordEnd = voiceStart;
+                for (let tIdx = 0; tIdx < cur.tokens.length; tIdx++) {
+                    const token = cur.tokens[tIdx];
+                    const onsetIdx = Math.min(lineOnsets.length - 1, Math.round((tIdx / Math.max(1, cur.tokens.length - 1)) * (lineOnsets.length - 1)));
+                    const onsetTime = lineOnsets[onsetIdx].time;
+
+                    let nextTime = null;
+                    if (tIdx < cur.tokens.length - 1) {
+                        const nextOnsetIdx = Math.min(lineOnsets.length - 1, Math.round(((tIdx + 1) / Math.max(1, cur.tokens.length - 1)) * (lineOnsets.length - 1)));
+                        if (nextOnsetIdx > onsetIdx) {
+                            nextTime = lineOnsets[nextOnsetIdx].time;
+                        }
+                    }
+
+                    const tokenWeight = cur.weights[tIdx];
+                    const approxDur = Math.max(0.2, (tokenWeight / cur.totalWeight) * totalSpan);
+                    const start = Math.max(prevWordEnd, Math.max(voiceStart, onsetTime));
+                    const end = nextTime !== null && nextTime > start
+                        ? Math.min(voiceEnd, nextTime)
+                        : Math.min(voiceEnd, start + approxDur);
+                    const safeEnd = Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100);
+                    prevWordEnd = safeEnd;
+
+                    lineWords.push({
+                        text: token,
+                        startTime: Math.round(start * 100) / 100,
+                        endTime: safeEnd,
+                    });
+                }
+            } else {
+                let currentOffset = voiceStart;
+                lineWords = cur.tokens.map((token, tIdx) => {
+                    const tokenWeight = cur.weights[tIdx];
+                    const tokenDuration = (tokenWeight / cur.totalWeight) * totalSpan;
+                    const start = currentOffset;
+                    const end = start + tokenDuration;
+                    currentOffset += tokenDuration;
+                    return {
+                        text: token,
+                        startTime: Math.round(start * 100) / 100,
+                        endTime: Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100),
+                    };
+                });
+            }
 
             result.push({
-                startTime: Math.round(lineStart * 100) / 100,
-                endTime: Math.round(lineEnd * 100) / 100,
+                startTime: Math.round(voiceStart * 100) / 100,
+                endTime: Math.round(voiceEnd * 100) / 100,
                 text: cur.cleanText,
                 words: lineWords,
             });
         }
         return result;
     }
+
 
     // Case 2: Plain text lyrics + Vocal Activity Segments from HTDemucs Vocals PCM
     if (vocalActivity && vocalActivity.segments && vocalActivity.segments.length > 0) {
@@ -432,21 +568,58 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords, vocalActivity) => {
             const absLineStart = mapActiveToAbsoluteTime(lineActiveStart, vocalActivity.segments);
             const absLineEnd = mapActiveToAbsoluteTime(lineActiveEnd, vocalActivity.segments);
 
-            let tokenActiveCursor = lineActiveStart;
-            const lineWords = it.tokens.map((token, tIdx) => {
-                const tokenActiveDur = (it.weights[tIdx] / it.totalWeight) * lineActiveDuration;
-                const tActiveStart = tokenActiveCursor;
-                const tActiveEnd = tActiveStart + tokenActiveDur;
-                tokenActiveCursor = tActiveEnd;
+            const lineOnsets = (vocalActivity?.onsets || []).filter(
+                (o) => o.time >= absLineStart - 0.25 && o.time <= absLineEnd + 0.25
+            );
 
-                const start = mapActiveToAbsoluteTime(tActiveStart, vocalActivity.segments);
-                const end = mapActiveToAbsoluteTime(tActiveEnd, vocalActivity.segments);
-                return {
-                    text: token,
-                    startTime: start,
-                    endTime: Math.max(end, Math.round((start + 0.05) * 100) / 100),
-                };
-            });
+            let lineWords = [];
+            if (lineOnsets.length >= Math.max(2, Math.floor(it.tokens.length * 0.5))) {
+                let prevWordEnd = absLineStart;
+                for (let tIdx = 0; tIdx < it.tokens.length; tIdx++) {
+                    const token = it.tokens[tIdx];
+                    const onsetIdx = Math.min(lineOnsets.length - 1, Math.round((tIdx / Math.max(1, it.tokens.length - 1)) * (lineOnsets.length - 1)));
+                    const onsetTime = lineOnsets[onsetIdx].time;
+
+                    let nextTime = null;
+                    if (tIdx < it.tokens.length - 1) {
+                        const nextOnsetIdx = Math.min(lineOnsets.length - 1, Math.round(((tIdx + 1) / Math.max(1, it.tokens.length - 1)) * (lineOnsets.length - 1)));
+                        if (nextOnsetIdx > onsetIdx) {
+                            nextTime = lineOnsets[nextOnsetIdx].time;
+                        }
+                    }
+
+                    const tokenDur = (it.weights[tIdx] / it.totalWeight) * (absLineEnd - absLineStart);
+                    const start = Math.max(prevWordEnd, Math.max(absLineStart, onsetTime));
+                    const end = nextTime !== null && nextTime > start
+                        ? Math.min(absLineEnd, nextTime)
+                        : Math.min(absLineEnd, start + tokenDur);
+                    const safeEnd = Math.max(Math.round(end * 100) / 100, Math.round((start + 0.05) * 100) / 100);
+                    prevWordEnd = safeEnd;
+
+                    lineWords.push({
+                        text: token,
+                        startTime: Math.round(start * 100) / 100,
+                        endTime: safeEnd,
+                    });
+                }
+            } else {
+                let tokenActiveCursor = lineActiveStart;
+                lineWords = it.tokens.map((token, tIdx) => {
+                    const tokenActiveDur = (it.weights[tIdx] / it.totalWeight) * lineActiveDuration;
+                    const tActiveStart = tokenActiveCursor;
+                    const tActiveEnd = tActiveStart + tokenActiveDur;
+                    tokenActiveCursor = tActiveEnd;
+
+                    const start = mapActiveToAbsoluteTime(tActiveStart, vocalActivity.segments);
+                    const end = mapActiveToAbsoluteTime(tActiveEnd, vocalActivity.segments);
+                    return {
+                        text: token,
+                        startTime: start,
+                        endTime: Math.max(end, Math.round((start + 0.05) * 100) / 100),
+                    };
+                });
+            }
+
 
             result.push({
                 startTime: absLineStart,
@@ -454,6 +627,7 @@ const alignLyricsTextToWords = (rawLyrics, detectedWords, vocalActivity) => {
                 text: it.cleanText,
                 words: lineWords,
             });
+
         }
         return result;
     }
@@ -938,6 +1112,7 @@ const runKaraokePipeline = async ({
     userDataPath,
     appModelsDir,
     onProgress,
+    onWebGpuSeparate,
 }) => {
     const abortController = new AbortController();
     const jobRecord = { aborted: false, activeProc: null, abortController };
@@ -965,43 +1140,23 @@ const runKaraokePipeline = async ({
             ? `C++ MNN AVX2 Turbo (${optimalThreads} luồng P-Cores)`
             : `C++ MNN AVX2 Tiết kiệm (${optimalThreads} luồng)`;
 
-        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${deviceLabel}`);
+        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${isTurbo ? 'WebGPU / C++ MNN' : deviceLabel}`);
         const ffmpegBin = locateFfmpeg();
 
-        let mnn = null;
-        let htdemucs = null;
-        let model = null;
-
+        let htdemucsPath = null;
         if (mssModel === 'htdemucs_mnn') {
-            const htdemucsPath = locateHtdemucsModel({ userDataPath, appModelsDir });
+            htdemucsPath = locateHtdemucsModel({ userDataPath, appModelsDir });
             if (!htdemucsPath || !fs.existsSync(htdemucsPath)) {
                 throw new Error(`Không tìm thấy file model HTDemucs (htdemucs-wgsl.bin) tại ${htdemucsPath || 'models/'}.`);
             }
-            mnn = require('../analysis/mnn.cjs');
-            htdemucs = require('../analysis/htdemucs.cjs');
-            try {
-                if (typeof mnn.preferFastCores === 'function') {
-                    mnn.preferFastCores();
-                }
-            } catch {}
-            model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
         } else {
             const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
             const mssInfo = modelsStatus.find((m) => m.id === mssModel);
             if (!mssInfo || !mssInfo.isDownloaded) {
                 throw new Error(`Model tách nhạc ${mssModel} chưa được tải về máy. Vui lòng vào Cài đặt để tải model trước.`);
             }
-            const htdemucsPath = locateHtdemucsModel({ userDataPath, appModelsDir });
-            if (htdemucsPath && fs.existsSync(htdemucsPath)) {
-                mnn = require('../analysis/mnn.cjs');
-                htdemucs = require('../analysis/htdemucs.cjs');
-                try {
-                    if (typeof mnn.preferFastCores === 'function') {
-                        mnn.preferFastCores();
-                    }
-                } catch {}
-                model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
-            } else {
+            htdemucsPath = locateHtdemucsModel({ userDataPath, appModelsDir });
+            if (!htdemucsPath || !fs.existsSync(htdemucsPath)) {
                 throw new Error(`Chưa có runtime cho model ${mssModel}. Vui lòng chọn HTDemucs v4 (Folia Native).`);
             }
         }
@@ -1032,9 +1187,6 @@ const runKaraokePipeline = async ({
                 },
             });
         } catch (decodeErr) {
-            if (model) {
-                try { model.release(); } catch {}
-            }
             if (jobRecord.aborted || decodeErr.message === 'Canceled by user' || String(decodeErr).includes('Canceled')) {
                 try {
                     onProgress?.({ jobId, stage: 'idle', progress: 0, message: 'Tiến trình đã được hủy bởi người dùng.', detail: 'Canceled', elapsedSeconds: 0 });
@@ -1044,25 +1196,66 @@ const runKaraokePipeline = async ({
             throw new Error(`Không thể giải mã âm thanh: ${decodeErr.message}`);
         }
 
-        // Step 3: Music Source Separation with HTDemucs
-        report('separating_audio', 20, `Đang tách giọng hát (Vocals) và beat qua ${deviceLabel}...`, '0%');
+        // Step 3: Music Source Separation with HTDemucs (WebGPU with CPU fallback)
         const { left, right } = audioPcm;
         const totalSamples = left.length;
 
         let separated = null;
-        try {
-            separated = await htdemucs.separate(model, left, right, (curChunk, totalChunks) => {
-                if (activeJobs.get(jobId)?.aborted) {
-                    throw new Error('Canceled by user');
+
+        if (devicePreference === 'gpu' && typeof onWebGpuSeparate === 'function') {
+            try {
+                report('separating_audio', 20, 'Đang tách giọng hát và beat qua WebGPU (Card màn hình)...', 'WebGPU Shaders');
+                const gpuResult = await onWebGpuSeparate({
+                    left,
+                    right,
+                    signal: abortController.signal,
+                    onChunkProgress: (curChunk, totalChunks) => {
+                        if (activeJobs.get(jobId)?.aborted) {
+                            throw new Error('Canceled by user');
+                        }
+                        const pct = Math.round(20 + (curChunk / totalChunks) * 48);
+                        report('separating_audio', pct, 'Đang tách tần số âm thanh (WebGPU Card màn hình)...', `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
+                    },
+                });
+                if (gpuResult && gpuResult.vocals) {
+                    separated = gpuResult;
                 }
-                const pct = Math.round(20 + (curChunk / totalChunks) * 48);
-                report('separating_audio', pct, `Đang tách tần số âm thanh (${deviceLabel})...`, `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
-            });
-        } finally {
-            if (model) {
-                try { model.release(); } catch {}
+            } catch (gpuErr) {
+                if (activeJobs.get(jobId)?.aborted || String(gpuErr).includes('Canceled')) {
+                    throw gpuErr;
+                }
+                console.warn('[aiKaraoke] WebGPU separation failed, falling back to C++ MNN CPU:', gpuErr.message);
+                separated = null;
             }
         }
+
+        if (!separated) {
+            report('separating_audio', 20, `Đang tách giọng hát (Vocals) và beat qua ${deviceLabel}...`, '0%');
+            const mnn = require('../analysis/mnn.cjs');
+            const htdemucs = require('../analysis/htdemucs.cjs');
+            try {
+                if (typeof mnn.preferFastCores === 'function') {
+                    mnn.preferFastCores();
+                }
+            } catch {}
+            let model = null;
+            try {
+                model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
+                separated = await htdemucs.separate(model, left, right, (curChunk, totalChunks) => {
+                    if (activeJobs.get(jobId)?.aborted) {
+                        throw new Error('Canceled by user');
+                    }
+                    const pct = Math.round(20 + (curChunk / totalChunks) * 48);
+                    report('separating_audio', pct, `Đang tách tần số âm thanh (${deviceLabel})...`, `Đoạn ${curChunk}/${totalChunks} (${pct}%)`);
+                });
+            } finally {
+                if (model) {
+                    try { model.release(); } catch {}
+                }
+            }
+        }
+
+
 
         report('separating_audio', 70, 'Đang ghi file âm thanh Beat Karaoke và Vocals chuẩn WAV PCM...', 'Ghi đĩa');
         const vocals = separated.vocals;
@@ -1202,6 +1395,7 @@ module.exports = {
     alignLyricsTextToWords,
     estimateSyllableWeight,
     detectVocalActivitySegments,
+    detectVocalOnsets,
     writeWavFile,
     locateFfmpeg,
     locateHtdemucsModel,

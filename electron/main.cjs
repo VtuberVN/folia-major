@@ -7877,30 +7877,53 @@ ipcMain.handle('ai-karaoke-get-cached-result', (_event, songId) => {
   return getAiKaraokeCachedResult(app.getPath('userData'), songId);
 });
 
-ipcMain.handle('ai-karaoke-list-outputs', () => {
+ipcMain.handle('ai-karaoke-list-outputs', (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) return [];
   return listAiKaraokeOutputs(app.getPath('userData'));
 });
 
-ipcMain.handle('ai-karaoke-delete-output', (_event, songId) => {
+ipcMain.handle('ai-karaoke-delete-output', (event, songId) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to delete karaoke output.');
+  }
   return deleteAiKaraokeOutput(app.getPath('userData'), songId);
 });
 
-ipcMain.handle('ai-karaoke-get-stem-audio', async (_event, filePath) => {
-  if (!filePath || !fs.existsSync(filePath)) return null;
-  return await fs.promises.readFile(filePath);
+ipcMain.handle('ai-karaoke-get-stem-audio', async (event, filePath) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to read stem audio.');
+  }
+  if (!filePath || typeof filePath !== 'string') return null;
+  const resolved = path.resolve(filePath);
+  const allowedDir = path.resolve(getKaraokeOutputDir(app.getPath('userData')));
+  if (!resolved.startsWith(allowedDir + path.sep)) {
+    throw new Error('Access denied: stem path is outside karaoke output directory.');
+  }
+  if (!fs.existsSync(resolved)) return null;
+  return await fs.promises.readFile(resolved);
 });
 
-ipcMain.handle('ai-karaoke-open-models-dir', async () => {
+ipcMain.handle('ai-karaoke-open-models-dir', async (event) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to open models directory.');
+  }
   const { shell } = require('electron');
   const dir = getAiModelsDir(app.getPath('userData'));
   await shell.openPath(dir);
   return { ok: true, path: dir };
 });
 
-ipcMain.handle('ai-karaoke-open-output-dir', async (_event, songId) => {
+ipcMain.handle('ai-karaoke-open-output-dir', async (event, songId) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to open output directory.');
+  }
   const { shell } = require('electron');
-  const baseDir = getKaraokeOutputDir(app.getPath('userData'));
-  const targetDir = songId ? path.join(baseDir, String(songId)) : baseDir;
+  const baseDir = path.resolve(getKaraokeOutputDir(app.getPath('userData')));
+  const cleanSongId = songId ? path.basename(String(songId)).replace(/[^\p{L}\p{N}_.-]/gu, '') : '';
+  const targetDir = cleanSongId ? path.resolve(baseDir, cleanSongId) : baseDir;
+  if (!targetDir.startsWith(baseDir)) {
+    throw new Error('Access denied: path outside karaoke directory.');
+  }
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
@@ -7909,6 +7932,9 @@ ipcMain.handle('ai-karaoke-open-output-dir', async (_event, songId) => {
 });
 
 ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    throw new Error('Untrusted renderer attempted to start karaoke job.');
+  }
   let resolvedAudioPath = (payload && payload.audioPath) || '';
   if (!resolvedAudioPath && payload && payload.songId) {
     try {
@@ -7946,8 +7972,64 @@ ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
           event.sender.send('ai-karaoke-job-progress', progress);
         }
       },
+      onWebGpuSeparate: async ({ left, right, onChunkProgress, signal }) => {
+        if (event.sender.isDestroyed()) throw new Error('Renderer destroyed');
+        const sepJobId = `webgpu-sep-${Date.now()}`;
+        return new Promise((resolve, reject) => {
+          const doneChannel = `ai-karaoke-webgpu-done-${sepJobId}`;
+          let cleaned = false;
+          const cleanup = () => {
+            if (cleaned) return;
+            cleaned = true;
+            ipcMain.removeListener('ai-karaoke-webgpu-progress', progressHandler);
+            ipcMain.removeListener(doneChannel, doneHandler);
+            clearTimeout(timeout);
+          };
+          const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('WebGPU separation timeout'));
+          }, 600000); // 10 minutes max
+
+          const progressHandler = (_e, p) => {
+            if (p && p.sepJobId === sepJobId) {
+              try {
+                onChunkProgress(p.curChunk, p.totalChunks);
+              } catch (err) {
+                cleanup();
+                reject(err);
+              }
+            }
+          };
+
+          const doneHandler = (_e, data) => {
+            cleanup();
+            if (data && data.error) {
+              reject(new Error(data.error));
+            } else if (data && data.result) {
+              resolve(data.result);
+            } else {
+              reject(new Error('WebGPU separation failed'));
+            }
+          };
+
+          if (signal?.aborted) {
+            cleanup();
+            return reject(new Error('Canceled by user'));
+          }
+          signal?.addEventListener('abort', () => {
+            cleanup();
+            reject(new Error('Canceled by user'));
+          }, { once: true });
+
+          ipcMain.on('ai-karaoke-webgpu-progress', progressHandler);
+          ipcMain.once(doneChannel, doneHandler);
+          event.sender.send('ai-karaoke-run-webgpu-separation', { sepJobId, left, right });
+        });
+      },
     });
   } catch (err) {
+
+
     if (err?.message === 'Canceled by user' || String(err).includes('Canceled')) {
       return { canceled: true };
     }
