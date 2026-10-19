@@ -42,8 +42,8 @@ const MODEL_CATALOG = [
         fileSizeMb: 80.0,
         recommendedVram: '2.0 - 3.0 GB',
         typicalSpeed: '8 - 14s',
-        description: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals qua C++ MNN / WebGPU.',
-        descriptionVi: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals qua C++ MNN / WebGPU.',
+        description: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals bằng C++ MNN AVX2 CPU đa nhân, tối ưu hiệu năng và không tranh chấp VRAM GPU với Visualizer 3D.',
+        descriptionVi: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals bằng C++ MNN AVX2 CPU đa nhân, tối ưu hiệu năng và không tranh chấp VRAM GPU với Visualizer 3D.',
         downloadUrl: '', // Bundled
     },
     {

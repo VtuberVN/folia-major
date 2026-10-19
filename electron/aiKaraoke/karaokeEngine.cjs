@@ -491,7 +491,14 @@ const runKaraokePipeline = async ({
             }
             mnn = require('../analysis/mnn.cjs');
             htdemucs = require('../analysis/htdemucs.cjs');
-            model = mnn.loadHtdemucs(htdemucsPath, { threads: 4 });
+            try {
+                if (typeof mnn.preferFastCores === 'function') {
+                    mnn.preferFastCores();
+                }
+            } catch {}
+            const cpuCount = (os.cpus() || []).length;
+            const optimalThreads = Math.max(2, Math.min(6, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4));
+            model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
         } else {
             const modelsStatus = getModelsStatus(userDataPath, appModelsDir);
             const mssInfo = modelsStatus.find((m) => m.id === mssModel);
@@ -502,7 +509,14 @@ const runKaraokePipeline = async ({
             if (htdemucsPath && fs.existsSync(htdemucsPath)) {
                 mnn = require('../analysis/mnn.cjs');
                 htdemucs = require('../analysis/htdemucs.cjs');
-                model = mnn.loadHtdemucs(htdemucsPath, { threads: 4 });
+                try {
+                    if (typeof mnn.preferFastCores === 'function') {
+                        mnn.preferFastCores();
+                    }
+                } catch {}
+                const cpuCount = (os.cpus() || []).length;
+                const optimalThreads = Math.max(2, Math.min(6, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4));
+                model = mnn.loadHtdemucs(htdemucsPath, { threads: optimalThreads });
             } else {
                 throw new Error(`Chưa có runtime cho model ${mssModel}. Vui lòng chọn HTDemucs v4 (Folia Native).`);
             }
