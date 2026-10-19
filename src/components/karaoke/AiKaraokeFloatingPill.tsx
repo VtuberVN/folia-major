@@ -77,7 +77,7 @@ export const AiKaraokeFloatingPill: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                         <span className="font-bold flex items-center gap-1">
                             <Mic size={13} className="text-pink-400" />
-                            <span>{isRunning ? 'Tách Beat AI:' : jobStage === 'completed' ? 'Karaoke sẵn sàng!' : 'Lỗi tách Beat'}</span>
+                            <span>{isRunning ? 'Tách lời & nhạc:' : jobStage === 'completed' ? 'Karaoke sẵn sàng!' : 'Lỗi tách'}</span>
                         </span>
                         {isRunning && (
                             <span className="font-mono text-pink-300 font-bold tabular-nums">

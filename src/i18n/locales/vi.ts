@@ -1296,7 +1296,7 @@ const vi = {
         "description": "Đọc ứng dụng Spotify máy tính mà không cần cấp quyền Web API"
       },
       "ai-karaoke-separate": {
-        "title": "Tách nhạc & Tạo Karaoke AI",
+        "title": "Tách lời và nhạc & Tạo Lyric",
         "description": "Tách giọng hát, nhạc nền beat và tạo file lời bài hát Karaoke nhảy chữ"
       },
       "ai-karaoke-library": {
@@ -6270,11 +6270,11 @@ const vi = {
     "paused": "Đã tạm dừng"
   },
   "karaoke": {
-    "openKaraoke": "Tách nhạc & Tạo Karaoke AI (MSS / ASR)",
-    "modalTitle": "Tách nhạc & Tạo Karaoke AI",
+    "openKaraoke": "Tách lời và nhạc & Tạo Lyric (MSS / ASR)",
+    "modalTitle": "Tách lời và nhạc & Tạo Lyric",
     "selectMssModel": "Mô hình Tách Lời & Nhạc (MSS)",
     "selectAsrMode": "Nhận diện Lời & Căn chỉnh Thời gian (Karaoke Sync)",
-    "startSeparation": "Bắt đầu Tách Nhạc & Tạo Karaoke",
+    "startSeparation": "Bắt đầu Tách lời và nhạc & Tạo Lyric",
     "applyToPlayer": "Áp dụng cho bài hát đang phát",
     "successBanner": "Đã tách beat và tạo file Karaoke thành công!",
     "builtIn": "Tích hợp sẵn",

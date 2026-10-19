@@ -318,6 +318,14 @@ export default function App() {
 
     useEffect(() => initializeSyncCoordinator(), []);
 
+    useEffect(() => {
+        void initDownloadQueue();
+        const cleanupKaraoke = initAiKaraokeListeners();
+        return () => {
+            cleanupKaraoke?.();
+        };
+    }, []);
+
     const loadNavidromeFavorites = useCallback(async () => {
         if (!navidromeEnabled) {
             setStarredNavidromeSongIds(new Set());

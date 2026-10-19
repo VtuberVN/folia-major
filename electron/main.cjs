@@ -7897,6 +7897,22 @@ ipcMain.handle('ai-karaoke-start-job', async (event, payload) => {
         resolvedAudioPath = existing.path;
       }
     } catch {}
+    if (!resolvedAudioPath && payload.audioCacheKey) {
+      try {
+        const { dataPath } = getAudioCachePaths(payload.audioCacheKey);
+        if (fs.existsSync(dataPath)) {
+          resolvedAudioPath = dataPath;
+        }
+      } catch {}
+    }
+    if (!resolvedAudioPath) {
+      try {
+        const { dataPath } = getAudioCachePaths(`audio_${payload.songId}`);
+        if (fs.existsSync(dataPath)) {
+          resolvedAudioPath = dataPath;
+        }
+      } catch {}
+    }
   }
 
   try {

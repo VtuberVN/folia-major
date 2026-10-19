@@ -70,7 +70,7 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                 </PanelIconButton>
             )}
             {currentSong && isJobRunning ? (
-                <Tooltip text={`Đang tách Beat AI (${jobProgress}%) · Bấm để xem chi tiết`} className="inline-flex shrink-0">
+                <Tooltip text={`Đang tách lời & nhạc (${jobProgress}%) · Bấm để xem chi tiết`} className="inline-flex shrink-0">
                     <button
                         type="button"
                         onClick={handleOpenKaraoke}
@@ -78,7 +78,7 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                         style={{ color: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.2)' }}
                     >
                         <Mic size={15} className="animate-pulse shrink-0" />
-                        <span className="font-mono text-[11px] font-bold tracking-tight">Tách Beat: {jobProgress}%</span>
+                        <span className="font-mono text-[11px] font-bold tracking-tight">Tách lời & nhạc: {jobProgress}%</span>
                     </button>
                 </Tooltip>
             ) : currentSong && cachedKaraoke ? (
@@ -101,7 +101,7 @@ const SongActions: React.FC<SongActionsProps> = ({ like, currentSong, onLocatePl
                 </>
             ) : currentSong ? (
                 <PanelIconButton
-                    label={t('karaoke.openKaraoke', 'Tách nhạc & Tạo Karaoke AI (MSS / ASR)')}
+                    label={t('karaoke.openKaraoke', 'Tách lời và nhạc & Tạo Lyric (MSS / ASR)')}
                     filled
                     onClick={handleOpenKaraoke}
                 >

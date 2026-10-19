@@ -26,17 +26,21 @@ export const initAiKaraokeListeners = (): (() => void) => {
     if (progressUnsub) progressUnsub();
     if (modelProgressUnsub) modelProgressUnsub();
 
-    progressUnsub = bridge.onJobProgress((progress) => {
-        useAiKaraokeStore.getState().updateProgress(progress);
-    });
-
-    modelProgressUnsub = bridge.onModelProgress((p) => {
-        useAiKaraokeStore.getState().updateModelDownload(p.modelId, p.percent, {
-            receivedBytes: p.receivedBytes,
-            totalBytes: p.totalBytes,
-            speedBytesPerSec: p.speedBytesPerSec,
+    if (typeof bridge.onJobProgress === 'function') {
+        progressUnsub = bridge.onJobProgress((progress) => {
+            useAiKaraokeStore.getState().updateProgress(progress);
         });
-    });
+    }
+
+    if (typeof bridge.onModelProgress === 'function') {
+        modelProgressUnsub = bridge.onModelProgress((p) => {
+            useAiKaraokeStore.getState().updateModelDownload(p.modelId, p.percent, {
+                receivedBytes: p.receivedBytes,
+                totalBytes: p.totalBytes,
+                speedBytesPerSec: p.speedBytesPerSec,
+            });
+        });
+    }
 
     return () => {
         progressUnsub?.();
@@ -117,6 +121,8 @@ export const startKaraokeJob = async (
         throw new Error('AI Karaoke bridge is not available in this environment.');
     }
 
+    initAiKaraokeListeners();
+
     const store = useAiKaraokeStore.getState();
     const jobId = `karaoke-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     store.setActiveJobId(jobId);
@@ -125,7 +131,7 @@ export const startKaraokeJob = async (
         stage: 'checking_models',
         progress: 5,
         message: 'Đang chuẩn bị mô hình và phân tích nguồn âm thanh...',
-        detail: 'Khởi tạo tiến trình tách nhạc...',
+        detail: 'Khởi tạo tiến trình tách lời và nhạc...',
         elapsedSeconds: 0,
     });
 
@@ -157,6 +163,39 @@ export const startKaraokeJob = async (
         } catch {}
     }
 
+    // 0b. Check if song audio is cached on disk in Folia's audio cache
+    let audioCacheKey = '';
+    if (options.song) {
+        try {
+            const { getSongResourceCacheKey } = await import('./onlineMusic/resourceKeys');
+            audioCacheKey = getSongResourceCacheKey('audio', options.song);
+            if (!audioPath && window.electron?.getAudioCachePath) {
+                const cached = await window.electron.getAudioCachePath(audioCacheKey);
+                if (cached?.path) {
+                    audioPath = cached.path;
+                }
+            }
+        } catch {}
+    }
+
+    // 0c. If song audio is available as an in-memory or IndexedDB blob, persist to disk cache
+    if (!audioPath && (!audioSrc || audioSrc.startsWith('blob:')) && options.song && window.electron?.saveAudioCache && window.electron?.getAudioCachePath) {
+        try {
+            const { getCachedSongAudioBlob } = await import('./onlineMusic/resourceCache');
+            const blob = await getCachedSongAudioBlob(options.song);
+            if (blob) {
+                const { getSongResourceCacheKey } = await import('./onlineMusic/resourceKeys');
+                const cacheKey = getSongResourceCacheKey('audio', options.song);
+                const arrayBuffer = await blob.arrayBuffer();
+                await window.electron.saveAudioCache(cacheKey, arrayBuffer, blob.type || 'audio/mpeg', 1024 * 1024 * 500);
+                const cached = await window.electron.getAudioCachePath(cacheKey);
+                if (cached?.path) {
+                    audioPath = cached.path;
+                }
+            }
+        } catch {}
+    }
+
     // 1. If local song but no filePath, attempt to resolve from IndexedDB
     if (!audioPath && options.song) {
         try {
@@ -168,6 +207,11 @@ export const startKaraokeJob = async (
                 audioPath = match.filePath;
             }
         } catch {}
+    }
+
+    // If audioSrc is a renderer blob URL that Node cannot fetch, clear it so omni resolves the real URL
+    if (audioSrc && audioSrc.startsWith('blob:')) {
+        audioSrc = '';
     }
 
     // 2. If online song and audioSrc is missing or belongs to another song, resolve dynamically via omni
@@ -220,6 +264,7 @@ export const startKaraokeJob = async (
             duration: Math.round((options.song.durationMs || 0) / 1000) || songAny.duration || 200,
             audioPath,
             audioSrc,
+            audioCacheKey,
             rawLyrics,
             mssModel,
             asrModel,

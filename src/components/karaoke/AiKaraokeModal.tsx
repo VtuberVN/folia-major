@@ -20,6 +20,7 @@ import {
     Cpu,
     Zap,
     Minimize2,
+    Activity,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
@@ -140,6 +141,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         }
 
         try {
+            setActiveTab('running');
             const res = await startKaraokeJob({
                 song: songToProcess,
                 rawLyrics: rawLyricsText,
@@ -156,7 +158,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 return;
             }
             console.error('Failed to run karaoke job:', err);
-            setValidationError(err?.message || 'Có lỗi xảy ra khi bắt đầu tiến trình tách nhạc.');
+            setValidationError(err?.message || 'Có lỗi xảy ra khi bắt đầu tiến trình tách lời và nhạc.');
         }
     };
 
@@ -185,46 +187,91 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
     const textColor = isDaylight ? 'text-neutral-900' : 'text-neutral-100';
     const subTextColor = isDaylight ? 'text-neutral-500' : 'text-neutral-400';
 
-    const footerButtons = activeTab === 'library' ? (
-        <div className="flex items-center gap-2">
-            <button
-                type="button"
-                onClick={closeModal}
-                className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
-                    isDaylight
-                        ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
-                        : 'border-white/10 hover:bg-white/5 text-neutral-300'
-                }`}
-            >
-                {t('ui.close', 'Đóng')}
-            </button>
-            <button
-                type="button"
-                onClick={() => setActiveTab('process')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
-                style={{ backgroundColor: accentBg }}
-            >
-                <Sparkles size={14} />
-                <span>Tách bài hát mới</span>
-            </button>
-        </div>
-    ) : (
-        <div className="flex items-center gap-2">
-            {isJobRunning ? (
-                <button
-                    type="button"
-                    onClick={closeModal}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                        isDaylight
-                            ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-800'
-                            : 'border-white/20 hover:bg-white/10 text-neutral-100'
-                    }`}
-                    title="Thu nhỏ cửa sổ và tiếp tục xử lý ngầm trong nền"
-                >
-                    <Minimize2 size={13} />
-                    <span>Thu nhỏ & Chạy nền</span>
-                </button>
-            ) : (
+    const footerButtons = (() => {
+        if (activeTab === 'library') {
+            return (
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={closeModal}
+                        className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                            isDaylight
+                                ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
+                                : 'border-white/10 hover:bg-white/5 text-neutral-300'
+                        }`}
+                    >
+                        {t('ui.close', 'Đóng')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('process')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
+                        style={{ backgroundColor: accentBg }}
+                    >
+                        <Sparkles size={14} />
+                        <span>Tách bài hát mới</span>
+                    </button>
+                </div>
+            );
+        }
+
+        if (activeTab === 'running') {
+            return (
+                <div className="flex items-center gap-2">
+                    {isJobRunning ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => void cancelCurrentKaraokeJob()}
+                                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 border border-red-500/20 transition-colors"
+                            >
+                                Hủy tiến trình
+                            </button>
+                            <button
+                                type="button"
+                                onClick={closeModal}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                                    isDaylight
+                                        ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-800'
+                                        : 'border-white/20 hover:bg-white/10 text-neutral-100'
+                                }`}
+                                title="Thu nhỏ cửa sổ và tiếp tục xử lý ngầm trong nền"
+                            >
+                                <Minimize2 size={13} />
+                                <span>Thu nhỏ & Chạy nền</span>
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={closeModal}
+                            className={`px-4 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                                isDaylight
+                                    ? 'border-neutral-300 hover:bg-neutral-100 text-neutral-700'
+                                    : 'border-white/10 hover:bg-white/5 text-neutral-300'
+                            }`}
+                        >
+                            {t('ui.close', 'Đóng')}
+                        </button>
+                    )}
+
+                    {lastResult && (
+                        <button
+                            type="button"
+                            onClick={handleApply}
+                            className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
+                            style={{ backgroundColor: accentBg }}
+                        >
+                            Áp dụng cho bài hát đang phát
+                        </button>
+                    )}
+                </div>
+            );
+        }
+
+        // activeTab === 'process'
+        return (
+            <div className="flex items-center gap-2">
                 <button
                     type="button"
                     onClick={closeModal}
@@ -236,57 +283,72 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 >
                     {t('ui.close', 'Đóng')}
                 </button>
-            )}
 
-            {lastResult && (
-                <button
-                    type="button"
-                    onClick={handleApply}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: accentBg }}
-                >
-                    Áp dụng cho bài hát đang phát
-                </button>
-            )}
+                {isJobRunning ? (
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('running')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 animate-pulse"
+                        style={{ backgroundColor: accentBg }}
+                    >
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Xem tiến trình ({jobProgress}%)</span>
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={jobStage === 'error' ? resetJob : handleStartJob}
+                        disabled={Boolean(downloadingModelId)}
+                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-50"
+                        style={{ backgroundColor: accentBg }}
+                    >
+                        <Sparkles size={15} />
+                        <span>{jobStage === 'error' ? 'Thử lại' : 'Bắt đầu Tách lời và nhạc & Tạo Lyric'}</span>
+                    </button>
+                )}
+            </div>
+        );
+    })();
 
-            {!isJobRunning && !lastResult && (
-                <button
-                    type="button"
-                    onClick={jobStage === 'error' ? resetJob : handleStartJob}
-                    disabled={Boolean(downloadingModelId)}
-                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ backgroundColor: accentBg }}
-                >
-                    <Sparkles size={15} />
-                    <span>{jobStage === 'error' ? 'Thử lại' : 'Bắt đầu Tách nhạc & Tạo Karaoke'}</span>
-                </button>
-            )}
-        </div>
-    );
-
-    const footerNote = activeTab === 'library' ? (
-        <span className={`text-xs ${subTextColor}`}>
-            Quản lý độc lập tệp Beat & Vocal · Không ảnh hưởng thư mục nhạc cục bộ
-        </span>
-    ) : (
-        <span className={`text-xs ${subTextColor}`}>
-            {activeSong ? `${activeSong.name}` : ''} · Xử lý bảo mật trên máy tính
-        </span>
-    );
+    const footerNote = (() => {
+        if (activeTab === 'library') {
+            return (
+                <span className={`text-xs ${subTextColor}`}>
+                    Quản lý độc lập tệp Beat & Vocal · Không ảnh hưởng thư mục nhạc cục bộ
+                </span>
+            );
+        }
+        if (activeTab === 'running') {
+            return (
+                <span className={`text-xs ${subTextColor}`}>
+                    {isJobRunning
+                        ? `Đang xử lý ${jobProgress}% · ${jobMessage}`
+                        : lastResult
+                        ? 'Tách hoàn tất · Beat & Lời sẵn sàng'
+                        : 'Không có tiến trình đang chạy'}
+                </span>
+            );
+        }
+        return (
+            <span className={`text-xs ${subTextColor}`}>
+                {activeSong ? `${activeSong.name}` : ''} · Xử lý an toàn trên máy tính
+            </span>
+        );
+    })();
 
     return (
         <Sheet
             isOpen={isOpen}
             onClose={closeModal}
             size="l"
-            title={t('karaoke.modalTitle', 'Tách Beat & Tạo Karaoke AI')}
-            subtitle={activeTab === 'process' && activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : undefined}
+            title={t('karaoke.modalTitle', 'Tách lời và nhạc & Tạo Lyric')}
+            subtitle={activeSong ? `${activeSong.name} — ${activeSong.artists?.map(a => a.name).join(', ') || (activeSong as any).artist || ''}` : undefined}
             isDaylight={isDaylight}
             footer={footerButtons}
             footerNote={footerNote}
         >
             <div className="space-y-6 pb-4">
-                {/* Mode switcher tabs: Tách nhạc vs Thư viện bài đã tách */}
+                {/* Mode switcher tabs: Tách lời & nhạc vs Tiến trình đang xử lý vs Thư viện bài đã tách */}
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 w-fit">
                     <button
                         type="button"
@@ -298,7 +360,33 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         }`}
                     >
                         <Sparkles size={14} style={{ color: activeTab === 'process' ? accentBg : undefined }} />
-                        <span>Tách nhạc & Tạo lời</span>
+                        <span>Tách lời & nhạc</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('running')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            activeTab === 'running'
+                                ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-sm'
+                                : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+                        }`}
+                    >
+                        {isJobRunning ? (
+                            <RefreshCw size={14} className="animate-spin" style={{ color: accentBg }} />
+                        ) : (
+                            <Activity size={14} style={{ color: activeTab === 'running' ? accentBg : undefined }} />
+                        )}
+                        <span>Tiến trình đang xử lý</span>
+                        {isJobRunning ? (
+                            <span
+                                className="px-1.5 py-0.5 rounded-full text-[10px] text-white font-mono font-bold animate-pulse"
+                                style={{ backgroundColor: accentBg }}
+                            >
+                                {jobProgress}%
+                            </span>
+                        ) : lastResult ? (
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Đã có kết quả" />
+                        ) : null}
                     </button>
                     <button
                         type="button"
@@ -322,207 +410,248 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                     </button>
                 </div>
 
-                {activeTab === 'library' ? (
+                {activeTab === 'library' && (
                     <KaraokeOutputsLibraryTab
                         theme={theme}
                         isDaylight={isDaylight}
                         onSelectSongForReprocess={() => setActiveTab('process')}
                     />
-                ) : (
-                    <>
-                    {/* 1. Cached Result Banner (If already separated) */}
-                {lastResult && (
-                    <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 font-bold text-sm">
-                                <Check size={18} className="text-emerald-500" />
-                                <span>Bản Karaoke (Beat & Lời) đã sẵn sàng!</span>
+                )}
+
+                {activeTab === 'running' && (
+                    <div className="space-y-4">
+                        {/* 1. Job Running Progress */}
+                        {isJobRunning && (
+                            <div className={`p-5 rounded-2xl border space-y-4 ${cardBg}`}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <RefreshCw size={20} className="animate-spin text-neutral-400" />
+                                        <div>
+                                            <p className={`text-sm font-bold ${textColor}`}>{jobMessage}</p>
+                                            <p className={`text-xs ${subTextColor}`}>{jobDetail}</p>
+                                        </div>
+                                    </div>
+                                    <span className="font-mono text-xs tabular-nums font-bold">
+                                        {jobProgress}% ({elapsedSeconds}s)
+                                    </span>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-300"
+                                        style={{ width: `${jobProgress}%`, backgroundColor: accentBg }}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-1.5 text-[11px] opacity-75">
+                                        {devicePreference === 'gpu' ? (
+                                            <>
+                                                <Zap size={13} className="text-amber-400" />
+                                                <span>Tốc độ Tối đa: C++ MNN AVX2 Turbo (P-Cores)</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Cpu size={13} className="text-blue-400" />
+                                                <span>Tiết kiệm CPU: 4 luồng an toàn (Êm ái)</span>
+                                            </>
+                                        )}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={closeModal}
+                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 transition-colors"
+                                            title="Thu nhỏ và tiếp tục chạy nền"
+                                        >
+                                            <Minimize2 size={13} />
+                                            <span>Thu nhỏ</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void cancelCurrentKaraokeJob()}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+                                        >
+                                            Hủy tiến trình
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-black/10 border border-white/5 text-[11px] text-neutral-400 leading-relaxed">
+                                    💡 <b>Mẹo:</b> Bạn có thể bấm <b>"Thu nhỏ"</b> để nghe nhạc hoặc làm việc khác. Tiến trình sẽ tiếp tục chạy ngầm trong nền cho đến khi hoàn tất.
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                        )}
+
+                        {/* 2. Job Result Card (When job finished or result exists) */}
+                        {!isJobRunning && lastResult && (
+                            <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                        <Check size={18} className="text-emerald-500" />
+                                        <span>Bản Karaoke (Beat & Lời) đã sẵn sàng!</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => void toggleKaraokeBeatMode(activeSong)}
+                                            title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                                isKaraokeBeatMode
+                                                    ? 'bg-amber-500 text-white animate-pulse'
+                                                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                            }`}
+                                        >
+                                            <Mic size={14} />
+                                            <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenInLrcEditor}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
+                                            style={{ backgroundColor: accentBg }}
+                                        >
+                                            <Edit3 size={14} />
+                                            <span>Sửa lời trong Visual LRC Studio</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
+                                            title="Mở thư mục chứa file Beat và Lời trên máy"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
+                                        >
+                                            <FolderOpen size={14} />
+                                            <span>Mở thư mục file</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleExportLrc}
+                                            title="Xuất file .lrc"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
+                                        >
+                                            <Download size={14} />
+                                            <span>Xuất .lrc</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setResult(null); setActiveTab('process'); }}
+                                            title="Tách lại bằng model khác"
+                                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 transition-colors"
+                                        >
+                                            Tách lại
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Collapsible preview box */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs opacity-75">
+                                        <span>Xem trước lời Karaoke:</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewTab(previewTab === 'enhanced' ? 'standard' : 'enhanced')}
+                                            className="underline hover:opacity-100"
+                                        >
+                                            {previewTab === 'enhanced' ? 'Chuyển sang Standard LRC' : 'Chuyển sang Enhanced LRC (Nhảy từng từ)'}
+                                        </button>
+                                    </div>
+                                    <div className="max-h-36 overflow-y-auto font-mono text-xs p-3 rounded-xl bg-black/40 text-neutral-200 border border-white/5 whitespace-pre st-scroll">
+                                        {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
+                                    </div>
+                                </div>
+
+                                {/* File Output Paths */}
+                                {lastResult.instrumentalPath && (
+                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-black/20 border border-white/5 text-[11px] font-mono">
+                                        <span className="truncate opacity-80" title={lastResult.instrumentalPath}>
+                                            🎵 File Beat: <span className="text-emerald-400 font-semibold">{lastResult.instrumentalPath}</span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
+                                            className="shrink-0 flex items-center gap-1 font-sans text-xs underline font-medium hover:opacity-100 text-emerald-400"
+                                        >
+                                            <FolderOpen size={12} />
+                                            <span>Mở thư mục</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* 3. Job Error Display */}
+                        {jobStage === 'error' && (
+                            <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-red-50 border-red-200 text-red-950' : 'bg-red-950/30 border-red-500/40 text-red-200'}`}>
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                                    <div className="space-y-1 min-w-0 flex-1">
+                                        <p className="text-sm font-bold">Xảy ra lỗi trong quá trình xử lý</p>
+                                        <p className="text-xs opacity-90 leading-relaxed font-mono whitespace-pre-wrap">{jobMessage || jobDetail}</p>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2 border-t border-current/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => { resetJob(); setActiveTab('process'); }}
+                                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm"
+                                    >
+                                        Đóng lỗi & Quay lại cấu hình
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. Empty Idle State */}
+                        {!isJobRunning && !lastResult && jobStage !== 'error' && (
+                            <div className={`p-8 rounded-2xl border text-center space-y-4 ${cardBg}`}>
+                                <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center bg-black/5 dark:bg-white/5 text-neutral-400">
+                                    <Activity size={24} />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className={`text-sm font-bold ${textColor}`}>Chưa có tiến trình tách nào đang chạy</p>
+                                    <p className={`text-xs ${subTextColor}`}>Chọn bài hát và cấu hình ở tab "Tách lời & nhạc" để bắt đầu tiến trình mới.</p>
+                                </div>
                                 <button
                                     type="button"
-                                    onClick={() => void toggleKaraokeBeatMode(activeSong)}
-                                    title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                                        isKaraokeBeatMode
-                                            ? 'bg-amber-500 text-white animate-pulse'
-                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                    }`}
-                                >
-                                    <Mic size={14} />
-                                    <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleOpenInLrcEditor}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
+                                    onClick={() => setActiveTab('process')}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90"
                                     style={{ backgroundColor: accentBg }}
                                 >
-                                    <Edit3 size={14} />
-                                    <span>Sửa lời trong Visual LRC Studio</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
-                                    title="Mở thư mục chứa file Beat và Lời trên máy"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
-                                >
-                                    <FolderOpen size={14} />
-                                    <span>Mở thư mục file</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleExportLrc}
-                                    title="Xuất file .lrc"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
-                                >
-                                    <Download size={14} />
-                                    <span>Xuất .lrc</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setResult(null)}
-                                    title="Tách lại bằng model khác"
-                                    className="px-2.5 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 transition-colors"
-                                >
-                                    Tách lại
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Collapsible preview box */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs opacity-75">
-                                <span>Xem trước lời Karaoke:</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setPreviewTab(previewTab === 'enhanced' ? 'standard' : 'enhanced')}
-                                    className="underline hover:opacity-100"
-                                >
-                                    {previewTab === 'enhanced' ? 'Chuyển sang Standard LRC' : 'Chuyển sang Enhanced LRC (Nhảy từng từ)'}
-                                </button>
-                            </div>
-                            <div className="max-h-36 overflow-y-auto font-mono text-xs p-3 rounded-xl bg-black/40 text-neutral-200 border border-white/5 whitespace-pre st-scroll">
-                                {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
-                            </div>
-                        </div>
-
-                        {/* File Output Paths */}
-                        {lastResult.instrumentalPath && (
-                            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-black/20 border border-white/5 text-[11px] font-mono">
-                                <span className="truncate opacity-80" title={lastResult.instrumentalPath}>
-                                    🎵 File Beat: <span className="text-emerald-400 font-semibold">{lastResult.instrumentalPath}</span>
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
-                                    className="shrink-0 flex items-center gap-1 font-sans text-xs underline font-medium hover:opacity-100 text-emerald-400"
-                                >
-                                    <FolderOpen size={12} />
-                                    <span>Mở thư mục</span>
+                                    <Sparkles size={14} />
+                                    <span>Đi đến Tách lời & nhạc</span>
                                 </button>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* 2. Job Running Progress */}
-                {isJobRunning && (
-                    <div className={`p-5 rounded-2xl border space-y-4 ${cardBg}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <RefreshCw size={20} className="animate-spin text-neutral-400" />
-                                <div>
-                                    <p className={`text-sm font-bold ${textColor}`}>{jobMessage}</p>
-                                    <p className={`text-xs ${subTextColor}`}>{jobDetail}</p>
-                                </div>
-                            </div>
-                            <span className="font-mono text-xs tabular-nums font-bold">
-                                {jobProgress}% ({elapsedSeconds}s)
-                            </span>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
-                            <div
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{ width: `${jobProgress}%`, backgroundColor: accentBg }}
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-[11px] opacity-75">
-                                {devicePreference === 'gpu' ? (
-                                    <>
-                                        <Zap size={13} className="text-amber-400" />
-                                        <span>Tốc độ Tối đa: C++ MNN AVX2 Turbo (P-Cores)</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Cpu size={13} className="text-blue-400" />
-                                        <span>Tiết kiệm CPU: 4 luồng an toàn (Êm ái)</span>
-                                    </>
-                                )}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={closeModal}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 transition-colors"
-                                    title="Thu nhỏ và tiếp tục chạy nền"
-                                >
-                                    <Minimize2 size={13} />
-                                    <span>Thu nhỏ</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void cancelCurrentKaraokeJob()}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
-                                >
-                                    Hủy tiến trình
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-black/10 border border-white/5 text-[11px] text-neutral-400 leading-relaxed">
-                            💡 <b>Mẹo:</b> Bạn có thể bấm <b>"Thu nhỏ"</b> để nghe nhạc hoặc làm việc khác. Thanh hiển thị tiến trình ở góc màn hình sẽ thông báo và cho phép mở lại bất cứ lúc nào.
-                        </div>
-                    </div>
-                )}
-
-                {/* 3. Job Error Display */}
-                {jobStage === 'error' && (
-                    <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-red-50 border-red-200 text-red-950' : 'bg-red-950/30 border-red-500/40 text-red-200'}`}>
-                        <div className="flex items-start gap-3">
-                            <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
-                            <div className="space-y-1 min-w-0 flex-1">
-                                <p className="text-sm font-bold">Xảy ra lỗi trong quá trình xử lý</p>
-                                <p className="text-xs opacity-90 leading-relaxed font-mono whitespace-pre-wrap">{jobMessage || jobDetail}</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2 border-t border-current/10">
-                            <button
-                                type="button"
-                                onClick={resetJob}
-                                className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm"
-                            >
-                                Đóng lỗi & Thử lại
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Validation Error Message */}
-                {validationError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                        <AlertCircle size={16} />
-                        <span>{validationError}</span>
-                    </div>
-                )}
-
-                {/* Configuration Options (When not running and no active result) */}
-                {!isJobRunning && !lastResult && (
+                {activeTab === 'process' && (
                     <div className="space-y-6">
+                        {/* Notice if job is already running in background */}
+                        {isJobRunning && (
+                            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${isDaylight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-500/30 text-amber-200'}`}>
+                                <div className="flex items-center gap-2 text-xs font-medium min-w-0">
+                                    <RefreshCw size={14} className="animate-spin text-amber-400 shrink-0" />
+                                    <span className="truncate">Tiến trình đang xử lý: <b>{jobProgress}%</b> ({jobMessage})</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('running')}
+                                    className="shrink-0 px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow-sm"
+                                >
+                                    Xem tiến trình
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Validation Error Message */}
+                        {validationError && (
+                            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                                <AlertCircle size={16} />
+                                <span>{validationError}</span>
+                            </div>
+                        )}
                         {/* Section 0: Hardware Acceleration (Turbo vs Balanced) */}
                         <div className="space-y-2.5">
                             <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
@@ -888,8 +1017,6 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                             )}
                         </div>
                     </div>
-                )}
-                    </>
                 )}
             </div>
         </Sheet>

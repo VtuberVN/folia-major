@@ -18,7 +18,7 @@ import type {
 
 interface AiKaraokeState {
     isOpen: boolean;
-    activeTab: 'process' | 'library';
+    activeTab: 'process' | 'running' | 'library';
     activeSong: SongResult | null;
     models: AiModelInfo[];
     outputs: KaraokeOutputSummary[];
@@ -40,9 +40,9 @@ interface AiKaraokeState {
     instrumentalBlobUrl: string | null;
     cachedKaraokeForCurrentSong: KaraokeGenerationResult | null;
 
-    openModal: (song?: SongResult | null, initialLyrics?: string, initialTab?: 'process' | 'library') => void;
+    openModal: (song?: SongResult | null, initialLyrics?: string, initialTab?: 'process' | 'running' | 'library') => void;
     closeModal: () => void;
-    setActiveTab: (tab: 'process' | 'library') => void;
+    setActiveTab: (tab: 'process' | 'running' | 'library') => void;
     setOutputs: (outputs: KaraokeOutputSummary[]) => void;
     fetchOutputs: () => Promise<KaraokeOutputSummary[]>;
     deleteOutput: (songId: string) => Promise<boolean>;
@@ -91,27 +91,38 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     cachedKaraokeForCurrentSong: null,
 
     openModal: (song = null, initialLyrics = '', initialTab = 'process') => {
+        const state = get();
+        const isRunning =
+            state.jobStage !== 'idle' &&
+            state.jobStage !== 'completed' &&
+            state.jobStage !== 'error';
+        const targetTab = isRunning && initialTab === 'process' ? 'running' : initialTab;
+
         set({
             isOpen: true,
-            activeTab: initialTab,
-            activeSong: song,
-            rawLyricsText: initialLyrics || '',
-            jobStage: 'idle',
-            jobProgress: 0,
-            jobMessage: '',
-            jobDetail: '',
-            elapsedSeconds: 0,
-            activeJobId: null,
-            lastResult: null,
+            activeTab: targetTab,
+            ...(song ? { activeSong: song } : {}),
+            ...(initialLyrics ? { rawLyricsText: initialLyrics } : {}),
+            ...(isRunning
+                ? {}
+                : {
+                      jobStage: 'idle',
+                      jobProgress: 0,
+                      jobMessage: '',
+                      jobDetail: '',
+                      elapsedSeconds: 0,
+                      activeJobId: null,
+                      lastResult: null,
+                  }),
         });
 
         // Always refresh outputs list when modal opens
         void get().fetchOutputs();
 
-        // Check if there is an existing cached karaoke output for this song
+        // Check if there is an existing cached karaoke output for this song (only if not running a new job)
         if (song?.id && window.electron?.aiKaraoke?.getCachedResult) {
             void window.electron.aiKaraoke.getCachedResult(String(song.id)).then((cached) => {
-                if (cached) {
+                if (cached && !isRunning) {
                     set({ lastResult: cached });
                 }
             });
@@ -299,7 +310,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
         if (!cached || !cached.instrumentalPath) {
             setStatusMessage({
                 type: 'info',
-                text: 'Bài hát này chưa được tách Beat. Vui lòng bấm "Tách nhạc" trước để tạo bản Karaoke.',
+                text: 'Bài hát này chưa được tách Beat. Vui lòng bấm "Tách lời và nhạc" trước để tạo bản Karaoke.',
             });
             state.openModal(activeSong);
             return false;
@@ -342,7 +353,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
 export const openAiKaraokeModal = (
     song?: SongResult | null,
     initialLyrics?: string,
-    initialTab: 'process' | 'library' = 'process',
+    initialTab: 'process' | 'running' | 'library' = 'process',
 ) => {
     useAiKaraokeStore.getState().openModal(song, initialLyrics, initialTab);
 };

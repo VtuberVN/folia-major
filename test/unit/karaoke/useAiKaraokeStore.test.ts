@@ -118,5 +118,40 @@ describe('useAiKaraokeStore', () => {
         store.setDevicePreference('gpu');
         expect(useAiKaraokeStore.getState().devicePreference).toBe('gpu');
     });
+
+    it('supports 3 tabs: process, running, and library', () => {
+        const store = useAiKaraokeStore.getState();
+        expect(store.activeTab).toBe('process');
+
+        store.setActiveTab('running');
+        expect(useAiKaraokeStore.getState().activeTab).toBe('running');
+
+        store.setActiveTab('library');
+        expect(useAiKaraokeStore.getState().activeTab).toBe('library');
+
+        store.setActiveTab('process');
+        expect(useAiKaraokeStore.getState().activeTab).toBe('process');
+    });
+
+    it('automatically defaults to running tab and preserves job state if job is currently active when opening modal', () => {
+        // Simulate a running job
+        useAiKaraokeStore.setState({
+            jobStage: 'separating_audio',
+            jobProgress: 52,
+            jobMessage: 'Đang tách tần số âm thanh...',
+            elapsedSeconds: 24,
+        });
+
+        // Re-open modal
+        openAiKaraokeModal(null);
+
+        const state = useAiKaraokeStore.getState();
+        expect(state.isOpen).toBe(true);
+        expect(state.activeTab).toBe('running');
+        expect(state.jobStage).toBe('separating_audio');
+        expect(state.jobProgress).toBe(52);
+        expect(state.jobMessage).toBe('Đang tách tần số âm thanh...');
+        expect(state.elapsedSeconds).toBe(24);
+    });
 });
 

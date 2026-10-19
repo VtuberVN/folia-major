@@ -13,11 +13,13 @@ export const aiKaraokeCommands: CommandPaletteCommand[] = [
     defineCommand({
         id: AI_KARAOKE_COMMAND_ID,
         group: 'playback',
-        title: 'Tách nhạc & Tạo Karaoke AI (MSS / ASR)',
+        title: 'Tách lời và nhạc & Tạo Lyric (MSS / ASR)',
         description: 'Tách giọng hát, nhạc nền beat và tạo file lời bài hát Karaoke nhảy chữ (Enhanced LRC)',
         keywords: [
             'karaoke',
             'ai karaoke',
+            'tach loi va nhac',
+            'tao lyric',
             'tach nhac',
             'tach vocal',
             'tach beat',
