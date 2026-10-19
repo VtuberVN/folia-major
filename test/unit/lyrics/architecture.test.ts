@@ -64,17 +64,16 @@ describe('lyrics architecture', () => {
         const sourceFiles = (await collectSourceFiles('src'))
             .filter(file => /\.(ts|tsx)$/.test(file));
 
-        const offenders: string[] = [];
-        for (const file of sourceFiles) {
-            if (allowedFiles.has(file.replace(/\\/g, '/'))) {
-                continue;
-            }
-
-            const content = await readRepoFile(file);
-            if (/from ['"].*(?:lrcParser|yrcParser)['"]/.test(content)) {
-                offenders.push(file.replace(/\\/g, '/'));
-            }
-        }
+        const offenders = (await Promise.all(
+            sourceFiles.map(async file => {
+                if (allowedFiles.has(file.replace(/\\/g, '/'))) return null;
+                const content = await readRepoFile(file);
+                if (/from ['"].*(?:lrcParser|yrcParser)['"]/.test(content)) {
+                    return file.replace(/\\/g, '/');
+                }
+                return null;
+            })
+        )).filter((f): f is string => Boolean(f));
 
         expect(offenders).toEqual([]);
     });
