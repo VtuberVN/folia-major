@@ -6307,7 +6307,7 @@ const vi = {
     "activeCount": "Đang tải {{count}} bài",
     "pendingCount": "Còn lại {{count}} bài",
     "openFolder": "Mở thư mục",
-    "clearFinished": "Xóa mục đã hoàn thành",
+    "clearFinished": "Xóa đã xong",
     "hide": "Thu nhỏ",
     "unavailable": "Không khả dụng để tải về",
     "continue": "Tiếp tục tải",

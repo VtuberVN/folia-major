@@ -222,10 +222,10 @@ const DownloadProgressWindow: React.FC<DownloadProgressWindowProps> = ({ isDayli
                 <div className="flex items-center gap-2 pt-1">
                     <button
                         onClick={() => void openDownloadDirectory()}
-                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-colors ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
                     >
-                        <FolderOpen size={12} />
-                        {t('download.openFolder')}
+                        <FolderOpen size={12} className="shrink-0" />
+                        <span>{t('download.openFolder')}</span>
                     </button>
                     <button
                         onClick={() => {
@@ -233,18 +233,18 @@ const DownloadProgressWindow: React.FC<DownloadProgressWindowProps> = ({ isDayli
                             persistDownloadQueue();
                         }}
                         disabled={clearable === 0}
-                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-40 ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-colors disabled:opacity-40 ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
                     >
-                        <Trash2 size={12} />
-                        {t('download.clearFinished')}
+                        <Trash2 size={12} className="shrink-0" />
+                        <span>{t('download.clearFinished')}</span>
                     </button>
                     <button
                         onClick={onHide}
-                        className={`shrink-0 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
+                        className={`shrink-0 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-colors ${isDaylight ? 'bg-black/[0.06] hover:bg-black/[0.1]' : 'bg-white/[0.08] hover:bg-white/[0.14]'}`}
                         title={t('download.hide')}
                     >
-                        <Download size={12} />
-                        {t('download.hide')}
+                        <Download size={12} className="shrink-0" />
+                        <span>{t('download.hide')}</span>
                     </button>
                 </div>
             </div>
