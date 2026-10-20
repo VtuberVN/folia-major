@@ -963,6 +963,18 @@ const vi = {
         "title": "Bật / tắt chế độ nhịp thông minh",
         "description": "Bật hoặc tắt các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống)"
       },
+      "smart-beat-off": {
+        "title": "Chế độ nhịp thông minh: Tắt",
+        "description": "Tắt hiệu ứng nhịp; giữ nguyên hình ảnh gốc"
+      },
+      "smart-beat-cached": {
+        "title": "Chế độ nhịp thông minh: Chỉ bài đã phân tích",
+        "description": "Chỉ phát hiệu ứng nhịp cho các bài hát đã được phân tích trước; không phân tích thêm và không dùng GPU (không ảnh hưởng automix)"
+      },
+      "smart-beat-on": {
+        "title": "Chế độ nhịp thông minh: Bật",
+        "description": "Bật hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo trống), tự động phân tích bài hát mới khi cần"
+      },
       "navigate-home": {
         "title": "Về trang chủ",
         "description": "Quay lại màn hình trang chủ"
