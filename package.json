@@ -107,10 +107,6 @@
         "to": "ffmpeg-audio"
       },
       {
-        "from": "build/whisper/${os}-${arch}",
-        "to": "whisper-audio"
-      },
-      {
         "from": "build/mnn/${os}-${arch}",
         "to": "mnn",
         "filter": [

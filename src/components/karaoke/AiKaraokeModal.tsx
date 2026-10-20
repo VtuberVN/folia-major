@@ -172,7 +172,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         setValidationError(null);
 
         // Model validation
-        if (jobMode === 'stem_and_lyrics' && selectedMssModel !== 'htdemucs_mnn' && !selectedMssModelInfo?.isDownloaded) {
+        if (selectedMssModel !== 'htdemucs_mnn' && !selectedMssModelInfo?.isDownloaded) {
             setValidationError(`Vui lòng tải model "${selectedMssModelInfo?.name || selectedMssModel}" về máy trước khi bắt đầu.`);
             return;
         }
@@ -223,9 +223,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         await exportKaraokeLrcFile(content, defaultName);
     };
 
-    const handleOpenInLrcEditor = () => {
-        if (!lastResult) return;
-        openVisualLrcEditor(activeSong, lastResult.enhancedLrcText || lastResult.lrcText);
+    const handleOpenInLrcEditor = (initialContent?: string) => {
+        const songToUse = activeSong || usePlaybackStore.getState().currentSong;
+        if (!songToUse) return;
+        const lrc = initialContent ?? (lastResult?.enhancedLrcText || lastResult?.lrcText || rawLyricsText || '');
+        openVisualLrcEditor(songToUse, lrc);
     };
 
     const accentBg = theme?.accentColor || theme?.primaryColor || '#ec4899';
@@ -350,7 +352,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         style={{ backgroundColor: accentBg }}
                     >
                         <Sparkles size={15} />
-                        <span>{jobStage === 'error' ? 'Thử lại' : jobMode === 'direct_lyrics' ? '⚡ Bắt đầu Trích xuất Lyric siêu tốc' : 'Bắt đầu Tách lời và nhạc & Tạo Lyric'}</span>
+                        <span>{jobStage === 'error' ? 'Thử lại' : 'Tách lời và nhạc & Tạo Lyric'}</span>
                     </button>
                 )}
             </div>
@@ -377,17 +379,9 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
             );
         }
         if (!rawLyricsText.trim()) {
-            if (alignmentMode === 'auto_transcribe') {
-                return (
-                    <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
-                        <Sparkles size={12} />
-                        <span>AI Whisper sẽ tự động nghe từ giọng hát để tạo lời bài hát</span>
-                    </span>
-                );
-            }
             return (
                 <span className={`text-xs ${subTextColor}`}>
-                    Chưa có lời · Sẽ chỉ xuất bản Beat Karaoke & Giọng hát (.wav)
+                    Chưa có lời · Sẽ tạo bản Beat Karaoke & Giọng hát (.wav) chất lượng cao
                 </span>
             );
         }
@@ -584,7 +578,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={handleOpenInLrcEditor}
+                                            onClick={() => handleOpenInLrcEditor()}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
                                             style={{ backgroundColor: accentBg }}
                                         >
@@ -729,65 +723,6 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                             </div>
                         )}
 
-                        {/* Section -1: Pipeline Mode Selection (Stem + Lyrics vs Direct Whisper Lyric Extraction) */}
-                        <div className="space-y-2.5">
-                            <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
-                                <Sparkles size={14} className="text-pink-400" />
-                                <span>Mục đích xử lý (Pipeline Mode)</span>
-                            </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div
-                                    onClick={() => setJobMode('stem_and_lyrics')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                        jobMode === 'stem_and_lyrics' ? cardSelectedBg : cardBg
-                                    }`}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Mic size={15} className="text-pink-400" />
-                                            <span className={`text-xs font-bold ${textColor}`}>Tách Beat Karaoke & Lời (MSS + Lyric)</span>
-                                        </div>
-                                        <div
-                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
-                                                jobMode === 'stem_and_lyrics' ? 'border-transparent' : 'border-neutral-500'
-                                            }`}
-                                            style={{ backgroundColor: jobMode === 'stem_and_lyrics' ? accentBg : 'transparent' }}
-                                        >
-                                            {jobMode === 'stem_and_lyrics' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                        </div>
-                                    </div>
-                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
-                                        Tách riêng Beat Karaoke và Giọng hát (Vocals) bằng HTDemucs, đồng thời nhận diện và khớp lời bài hát nhảy từng từ.
-                                    </p>
-                                </div>
-
-                                <div
-                                    onClick={() => setJobMode('direct_lyrics')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                        jobMode === 'direct_lyrics' ? cardSelectedBg : cardBg
-                                    }`}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Zap size={15} className="text-amber-400" />
-                                            <span className={`text-xs font-bold ${textColor}`}>Chỉ trích xuất Lyric siêu tốc (Whisper ASR)</span>
-                                        </div>
-                                        <div
-                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
-                                                jobMode === 'direct_lyrics' ? 'border-transparent' : 'border-neutral-500'
-                                            }`}
-                                            style={{ backgroundColor: jobMode === 'direct_lyrics' ? accentBg : 'transparent' }}
-                                        >
-                                            {jobMode === 'direct_lyrics' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                        </div>
-                                    </div>
-                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
-                                        Trích xuất lời trực tiếp từ bài hát bằng AI Whisper. Không cần tách beat, tốc độ cực nhanh (chỉ 10-20 giây).
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Section 0: Hardware Acceleration (Turbo vs Balanced) */}
                         <div className="space-y-2.5">
                             <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
@@ -849,14 +784,6 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         </div>
 
                         {/* Section 1: MSS Models */}
-                        {jobMode === 'direct_lyrics' ? (
-                            <div className={`p-4 rounded-xl border flex items-center gap-3 ${isDaylight ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-500/30 text-amber-200'}`}>
-                                <Zap size={18} className="text-amber-400 shrink-0" />
-                                <div className="text-xs leading-relaxed">
-                                    <span className="font-bold">Đã kích hoạt chế độ trích xuất Lyric siêu tốc:</span> Bỏ qua bước tách beat MSS để tiết kiệm thời gian và tài nguyên máy tính. Hệ thống sẽ trích xuất lời trực tiếp từ bài hát bằng mô hình Whisper ASR ở bước 2 bên dưới.
-                                </div>
-                            </div>
-                        ) : (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
@@ -972,243 +899,73 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     })}
                             </div>
                         </div>
-                        )}
 
-                        {/* Section 2: Lyrics & Alignment Source */}
+                        {/* Section 2: Lyrics & Alignment Source / LRC Studio */}
                         <div className="space-y-3">
-                            <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
-                                <FileText size={14} />
-                                <span>{jobMode === 'direct_lyrics' ? '2. Ngôn ngữ & Mô hình Trích xuất (Whisper ASR)' : '2. Nguồn Lời Bài Hát & Căn Chỉnh Mốc (Karaoke Alignment)'}</span>
-                            </label>
-
-                            {/* Mode choice - only for stem_and_lyrics */}
-                            {jobMode !== 'direct_lyrics' && (
-                            <div className="grid grid-cols-2 gap-3">
-                                <div
-                                    onClick={() => setAlignmentMode('align_existing')}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                                        alignmentMode === 'align_existing' ? cardSelectedBg : cardBg
-                                    }`}
+                            <div className="flex items-center justify-between">
+                                <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
+                                    <FileText size={14} />
+                                    <span>2. Lời Bài Hát & Trình Sửa Lời (LRC Studio)</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => handleOpenInLrcEditor()}
+                                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 transition-all shadow-sm"
                                 >
-                                    <span className="text-xs font-bold block">Căn mốc từ lời có sẵn (Khuyên dùng)</span>
-                                    <p className={`text-[11px] ${subTextColor} mt-1 leading-relaxed`}>
-                                        Dán lời chữ chuẩn, AI sẽ dùng thuật toán Forced Alignment căn mốc thời gian chuẩn 100% vào giọng hát.
-                                    </p>
-                                </div>
-
-                                <div
-                                    onClick={() => setAlignmentMode('auto_transcribe')}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                                        alignmentMode === 'auto_transcribe' ? cardSelectedBg : cardBg
-                                    }`}
-                                >
-                                    <span className="text-xs font-bold block">Tự nghe toàn bài (Whisper ASR)</span>
-                                    <p className={`text-[11px] ${subTextColor} mt-1 leading-relaxed`}>
-                                        Dùng khi bài hát không thể tìm thấy lời ở bất kỳ đâu trên mạng.
-                                    </p>
-                                </div>
+                                    <Edit3 size={13} />
+                                    <span>Mở LRC Studio (Soạn / Sửa Lời)</span>
+                                </button>
                             </div>
-                            )}
 
-                            {/* Textarea for raw lyrics */}
-                            {jobMode !== 'direct_lyrics' && alignmentMode === 'align_existing' && (
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className={`font-medium ${textColor}`}>Lời bài hát thô (Plain Text):</span>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const currentLyrics = usePlaybackStore.getState().lyrics;
-                                                    if (currentLyrics?.lines?.length) {
-                                                        const text = currentLyrics.lines
-                                                            .map((l) => (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim())
-                                                            .filter(Boolean)
-                                                            .join('\n');
-                                                        setRawLyricsText(text);
-                                                    }
-                                                }}
-                                                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-black/10 hover:bg-black/20 text-neutral-300 transition-colors"
-                                            >
-                                                <Sparkles size={12} />
-                                                <span>Lấy lời từ trình phát</span>
-                                            </button>
-                                            <span className={subTextColor}>Không cần có [00:00.00]</span>
-                                        </div>
-                                    </div>
-                                    <textarea
-                                        value={rawLyricsText}
-                                        onChange={(e) => setRawLyricsText(e.target.value)}
-                                        rows={5}
-                                        placeholder="Dán lời bài hát thô vào đây (hoặc để trống nếu bạn chỉ muốn tách Beat Karaoke)..."
-                                        className={`w-full p-3 rounded-xl text-xs leading-relaxed resize-none border ${cardBg} ${textColor} focus:outline-none focus:ring-1 focus:ring-current font-sans`}
-                                    />
-                                    {!rawLyricsText.trim() && (
-                                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                                            <Info size={15} className="mt-0.5 shrink-0 text-amber-400" />
-                                            <div className="text-[11px] leading-relaxed space-y-1">
-                                                <p className="font-bold text-amber-300">
-                                                    Không tìm thấy lời bài hát trên mạng / Tạm thời chưa có lời
-                                                </p>
-                                                <p className="text-amber-200/90">
-                                                    • Bạn có thể <b>dán lời bài hát vào ô trên</b> để AI căn chỉnh từng từ theo giọng hát ca sĩ.
-                                                </p>
-                                                <p className="text-amber-200/90">
-                                                    • Hoặc chọn chế độ <b>"Tự nghe toàn bài (Whisper ASR)"</b> ở trên để AI tự động lắng nghe âm thanh và bóc tách thành lời.
-                                                </p>
-                                                <p className="text-amber-200/90">
-                                                    • Hoặc để trống nếu bạn chỉ cần tạo bản <b>Beat Karaoke & Giọng hát</b> sạch (.wav) mà không cần file lời.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* ASR / STT Model Selection & Language when auto_transcribe is active OR jobMode === 'direct_lyrics' */}
-                            {(jobMode === 'direct_lyrics' || alignmentMode === 'auto_transcribe') && (
-                                <div className="space-y-3 pt-1">
-                                    {/* Language Selection Card */}
-                                    <div className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                                        <div className="flex items-center justify-between">
-                                            <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
-                                                <Globe size={14} className="text-cyan-400" />
-                                                <span>Ngôn ngữ Nhận diện Giọng hát (Whisper Language)</span>
-                                            </span>
-                                            {isVietnameseDetected && (
-                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                                                    🇻🇳 Đã nhận diện Tiếng Việt
-                                                </span>
-                                            )}
-                                        </div>
-                                        <select
-                                            value={selectedLanguage}
-                                            onChange={(e) => setLanguage(e.target.value as any)}
-                                            className={`w-full px-3 py-2 rounded-lg text-xs font-medium border ${
-                                                isDaylight ? 'border-neutral-300 bg-white text-neutral-800' : 'border-white/10 bg-black/20 text-neutral-100'
-                                            } focus:outline-none focus:ring-1 focus:ring-current`}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className={`font-medium ${textColor}`}>Lời bài hát (Plain Text hoặc LRC):</span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const currentLyrics = usePlaybackStore.getState().lyrics;
+                                                if (currentLyrics?.lines?.length) {
+                                                    const text = currentLyrics.lines
+                                                        .map((l) => (l.fullText || (l.words || []).map((w) => w.text).join('') || '').trim())
+                                                        .filter(Boolean)
+                                                        .join('\n');
+                                                    setRawLyricsText(text);
+                                                }
+                                            }}
+                                            className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-black/10 hover:bg-black/20 text-neutral-300 transition-colors"
                                         >
-                                            <option value="auto">🌐 Tự động nhận diện (Auto-detect)</option>
-                                            <option value="vi">🇻🇳 Tiếng Việt (Khuyên dùng cho nhạc Việt - Khử ảo giác khi có beat)</option>
-                                            <option value="en">🇬🇧 Tiếng Anh (English)</option>
-                                            <option value="zh">🇨🇳 Tiếng Trung (Chinese)</option>
-                                            <option value="ja">🇯🇵 Tiếng Nhật (Japanese)</option>
-                                            <option value="ko">🇰🇷 Tiếng Hàn (Korean)</option>
-                                        </select>
-                                        <p className={`text-[11px] ${subTextColor} leading-relaxed`}>
-                                            Chỉ định đúng ngôn ngữ giúp loại bỏ hoàn toàn hiện tượng Whisper đoán nhầm hoặc lặp phụ đề tiếng Anh khi đoạn dạo đầu có beat EDM/remix mạnh.
+                                            <Sparkles size={12} />
+                                            <span>Lấy lời từ trình phát</span>
+                                        </button>
+                                        <span className={subTextColor}>Tự động căn mốc từ theo âm giọng ca sĩ</span>
+                                    </div>
+                                </div>
+                                <textarea
+                                    value={rawLyricsText}
+                                    onChange={(e) => setRawLyricsText(e.target.value)}
+                                    rows={5}
+                                    placeholder="Dán lời bài hát thô hoặc tệp .lrc vào đây (hoặc để trống nếu bạn chỉ muốn tách Beat Karaoke)..."
+                                    className={`w-full p-3 rounded-xl text-xs leading-relaxed resize-none border ${cardBg} ${textColor} focus:outline-none focus:ring-1 focus:ring-current font-sans`}
+                                />
+                                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300">
+                                    <Info size={15} className="mt-0.5 shrink-0 text-blue-400" />
+                                    <div className="text-[11px] leading-relaxed space-y-1">
+                                        <p className="font-bold text-blue-300">
+                                            Linh hoạt quản lý lời bài hát & Tạo bản Beat Karaoke chuẩn
+                                        </p>
+                                        <p className="text-blue-200/90">
+                                            • <b>Có sẵn lời:</b> Dán lời vào ô trên, hệ thống sẽ tự động căn chỉnh mốc thời gian từng từ theo sóng âm giọng hát ca sĩ.
+                                        </p>
+                                        <p className="text-blue-200/90">
+                                            • <b>Chưa có lời hoặc muốn sửa:</b> Bấm <b>"Mở LRC Studio"</b> ở góc phải để nhập lời thủ công, đồng bộ nhịp gõ (Tap to sync), hoặc lấy lời trực tuyến rồi lưu lại riêng.
+                                        </p>
+                                        <p className="text-blue-200/90">
+                                            • <b>Không cần lời:</b> Để trống ô trên, hệ thống sẽ tách bản <b>Beat Karaoke & Giọng hát</b> sạch (.wav) để bạn nghe beat hoặc tự hát.
                                         </p>
                                     </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
-                                            <Sparkles size={13} className="text-amber-400" />
-                                            <span>Mô hình Nhận diện Giọng nói (ASR / STT)</span>
-                                        </span>
-                                        <span className={`text-[11px] ${subTextColor}`}>
-                                            Tự động bóc tách từ giọng hát vocal
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {models
-                                            .filter((m) => m.category === 'asr')
-                                            .map((model) => {
-                                                const isSelected = selectedAsrModel === model.id;
-                                                const isDownloading = downloadingModelId === model.id;
-                                                const details = model.downloadDetails;
-
-                                                return (
-                                                    <div
-                                                        key={model.id}
-                                                        onClick={() => setAsrModel(model.id as AsrModelId)}
-                                                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                                            isSelected ? cardSelectedBg : cardBg
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className={`text-xs font-bold ${textColor}`}>
-                                                                        {model.name}
-                                                                    </span>
-                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/10 text-neutral-400 font-mono">
-                                                                        {model.fileSizeMb} MB
-                                                                    </span>
-                                                                </div>
-                                                                <p className={`text-[11px] ${subTextColor} mt-1 leading-snug line-clamp-2`}>
-                                                                    {model.descriptionVi}
-                                                                </p>
-                                                            </div>
-
-                                                            {/* Radio indicator */}
-                                                            <div
-                                                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
-                                                                    isSelected ? 'border-transparent' : 'border-neutral-500'
-                                                                }`}
-                                                                style={{ backgroundColor: isSelected ? accentBg : 'transparent' }}
-                                                            >
-                                                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Download Status & Progress */}
-                                                        <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
-                                                            {model.isDownloaded ? (
-                                                                <div className="flex items-center justify-between w-full">
-                                                                    <span className="text-[11px] text-emerald-500 font-medium">✓ Đã sẵn sàng trên máy</span>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            void handleDeleteModel(model.id);
-                                                                        }}
-                                                                        title="Xóa model để giải phóng dung lượng ổ cứng"
-                                                                        className="text-neutral-400 hover:text-red-400 p-1 rounded"
-                                                                    >
-                                                                        <Trash2 size={13} />
-                                                                    </button>
-                                                                </div>
-                                                            ) : isDownloading ? (
-                                                                <div className="w-full space-y-1.5">
-                                                                    <div className="flex items-center justify-between text-[11px]">
-                                                                        <span className="text-amber-500 font-medium animate-pulse">Đang tải: {model.downloadProgress || 0}%</span>
-                                                                        {details && details.totalBytes > 0 && (
-                                                                            <span className="font-mono text-[10px] text-neutral-400">
-                                                                                {(details.receivedBytes / 1048576).toFixed(1)} / {(details.totalBytes / 1048576).toFixed(1)} MB
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden">
-                                                                        <div
-                                                                            className="h-full bg-amber-500 rounded-full transition-all"
-                                                                            style={{ width: `${model.downloadProgress || 0}%` }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        void handleDownloadModel(model.id);
-                                                                    }}
-                                                                    className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-black/10 hover:bg-black/20 font-medium transition-colors"
-                                                                >
-                                                                    <Download size={12} />
-                                                                    <span>Tải về ({model.fileSizeMb} MB)</span>
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                    </div>
-                                    <p className={`text-[11px] ${subTextColor} leading-relaxed`}>
-                                        * Lưu ý: AI Whisper sẽ nghe giọng hát ca sĩ bóc tách từ âm thanh để nhận diện. Với các ca khúc tiếng Việt remix/sped up, phương thức <b>Căn mốc từ lời có sẵn</b> sẽ đảm bảo từ ngữ chuẩn xác nhất.
-                                    </p>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 )}

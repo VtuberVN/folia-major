@@ -28,10 +28,6 @@ exports.default = async (context) => {
     "../packaging/ffmpeg/fetch-ffmpeg.mjs"
   );
   await prepareBundledFfmpeg({ platform: context.electronPlatformName, arch });
-  const { prepareBundledWhisper } = await import(
-    "../packaging/whisper/fetch-whisper.mjs"
-  );
-  await prepareBundledWhisper({ platform: context.electronPlatformName, arch });
   // The analysis models' runtime (electron/analysis/mnn.cjs), built from the pinned MNN source.
   const { prepareBundledMnn } = await import("./buildMnnRuntime.mjs");
   await prepareBundledMnn({ platform: context.electronPlatformName, arch });

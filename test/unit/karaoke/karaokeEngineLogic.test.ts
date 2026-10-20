@@ -273,46 +273,13 @@ describe('karaokeEngineLogic', () => {
         });
     });
 
-    describe('whisperIntegration', () => {
-        const { locateWhisper, locateWhisperModel } = require('../../../electron/aiKaraoke/karaokeEngine.cjs');
-
-        it('locates whisper-cli binary in build directory or resources', () => {
-            const whisperPath = locateWhisper();
-            // In dev checkout with build/whisper/win-x64, it finds the binary
-            if (whisperPath) {
-                expect(whisperPath).toContain('whisper-cli');
-            } else {
-                expect(whisperPath).toBeNull();
-            }
-        });
-
-        it('locates whisper models with fallback logic', () => {
-            const modelPath = locateWhisperModel('whisper_turbo', {});
-            // Model path is either a valid path string or null if not yet downloaded
-            if (modelPath) {
-                expect(typeof modelPath).toBe('string');
-                expect(modelPath).toMatch(/whisper.*\.bin$/);
-            } else {
-                expect(modelPath).toBeNull();
-            }
-        });
-
-        it('detects Vietnamese diacritics for automatic language selection', () => {
+    describe('vietnameseDiacritics', () => {
+        it('detects Vietnamese diacritics in titles and artist names', () => {
             expect(hasVietnameseDiacritics('Dễ Thương (Remix) — Khởi My, VM')).toBe(true);
             expect(hasVietnameseDiacritics('Em Của Ngày Hôm Qua')).toBe(true);
             expect(hasVietnameseDiacritics('See Tinh')).toBe(false);
             expect(hasVietnameseDiacritics('Hello World')).toBe(false);
             expect(hasVietnameseDiacritics('青花瓷')).toBe(false);
-        });
-
-        it('verifies whisper asset definitions match supported target platforms', async () => {
-            const { WHISPER_ASSETS } = await import('../../../packaging/whisper/fetch-whisper.mjs');
-            expect(WHISPER_ASSETS['win-x64']).toBeDefined();
-            expect(WHISPER_ASSETS['mac-arm64']).toBeDefined();
-            expect(WHISPER_ASSETS['linux-x64']).toBeDefined();
-            expect(WHISPER_ASSETS['win-x64'].binaryName).toBe('whisper-cli.exe');
-            expect(WHISPER_ASSETS['linux-x64'].binaryName).toBe('whisper-cli');
-            expect(WHISPER_ASSETS['mac-arm64'].binaryName).toBe('whisper-cli');
         });
     });
 });
