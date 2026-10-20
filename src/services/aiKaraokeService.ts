@@ -117,6 +117,7 @@ export interface StartKaraokeJobOptions {
     alignmentMode?: KaraokeAlignmentMode;
     mode?: import('../types/aiKaraoke').KaraokeJobMode;
     devicePreference?: import('../types/aiKaraoke').KaraokeDevicePreference;
+    language?: import('../types/aiKaraoke').WhisperLanguage;
 }
 
 /**
@@ -331,6 +332,7 @@ export const startKaraokeJob = async (
             alignmentMode,
             mode: options.mode || store.jobMode || 'stem_and_lyrics',
             devicePreference,
+            language: options.language || store.selectedLanguage || 'auto',
         });
 
         if (result && !result.canceled) {

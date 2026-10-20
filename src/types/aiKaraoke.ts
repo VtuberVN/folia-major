@@ -41,6 +41,8 @@ export type KaraokeJobMode =
     | 'stem_and_lyrics' // Separate beat & vocals (MSS) + word-level lyrics (ASR)
     | 'direct_lyrics';  // Transcribe lyrics directly from audio via Whisper ASR (Super fast, no stem separation)
 
+export type WhisperLanguage = 'auto' | 'vi' | 'en' | 'zh' | 'ja' | 'ko';
+
 export type KaraokeDevicePreference = 'gpu' | 'cpu'; // WebGPU vs C++ MNN AVX2 CPU
 
 export interface WordTiming {

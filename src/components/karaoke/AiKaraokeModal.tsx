@@ -22,6 +22,7 @@ import {
     Minimize2,
     Activity,
     Info,
+    Globe,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
@@ -64,6 +65,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         selectedAsrModel,
         alignmentMode,
         jobMode,
+        selectedLanguage,
         rawLyricsText,
         devicePreference,
         jobStage,
@@ -76,6 +78,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         closeModal,
         setActiveTab,
         setJobMode,
+        setLanguage,
         setMssModel,
         setAsrModel,
         setAlignmentMode,
@@ -90,6 +93,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
     const [previewTab, setPreviewTab] = useState<'enhanced' | 'standard'>('enhanced');
     const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
+
+    const isVietnameseDetected = useMemo(() => {
+        const text = `${activeSong?.name || ''} ${activeSong?.artists?.map((a) => a.name).join(' ') || ''}`;
+        return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
+    }, [activeSong]);
 
     useEffect(() => {
         if (isOpen) {
@@ -179,6 +187,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 alignmentMode,
                 mode: jobMode,
                 devicePreference,
+                language: selectedLanguage,
             });
             if (res?.canceled) {
                 return;
@@ -544,22 +553,24 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 font-bold text-sm">
                                         <Check size={18} className="text-emerald-500" />
-                                        <span>Bản Karaoke (Beat & Lời) đã sẵn sàng!</span>
+                                        <span>{lastResult.instrumentalPath ? 'Bản Karaoke (Beat & Lời) đã sẵn sàng!' : 'Bản Lời Bài Hát (Whisper ASR) đã sẵn sàng!'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => void toggleKaraokeBeatMode(activeSong)}
-                                            title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                                                isKaraokeBeatMode
-                                                    ? 'bg-amber-500 text-white animate-pulse'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                            }`}
-                                        >
-                                            <Mic size={14} />
-                                            <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
-                                        </button>
+                                        {Boolean(lastResult.instrumentalPath) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => void toggleKaraokeBeatMode(activeSong)}
+                                                title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                                    isKaraokeBeatMode
+                                                        ? 'bg-amber-500 text-white animate-pulse'
+                                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                }`}
+                                            >
+                                                <Mic size={14} />
+                                                <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -967,10 +978,11 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         <div className="space-y-3">
                             <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
                                 <FileText size={14} />
-                                <span>2. Nguồn Lời Bài Hát & Căn Chỉnh Mốc (Karaoke Alignment)</span>
+                                <span>{jobMode === 'direct_lyrics' ? '2. Ngôn ngữ & Mô hình Trích xuất (Whisper ASR)' : '2. Nguồn Lời Bài Hát & Căn Chỉnh Mốc (Karaoke Alignment)'}</span>
                             </label>
 
-                            {/* Mode choice */}
+                            {/* Mode choice - only for stem_and_lyrics */}
+                            {jobMode !== 'direct_lyrics' && (
                             <div className="grid grid-cols-2 gap-3">
                                 <div
                                     onClick={() => setAlignmentMode('align_existing')}
@@ -996,9 +1008,10 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     </p>
                                 </div>
                             </div>
+                            )}
 
                             {/* Textarea for raw lyrics */}
-                            {alignmentMode === 'align_existing' && (
+                            {jobMode !== 'direct_lyrics' && alignmentMode === 'align_existing' && (
                                 <div className="space-y-1.5">
                                     <div className="flex items-center justify-between text-xs">
                                         <span className={`font-medium ${textColor}`}>Lời bài hát thô (Plain Text):</span>
@@ -1052,9 +1065,41 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 </div>
                             )}
 
-                            {/* ASR / STT Model Selection when auto_transcribe is active */}
-                            {alignmentMode === 'auto_transcribe' && (
+                            {/* ASR / STT Model Selection & Language when auto_transcribe is active OR jobMode === 'direct_lyrics' */}
+                            {(jobMode === 'direct_lyrics' || alignmentMode === 'auto_transcribe') && (
                                 <div className="space-y-3 pt-1">
+                                    {/* Language Selection Card */}
+                                    <div className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
+                                        <div className="flex items-center justify-between">
+                                            <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
+                                                <Globe size={14} className="text-cyan-400" />
+                                                <span>Ngôn ngữ Nhận diện Giọng hát (Whisper Language)</span>
+                                            </span>
+                                            {isVietnameseDetected && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                                                    🇻🇳 Đã nhận diện Tiếng Việt
+                                                </span>
+                                            )}
+                                        </div>
+                                        <select
+                                            value={selectedLanguage}
+                                            onChange={(e) => setLanguage(e.target.value as any)}
+                                            className={`w-full px-3 py-2 rounded-lg text-xs font-medium border ${
+                                                isDaylight ? 'border-neutral-300 bg-white text-neutral-800' : 'border-white/10 bg-black/20 text-neutral-100'
+                                            } focus:outline-none focus:ring-1 focus:ring-current`}
+                                        >
+                                            <option value="auto">🌐 Tự động nhận diện (Auto-detect)</option>
+                                            <option value="vi">🇻🇳 Tiếng Việt (Khuyên dùng cho nhạc Việt - Khử ảo giác khi có beat)</option>
+                                            <option value="en">🇬🇧 Tiếng Anh (English)</option>
+                                            <option value="zh">🇨🇳 Tiếng Trung (Chinese)</option>
+                                            <option value="ja">🇯🇵 Tiếng Nhật (Japanese)</option>
+                                            <option value="ko">🇰🇷 Tiếng Hàn (Korean)</option>
+                                        </select>
+                                        <p className={`text-[11px] ${subTextColor} leading-relaxed`}>
+                                            Chỉ định đúng ngôn ngữ giúp loại bỏ hoàn toàn hiện tượng Whisper đoán nhầm hoặc lặp phụ đề tiếng Anh khi đoạn dạo đầu có beat EDM/remix mạnh.
+                                        </p>
+                                    </div>
+
                                     <div className="flex items-center justify-between">
                                         <span className={`text-xs font-bold ${textColor} flex items-center gap-1.5`}>
                                             <Sparkles size={13} className="text-amber-400" />

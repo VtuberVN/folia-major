@@ -750,18 +750,27 @@ const locateHtdemucsModel = ({ userDataPath, appModelsDir } = {}) => {
     return null;
 };
 
+const VIETNAMESE_DIACRITICS_REGEX = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+
+const hasVietnameseDiacritics = (text = '') => {
+    return VIETNAMESE_DIACRITICS_REGEX.test(text);
+};
+
 /**
  * Locates the bundled or system whisper-cli binary.
  */
 const locateWhisper = () => {
     const exeName = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
-    const osArch = process.platform === 'win32' ? 'win-x64' : `${process.platform}-${process.arch}`;
+    const platformMap = { darwin: 'mac', win32: 'win', linux: 'linux' };
+    const osName = platformMap[process.platform] || process.platform;
+    const osArch = `${osName}-${process.arch}`;
     const candidates = [
         process.env.FOLIA_WHISPER_PATH,
         path.join(__dirname, '..', '..', 'build', 'whisper', osArch, exeName),
         path.join(__dirname, '..', '..', 'build', 'whisper', 'win-x64', exeName),
         process.resourcesPath && path.join(process.resourcesPath, 'whisper-audio', exeName),
         process.resourcesPath && path.join(process.resourcesPath, 'whisper', exeName),
+        process.resourcesPath && path.join(process.resourcesPath, 'whisper', osArch, exeName),
     ].filter(Boolean);
 
     for (const cand of candidates) {
@@ -804,6 +813,8 @@ const transcribeVocalsWithWhisper = async ({
     whisperModel,
     outputDir,
     songId,
+    language = 'auto',
+    devicePreference = 'gpu',
     optimalThreads = 4,
     ffmpegBin,
     activeJob,
@@ -839,65 +850,102 @@ const transcribeVocalsWithWhisper = async ({
 
         onProgress?.(5, 'Đã chuẩn bị âm thanh 16kHz, bắt đầu nhận diện lời bài hát (Whisper ASR)...', path.basename(whisperModel));
 
-        // Step B: Run whisper-cli with real-time progress parsing (-pp)
-        const args = [
+        // Step B: Set up library paths safely without empty path segments (which evaluate to cwd)
+        const whisperDir = path.dirname(whisperBin);
+        const env = {
+            ...process.env,
+            PATH: process.env.PATH ? `${whisperDir}${path.delimiter}${process.env.PATH}` : whisperDir,
+            LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH ? `${whisperDir}:${process.env.LD_LIBRARY_PATH}` : whisperDir,
+            DYLD_LIBRARY_PATH: process.env.DYLD_LIBRARY_PATH ? `${whisperDir}:${process.env.DYLD_LIBRARY_PATH}` : whisperDir,
+        };
+
+        // Anti-hallucination & precision flags:
+        // -mc 0: Disable context memory between 30s chunks (kills infinite repetition loops)
+        // -sns: Suppress non-speech tokens (prevents hallucinating text on silent/beat segments)
+        // -nf: Disable temperature fallback (prevents hallucinating subtitle strings on music)
+        // -nth 0.65: Filter speech threshold
+        const baseArgs = [
             '-m', whisperModel,
             '-f', vocals16kPath,
             '-oj',
             '-of', outPrefix,
-            '-l', 'auto',
+            '-l', language || 'auto',
+            '-mc', '0',
+            '-sns',
+            '-nf',
+            '-nth', '0.65',
             '-t', String(optimalThreads),
             '-pp',
         ];
 
-        await new Promise((resolve, reject) => {
-            const proc = spawn(whisperBin, args, { windowsHide: true });
-            if (activeJob) activeJob.activeProc = proc;
+        const runWhisperCli = (extraArgs = []) => {
+            return new Promise((resolve, reject) => {
+                const procArgs = [...baseArgs, ...extraArgs];
+                const proc = spawn(whisperBin, procArgs, { windowsHide: true, env });
+                if (activeJob) activeJob.activeProc = proc;
 
-            let reportedPercent = 5;
-            let targetPercent = 5;
-            const progressRegex = /progress\s*=\s*(\d+)%/i;
+                let reportedPercent = 5;
+                let targetPercent = 5;
+                let stderrLog = '';
 
-            const ticker = setInterval(() => {
-                if (targetPercent > reportedPercent) {
-                    reportedPercent = Math.min(targetPercent, reportedPercent + 2);
-                    onProgress?.(
-                        reportedPercent,
-                        `AI Whisper đang nhận diện ngữ âm & từ vựng (${reportedPercent}%)...`,
-                        `Whisper ASR ${reportedPercent}%`
-                    );
-                }
-            }, 250);
-
-            proc.stderr?.on('data', (chunk) => {
-                const text = chunk.toString();
-                const matches = [...text.matchAll(/progress\s*=\s*(\d+)%/gi)];
-                if (matches.length > 0) {
-                    const lastP = parseInt(matches[matches.length - 1][1], 10);
-                    if (!isNaN(lastP)) {
-                        targetPercent = Math.max(targetPercent, Math.min(99, lastP));
+                const ticker = setInterval(() => {
+                    if (targetPercent > reportedPercent) {
+                        reportedPercent = Math.min(targetPercent, reportedPercent + 2);
+                        onProgress?.(
+                            reportedPercent,
+                            `AI Whisper đang nhận diện ngữ âm & từ vựng (${reportedPercent}%)...`,
+                            `Whisper ASR ${reportedPercent}%`
+                        );
                     }
-                }
-            });
+                }, 250);
 
-            proc.on('error', (err) => {
-                clearInterval(ticker);
-                reject(new Error(`Không thể khởi chạy whisper-cli: ${err.message}`));
-            });
+                proc.stderr?.on('data', (chunk) => {
+                    const text = chunk.toString();
+                    stderrLog += text;
+                    const matches = [...text.matchAll(/progress\s*=\s*(\d+)%/gi)];
+                    if (matches.length > 0) {
+                        const lastP = parseInt(matches[matches.length - 1][1], 10);
+                        if (!isNaN(lastP)) {
+                            targetPercent = Math.max(targetPercent, Math.min(99, lastP));
+                        }
+                    }
+                });
 
-            proc.on('close', (code) => {
-                clearInterval(ticker);
-                if (activeJob?.aborted) {
-                    return reject(new Error('Canceled by user'));
-                }
-                if (code === 0) {
-                    onProgress?.(100, 'AI Whisper đã giải mã ngữ âm hoàn tất 100%!', 'ASR Complete');
-                    resolve();
-                } else {
-                    reject(new Error(`whisper-cli kết thúc với mã lỗi ${code}`));
-                }
+                proc.on('error', (err) => {
+                    clearInterval(ticker);
+                    reject(new Error(`Không thể khởi chạy whisper-cli: ${err.message}`));
+                });
+
+                proc.on('close', (code) => {
+                    clearInterval(ticker);
+                    if (activeJob?.aborted) {
+                        return reject(new Error('Canceled by user'));
+                    }
+                    if (code === 0) {
+                        onProgress?.(100, 'AI Whisper đã giải mã ngữ âm hoàn tất 100%!', 'ASR Complete');
+                        resolve();
+                    } else {
+                        reject(new Error(`whisper-cli kết thúc với mã lỗi ${code}: ${stderrLog.slice(-300)}`));
+                    }
+                });
             });
-        });
+        };
+
+        if (devicePreference === 'cpu') {
+            // User explicitly requested CPU mode
+            await runWhisperCli(['-ng']);
+        } else {
+            try {
+                // First attempt: GPU (Vulkan / Metal)
+                await runWhisperCli([]);
+            } catch (gpuErr) {
+                if (activeJob?.aborted) throw gpuErr;
+                console.warn('[whisper] GPU ASR failed, falling back to CPU mode (-ng):', gpuErr.message);
+                onProgress?.(8, 'Đang tự động chuyển sang chế độ CPU (Fallback)...', 'CPU Fallback');
+                // Second attempt: Fallback to CPU (-ng)
+                await runWhisperCli(['-ng']);
+            }
+        }
 
         // Step C: Parse output JSON to standard timed LRC lines
         if (!fs.existsSync(jsonPath)) {
@@ -913,7 +961,7 @@ const transcribeVocalsWithWhisper = async ({
             if (!text || text.toLowerCase() === '[music]' || text.toLowerCase() === '(music)') return '';
 
             const timeStr = item.timestamps?.from || '00:00:00,000';
-            const [timePart, fracPart = '00'] = timeStr.split(',');
+            const [timePart, fracPart = '00'] = timeStr.split(/[,.]/);
             const parts = timePart.split(':');
             let h = 0, m = 0, s = 0;
             if (parts.length === 3) {
@@ -1344,6 +1392,7 @@ const runKaraokePipeline = async ({
     alignmentMode = 'align_existing',
     mode = 'stem_and_lyrics',
     devicePreference = 'gpu',
+    language = 'auto',
     userDataPath,
     appModelsDir,
     onProgress,
@@ -1363,6 +1412,10 @@ const runKaraokePipeline = async ({
     };
 
     try {
+        const targetLanguage = (language && language !== 'auto')
+            ? language
+            : (hasVietnameseDiacritics(`${songTitle || ''} ${artist || ''}`) ? 'vi' : 'auto');
+
         const isTurbo = devicePreference === 'gpu';
         const cpuCount = (os.cpus() || []).length;
         const optimalThreads = isTurbo
@@ -1431,6 +1484,8 @@ const runKaraokePipeline = async ({
                     whisperModel,
                     outputDir,
                     songId,
+                    language: targetLanguage,
+                    devicePreference,
                     optimalThreads,
                     ffmpegBin,
                     activeJob: jobRecord,
@@ -1638,6 +1693,8 @@ const runKaraokePipeline = async ({
                         whisperModel,
                         outputDir,
                         songId,
+                        language: targetLanguage,
+                        devicePreference,
                         optimalThreads,
                         ffmpegBin,
                         activeJob: jobRecord,
@@ -1751,4 +1808,6 @@ module.exports = {
     locateWhisperModel,
     transcribeVocalsWithWhisper,
     decodeAudioToPcm,
+    hasVietnameseDiacritics,
+    VIETNAMESE_DIACRITICS_REGEX,
 };

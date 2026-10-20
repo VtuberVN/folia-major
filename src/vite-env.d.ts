@@ -1059,6 +1059,7 @@ declare global {
           alignmentMode: import('./types/aiKaraoke').KaraokeAlignmentMode;
           mode?: import('./types/aiKaraoke').KaraokeJobMode;
           devicePreference?: import('./types/aiKaraoke').KaraokeDevicePreference;
+          language?: import('./types/aiKaraoke').WhisperLanguage;
         }) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult>;
         cancelJob: (jobId: string) => Promise<{ canceled: boolean }>;
         exportLrcFile: (payload: { defaultFileName?: string; content: string }) => Promise<{ ok?: boolean; canceled?: boolean; filePath?: string }>;

@@ -11,6 +11,7 @@ import type {
     AsrModelId,
     KaraokeAlignmentMode,
     KaraokeJobMode,
+    WhisperLanguage,
     KaraokeJobProgress,
     KaraokeJobStage,
     KaraokeGenerationResult,
@@ -28,6 +29,7 @@ interface AiKaraokeState {
     selectedAsrModel: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
     jobMode: KaraokeJobMode;
+    selectedLanguage: WhisperLanguage;
     devicePreference: 'gpu' | 'cpu';
     rawLyricsText: string;
     jobStage: KaraokeJobStage;
@@ -51,6 +53,7 @@ interface AiKaraokeState {
     playOutputStem: (output: KaraokeOutputSummary, stem: 'beat' | 'vocal') => Promise<boolean>;
     applyLyricsToCurrentSong: (result: KaraokeGenerationResult, targetSong?: SongResult | null) => Promise<boolean>;
     setJobMode: (mode: KaraokeJobMode) => void;
+    setLanguage: (language: WhisperLanguage) => void;
     setMssModel: (model: MssModelId) => void;
     setAsrModel: (model: AsrModelId) => void;
     setAlignmentMode: (mode: KaraokeAlignmentMode) => void;
@@ -104,6 +107,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     selectedAsrModel: 'whisper_turbo',
     alignmentMode: 'align_existing',
     jobMode: 'stem_and_lyrics',
+    selectedLanguage: 'auto',
     devicePreference: 'gpu',
     rawLyricsText: '',
     jobStage: 'idle',
@@ -126,9 +130,15 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             state.jobStage !== 'error';
         const targetTab = isRunning && initialTab === 'process' ? 'running' : initialTab;
 
+        const songToInspect = song || state.activeSong;
+        const songName = songToInspect?.name || '';
+        const artistName = songToInspect?.artists?.map((a) => a.name).join(' ') || (songToInspect as any)?.artist || '';
+        const hasVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(`${songName} ${artistName}`);
+
         set({
             isOpen: true,
             activeTab: targetTab,
+            selectedLanguage: hasVietnamese ? 'vi' : (state.selectedLanguage || 'auto'),
             ...(song ? { activeSong: song } : {}),
             ...(initialLyrics ? { rawLyricsText: initialLyrics } : {}),
             ...(isRunning
@@ -416,6 +426,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     },
 
     setJobMode: (jobMode) => set({ jobMode }),
+    setLanguage: (selectedLanguage) => set({ selectedLanguage }),
     setMssModel: (selectedMssModel) => set({ selectedMssModel }),
     setAsrModel: (selectedAsrModel) => set({ selectedAsrModel }),
     setAlignmentMode: (alignmentMode) => set({ alignmentMode }),
