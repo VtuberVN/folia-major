@@ -205,7 +205,7 @@ export const LrcEditorModal: React.FC<LrcEditorModalProps> = ({
                             </div>
                             <div>
                                 <h2 className="text-base font-bold leading-tight flex items-center gap-2">
-                                    {t('lyricEditor.title', 'Trình chỉnh sửa lời bài hát (LRC Studio)')}
+                                    {t('lyricEditor.title', 'Trình chỉnh sửa lời bài hát')}
                                 </h2>
                                 <p className={`text-xs ${subTextColor} truncate max-w-md`}>
                                     {song ? `${song.name} — ${song.artists?.map(a => a.name).join(', ') || (song as any).artist || ''}` : 'Chỉnh sửa và đồng bộ mốc thời gian'}

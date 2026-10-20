@@ -71,7 +71,7 @@ const LyricFileDialog: React.FC<LyricFileDialogProps> = ({
 
                 <Group def={STUDIO_GROUP}>
                     <Row
-                        label={t('lyricEditor.title', 'Trình chỉnh sửa lời trực quan (LRC Studio)')}
+                        label={t('lyricEditor.title', 'Trình chỉnh sửa lời bài hát')}
                         hint={t('lyricEditor.desc', 'Chỉnh sửa câu chữ, mốc thời gian và gõ nhịp Tap-to-Sync')}
                         onClick={() => {
                             onClose();

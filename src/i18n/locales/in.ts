@@ -1021,6 +1021,11 @@ export default {
     "extraRomanization": "Romanisasi",
     "nothingSelected": "Pilih minimal satu sumber dan satu format"
   },
+  "lyricEditor": {
+    "heading": "Editor Lirik",
+    "title": "Editor Lirik",
+    "desc": "Edit teks, tanda waktu, dan ketuk untuk menyelaraskan"
+  },
   "lyricFile": {
     "button": "Impor / ekspor lirik",
     "title": "Berkas lirik",

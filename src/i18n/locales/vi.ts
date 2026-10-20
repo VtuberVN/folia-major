@@ -1861,6 +1861,11 @@ const vi = {
     "extraRomanization": "Phiên âm La-tinh",
     "nothingSelected": "Chọn ít nhất một nguồn và một định dạng"
   },
+  "lyricEditor": {
+    "heading": "Trình chỉnh sửa lời bài hát",
+    "title": "Trình chỉnh sửa lời bài hát",
+    "desc": "Chỉnh sửa câu chữ, mốc thời gian và gõ nhịp Tap-to-Sync"
+  },
   "lyricFile": {
     "button": "Nhập / xuất lời bài hát",
     "title": "Tệp lời bài hát",

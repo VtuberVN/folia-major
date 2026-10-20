@@ -27,6 +27,8 @@ import {
     fetchKaraokeOutputs,
 } from '../../services/aiKaraokeService';
 import { formatByteSize } from '../../utils/formatByteSize';
+import { CustomSelect } from '../shared/CustomSelect';
+import type { CustomSelectOption } from '../shared/CustomSelectMenu';
 import type { KaraokeOutputSummary, MssModelId } from '../../types/aiKaraoke';
 import type { Theme } from '../../types';
 
@@ -226,34 +228,23 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                     />
                 </div>
 
-                {/* Model filter chips */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                    {[
-                        { id: 'all', label: 'Tất cả model' },
-                        { id: 'htdemucs_mnn', label: 'HTDemucs v4' },
-                        { id: 'uvr_mdxnet_kara_2', label: 'UVR Kara 2' },
-                        { id: 'kim_vocal_2', label: 'Kim Vocal 2' },
-                        { id: 'bs_roformer', label: 'BS-RoFormer' },
-                    ].map((chip) => {
-                        const isSelected = selectedModelFilter === chip.id;
-                        return (
-                            <button
-                                key={chip.id}
-                                type="button"
-                                onClick={() => setSelectedModelFilter(chip.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                                    isSelected
-                                        ? 'text-white shadow-sm font-semibold'
-                                        : isDaylight
-                                        ? 'bg-neutral-200/60 text-neutral-700 hover:bg-neutral-200'
-                                        : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
-                                }`}
-                                style={{ backgroundColor: isSelected ? accentBg : undefined }}
-                            >
-                                {chip.label}
-                            </button>
-                        );
-                    })}
+                {/* Model filter dropdown */}
+                <div className="w-full sm:w-44 shrink-0">
+                    <CustomSelect
+                        value={selectedModelFilter}
+                        onChange={setSelectedModelFilter}
+                        options={[
+                            { value: 'all', label: 'Tất cả model' },
+                            { value: 'htdemucs_mnn', label: 'HTDemucs v4' },
+                            { value: 'uvr_mdxnet_kara_2', label: 'UVR Kara 2' },
+                            { value: 'kim_vocal_2', label: 'Kim Vocal 2' },
+                            { value: 'bs_roformer', label: 'BS-RoFormer' },
+                        ]}
+                        isDaylight={isDaylight}
+                        theme={theme}
+                        size="compact"
+                        ariaLabel="Lọc theo model tách"
+                    />
                 </div>
             </div>
 

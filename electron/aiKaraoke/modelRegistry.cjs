@@ -20,7 +20,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '6 - 10s',
         description: 'Tối ưu cho Karaoke: Tách giọng hát chính, giữ lại giọng bè (backing vocals) trong beat nhạc nền.',
         descriptionVi: 'Tối ưu cho Karaoke: Tách giọng hát chính, giữ lại giọng bè (backing vocals) trong beat nhạc nền.',
-        downloadUrl: 'https://huggingface.co/seanghay/uvr_models/resolve/main/UVR_MDXNET_KARA_2.onnx',
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/UVR_MDXNET_KARA_2.onnx',
     },
     {
         id: 'kim_vocal_2',
@@ -32,7 +32,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '6 - 10s',
         description: 'Tách vocal siêu sạch, giữ dải tần cao. Phù hợp nhất để trích xuất giọng hát đưa vào nhận diện lời ASR.',
         descriptionVi: 'Tách vocal siêu sạch, giữ dải tần cao. Phù hợp nhất để trích xuất giọng hát đưa vào nhận diện lời ASR.',
-        downloadUrl: 'https://huggingface.co/seanghay/uvr_models/resolve/main/Kim_Vocal_2.onnx',
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/Kim_Vocal_2.onnx',
     },
     {
         id: 'htdemucs_mnn',
@@ -56,7 +56,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '18 - 30s',
         description: 'Chất lượng phòng thu Studio đỉnh cao (SDR 12.97 dB). Tách sạch tiếng thở, reverb, không lẹm nhạc nền.',
         descriptionVi: 'Chất lượng phòng thu Studio đỉnh cao (SDR 12.97 dB). Tách sạch tiếng thở, reverb, không lẹm nhạc nền.',
-        downloadUrl: 'https://huggingface.co/aurangzeb/BS-RoFormer-Viperx-12.97/resolve/main/model_bs_roformer_ep_317_sdr_12.9755.ckpt',
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/model_bs_roformer_ep_317_sdr_12.9755.ckpt',
     },
     {
         id: 'whisper_turbo',
@@ -68,7 +68,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '2 - 4s',
         description: 'Model nhận diện giọng nói siêu tốc độ (809M tham số, 4 decoder layers), cực kỳ chuẩn xác cho nhạc Việt & quốc tế.',
         descriptionVi: 'Model nhận diện giọng nói siêu tốc độ (809M tham số, 4 decoder layers), cực kỳ chuẩn xác cho nhạc Việt & quốc tế.',
-        downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin',
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/whisper-large-v3-turbo-int8.bin',
     },
     {
         id: 'whisper_small',
@@ -80,7 +80,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '3 - 6s',
         description: 'Bản rút gọn dung lượng vừa tầm, hoạt động mượt mà trên cả CPU hoặc máy tính không có GPU rời.',
         descriptionVi: 'Bản rút gọn dung lượng vừa tầm, hoạt động mượt mà trên cả CPU hoặc máy tính không có GPU rời.',
-        downloadUrl: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin',
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/whisper-small-int8.bin',
     },
     {
         id: 'forced_alignment',

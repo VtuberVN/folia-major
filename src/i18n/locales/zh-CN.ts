@@ -1059,6 +1059,11 @@ export default {
     "extraRomanization": "罗马音",
     "nothingSelected": "至少选一个范围和一种格式"
   },
+  "lyricEditor": {
+    "heading": "歌词编辑器",
+    "title": "歌词编辑器",
+    "desc": "编辑歌词文本、时间轴及打击对齐"
+  },
   "lyricFile": {
     "button": "导入 / 导出歌词",
     "title": "歌词文件",

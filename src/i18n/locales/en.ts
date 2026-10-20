@@ -1059,6 +1059,11 @@ export default {
     "extraRomanization": "Romanization",
     "nothingSelected": "Pick at least one source and one format"
   },
+  "lyricEditor": {
+    "heading": "Lyrics Editor",
+    "title": "Lyrics Editor",
+    "desc": "Edit lines, timestamps, and tap to sync"
+  },
   "lyricFile": {
     "button": "Import / export lyrics",
     "title": "Lyric file",
