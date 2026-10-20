@@ -22,6 +22,8 @@ const TRUST_DIALOG_LOCALE = {
         risk: '模组是第三方代码，未经官方安全审计。一旦启用，它将以应用的完整权限运行：可读写本地文件、访问网络、读取或修改任意应用设置（包括 AI 服务地址与密钥），并可在界面中执行代码。请仅启用你信任来源的模组。',
         permissions: '声明的权限：',
         noPermissions: '声明的权限：无',
+        platformRead: (platforms) => `以你的账号读取平台数据（实验接口 platform.raw）：${platforms}。模组会以你在 Folia 登录的账号读取这些平台上的数据，例如听歌记录。`,
+        platformWrite: (platforms) => `以你的账号改动平台数据：${platforms}。模组还可以改动这些平台账号里的内容，例如点赞、歌单和关注。`,
         location: '安装位置：',
         fingerprint: '内容指纹：',
         client: '界面代码：',
@@ -46,6 +48,8 @@ const TRUST_DIALOG_LOCALE = {
         risk: '模組是第三方程式碼，未經官方安全審計。一旦啟用，它將以應用的完整權限執行：可讀寫本地檔案、存取網路、讀取或修改任意應用設定（包括 AI 服務位址與金鑰），並可在介面中執行程式碼。請僅啟用你信任來源的模組。',
         permissions: '宣告的權限：',
         noPermissions: '宣告的權限：無',
+        platformRead: (platforms) => `以你的帳號讀取平臺數據（實驗介面 platform.raw）：${platforms}。模組會以你在 Folia 登入的帳號讀取這些平臺上的資料，例如聽歌記錄。`,
+        platformWrite: (platforms) => `以你的帳號改動平臺數據：${platforms}。模組還可以改動這些平臺帳號裡的內容，例如點贊、歌單和關注。`,
         location: '安裝位置：',
         fingerprint: '內容指紋：',
         client: '介面程式碼：',
@@ -70,6 +74,8 @@ const TRUST_DIALOG_LOCALE = {
         risk: 'Mods are third-party code and are not security-audited. Once enabled, a mod runs with the full privileges of the app: it can read and write local files, access the network, read or change any app setting (including the AI service URL and key), and run code inside the UI. Only enable mods from sources you trust.',
         permissions: 'Declared permissions: ',
         noPermissions: 'Declared permissions: none',
+        platformRead: (platforms) => `Reads platform data as you (experimental platform.raw): ${platforms}. The mod can read data on these platforms with the account you signed in to Folia with, such as your listening records.`,
+        platformWrite: (platforms) => `Changes platform data as you: ${platforms}. The mod can also change what these platform accounts hold, such as likes, playlists and follows.`,
         location: 'Installed at: ',
         fingerprint: 'Content fingerprint: ',
         client: 'UI code: ',
@@ -94,6 +100,8 @@ const TRUST_DIALOG_LOCALE = {
         risk: 'Mod adalah kode pihak ketiga dan tidak diaudit keamanannya. Setelah diaktifkan, mod berjalan dengan hak penuh aplikasi: dapat membaca dan menulis berkas lokal, mengakses jaringan, membaca atau mengubah pengaturan apa pun (termasuk URL dan kunci layanan AI), serta menjalankan kode di dalam antarmuka. Aktifkan hanya mod dari sumber yang Anda percayai.',
         permissions: 'Izin yang dideklarasikan: ',
         noPermissions: 'Izin yang dideklarasikan: tidak ada',
+        platformRead: (platforms) => `Membaca data platform atas nama Anda (API eksperimental platform.raw): ${platforms}. Mod dapat membaca data di platform ini dengan akun yang Anda pakai untuk masuk ke Folia, misalnya riwayat mendengarkan.`,
+        platformWrite: (platforms) => `Mengubah data platform atas nama Anda: ${platforms}. Mod juga dapat mengubah isi akun platform ini, misalnya suka, playlist, dan yang diikuti.`,
         location: 'Terpasang di: ',
         fingerprint: 'Sidik konten: ',
         client: 'Kode antarmuka: ',
@@ -246,11 +254,20 @@ const createModApproval = ({ app, store, enabledKey, getMainWindowSafe, getLocal
                     : locale.signatureUnsigned;
         const permissions = Array.isArray(runtime.manifest.permissions) ? runtime.manifest.permissions : [];
         const { client, experimental = [], embedOrigins = [], folia } = runtime.manifest;
+        // Folium 1.7: the platforms the mod may call as the user (platform.<id>.read / .write), said in words.
+        const platformsWith = (access) => permissions
+            .map((permission) => /^platform\.([^.]+)\.(read|write)$/.exec(String(permission)))
+            .filter((match) => match && match[2] === access)
+            .map((match) => match[1]);
+        const readPlatforms = platformsWith('read');
+        const writePlatforms = platformsWith('write');
         const detail = [
             signature.status === 'verified' ? locale.verifiedRisk : signature.status === 'beta' ? locale.betaRisk : locale.risk,
             '',
             signatureLine,
             permissions.length > 0 ? `${locale.permissions}${permissions.join(', ')}` : locale.noPermissions,
+            ...(readPlatforms.length > 0 ? [locale.platformRead(readPlatforms.join(', '))] : []),
+            ...(writePlatforms.length > 0 ? [locale.platformWrite(writePlatforms.join(', '))] : []),
             client ? `${locale.client}${client}` : locale.noClient,
             ...(experimental.length > 0 ? [`${locale.experimental}${experimental.join(', ')}`] : []),
             ...(embedOrigins.length > 0 ? [`${locale.embedOrigins}${embedOrigins.join(', ')}`] : []),

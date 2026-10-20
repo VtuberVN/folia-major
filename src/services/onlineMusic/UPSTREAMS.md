@@ -22,6 +22,7 @@
 - **上游变了怎么跟**：
   - `neteaseApiWorker.cjs` 直接 require 包里的这几个路径：`util/request`、`main`、`util/xeapiKey`、`util/index`、`server`；补丁脚本改的是 `server.js`。升级前先看这些文件还在不在、导出的名字变没变。
   - 升级要改三处：根目录 `package.json` 和锁文件、`deploy/docker/netease-api/package.json` 和它的锁文件。
+  - 模组的实验接口 `platform.raw`（Folium 1.7）按包里 `module/` 的文件名直通后端：哪些模块能读、能写、永远拒绝，记在 `netease/neteaseRaw.ts` 的分类表里，表外的一律拒绝。上游新增模块、有人要用时在表里补一行；改名或删掉的模块，`test/unit/onlineMusic/neteaseRaw.test.ts` 读包的 `module/` 目录会报出来。那里报给模组的后端名字和版本取自包自己的 `package.json`，升级后不用改。
   - 测试：`test/unit/electron/neteaseApiStartup.test.ts`、`neteaseApiHost.test.ts`、`lazyJsdom.test.ts`、`neteaseLoginDiagnostics.test.ts` 都用替身，抓不到上游的变化。`npm run probe:netease-xeapi`（`test/manual/netease_xeapi_probe.cjs`）是手动跑的诊断，看 xeapi key 接口在不同网络路径下的答复。
 
 ## 酷狗（`kugou`）

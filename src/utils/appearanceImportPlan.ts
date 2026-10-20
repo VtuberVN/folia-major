@@ -6,6 +6,7 @@ import {
 import { mergeUrlBackgroundList } from './urlBackground';
 import { normalizeFontWeight } from './fontStacks';
 import type { UrlBackgroundItem } from '../types';
+import { resolveSmartBeatSettings, type SmartBeatPatch } from '../services/beatFx/smartBeatSettings';
 
 // src/utils/appearanceImportPlan.ts
 // What an imported config would actually change, computed before anything is applied. Pure: the
@@ -456,6 +457,20 @@ export function buildImportPlan({
         if (key === 'lyricsFontWeight' || key === 'subtitleFontWeight') {
             const to = normalizeFontWeight(incoming[key]);
             record({ group, key, from: current[key], to }, isSameValue(to, current[key]));
+            continue;
+        }
+
+        // 智能动感模式 is diffed as the store will hold it (from the PR #750 review): the codec carries
+        // the `enabled` switch for builds before the modes, and a mode this build does not know, which
+        // the store folds or ignores. Diffed raw, the first showed as a row of its own, and the second
+        // as a change that never lands and comes back on every import.
+        if (key === 'smartBeat') {
+            const from = resolveSmartBeatSettings(current[key] as SmartBeatPatch | undefined);
+            const to = resolveSmartBeatSettings(incoming[key] as SmartBeatPatch, from);
+            const change: ImportChange = { group, key, from, to };
+            const children = diffLeaves(from, to, group);
+            if (children.length) change.children = children;
+            record(change, children.length === 0);
             continue;
         }
 

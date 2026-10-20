@@ -136,6 +136,21 @@ describe('validateManifest Folium entries and opt-ins', () => {
         expect(validateManifest({ ...validManifest, experimental: ['mixins'] }).ok).toBe(false);
     });
 
+    // Folium 1.7: the platform.raw permissions work only with the opt-in, and writing goes with reading.
+    it('takes platform permissions only with the platform.raw opt-in, and write only with read', () => {
+        const platform = (permissions: string[], experimental: string[] = ['platform.raw']) => (
+            validateManifest({ ...validManifest, permissions, experimental })
+        );
+        expect(platform(['platform.netease.read']).ok).toBe(true);
+        expect(platform(['platform.netease.read', 'platform.netease.write']).ok).toBe(true);
+        expect(platform(['platform.netease.read'], []).errors).toEqual(['permission platform.netease.read needs "platform.raw" under experimental']);
+        expect(platform(['platform.netease.write']).errors).toEqual(['permission platform.netease.write needs platform.netease.read as well']);
+        // Only platforms that can be called through it have permissions.
+        expect(platform(['platform.nowhere.read']).ok).toBe(false);
+        // The opt-in alone asks for nothing.
+        expect(platform([]).ok).toBe(true);
+    });
+
     it('accepts an optional preview image path inside the mod directory', () => {
         expect(validateManifest({ ...validManifest, preview: 'preview.jpg' }).ok).toBe(true);
         expect(validateManifest({ ...validManifest, preview: 'assets/cover.webp' }).ok).toBe(true);

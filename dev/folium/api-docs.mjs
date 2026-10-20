@@ -189,7 +189,7 @@ const SECTION_INFO = {
     'Client API': {
         order: 1,
         title: '客户端入口',
-        intro: '模组的 `client` 入口默认导出 `activate(folium)`，参数就是 [FoliumClientApi](#foliumclientapi)，所有能力都从这里取。',
+        intro: '模组的 `client` 入口默认导出 `activate(folium)`，参数就是 [FoliumClientApi](#foliumclientapi)，所有能力都从这里取。数据文件 `folium.storage`、密钥字段的值 `folium.secrets`（Folium 1.7）和通往 main 入口的 `folium.rpc` 也在这一节。',
     },
     'Registry definitions': {
         order: 2,
@@ -209,7 +209,7 @@ const SECTION_INFO = {
     Services: {
         order: 5,
         title: '服务',
-        intro: '`folium.playback` / `folium.ui` / `folium.net`。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。',
+        intro: '`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account`（不需要权限）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。',
     },
     'Shared helpers': {
         order: 6,
@@ -372,7 +372,9 @@ const renderPermissions = () => {
     const lines = [
         `### ${PERMISSIONS_HEADING}`,
         '',
-        '本表由 `electron/modSystem/foliumShared.json` 里每个权限的 `guards` 生成，`npm run folium:check` 用同一张表查模组用到的成员。',
+        '本表由 `electron/modSystem/foliumShared.json` 里每个权限的 `guards` 生成，`npm run folium:check` 用同一张表查模组用到的成员。'
+            + "`platform.*` 两行例外：模组只能写成 `folium.experimental['platform.raw']`，表里的成员名只是说明；"
+            + "`folium:check` 改为按代码里 `request('<平台>', …)` 写出的平台 id 查 `platform.<平台>.read`，`.write` 要看调的是哪个接口，查不到。",
         '',
         '| 权限 | 解锁的成员 |',
         '| --- | --- |',
@@ -384,6 +386,7 @@ const renderPermissions = () => {
         '',
         '`folium.*` 是 client 入口的成员，`api.*` 是 main 入口的成员；写到哪一级就管到哪一级，`folium.storage` 管它下面的全部方法。',
         '模组没有在 `mod.json` 的 `permissions` 里声明这个权限就调用时，同步的成员抛 `permission-denied:<权限>`，异步的成员返回的 promise 以同一个错误拒绝。',
+        '`platform.<平台>.read` / `.write` 管的是实验接口 `platform.raw` 的 `request` 能调这个平台的哪一类接口：读接口要 read，改动账号的接口还要 write（表里的 `request.write` 指这一类接口，不是一个成员）；两者都要在 `experimental` 里选用 `platform.raw`，声明 write 也要同时声明 read。',
     );
     return lines.join('\n');
 };

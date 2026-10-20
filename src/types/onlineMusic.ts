@@ -720,6 +720,42 @@ export interface ProviderNotice {
     durationMs?: number;
 }
 
+// 平台后端原始接口的一类：read 只读，write 会改动账号里的数据，denied 永远拒绝（登录、会话、凭据，
+// 以及把任意请求转发出去的透传接口）。
+export type ProviderRawEndpointAccess = 'read' | 'write' | 'denied';
+
+// 分类表里的一行。
+export interface ProviderRawEndpoint {
+    access: ProviderRawEndpointAccess;
+    // 已经有对应能力的 omni 方法名（例如 'getLyrics'）：调用方应改用它。
+    omni?: string;
+    // 指明「当前登录用户」的参数名（例如 'uid'）：调用方没给时由 omni 填上当前账号的用户 id。
+    selfParam?: string;
+}
+
+/**
+ * 平台后端的原始接口：调用平台还没有做进 omni 的专有能力的后备通道（Folium 实验接口 `platform.raw`）。
+ * 只有 omni 调它；回答是平台原始的 JSON，跟随宿主钉住的后端库版本，不承诺稳定。会话由 provider 自己
+ * 补上，调用方碰不到凭据；接口分类表由平台自己维护，表外的接口按拒绝处理。
+ */
+export interface OnlineRawRequestProvider {
+    // 宿主钉住的后端库：名字和版本，取自包的元数据。
+    backend: { name: string; version: string };
+    // 由宿主自己设置、调用方不能给的参数名（会话、代理、来源 IP 这类）。
+    reservedParams: readonly string[];
+    // 这个平台自己的凭据字段名（例如它的会话 cookie 的名字）：回答里这些字段和共用的那几种
+    // （cookie、token 等，见 rawResponse.ts）一起剥掉。
+    credentialFields?: readonly string[];
+    // 一个接口属于哪一类；不在表里回 null。
+    describeEndpoint(endpoint: string): ProviderRawEndpoint | null;
+    // 检查参数的取值，名字之外的那一层：后端会把一些参数原样拼进上游请求的路径（例如 id），这些参数只收
+    // 平台认得的格式，免得 `../` 之类的取值把带着会话的请求引到表外的接口。有问题回一句说明，没有回 null。
+    checkParams?(endpoint: string, params: Record<string, JsonValue>): string | null;
+    // 发出请求，回平台原始的回答。参数已经过 omni 校验；`signal` 中止时请求跟着中止。时限由 provider
+    // 自己定（照它别的在线请求）。登录失效抛 auth-required，被限流抛带 HTTP 429 的 OnlineProviderError。
+    request(endpoint: string, params: Record<string, JsonValue>, signal: AbortSignal): Promise<unknown>;
+}
+
 export interface OnlineMusicProvider {
     id: OnlineProviderId;
     displayName: string;
@@ -754,6 +790,8 @@ export interface OnlineMusicProvider {
     recommendations?: OnlineRecommendationProvider;
     explore?: OnlineExploreProvider;
     mutations?: OnlineMutationProvider;
+    /** 平台后端的原始接口（OnlineRawRequestProvider）；没有它的平台不能直通。 */
+    raw?: OnlineRawRequestProvider;
 }
 
 // Public canonical contract consumed through the omni facade. Provider-prefixed

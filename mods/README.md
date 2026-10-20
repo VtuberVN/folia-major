@@ -12,7 +12,7 @@ Folium 是 Folia 的模组平台，形状参照 Minecraft Forge：模组通过**
 
 > **模组开发与上架注意事项**
 >
-> - 稳定扩展接口目前只有 UI 相关部分、歌词原文解析（`folium.lyrics.parse` 与 `getLyrics` 的返回形状），以及播放控制补全（音量、静音、循环模式、播放队列）、首页页面（`homeTabs`）、播放失败通知（`playback.failed`）与 main 入口的文件目录（`api.storage.paths`）。其他部分，尤其是 `omni.providers` 等 Omni provider 接口，仍属实验接口，尚不具备应用内置 Omni provider 的对等能力。在 Folium v2 发布前，请绝对不要尝试制作超出当前实验接口能力的完整音源模组；接口缺口必然导致问题，浪费开发者和维护者的时间。
+> - 稳定扩展接口目前只有 UI 相关部分、歌词原文解析（`folium.lyrics.parse` 与 `getLyrics` 的返回形状），以及播放控制补全（音量、静音、循环模式、播放队列）、首页页面（`homeTabs`）、播放失败通知（`playback.failed`）与 main 入口的文件目录（`api.storage.paths`）；1.7 加了 main 入口向本模组 client 推送消息（`api.rpc.send` / `folium.rpc.on`）、密钥类设置字段（`secret` 与 `folium.secrets` / `api.secrets`）、登录状态（`folium.account` 与 `account.changed`）和可以放进系统级全局快捷键的命令（`globalShortcut`）。其他部分，尤其是 `omni.providers` 等 Omni provider 接口和平台后端直通 `platform.raw`，仍属实验接口，尚不具备应用内置 Omni provider 的对等能力。在 Folium v2 发布前，请绝对不要尝试制作超出当前实验接口能力的完整音源模组；接口缺口必然导致问题，浪费开发者和维护者的时间。
 > - 任何尝试导出 provider 的原始音频流或解密之后的原始音频文件的模组，都有极高的平台法律风险。无论采用何种实现方式，此类模组都不会上架官方模组市场。
 
 公开类型全部在 [`src/mods/folium/contract.ts`](../src/mods/folium/contract.ts)，这是契约的唯一来源；
@@ -31,13 +31,15 @@ Folium 是 Folia 的模组平台，形状参照 Minecraft Forge：模组通过**
 | `sample-rickroll` | 在播放页嵌入外部网页（stageLayers + ui.embed + embedOrigins） |
 | `sample-beta-hello` | 先行测试渠道的最小示例：启用后在控制台打印 hello world，用先行测试密钥签名 |
 
-`dev/folium/` 下还有两个 1.5 的示范模组。它们**没有签名**，开发版也**不会自动扫描**这个目录，需要手动安装：
+`dev/folium/` 下还有几个示范模组：下表是 1.5 和 1.7 的，实验接口 `player.layout`、`remote.actions` 的示例见各自的小节。
+它们**没有签名**，开发版也**不会自动扫描**这个目录，需要手动安装：
 把模组目录打成 zip 拖到模组面板，或复制到用户模组目录（见[从 UI 安装与管理](#从-ui-安装与管理)），装好后显示为「未验证」。
 
 | 样例 | 演示 |
 | --- | --- |
 | `dev/folium/sample-home-tab` | 首页页面（homeTabs + `ui.openHomeTab`）：双栏页面、输入不触发宿主快捷键、挂载与清理、注销入口后回到原生首页，纯 client、不需要权限 |
 | `dev/folium/sample-playback-console` | 首页页面里的播放控制台：音量、静音与循环模式可调，`getQueue` 分页列出队列并用 `playQueueItem` 点播，订阅 `volumeChanged` / `loopModeChanged` / `queueChanged` / `failed`；main 入口把失败记录追加到 `api.storage.paths.data` 下的日志，在 `paths.cache` 放一个可重建的缓存 |
+| `dev/folium/sample-account-console` | Folium 1.7：设置区块里的 `secret` 字段（client 与 main 入口各读一次，只显示「已设置 / 未设置」）；main 入口定时和在 `rpc.handle` 里用 `api.rpc.send` 推消息，client 用 `folium.rpc.on` 收；`folium.account.getState()` 与 `account.changed`；实验接口 `platform.raw` 读 `user_record`（听歌排行），清单选用 `platform.raw`、声明 `platform.netease.read`；可以绑到系统级全局快捷键的命令（`globalShortcut`） |
 
 ## 安全声明（重要）
 
@@ -155,7 +157,7 @@ client 只能用相对路径 import 模组目录里的 `.mjs/.js`，**不能 imp
 | `depends` | 模组 id 或 `id@^1.2.3`（仅支持 `^` 与 `*`）。缺失、版本不符、成环或依赖未启用时，只有该依赖子图不加载 |
 | `permissions` | 见下表。未知权限直接拒绝 |
 | `embedOrigins` | `folium.ui.embed` 可以加载的 https origin（形如 `https://host[:port]`），需要 `net.embed` |
-| `experimental` | 选用的实验接口：`omni.providers`、`omni.hooks`、`ponder.targets`、`player.layout`、`remote.actions` |
+| `experimental` | 选用的实验接口：`omni.providers`、`omni.hooks`、`ponder.targets`、`player.layout`、`remote.actions`、`platform.raw`（1.7） |
 | `folia` | 可选。宿主版本范围（空格分隔的比较式，支持 `>= > <= < = ^` 与 `*`）；宿主版本不在范围内时加载器拒绝加载（`host-version-mismatch`） |
 
 | 权限 | 解锁 |
@@ -167,8 +169,15 @@ client 只能用相对路径 import 模组目录里的 `.mjs/.js`，**不能 imp
 | `net.fetch` | `folium.net.fetch()`（经主进程代发，不受 CORS 限制） |
 | `net.embed` | `folium.ui.embed()`，还需要 `embedOrigins` |
 | `stageLayers` | `registries.stageLayers`（往播放页上画东西） |
+| `platform.<平台>.read` | 1.7，实验：`experimental['platform.raw'].request` 以用户在 Folia 登录的账号调用这个平台的只读接口。目前只有 `platform.netease.read` |
+| `platform.<平台>.write` | 1.7，实验：再加上会改动账号内容的接口（点赞、歌单、关注……）。目前只有 `platform.netease.write` |
+
+两个 `platform.*` 权限都要在 `experimental` 里选用 `platform.raw`，声明 `write` 也必须同时声明 `read`，否则清单校验不通过、模组不加载。
+启用确认窗口和模组面板的展开行会用一句话写明模组能以用户的账号读取（或改动）哪些平台的数据，见 [platform.raw](#platformraw实验17)。
+密钥字段（`secret`）、`rpc.send` / `rpc.on` 和 `folium.account` 不需要权限。
 
 每个权限解锁的成员以 API 参考的[权限一览](../docs/folium/api.md#权限一览)为准，`npm run folium:check` 用同一张表查模组。
+`platform.*` 例外：`folium:check` 只按代码里 `request('<平台>', …)` 写出的平台 id 查 `platform.<平台>.read`，平台 id 是变量时只提示一句，`.write` 查不到（要看调的接口）。
 为 Folium 1.5 写的清单里的旧权限名和不认识的字段，在 1.x 里只提醒、不拒绝，见[仍可用的旧名字](../docs/folium/api.md#仍可用的旧名字)。
 
 ## client 入口
@@ -197,8 +206,9 @@ export default function activate(folium) {
   命令失败、音源方法失败、钩子超时或失败、模组自己调 `log.error` 是平常的结果：只记到那一行，不提示。
 - **运行环境**：`folium.env.context` 是 `'main'`（主窗口）或 `'export'`（透明视频导出窗口）。导出窗口里
   只属于界面的注册表（[注册表一览](../docs/folium/api.md#注册表一览)里「导出窗口里」一列写着不生效的那些）
-  是空实现——照常调用、不生效，所以同一份代码两边都能跑；服务（playback / ui / net / storage / rpc）
-  在导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 例外，两边都能用）。
+  是空实现——照常调用、不生效，所以同一份代码两边都能跑；服务（playback / ui / net / storage / secrets / account / rpc）
+  在导出窗口里调用会抛 `*-unavailable-in-export-context`（返回 promise 的方法以这个错误拒绝）。例外：`ui.icon` 两边都能用；
+  `rpc.on` 和 `secrets.subscribe` 照常收下监听、返回取消函数，但导出窗口里从不调用它们。
 - `folium.host`：`{ folium: { major, minor }, folia: '<宿主版本>' }`，给显示和日志用。
 
 ### folium 对象一览
@@ -210,7 +220,10 @@ export default function activate(folium) {
 | `events.on(type, handler, { priority })` | 见[事件](#事件)，返回取消函数 |
 | `playback` / `ui` / `net` | 见[服务](#服务) |
 | `storage.get/set/has/delete/keys` | 异步；需 `filesystem.data`；单模组数据上限 1 MB。更大的内容由 main 入口写成文件，放进 `api.storage.paths.data` |
+| `secrets.get/has/set/subscribe` | 1.7。本模组 `secret` 设置字段的值，和 main 入口的 `api.secrets` 是同一份；不需要权限。见[密钥字段](#密钥字段secret17) |
 | `rpc.call(name, ...args)` | 调用本模组 main 侧 `api.rpc.handle(name, fn)` 注册的函数；参数与返回值需可 JSON 序列化 |
+| `rpc.on(name, listener)` | 1.7。收本模组 main 入口 `api.rpc.send(name, payload)` 发来的消息，返回取消函数。见 [main 入口向 client 推送消息](#main-入口向-client-推送消息17) |
+| `account.getState(providerId?)` | 1.7。在线音源的登录状态，不需要权限。见 [folium.account](#foliumaccount17) |
 | `every(ms, fn)` / `onDispose(fn)` | 定时调用、登记清理函数；模组停掉时宿主替它停掉定时、调用清理函数。见[现成的函数](../docs/folium/contributing.md#现成的函数) |
 | `lyrics` / `theme` | 内置模式共用的函数，见[歌词与主题](#歌词与主题)；导出窗口里也能用。`lyrics.parse` 把歌词原文交给宿主解析；`lyrics.getLines()`、`lyrics.refresh()` 读正在显示的歌词（导出窗口里不能用） |
 | `experimental[name]` | 选用了才能访问，否则抛 `experimental-not-declared:<name>` |
@@ -257,11 +270,12 @@ export default function activate(folium) {
   defaultValue: 4, description: { en: 'tooltip' }, group: { en: 'Layout' } }
 ```
 
-- `type`：`number`（滑块）/ `text` / `boolean` / `select`（需 `options: [{ value, label }]`）/ `color`（应用自己的取色器，值是小写的 `#rrggbb`）。
+- `type`：`number`（滑块）/ `text` / `boolean` / `select`（需 `options: [{ value, label }]`）/ `color`（应用自己的取色器，值是小写的 `#rrggbb`）/
+  `secret`（1.7，密钥，只能用在设置分区里，见[密钥字段](#密钥字段secret17)）。
 - `group` 相同的字段放在同一个小标题下。没写 `step` 的数值：上下界都是整数按 1，否则按 0.01。
 - schema 是值的唯一来源：读到的值**已合并默认值**，写入时按 schema 校验（未知键丢弃、数值夹到范围内、
   select 必须是声明过的选项）；非法字段声明（重复 key、未知类型、类型不对的默认值……）会被丢弃，「设置 → 模组」里这个模组那一行写明是哪个、为什么。
-- 值持久化在宿主，并随「视觉配置」导入导出一起走，也会带进导出窗口。
+- 值持久化在宿主，并随「视觉配置」导入导出一起走，也会带进导出窗口。`secret` 字段的值除外：它不在这些值里。
 
 ### visualizers
 
@@ -421,6 +435,42 @@ section.settings.onChange(fn);    // 值变化时回调
 
 显示在模组面板里：展开该模组即可看到，位于它的命令卡片上方。导出窗口里同样可用（只读值）。
 
+#### 密钥字段（secret，1.7）
+
+用户要填自己的 API 密钥、令牌这类东西时，用 `type: 'secret'`，不要用 `text`，也不要用 `settingsPanel` 自绘再存进 `folium.storage`：
+`text` 的值和其它设置值存在同一张表里，随视觉配置导出、交给导出窗口，设置页也是明文显示。
+
+```js
+const section = folium.registries.settingsSections.register({
+  id: 'service', label: { 'zh-CN': '服务', en: 'Service' },
+  settings: [
+    { key: 'apiKey', type: 'secret', label: { 'zh-CN': 'API 密钥', en: 'API key' }, placeholder: 'sk-…' },
+    { key: 'model', type: 'text', label: { en: 'Model' }, defaultValue: 'default' },
+  ],
+});
+section.settings.get();                    // { model: 'default' }：没有 apiKey
+const key = await folium.secrets.get('apiKey');   // 字符串，没填时是 null
+folium.secrets.subscribe((changedKey) => { /* 只给 key，不给值 */ });
+```
+
+- **只能用在设置分区里。** visualizer / background 的设置、tunings、命令参数里的 `secret` 字段按未知类型丢弃，「设置 → 模组」里这个模组那一行写明原因。
+- **表单**：密码输入框，保存后不再显示值，只显示「已设置 / 未设置」和「清除」；宿主从不把存着的值取回窗口里画。
+  「恢复默认」不动密钥，分区里只有 `secret` 字段（又没有 `settingsPanel`）时不显示这个按钮。`secret` 字段的 `defaultValue` 被忽略。
+- **值不是分区设置值的一部分**：`settings.get()` 里没有它，`settings.set` 忽略它，它不进视觉配置的导入导出、导出窗口和日志。
+  导入的视觉配置里带了同名字段时直接忽略。字段原来是 `text`、改成 `secret` 之后，表里存着的旧值被删掉，不会搬进密钥存储：它可能已经随配置导出过，让用户重新填一次。
+- **读写**：client 用 `folium.secrets`，main 入口用 `api.secrets`，两边和设置表单是同一份，只能读写本模组自己的，不需要权限。
+  - `get(key)` 给值或 `null`（没填，或系统的凭据存储暂时解不开）；`has(key)` 只说有没有；`set(key, value)` 存，`null` 或空串清除；
+    值必须是字符串，最长 8 KB（UTF-8），超了拒绝为 `secret-too-large:8192`。
+  - `subscribe(listener)` 在任何一方（设置表单、client、main 入口）存或清除之后调用，参数只有 key；模组停掉时宿主替你取消。
+  - key 必须是本模组某个设置分区里声明为 `secret` 的，否则拒绝为 `secret-undeclared:<key>`。宿主是在 client 登记分区时才知道这些 key 的，
+    而每次启动 Folia，main 入口都比 client 先启动：client 登记之前，存着值的 key 照常读写，没有值的 key `get` 给 `null`、`has` 给 `false`，
+    `set` 它拒绝为 `secret-undeclared:<key>`（等 client 登记之后再写）。同一次运行里重载模组不受影响，宿主还记得这些 key。
+  - 导出窗口里 `get` / `has` / `set` 拒绝为 `secrets-unavailable-in-export-context`，`subscribe` 从不调用。
+- **存在哪**：主进程用系统的凭据存储加密（Windows 的 DPAPI、macOS 的钥匙串、Linux 的 libsecret 或 kwallet），只有密文写进
+  `<userData>/mods-data/<id>/secrets.json`（在 `api.storage.paths.data` 之外，算进模组面板的「数据」占用）。
+  系统没有可用的凭据存储（Linux 退回 `basic_text`）时只放内存，本次运行有效，表单会提示重启后要重新填；这时不会明文写盘。
+- **兼容**：Folium 1.6 的宿主不认识 `secret`，会丢掉这个字段；分区丢完字段一个不剩时 `register` 抛错。声明之前先检查 `folium.host.folium.minor >= 7`。
+
 ### commands
 
 ```js
@@ -429,6 +479,30 @@ folium.registries.commands.register({ id: 'toggle', label: {…}, description: {
 
 出现在模组面板（带参数表单）与命令面板：无参数的命令直接执行；有参数的打开表单。`run` 在渲染端执行，
 需要 Node 的工作请经 `folium.rpc` 交给 main。返回值会作为结果摘要显示（字符串、`{ outputPath }` 或 `{ message }`）。
+
+#### 系统级全局快捷键（globalShortcut，1.7）
+
+```js
+folium.registries.commands.register({
+  id: 'ping', label: { en: 'Ping main entry', 'zh-CN': '让 main 入口回一声' },
+  globalShortcut: true,
+  run: async () => { const reply = await folium.rpc.call('ping'); folium.ui.toast(String(reply)); },
+});
+```
+
+标了 `globalShortcut: true` 的命令会出现在桌面版「设置 → 快捷操作 → 全局快捷键」每个槽位的命令下拉框里，排在宿主的播放命令后面，
+名字前面带模组名。键由用户选：修饰键固定为 Ctrl+Alt+Shift（macOS 为 Control+Option+Shift）加一个字母或数字，5 个槽位，
+重复键、GNOME 占用的 R、被别的程序占用的组合都按宿主的规则在设置里显示。模组看不到也选不了键，所以不需要权限，
+也不在确认窗口里申报：用户绑键这一步就是同意。
+
+- 只对没有 `params` 的命令有效（按一下键填不了表单）；带参数的命令宿主忽略这个标记，在控制台提醒一次。
+- 按下时执行 `run`，`values` 是空对象；结果不显示，需要反馈时自己用 `folium.ui.toast`。`run` 抛错或 reject 记进模组面板里这个模组的故障记录，不弹窗。
+- Folia 在后台时也会触发，所以只放不看窗口也说得通的动作。
+- 模组停用、卸载或还在启动时，绑定保留但键不注册，设置行显示「模组未启用」；命令重新登记后自动恢复，不用重绑。
+  模组运行着却不再提供这条命令（改了 id、去掉标记、加了参数）时，设置行显示「模组现在没有提供这条命令」。
+- 原生 Wayland 下暂不提供：那里由桌面环境的快捷键门户（portal）接管，宿主交过去的是固定的播放命令整表，设置页不列模组命令。
+- 不要在 main 入口 `require('electron').globalShortcut` 自己注册热键：会绕开上面这些规则，在 Windows 上独占别的程序的组合键，
+  还可能先占走宿主自己的键；`globalShortcut.unregisterAll()` 会把宿主的键一起清掉。媒体键归宿主的 Media Session，不要抢。
 
 ### playerPanelTabs
 
@@ -516,6 +590,7 @@ CSS 放进 `@layer folium-mods`（在 Tailwind 各层之后声明），不用 `!
 | `playback.loopModeChanged` | `{ mode }`：`'off'`、`'all'`（列表循环）或 `'one'`（单曲循环） |
 | `playback.queueChanged` | `{ length, currentIndex }`，队列变了或显示中的歌在队列里换了位置；只是轮廓，歌曲用 `playback.getQueue()` 读。同一个任务里的多次变化合成一次，不按载荷去重（打乱后长度和位置可能都没变） |
 | `playback.failed` | `{ song, reason, phase, willAutoSkip }`，一首歌放不了，见下 |
+| `account.changed` | 1.7。`FoliumAccountState`（`{ providerId, status, user, accountKey }`），某个在线音源有人登录、退出或换了号，见 [folium.account](#foliumaccount17) |
 
 **`playback.failed`**只在用户看得见「这首歌放不了」时报一次：
 
@@ -604,6 +679,24 @@ CSS 放进 `@layer folium-mods`（在 Tailwind 各层之后声明），不用 `!
 **`folium.net.fetch(url, { method, headers, body, timeoutMs })`**：需 `net.fetch`；在主进程发出，只允许 http(s)，
 超时默认 15s（最长 60s），响应体上限 5 MB；返回 `{ ok, status, statusText, headers, text(), json() }`。
 
+### folium.account（1.7）
+
+在线音源的登录状态，不需要权限。`getState(providerId?)` 返回冻结的 `FoliumAccountState`：
+
+| 字段 | 说明 |
+| --- | --- |
+| `providerId` | 音源，即 Omni provider id（和 `FoliumSong.source` 同一套名字） |
+| `status` | `signed-in`：有账号登录；`signed-out`：没人登录，或这个音源本来就没有账号（模组自己的音源）；`unknown`：宿主还不知道，比如启动时还在问平台，或者问不到 |
+| `user` | `{ nickname, avatarUrl? }`，只有宿主自己也显示的昵称和头像；没登录时是 `null` |
+| `accountKey` | 登录账号的不透明键，没登录时是 `null`。同一个账号在这台安装上总是同一个键，重启也不变；换一个账号就是另一个键 |
+
+- 不传 `providerId` 读宿主当前选中的音源；宿主不认识的 id 返回 `null`。状态和宿主界面上显示的一致：界面显示着用户的就是 `signed-in`。
+- 不含用户 id、cookie、token 和会员等级。`accountKey` 推不回用户 id，用它给自己存的数据分账号，换号后丢掉旧键下的数据。
+- `account.changed` 事件的载荷就是新的状态：登录、退出、换号时每个音源发一次，同一个任务里的多次变化合成一次；只改昵称或头像不发，
+  同一个任务里退出又登回原账号也不发。状态从 `unknown` 定下来时也发（通常是启动后不久宿主问完了平台），这时可能还是原来那个账号，
+  丢数据前先比较 `accountKey`。宿主换了选中的音源不发这个事件（每个音源各自的状态没变），要跟着选中的音源走就在用的时候读 `getState()`。
+- 只在主窗口可用：导出窗口里 `getState` 抛 `account-unavailable-in-export-context`，`account.changed` 不发。Folium 1.6 的宿主没有 `folium.account`，先检查 `folium.host.folium.minor >= 7`。
+
 ## main 入口（Node）
 
 ```js
@@ -619,13 +712,45 @@ module.exports = function activate(api) {
 | `api.manifest` / `api.host` / `api.log.*` | 冻结的清单、宿主版本、日志 | 稳定 |
 | `api.onDispose(fn)` | 禁用 / 重载 / 退出时执行，后登记的先执行；activate 直接 return 一个函数也算登记 | 稳定 |
 | `api.rpc.handle(name, fn)` | 供 client 的 `folium.rpc.call` 调用 | 稳定 |
+| `api.rpc.send(name, payload)` | 1.7。推一条消息给本模组在主窗口里的 client（`folium.rpc.on`），见[下面](#main-入口向-client-推送消息17) | 稳定 |
 | `api.storage.get/set/has/delete/keys` | 异步，需 `filesystem.data`，与 client 的 `folium.storage` 共用数据，上限 1 MB | 稳定 |
+| `api.secrets.get/has/set/subscribe` | 1.7。本模组 `secret` 设置字段的值，与 client 的 `folium.secrets` 是同一份，不需要权限；每次启动时 client 登记分区之前，没有值的 key 读出来是 `null`、不能写，见[密钥字段](#密钥字段secret17) | 稳定 |
 | `api.paths` | 可以写文件的用户目录：`documents`、`downloads`、`music`、`videos`；模组自己的文件放 `api.storage.paths` | 稳定 |
 | `api.storage.paths.data` / `.cache` | 模组自己写文件的目录，见下 | 稳定 |
 | `api.runtime.getPlaybackSnapshot()` | 需 `playback.read`；返回 `FoliumPlaybackSnapshot` DTO，`position` 在播放中按推送时间外推；还带音量 `volume`（0–1）、`muted` 与循环模式 `loopMode` | 稳定 |
 | `api.render.exportVideo(spec)` | 需 `render.export`；spec 只有输出参数 `{ codec: 'vp9' \| 'prores', width, height, fps, startSec, endSec, background: 'transparent' \| 'theme' }`，模式、调参、歌词、主题与 Folium 设置值由宿主按当前状态取 | 稳定 |
 
 导出上限（3840×2160、60fps、15 分钟、全局互斥）与 ffmpeg 查找顺序属于宿主行为，不属于契约，可能调整。
+
+### main 入口向 client 推送消息（1.7）
+
+`rpc.call` / `handle` 是 client 问、main 入口答；反方向用 `api.rpc.send`：本模组的 main 入口只能发给本模组的 client，不需要权限。
+
+```js
+// index.cjs
+module.exports = function activate(api) {
+  const timer = setInterval(() => api.rpc.send('tick', { at: Date.now() }), 15_000);
+  api.onDispose(() => clearInterval(timer));
+  api.rpc.handle('state', () => ({ ready: true }));
+};
+
+// client.mjs
+export default function activate(folium) {
+  folium.rpc.on('tick', (payload) => { /* payload 是 main 入口发的那份 JSON */ });
+  folium.rpc.call('state').then((state) => { /* 先监听，再取一次当前状态 */ });
+}
+```
+
+- **不排队、不重放。** 只发给主窗口里正在运行的 client；client 还没激活、窗口重建中、没有主窗口时发的消息直接丢掉，不报错。
+  需要状态的一方在 client 激活后先 `rpc.on`，再用 `rpc.call` 主动取一次。导出窗口永远收不到。
+- **`name`** 和 `handle` 同一条规则：`/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/`。**`payload`** 必须能 JSON 序列化，序列化后最多 64 KB（UTF-8）；
+  不传时 client 收到 `null`。名字不合规则、payload 不能序列化（函数、`BigInt`、循环引用）时 `send` 在调用处同步抛错，
+  超过上限抛 `rpc-payload-too-large:65536`；这些检查不管有没有窗口在收都会做。
+- **`folium.rpc.on(name, listener)`** 返回取消函数。同一个名字可以有几个监听，每个拿到各自解析的一份 payload，互相改不到；
+  一个监听抛错记到模组那一行，不影响其它监听。只收本模组自己 main 入口发的消息。`name` 不合规则或 `listener` 不是函数时抛错。
+  模组停掉（停用、重载、client 卸载）时宿主替你取消；导出窗口里照常收下监听、从不调用。
+- 不放进 `folium.events`：那是宿主发出的、有类型的通知，模组自己的消息名混进去会和以后宿主新增的事件撞名。
+- Folium 1.6 的宿主没有 `send` 和 `on`，先检查 `api.host.folium.minor >= 7` / `folium.host.folium.minor >= 7`。
 
 ### 文件目录 api.storage.paths
 
@@ -821,6 +946,55 @@ export default function activate(folium) {
 公开类型见 `src/mods/folium/contract.ts` 的 Experimental 段。
 离线示例：`dev/folium/sample-remote-actions`，可检查连续点击、键盘操作、状态刷新和停用恢复。
 
+### platform.raw（实验，1.7）
+
+**后备方案。** 以用户在 Folia 登录的账号调用平台后端自己的接口，只用于 Omni 还没有提供的平台专有能力（例如听歌记录）。
+Omni 已经有的能力（搜索、歌词、歌单、喜爱……）用 Omni；以后 Omni 把常用能力做成类型化接口，到时改用它。
+
+清单选用 `"experimental": ["platform.raw"]`，再声明 `platform.<平台>.read`；要调改动账号内容的接口还要 `platform.<平台>.write`（见[权限表](#清单modjson)）。
+平台 id 就是 Omni provider id，目前只有 `netease` 能直通。
+
+```js
+const platform = folium.experimental['platform.raw'];
+platform.describe('netease');   // { supported: true, backend: { name, version } }：宿主钉住的后端库
+const { body, accountKey } = await platform.request('netease', 'user_record', { type: 1 }, { signal });
+```
+
+- **为什么不是裸转发**：后端带着用户的会话，任意转发等于把 cookie 交出去，模组就能删歌单、改资料。所以请求仍然经过 Omni，
+  由平台的 provider 补上会话后发出，模组碰不到凭据。
+- **`describe(providerId)`** 不需要权限，说这个平台能不能直通，以及后端库的名字和版本（取自包本身，随宿主更新）。
+- **`endpoint`** 是钉住的后端库自己的模块名（网易云：`@neteasecloudmusicapienhanced/api` 的 `module/` 下的文件名，如 `user_record`、`listen_data_total`）。
+  哪些能调由平台自己的分类表决定（网易云的在 `src/services/onlineMusic/netease/neteaseRaw.ts`）：
+  - 读接口要 `read`：听歌记录与听歌足迹、用户资料与关注、歌曲、歌单、专辑、歌手、排行榜、搜索、推荐等；
+  - 写接口另要 `write`：点赞、歌单增删歌和改名、收藏、关注、听歌上报、签到等；
+  - 永远拒绝：登录、注册、验证码、会话刷新、账号与绑定、设备、改资料，以及能把任意请求转发出去或解密流量的模块；
+  - 表外的模块一律拒绝。这三种拒绝都是 `endpoint-denied`。需要表里没有的模块，提 issue。
+- **`params`** 是纯对象，值是 JSON 值，参数名以字母开头、只含字母数字和 `_`，序列化后不超过 16 KB。后端当作请求选项读的字段
+  （`cookie`、`proxy`、`realIP`、`domain`、`headers`、`timeout` 等）只能由宿主设。后端会原样拼进上游请求路径的参数
+  （网易云如 `album` / `artist_album` / `comment_music` 的 `id`、`user_detail` 的 `uid`、`summary_annual` 的 `year`）只收非负整数
+  或纯数字字符串，免得 `../` 之类的值把带着会话的请求引到表外的接口。不合这些规则的以 `TypeError`（message 以 `invalid-params:` 开头）拒绝。
+  指明「当前用户」的参数（如 `user_record` 的 `uid`）不传时宿主填上当前账号的 id，所以模组永远不需要知道用户 id。
+- **返回** `{ body, accountKey }`。`body` 是平台原始 JSON，cookie、token、密码等凭据字段在任意深度都已剥掉；它跟着钉住的后端库变，
+  不承诺稳定，按字段防御着读。平台用别的码拒绝（登录失效和限流之外）不算失败，原样在 `body` 里。`accountKey` 与
+  `folium.account.getState(providerId).accountKey` 一致，用它丢掉换号前的数据。
+- **失败**时以 Error 拒绝，`code`（也是 message）是下面之一：
+
+  | code | 什么时候 |
+  | --- | --- |
+  | `permission-denied:<权限>` | 缺 `platform.<平台>.read`，或写接口缺 `.write` |
+  | `endpoint-denied` | 分类表不开放这个接口 |
+  | `unsupported` | 这个平台在这个宿主里不能直通 |
+  | `not-signed-in` / `session-expired` | 接口要登录而没人登录 / 登录已过期 |
+  | `vip-required` | 平台说只有会员能看 |
+  | `rate-limited` | 太频繁：宿主限每个模组每分钟 60 次、同时 4 个，或平台自己说太频繁 |
+  | `network` | 连不上平台或没有按时回答 |
+  | `account-changed` | 请求途中退出、换号或换了平台，回答已丢弃 |
+  | `aborted` | `options.signal` 中止（底层请求随之中止），或模组已经停掉（停掉时还在途中的请求由宿主中止） |
+- 调用的接口 Omni 已经有对应能力时，开发者日志里提示改用 Omni（每个接口第一次调用时一条）。宿主的日志只记平台、接口名和结论，不记参数。
+- 只在主窗口可用，导出窗口里访问会抛错。启用确认窗口和模组面板的展开行用一句话写明模组能以用户的账号读取（或改动）哪个平台的数据。
+
+完整示例：`dev/folium/sample-account-console` 用 `user_record` 读听歌排行，排行记在 `accountKey` 下，换号时丢掉。
+
 ## internals（自由度出口）
 
 `folium.internals` 直接给出宿主内部对象：`React`、`ReactDOMClient`、各 zustand store（`stores.playback` 等）、
@@ -839,7 +1013,8 @@ export default function activate(folium) {
 
 ## 版本与演进
 
-- 清单里的 `folium: 1` 是 major；宿主通过 `folium.host.folium.minor` / `api.host.folium.minor` 暴露 minor。当前是 Folium 1.6，契约里的每个成员 1.6 起都有。
+- 清单里的 `folium: 1` 是 major；宿主通过 `folium.host.folium.minor` / `api.host.folium.minor` 暴露 minor。当前是 Folium 1.7，契约里的每个成员 1.7 的宿主上都有；
+  用到 1.7 新加的成员时先检查 `minor >= 7`，旧宿主上没有它们。
 - 1.x 内只做新增：可选的清单字段、新注册表、新事件、新服务方法、新权限、新设置字段类型、新公开 part。
 - DTO（`contract.ts`）字段只增不减；宿主内部类型不出现在任何稳定契约里。
 - 删除或改变语义必须升 major；之前至少有一个 minor 在日志里标记废弃。
@@ -848,6 +1023,18 @@ export default function activate(folium) {
   旧名字和现在的写法见 API 参考的[仍可用的旧名字](../docs/folium/api.md#仍可用的旧名字)，`npm run folium:check` 也会列出来。
 - 模组停掉之后，它原来那个 `folium` 对象的 `register` 和 `events.on` 不再生效；挂载结束之后经 `ctx` 订的监听同样不再生效。
 - 监听属于订阅它的那一次挂载：同一个函数在两处挂载里各订一次，每次变化各调用一次。
+
+**Folium 1.7 的变化**（都是新增，为 1.6 写的模组不用改）：
+
+- main 入口向本模组 client 推送消息：`api.rpc.send(name, payload)` 与 `folium.rpc.on(name, listener)`。稳定，不需要权限。见 [main 入口向 client 推送消息](#main-入口向-client-推送消息17)。
+- 密钥类设置字段：`FoliumSettingType` 加 `secret`（只用于设置分区），值由主进程加密保管，经 `folium.secrets` / `api.secrets` 读写，
+  不进设置值、视觉配置导入导出和导出窗口。稳定，不需要权限。见[密钥字段](#密钥字段secret17)。
+- 登录状态：`folium.account.getState(providerId?)` 与通知事件 `account.changed`，只给状态、昵称、头像和不透明的 `accountKey`。稳定，不需要权限。见 [folium.account](#foliumaccount17)。
+- 实验接口 `platform.raw`：经 Omni 以用户的账号调用平台后端的原始接口，新权限 `platform.netease.read` / `platform.netease.write`。
+  清单校验多两条：声明 `platform.*` 权限必须同时选用 `platform.raw`，声明 `write` 必须同时声明 `read`。见 [platform.raw](#platformraw实验17)。
+- 命令可以放进系统级全局快捷键：`FoliumCommandDef.globalShortcut`，只对没有参数的命令有效，键由用户在设置里选，原生 Wayland 下暂不提供。
+  稳定，不需要权限。见[系统级全局快捷键](#系统级全局快捷键globalshortcut17)。
+- 示范模组 `dev/folium/sample-account-console` 演示以上五项。
 
 ## 从 UI 安装与管理
 
@@ -859,7 +1046,7 @@ export default function activate(folium) {
   - 同 id 覆盖即升级；内容指纹改变后模组保持禁用，直到重新确认。
 - **占用与清空缓存**：声明了 `filesystem.data` 的模组，展开它的行时会显示「数据 X」「缓存 Y」两行和「清空缓存」按钮。
   - 只在展开时统计，停用的模组也能查、能清。统计只算普通文件，不跟随符号链接或 junction。
-  - 「数据」是整个 `mods-data/<id>`（含 `api.storage` 的数据文件），「缓存」是 `mods-cache/<id>`。
+  - 「数据」是整个 `mods-data/<id>`（含 `api.storage` 的数据文件和 1.7 起的密钥文件 `secrets.json`），「缓存」是 `mods-cache/<id>`。
   - 「清空缓存」删除缓存目录里的所有内容，保留目录本身，然后重新统计，并在面板上方的提示条里报告释放了多少。缓存为 0 或目录不存在时按钮不可用。
     缓存目录的位置上是一个文件或目标已经不在的链接时（这时模组读 `paths.cache` 会一直抛错），面板显示缓存目录已损坏，按钮可用，
     清空会删掉这个条目本身（不跟随链接），模组下次读取时重新建出目录。指向现存目录的链接照常可用，只是不统计。

@@ -115,7 +115,7 @@ export const settingsCommands: CommandPaletteCommand[] = [
     ...libraryWallLookCommands,
     createSettingsAnchorCommand('settings-pinned-commands', 'Pinned command slots', 'Choose the three commands pinned in the palette', ['pinned commands', 'quick slots', '固定命令'], 'pinnedCommands'),
     createSettingsCommand('settings-interaction', 'Interaction settings', 'Open keyboard, shortcut and grid interaction settings', ['interaction', 'keyboard', 'hotkey', '交互', '快捷键设置'], 'options', 'interaction'),
-    createSettingsAnchorCommand('settings-global-shortcuts', 'Global shortcuts', 'Jump to the system-wide playback shortcuts', ['global hotkey', 'system shortcut', 'media keys', '全局快捷键', '系统快捷键'], 'globalShortcuts', { platform: ['electron'] }),
+    createSettingsAnchorCommand('settings-global-shortcuts', 'Global shortcuts', 'Jump to the system-wide shortcuts for playback and mod commands', ['global hotkey', 'system shortcut', 'media keys', '全局快捷键', '系统快捷键'], 'globalShortcuts', { platform: ['electron'] }),
     createSettingsAnchorCommand('settings-custom-shortcut', 'Custom shortcuts', 'Jump to the custom keyboard shortcut bindings', ['keybinding', 'rebind', 'hotkey', '自定义快捷键'], 'customShortcut'),
     createSettingsAnchorCommand('settings-grid-action-button', 'Grid action button', 'Jump to what the grid action button slides to', ['grid button', 'action button', '海报墙按钮'], 'gridActionButton'),
     createSettingsCommand('settings-playback', 'Playback settings', 'Open playback behavior settings', ['playback', '播放', '播放设置'], 'options', 'playback'),

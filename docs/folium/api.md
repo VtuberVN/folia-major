@@ -2,7 +2,7 @@
 
 # Folium API 参考
 
-当前契约版本：**Folium 1.6**。
+当前契约版本：**Folium 1.7**。
 
 本文列出模组能用到的全部公开类型，内容直接来自契约文件 [`src/mods/folium/contract.ts`](../../src/mods/folium/contract.ts)
 （client 入口）与 [`src/mods/folium/mainContract.ts`](../../src/mods/folium/mainContract.ts)（main 入口），
@@ -11,26 +11,26 @@
 
 ## 目录
 
-- **客户端入口**：[权限一览](#权限一览) · [FoliumContextKind](#foliumcontextkind) · [FoliumHostInfo](#foliumhostinfo) · [FoliumStorage](#foliumstorage) · [FoliumRpc](#foliumrpc) · [FoliumLogger](#foliumlogger) · [FoliumClientApi](#foliumclientapi) · [FoliumClientModule](#foliumclientmodule)
+- **客户端入口**：[权限一览](#权限一览) · [FoliumContextKind](#foliumcontextkind) · [FoliumHostInfo](#foliumhostinfo) · [FoliumStorage](#foliumstorage) · [FoliumSecretAccess](#foliumsecretaccess) · [FoliumRpc](#foliumrpc) · [FoliumLogger](#foliumlogger) · [FoliumClientApi](#foliumclientapi) · [FoliumClientModule](#foliumclientmodule)
 - **注册表与条目**：[注册表一览](#注册表一览) · [FoliumVisualizerDef](#foliumvisualizerdef) · [FoliumTuningDef](#foliumtuningdef) · [FoliumCommandContext](#foliumcommandcontext) · [FoliumCommandDef](#foliumcommanddef) · [FoliumBackgroundContext](#foliumbackgroundcontext) · [FoliumBackgroundDef](#foliumbackgrounddef) · [FoliumStageSlot](#foliumstageslot) · [FoliumStageLayerDef](#foliumstagelayerdef) · [FoliumSettingsSectionDef](#foliumsettingssectiondef) · [FoliumPlayerPanelTabDef](#foliumplayerpaneltabdef) · [FoliumHomeTabDef](#foliumhometabdef) · [FoliumProgressContext](#foliumprogresscontext) · [FoliumProgressButtonSlot](#foliumprogressbuttonslot) · [FoliumProgressButtonDef](#foliumprogressbuttondef) · [FoliumProgressLayerDef](#foliumprogresslayerdef) · [FoliumStyleDef](#foliumstyledef) · [FoliumRegistryHandle](#foliumregistryhandle) · [FoliumSettingsSectionHandle](#foliumsettingssectionhandle) · [FoliumRegistry](#foliumregistry) · [FoliumRegistries](#foliumregistries)
 - **宿主容器与上下文**：[FoliumMount](#foliummount) · [FoliumSize](#foliumsize) · [FoliumMountHelpers](#foliummounthelpers) · [FoliumPanelContext](#foliumpanelcontext) · [FoliumSettingsPanelContext](#foliumsettingspanelcontext) · [FoliumClock](#foliumclock) · [FoliumSurface](#foliumsurface) · [FoliumAudioBands](#foliumaudiobands) · [FoliumAudio](#foliumaudio) · [FoliumDisplay](#foliumdisplay) · [FoliumStageContext](#foliumstagecontext)
 - **事件**：[事件一览](#事件一览) · [FoliumEventPriority](#foliumeventpriority) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason) · [FoliumNotificationEvents](#foliumnotificationevents) · [FoliumLyricsTransformEvent](#foliumlyricstransformevent) · [FoliumBeforePlayEvent](#foliumbeforeplayevent) · [FoliumOmniLyricsEvent](#foliumomnilyricsevent) · [FoliumOmniAudioEvent](#foliumomniaudioevent) · [FoliumHookEvents](#foliumhookevents) · [FoliumEventMap](#foliumeventmap) · [FoliumEvents](#foliumevents)
-- **服务**：[FoliumPlaybackService](#foliumplaybackservice) · [FoliumFileHandle](#foliumfilehandle) · [FoliumIconOptions](#foliumiconoptions) · [FoliumUiService](#foliumuiservice) · [FoliumFetchInit](#foliumfetchinit) · [FoliumFetchResponse](#foliumfetchresponse) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumNetService](#foliumnetservice)
+- **服务**：[FoliumPlaybackService](#foliumplaybackservice) · [FoliumFileHandle](#foliumfilehandle) · [FoliumIconOptions](#foliumiconoptions) · [FoliumUiService](#foliumuiservice) · [FoliumFetchInit](#foliumfetchinit) · [FoliumFetchResponse](#foliumfetchresponse) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumNetService](#foliumnetservice) · [FoliumAccountState](#foliumaccountstate) · [FoliumAccountService](#foliumaccountservice)
 - **共享工具**：[FoliumWordSegment](#foliumwordsegment) · [FoliumWordColorRange](#foliumwordcolorrange) · [FoliumLyricsHelpers](#foliumlyricshelpers) · [FoliumThemeHelpers](#foliumthemehelpers)
 - **设置 schema**：[FoliumSettingType](#foliumsettingtype) · [FoliumSettingOption](#foliumsettingoption) · [FoliumSetting](#foliumsetting) · [FoliumSettingValues](#foliumsettingvalues) · [FoliumSettingAccess](#foliumsettingaccess)
 - **数据结构**：[FoliumLyricRuby](#foliumlyricruby) · [FoliumLyricSyllable](#foliumlyricsyllable) · [FoliumLyricAlternateText](#foliumlyricalternatetext) · [FoliumWord](#foliumword) · [FoliumBackgroundVocal](#foliumbackgroundvocal) · [FoliumLineTimingClass](#foliumlinetimingclass) · [FoliumLineTransitionMode](#foliumlinetransitionmode) · [FoliumWordRevealMode](#foliumwordrevealmode) · [FoliumLineRenderHints](#foliumlinerenderhints) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLoopMode](#foliumloopmode) · [FoliumQueueItem](#foliumqueueitem) · [FoliumQueueSnapshot](#foliumqueuesnapshot) · [FoliumPlaybackSnapshot](#foliumplaybacksnapshot) · [FoliumLyricFormat](#foliumlyricformat) · [FoliumLyricsTrack](#foliumlyricstrack) · [FoliumLyricsResult](#foliumlyricsresult) · [FoliumLegacyLyricsResult](#foliumlegacylyricsresult) · [FoliumParsedLyrics](#foliumparsedlyrics)
-- **实验接口**：[FoliumLayoutRect](#foliumlayoutrect) · [FoliumPlayerObstacle](#foliumplayerobstacle) · [FoliumPlayerLayout](#foliumplayerlayout) · [FoliumRemoteActionDef](#foliumremoteactiondef) · [FoliumRemoteActionsContext](#foliumremoteactionscontext) · [FoliumRemoteActionsDef](#foliumremoteactionsdef) · [FoliumRemoteActionsHandle](#foliumremoteactionshandle) · [FoliumProviderSong](#foliumprovidersong) · [FoliumAudioQuality](#foliumaudioquality) · [FoliumOmniProviderDef](#foliumomniproviderdef)
+- **实验接口**：[FoliumLayoutRect](#foliumlayoutrect) · [FoliumPlayerObstacle](#foliumplayerobstacle) · [FoliumPlayerLayout](#foliumplayerlayout) · [FoliumRemoteActionDef](#foliumremoteactiondef) · [FoliumRemoteActionsContext](#foliumremoteactionscontext) · [FoliumRemoteActionsDef](#foliumremoteactionsdef) · [FoliumRemoteActionsHandle](#foliumremoteactionshandle) · [FoliumProviderSong](#foliumprovidersong) · [FoliumAudioQuality](#foliumaudioquality) · [FoliumOmniProviderDef](#foliumomniproviderdef) · [FoliumJsonValue](#foliumjsonvalue) · [FoliumPlatformBackend](#foliumplatformbackend) · [FoliumPlatformDescription](#foliumplatformdescription) · [FoliumPlatformResponse](#foliumplatformresponse) · [FoliumPlatformErrorCode](#foliumplatformerrorcode) · [FoliumPlatformService](#foliumplatformservice)
 - **main 入口（Node）**：[FoliumMainModule](#foliummainmodule) · [FoliumMainApi](#foliummainapi) · [FoliumManifest](#foliummanifest) · [FoliumMainStorage](#foliummainstorage) · [FoliumModPaths](#foliummodpaths) · [FoliumMainPaths](#foliummainpaths) · [FoliumMainRuntime](#foliummainruntime) · [FoliumMainRpc](#foliummainrpc) · [FoliumMainRender](#foliummainrender) · [FoliumExportSpec](#foliumexportspec) · [FoliumExportResult](#foliumexportresult)
 - **基础类型**：[FOLIUM_VERSION](#folium_version) · [FoliumId](#foliumid) · [FoliumLabel](#foliumlabel) · [FoliumDisposer](#foliumdisposer)
 - **[仍可用的旧名字](#仍可用的旧名字)**
 
 ## 客户端入口
 
-模组的 `client` 入口默认导出 `activate(folium)`，参数就是 [FoliumClientApi](#foliumclientapi)，所有能力都从这里取。
+模组的 `client` 入口默认导出 `activate(folium)`，参数就是 [FoliumClientApi](#foliumclientapi)，所有能力都从这里取。数据文件 `folium.storage`、密钥字段的值 `folium.secrets`（Folium 1.7）和通往 main 入口的 `folium.rpc` 也在这一节。
 
 ### 权限一览
 
-本表由 `electron/modSystem/foliumShared.json` 里每个权限的 `guards` 生成，`npm run folium:check` 用同一张表查模组用到的成员。
+本表由 `electron/modSystem/foliumShared.json` 里每个权限的 `guards` 生成，`npm run folium:check` 用同一张表查模组用到的成员。`platform.*` 两行例外：模组只能写成 `folium.experimental['platform.raw']`，表里的成员名只是说明；`folium:check` 改为按代码里 `request('<平台>', …)` 写出的平台 id 查 `platform.<平台>.read`，`.write` 要看调的是哪个接口，查不到。
 
 | 权限 | 解锁的成员 |
 | --- | --- |
@@ -41,9 +41,12 @@
 | `net.fetch` | `folium.net.fetch` |
 | `net.embed` | `folium.ui.embed` |
 | `stageLayers` | `folium.registries.stageLayers` |
+| `platform.netease.read` | `folium.experimental.platform.raw.request` |
+| `platform.netease.write` | `folium.experimental.platform.raw.request.write` |
 
 `folium.*` 是 client 入口的成员，`api.*` 是 main 入口的成员；写到哪一级就管到哪一级，`folium.storage` 管它下面的全部方法。
 模组没有在 `mod.json` 的 `permissions` 里声明这个权限就调用时，同步的成员抛 `permission-denied:<权限>`，异步的成员返回的 promise 以同一个错误拒绝。
+`platform.<平台>.read` / `.write` 管的是实验接口 `platform.raw` 的 `request` 能调这个平台的哪一类接口：读接口要 read，改动账号的接口还要 write（表里的 `request.write` 指这一类接口，不是一个成员）；两者都要在 `experimental` 里选用 `platform.raw`，声明 write 也要同时声明 read。
 
 ### FoliumContextKind
 
@@ -56,7 +59,7 @@ type FoliumContextKind = 'main' | 'export'
 ### FoliumHostInfo
 
 The host's versions (`folium.host`), for display and logs. Every member of this contract is there from
-Folium 1.6 on; an older 1.x host lacks some of them.
+Folium 1.7 on; an older 1.x host lacks some of them.
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -76,13 +79,45 @@ permission; values must be JSON-serializable.
 | `delete()` | `(key: string): Promise<void>` | Removes the key. |
 | `keys()` | `(): Promise<string[]>` | All keys. |
 
+### FoliumSecretAccess
+
+Folium 1.7: `folium.secrets` (client) and `api.secrets` (main entry), the values of this mod's `secret`
+settings fields. One store per mod, shared by both entries and the settings form, keyed by the field's
+`key`; a mod reaches only its own. A key that no settings section of this mod declares as `secret` is
+refused with `secret-undeclared:<key>`. The host learns the keys when the client registers the section,
+and on every start of Folia the main entry runs before that: until the client has registered, `get` and
+`has` of a key with no value give null and false (a key that holds a value works as usual), and `set` of
+a key with no value is refused with `secret-undeclared:<key>`. Reloading the mod keeps what the host
+learned in this run. A value is a string of at most 8 KB (UTF-8); a longer one is refused with
+`secret-too-large:8192`.
+
+The host keeps the values in the main process, encrypted with the system's credential store (DPAPI on
+Windows, Keychain on macOS, libsecret or kwallet on Linux), in a file of its own beside the mod's data
+file, and never logs them. Where the system has no such store (Linux falling back to `basic_text`), it
+keeps them in memory only, for this run, and the settings form says so. No permission is needed.
+
+In the export window `get`, `has` and `set` reject with `secrets-unavailable-in-export-context`, and
+`subscribe` never fires.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `get()` | `(key: string): Promise<string \| null>` | The stored value, or null when none is set (or the credential store cannot decrypt it right now). |
+| `has()` | `(key: string): Promise<boolean>` | Whether a value is stored, without handing it over. |
+| `set()` | `(key: string, value: string \| null): Promise<void>` | Stores `value`; null or an empty string clears it. |
+| `subscribe()` | `(listener: (key: string) => void): FoliumDisposer` | Calls `listener` with the key, never the value, after a value is saved or cleared, whoever did it (the settings form, the client or the main entry). The host stops it when the mod stops. |
+
+相关：[FoliumDisposer](#foliumdisposer)
+
 ### FoliumRpc
 
-`folium.rpc`: calls into this mod's main entry.
+`folium.rpc`: calls into this mod's main entry, and (Folium 1.7) hears the messages it sends.
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | `call()` | `<T = unknown>(name: string, ...args: unknown[]): Promise<T>` | Calls the function the main entry registered with `api.rpc.handle(name, fn)`; arguments and result must be JSON-serializable. |
+| `on()` | `(name: string, listener: (payload: unknown) => void): FoliumDisposer` | Folium 1.7: receives the main entry's `api.rpc.send(name, payload)`. Several listeners per name are fine; each gets its own copy of the payload (`null` when the main entry sent none), and one that throws is logged under the mod without stopping the others. Only messages from this mod's own main entry arrive, and nothing sent before the listener was added is replayed: fetch the current state once with `rpc.call` after adding it. `name` must match `/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/`, and `listener` must be a function, or this throws. The listener is removed when the mod stops. In the export window nothing is ever sent: the listener is accepted and never called. Older 1.x hosts lack it: check `folium.host.folium.minor >= 7`. |
+
+相关：[FoliumDisposer](#foliumdisposer)
 
 ### FoliumLogger
 
@@ -110,14 +145,16 @@ The object a client entry's `activate(folium)` receives.
 | `readonly ui` | `FoliumUiService` | Toasts, panels, files, embeds, icons. |
 | `readonly net` | `FoliumNetService` | Network access through the host. |
 | `readonly storage` | `FoliumStorage` | This mod's data file. |
+| `readonly secrets` | `FoliumSecretAccess` | Folium 1.7: the values of this mod's `secret` settings fields. |
 | `readonly rpc` | `FoliumRpc` | Calls into this mod's main entry. |
 | `readonly lyrics` | `FoliumLyricsService` | The lyric helpers builtin modes use, and the displayed song's lyrics. |
 | `readonly theme` | `FoliumThemeHelpers` | The theme helpers builtin modes use. |
+| `readonly account` | `FoliumAccountService` | Folium 1.7: who is signed in to the online sources. |
 | `every()` | `(ms: number, listener: () => void): FoliumDisposer` | Calls `listener` every `ms` milliseconds (at least 16) until the mod stops; the host stops it then. |
 | `onDispose()` | `(disposer: FoliumDisposer): void` | Runs `disposer` when the mod stops, after the disposer `activate` returned; at once when the mod has already stopped. |
 | `readonly experimental` | `Readonly<Record<string, unknown>>` | Unfrozen surfaces; each requires the matching manifest `experimental` opt-in. |
 
-相关：[FoliumHostInfo](#foliumhostinfo) · [FoliumContextKind](#foliumcontextkind) · [FoliumLogger](#foliumlogger) · [FoliumRegistries](#foliumregistries) · [FoliumEvents](#foliumevents) · [FoliumPlaybackService](#foliumplaybackservice) · [FoliumUiService](#foliumuiservice) · [FoliumNetService](#foliumnetservice) · [FoliumStorage](#foliumstorage) · [FoliumRpc](#foliumrpc) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumThemeHelpers](#foliumthemehelpers) · [FoliumDisposer](#foliumdisposer)
+相关：[FoliumHostInfo](#foliumhostinfo) · [FoliumContextKind](#foliumcontextkind) · [FoliumLogger](#foliumlogger) · [FoliumRegistries](#foliumregistries) · [FoliumEvents](#foliumevents) · [FoliumPlaybackService](#foliumplaybackservice) · [FoliumUiService](#foliumuiservice) · [FoliumNetService](#foliumnetservice) · [FoliumStorage](#foliumstorage) · [FoliumSecretAccess](#foliumsecretaccess) · [FoliumRpc](#foliumrpc) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumThemeHelpers](#foliumthemehelpers) · [FoliumAccountService](#foliumaccountservice) · [FoliumDisposer](#foliumdisposer)
 
 ### FoliumClientModule
 
@@ -206,6 +243,7 @@ main entry through `folium.rpc`.
 | `description?` | `FoliumLabel` | Shown under the name. |
 | `keywords?` | `string[]` | Extra search terms for the command palette (label texts are always included). |
 | `params?` | `FoliumSetting[]` | The command's parameters, asked for in a form before it runs (the mods panel's card, or the command palette, which opens the form for a command that has any). |
+| `globalShortcut?` | `boolean` | Folium 1.7: offer this command in Settings → Global shortcuts (desktop app), listed after the host's playback commands under the mod's name. The user picks the key there (the host's fixed modifiers plus a letter or digit); the mod never sees or chooses one. Only for commands without `params`, since a key press cannot fill a form: the host ignores the flag on a command that has any. A press runs `run` with an empty `values` object and shows no result, so use `folium.ui.toast` when the press needs feedback; a throw is recorded against the mod like any failed command. While the mod is stopped or disabled the binding is kept but its key is not registered, and it comes back when the command is registered again. Not offered on native Wayland, where the desktop's shortcut portal takes a fixed list of the host's playback commands. Needs no permission: binding a key in Settings is the user's consent. |
 | `run()` | `(ctx: FoliumCommandContext): unknown \| Promise<unknown>` | Runs the command; the result is shown as a summary (a string, `{ outputPath }` or `{ message }`). |
 
 相关：[FoliumLabel](#foliumlabel) · [FoliumSetting](#foliumsetting) · [FoliumCommandContext](#foliumcommandcontext)
@@ -286,7 +324,7 @@ every context.
 | `id` | `string` | Local id. |
 | `label` | `FoliumLabel` | Section title. |
 | `description?` | `FoliumLabel` | Shown under the title. |
-| `settings` | `FoliumSetting[]` | The fields. |
+| `settings` | `FoliumSetting[]` | The fields. Folium 1.7: only here may a field be a `secret`. |
 | `settingsPanel?` | `FoliumMount<FoliumSettingsPanelContext>` | Replaces the host-rendered form; values still follow `settings`. |
 
 相关：[FoliumLabel](#foliumlabel) · [FoliumSetting](#foliumsetting) · [FoliumMount](#foliummount) · [FoliumSettingsPanelContext](#foliumsettingspanelcontext)
@@ -675,6 +713,7 @@ interface FoliumStageContext extends FoliumMountHelpers
 | `playback.loopModeChanged` | 通知 | — |
 | `playback.queueChanged` | 通知 | — |
 | `playback.failed` | 通知 | — |
+| `account.changed` | 通知 | — |
 | `lyrics.transform` | 钩子 | — |
 | `playback.beforePlay` | 钩子 | — |
 | `omni.lyricsResolved` | 钩子 | `omni.hooks` |
@@ -720,8 +759,9 @@ Read-only notifications, emitted after the fact.
 | `playback.loopModeChanged` | `{ readonly mode: FoliumLoopMode }` | The repeat mode changed. |
 | `playback.queueChanged` | `{ readonly length: number; readonly currentIndex: number }` | The queue changed, or the displayed song moved within it. Only the outline: call `playback.getQueue()` for the songs. Changes made in one task arrive as one event. |
 | `playback.failed` | `{ readonly song: FoliumSong \| null; readonly reason: FoliumPlaybackFailureReason; readonly phase: 'play' \| 'restore' \| 'mid-playback'; readonly willAutoSkip: boolean; }` | A song failed to play; reported once, after the host's own retries. `phase` says where it failed: `play`, the host got no playable source for the song just picked (sign-in, membership, taken down, the address lookup failed, a missing local file); `restore`, the same while restoring the last session; `mid-playback`, the player failed on the media itself (it would not load, decode or keep streaming). Every media error is `mid-playback`, so a song just picked or restored that fails before any sound is reported as `mid-playback` too. `willAutoSkip`: the host is counting down to skip it (its policy or the user's "skip unplayable songs" setting), so do not call `next()` yourself. Not emitted in the export window. |
+| `account.changed` | `FoliumAccountState` | Folium 1.7: someone signed in to an online source, signed out, or another account took the place of the one there (`accountKey` changed); the payload is the source's new state, as `folium.account.getState(providerId)` reads it. One event per source for all the changes of one task; a source whose status and key end where they began fires none, and a new nickname or avatar alone fires none either. A status that settles from `unknown` (the host finished asking the platform, usually soon after start) fires too, for the same account as before: compare `accountKey` before dropping data. Not emitted in the export window. |
 
-相关：[FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumLoopMode](#foliumloopmode) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason)
+相关：[FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumLoopMode](#foliumloopmode) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason) · [FoliumAccountState](#foliumaccountstate)
 
 ### FoliumLyricsTransformEvent
 
@@ -823,7 +863,7 @@ The event bus, as `folium.events`.
 
 ## 服务
 
-`folium.playback` / `folium.ui` / `folium.net`。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。
+`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account`（不需要权限）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。
 
 ### FoliumPlaybackService
 
@@ -954,6 +994,31 @@ interface FoliumLyricsService extends FoliumLyricsHelpers
 
 相关：[FoliumFetchInit](#foliumfetchinit) · [FoliumFetchResponse](#foliumfetchresponse)
 
+### FoliumAccountState
+
+Folium 1.7: who is signed in to one online source, as `folium.account.getState()` and the
+`account.changed` event give it. Frozen.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly providerId` | `string` | The source: an Omni provider id, as `FoliumSong.source` names it. |
+| `readonly status` | `'signed-in' \| 'signed-out' \| 'unknown'` | `signed-in`: an account is signed in. `signed-out`: nobody is, or the source has no accounts at all (a mod's own source). `unknown`: the host has not found out yet, e.g. at start while it asks the platform, or the platform could not be asked. |
+| `readonly user` | `{ readonly nickname: string; readonly avatarUrl?: string } \| null` | What the host shows of the account: its nickname and avatar, nothing else. Null unless signed in. |
+| `readonly accountKey` | `string \| null` | An opaque key of the signed-in account, null unless signed in. The same account always has the same key on this installation, across restarts; another account has another key. Key data of your own on it, and drop what was kept under another key. It is no user id: it cannot be turned back into one. |
+
+### FoliumAccountService
+
+Folium 1.7: `folium.account`, the sign-in state of the online sources. Needs no permission; it carries
+no user id, cookie or token. Unavailable in the export window: `getState` throws
+`account-unavailable-in-export-context`. An older host has no `folium.account`: check
+`folium.host.folium.minor >= 7` first.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `getState()` | `(providerId?: string): FoliumAccountState \| null` | The state of one source; without `providerId`, of the source the host has selected now. Null for a provider id the host does not know. Follow changes with the `account.changed` event. |
+
+相关：[FoliumAccountState](#foliumaccountstate)
+
 ## 共享工具
 
 `folium.lyrics` 与 `folium.theme`：内置歌词动画使用的同一批函数，主窗口与导出窗口都可用。`folium.lyrics.parse` 是唯一的异步方法，走本地歌词文件的解析流程。
@@ -1019,8 +1084,19 @@ Field kinds: a slider (a number), a text box (a string), a switch (a boolean), a
 (the chosen option's `value`), or a colour, shown as the app's own colour picker (a `#rrggbb` string,
 in lower case).
 
+Folium 1.7: `secret`, a key or token the user types in (an API key). Settings sections only. The form shows
+a masked input that never shows a saved value, only whether one is set, and a button to clear it. The
+value is not one of the section's values (`settings.get()` leaves it out, `settings.set` ignores it, a
+`defaultValue` is ignored): the host keeps it in the main process, encrypted, and the mod reads it through
+`folium.secrets` / `api.secrets` (FoliumSecretAccess). It never enters the stored
+settings values (`folia_folium_params_v1`), the visual config export and import, the export window or the
+logs. Anywhere else (visualizer and background settings, tunings, command params) a `secret` field is
+dropped like a field of an unknown type, and the mod's row says so. A Folium 1.6 host drops it in
+settings sections too (a section left with no field then fails to register), so check
+`folium.host.folium.minor >= 7` before declaring one.
+
 ```ts
-type FoliumSettingType = 'number' | 'text' | 'boolean' | 'select' | 'color'
+type FoliumSettingType = 'number' | 'text' | 'boolean' | 'select' | 'color' | 'secret'
 ```
 
 ### FoliumSettingOption
@@ -1060,7 +1136,7 @@ shape the schema declares: a JSDoc `@type` cast in plain JS, or
 | `min?` | `number` | `number`: lower bound (values are clamped). |
 | `max?` | `number` | `number`: upper bound (values are clamped). |
 | `step?` | `number` | `number`: slider step. Default 1 when both bounds are integers, else 0.01. |
-| `placeholder?` | `string` | `text`: placeholder. |
+| `placeholder?` | `string` | `text` and `secret`: placeholder. |
 | `options?` | `FoliumSettingOption[]` | `select`: the choices; values outside them are rejected. |
 
 相关：[FoliumSettingType](#foliumsettingtype) · [FoliumLabel](#foliumlabel) · [FoliumSettingOption](#foliumsettingoption)
@@ -1079,10 +1155,10 @@ Read/write access to one schema's persisted values (defaults already merged).
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| `readonly schema` | `readonly FoliumSetting[]` | The fields, as registered (invalid declarations dropped). |
-| `get()` | `(): FoliumSettingValues` | Current values, defaults merged. The same object until a value changes. |
+| `readonly schema` | `readonly FoliumSetting[]` | The fields, as registered (invalid declarations dropped), `secret` fields included. |
+| `get()` | `(): FoliumSettingValues` | Current values, defaults merged. The same object until a value changes. `secret` fields are not in it; read them through `folium.secrets`. |
 | `set()` | `(patch: Record<string, unknown>): void` | Validated against the schema: unknown keys are dropped, numbers clamped, selects checked. |
-| `reset()` | `(): void` | Restores every default. |
+| `reset()` | `(): void` | Restores every default. Stored `secret` values stay; clear them with `folium.secrets.set(key, null)`. |
 | `onChange()` | `(listener: () => void): FoliumDisposer` | Calls `listener` after any value changes, whoever changed it (the user, `set`, `reset`, an import). |
 
 相关：[FoliumSetting](#foliumsetting) · [FoliumSettingValues](#foliumsettingvalues) · [FoliumDisposer](#foliumdisposer)
@@ -1524,6 +1600,82 @@ online song. Use folium.net.fetch for network access.
 
 相关：[FoliumProviderSong](#foliumprovidersong) · [FoliumAudioQuality](#foliumaudioquality) · [FoliumLyricsResult](#foliumlyricsresult) · [FoliumLegacyLyricsResult](#foliumlegacylyricsresult)
 
+### FoliumJsonValue
+
+Folium 1.7: a JSON value, as `platform.raw` request parameters take them.
+
+```ts
+type FoliumJsonValue = string | number | boolean | null | FoliumJsonValue[] | { [key: string]: FoliumJsonValue }
+```
+
+### FoliumPlatformBackend
+
+Folium 1.7: EXPERIMENTAL (`platform.raw`): the backend library the host pins for a platform.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly name` | `string` | The library's package name. |
+| `readonly version` | `string` | Its version, as the host pins it; raw answers follow it. |
+
+### FoliumPlatformDescription
+
+Folium 1.7: EXPERIMENTAL (`platform.raw`): what `describe` says of one platform.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly supported` | `boolean` | Whether the platform's endpoints can be called through `request`. |
+| `readonly backend?` | `FoliumPlatformBackend` | The pinned backend library; only when supported. |
+
+相关：[FoliumPlatformBackend](#foliumplatformbackend)
+
+### FoliumPlatformResponse
+
+Folium 1.7: EXPERIMENTAL (`platform.raw`): what `request` resolves to.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly body` | `unknown` | The platform's own JSON answer, credential fields (cookies, tokens) taken out at any depth. |
+| `readonly accountKey` | `string \| null` | The `accountKey` of the account the request was made as (`folium.account`); null when nobody is signed in. |
+
+### FoliumPlatformErrorCode
+
+Folium 1.7: EXPERIMENTAL (`platform.raw`): why a `request` failed, as the rejection's `code` (and its
+message). `permission-denied:<permission>`: mod.json lacks `platform.<id>.read` (or, for an endpoint
+that changes the account, `platform.<id>.write`). `endpoint-denied`: the platform's table of endpoints
+does not open this one (sign-in, session and credential endpoints never are, and neither is any endpoint
+the table does not list). `unsupported`: the platform has no raw endpoints in this host.
+`not-signed-in` / `session-expired`: the endpoint needs a signed-in account and there is none, or its
+session ran out. `vip-required`: the platform answers that only paying accounts may. `rate-limited`:
+too many requests, from this mod (the host allows 60 a minute and 4 at a time) or as the platform says.
+`network`: the platform could not be reached or did not answer in time. `account-changed`: the account
+signed out or changed while the request was under way, so the answer was dropped. `aborted`: the
+request's `signal` aborted, or the mod stopped (a request still under way then is aborted by the host).
+
+```ts
+type FoliumPlatformErrorCode = | `permission-denied:${string}` | 'endpoint-denied' | 'unsupported' | 'not-signed-in' | 'session-expired' | 'vip-required' | 'rate-limited' | 'network' | 'account-changed' | 'aborted'
+```
+
+### FoliumPlatformService
+
+Folium 1.7: EXPERIMENTAL (manifest `experimental: ["platform.raw"]`), as
+`folium.experimental['platform.raw']`; main window only. A fallback for what Omni does not offer yet:
+it calls a platform's own backend endpoints as the account signed in to Folia, for capabilities only
+that platform has (listening records, say). Where Omni offers the same, use Omni: the host says so in
+the developer log. Answers are the platform's raw JSON and follow the backend library the host pins
+(`describe`), so they can change with any Folia release; nothing about them is promised.
+
+The host never hands out the session: the request goes through Omni and the platform's adapter, which
+add it, and credential fields are taken out of the answer. Parameters the backend reads as options of the
+request (the session, a proxy, the source IP and the like) are set by the host alone. Platform ids are
+Omni provider ids; only a platform `describe` supports takes `platform.<id>.*` permissions.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `describe()` | `(providerId: string): FoliumPlatformDescription` | Whether a platform can be called through `request`, with its backend library's name and version. |
+| `request()` | `(providerId: string, endpoint: string, params?: Record<string, FoliumJsonValue>, options?: { signal?: AbortSignal }): Promise<FoliumPlatformResponse>` | Calls one endpoint of the platform: `endpoint` is the pinned backend's own name for it (a module name such as `user_record`). `params` are the endpoint's parameters; an endpoint about the signed-in user gets that user's id when `params` leaves it out, so a mod never needs it. Reading endpoints need the `platform.<id>.read` permission; endpoints that change the account need `platform.<id>.write` as well. Rejects with an Error whose `code` is a FoliumPlatformErrorCode, and with a TypeError for malformed arguments (`params` must be a plain object of JSON values, its names letters, digits and `_`, at most 16 KB as JSON; a parameter the platform's backend writes into the path of its own request, such as an id, takes only the format the platform's table gives it, digits for ids). |
+
+相关：[FoliumPlatformDescription](#foliumplatformdescription) · [FoliumJsonValue](#foliumjsonvalue) · [FoliumPlatformResponse](#foliumplatformresponse)
+
 ## main 入口（Node）
 
 `mod.json` 的 `main` 指向一个 `.cjs` / `.js` 文件，它导出的 `activate(api)`（[FoliumMainModule](#foliummainmodule)）在 Folia 的主进程里运行，参数是 [FoliumMainApi](#foliummainapi)。这一节来自 [`src/mods/folium/mainContract.ts`](../../src/mods/folium/mainContract.ts)。
@@ -1558,13 +1710,14 @@ rejects with that error.
 | `readonly host` | `FoliumHostInfo` | Host versions; the same as the client entry's `folium.host`. |
 | `readonly log` | `FoliumLogger` | Logging; `error` entries show in the mods panel under the mod. |
 | `readonly storage` | `FoliumMainStorage` | This mod's data file: the same file the client entry's `folium.storage` reads and writes, so both sides see one state. Needs the `filesystem.data` permission. |
+| `readonly secrets` | `FoliumSecretAccess` | Folium 1.7: the values of this mod's `secret` settings fields, the same store the client entry's `folium.secrets` reads and writes. A listener given to `subscribe` stops when the mod stops. |
 | `readonly paths` | `FoliumMainPaths` | Folders to write into: this mod's own folder and the user's folders. |
 | `onDispose()` | `(disposer: FoliumDisposer): void` | Runs `disposer` when the mod stops: it is turned off, reloaded, or the app quits. Release here what `activate` started: timers, watchers, listeners, child processes. Cleanups run last registered first (the function `activate` returned counts as registered when `activate` returned), and one that throws does not stop the others. After the mod has stopped, `disposer` runs at once. Returns nothing. |
 | `readonly runtime` | `FoliumMainRuntime` | What the app is playing. |
-| `readonly rpc` | `FoliumMainRpc` | Answers calls from this mod's client entry. |
+| `readonly rpc` | `FoliumMainRpc` | Answers calls from this mod's client entry, and (Folium 1.7) sends it messages. |
 | `readonly render` | `FoliumMainRender` | Video export. |
 
-相关：[FoliumManifest](#foliummanifest) · [FoliumHostInfo](#foliumhostinfo) · [FoliumLogger](#foliumlogger) · [FoliumMainStorage](#foliummainstorage) · [FoliumMainPaths](#foliummainpaths) · [FoliumDisposer](#foliumdisposer) · [FoliumMainRuntime](#foliummainruntime) · [FoliumMainRpc](#foliummainrpc) · [FoliumMainRender](#foliummainrender)
+相关：[FoliumManifest](#foliummanifest) · [FoliumHostInfo](#foliumhostinfo) · [FoliumLogger](#foliumlogger) · [FoliumMainStorage](#foliummainstorage) · [FoliumSecretAccess](#foliumsecretaccess) · [FoliumMainPaths](#foliummainpaths) · [FoliumDisposer](#foliumdisposer) · [FoliumMainRuntime](#foliummainruntime) · [FoliumMainRpc](#foliummainrpc) · [FoliumMainRender](#foliummainrender)
 
 ### FoliumManifest
 
@@ -1650,6 +1803,7 @@ of the user's folders; keep the mod's own files under `api.storage.paths`.
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | `handle()` | `(name: string, handler: (...args: any[]) => unknown): void` | Answers the client entry's `folium.rpc.call(name, ...args)`: `handler` gets the call's arguments, and what it returns (or what its promise resolves to) is the call's result; a throw rejects the call. Arguments and results cross between processes, so both must be JSON-serializable. `name` must match `/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/`, and a second handler for the same name throws. |
+| `send()` | `(name: string, payload?: unknown): void` | Folium 1.7: sends `payload` to this mod's client entry in the main window, where `folium.rpc.on(name, ...)` receives it; no other mod's client hears it, and the export window never does. Fire-and-forget: nothing is queued, so a message sent while the client is not running (the window rebuilt, the client not activated yet) or while there is no main window is dropped without an error. `payload` must be JSON-serializable, at most 64 KB as JSON text; left out, the client gets `null`. `name` follows the same rule as `handle`. A bad name or payload throws at the call (`rpc-payload-too-large:65536` for one over the limit). Older 1.x hosts lack it: check `api.host.folium.minor >= 7`. |
 
 ### FoliumMainRender
 
@@ -1699,7 +1853,7 @@ What `api.render.exportVideo` resolves to.
 The Folium version this host implements; mods read it at runtime as `folium.host.folium`.
 
 ```ts
-const FOLIUM_VERSION = Object.freeze({ major: 1, minor: 6 })
+const FOLIUM_VERSION = Object.freeze({ major: 1, minor: 7 })
 ```
 
 ### FoliumId

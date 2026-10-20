@@ -3,6 +3,7 @@ import { COMMAND_PALETTE_COMMANDS } from '../../../src/components/command-palett
 import {
     commandForGlobalShortcut,
     GLOBAL_SHORTCUT_COMMAND_IDS,
+    isGlobalShortcutCommand,
     PORTAL_GLOBAL_SHORTCUTS,
     readGlobalShortcutKey,
     refuseGlobalShortcutKey,
@@ -12,9 +13,13 @@ import {
 
 // test/unit/command-palette/globalShortcutRules.test.ts
 // Which system-wide shortcuts the desktop app registers: playback commands only, Ctrl+Alt+Shift
-// plus a letter or digit, never GNOME's R, never one key twice.
+// plus a letter or digit, never GNOME's R, never one key twice. Mod commands (Folium 1.7
+// `globalShortcut`) come in as the set of ids registered right now.
 
 const empty = () => Array.from({ length: 5 }, () => ({ key: null as string | null, commandId: null as string | null }));
+
+const MOD_PING = 'folium:sample:ping';
+const MOD_EXPORT = 'folium:sample:export';
 
 describe('GLOBAL_SHORTCUT_COMMAND_IDS', () => {
     it('names only registered playback commands that run without input or a surface', () => {
@@ -86,6 +91,59 @@ describe('resolveActiveGlobalShortcuts', () => {
         expect(resolveActiveGlobalShortcuts(bindings)).toEqual([
             { slot: 3, accelerator: toGlobalShortcutAccelerator('m'), commandId: 'playback-mute' },
         ]);
+    });
+});
+
+describe('mod commands', () => {
+    it('counts a mod command only while its id is in the registered set', () => {
+        expect(isGlobalShortcutCommand(MOD_PING, new Set([MOD_PING]))).toBe(true);
+        expect(isGlobalShortcutCommand(MOD_PING, new Set())).toBe(false);
+        expect(isGlobalShortcutCommand('playback-next', new Set())).toBe(true);
+    });
+
+    it('registers a bound mod command that is registered, and not one that is not', () => {
+        const bindings = empty();
+        bindings[0] = { key: 'k', commandId: MOD_PING };
+        // Unregistered, or registered with params or without the flag: not in the set either way.
+        bindings[1] = { key: 'j', commandId: MOD_EXPORT };
+        bindings[2] = { key: 'p', commandId: 'playback-toggle' };
+        expect(resolveActiveGlobalShortcuts(bindings, new Set([MOD_PING]))).toEqual([
+            { slot: 0, accelerator: 'Control+Alt+Shift+K', commandId: MOD_PING },
+            { slot: 2, accelerator: 'Control+Alt+Shift+P', commandId: 'playback-toggle' },
+        ]);
+        // Without the set (a caller that knows no mods) the mod slots stay quiet.
+        expect(resolveActiveGlobalShortcuts(bindings).map(shortcut => shortcut.commandId)).toEqual(['playback-toggle']);
+    });
+
+    it('keeps the binding while the mod is off and registers it again when it is back', () => {
+        const bindings = empty();
+        bindings[0] = { key: 'k', commandId: MOD_PING };
+        const before = JSON.stringify(bindings);
+        expect(resolveActiveGlobalShortcuts(bindings, new Set())).toEqual([]);
+        expect(JSON.stringify(bindings)).toBe(before);
+        expect(resolveActiveGlobalShortcuts(bindings, new Set([MOD_PING]))).toEqual([
+            { slot: 0, accelerator: 'Control+Alt+Shift+K', commandId: MOD_PING },
+        ]);
+    });
+
+    it('applies the key rules to mod commands the same way', () => {
+        const bindings = empty();
+        bindings[1] = { key: 'k', commandId: MOD_PING };
+        expect(refuseGlobalShortcutKey('k', 0, bindings)).toBe('duplicate');
+        expect(refuseGlobalShortcutKey('r', 0, bindings)).toBe('reserved');
+        bindings[2] = { key: 'k', commandId: 'playback-next' };
+        bindings[3] = { key: 'r', commandId: MOD_EXPORT };
+        expect(resolveActiveGlobalShortcuts(bindings, new Set([MOD_PING, MOD_EXPORT]))).toEqual([
+            { slot: 1, accelerator: 'Control+Alt+Shift+K', commandId: MOD_PING },
+        ]);
+    });
+
+    it('does not run a mod command that was unregistered after the keys were resolved', () => {
+        const bindings = empty();
+        bindings[0] = { key: 'k', commandId: MOD_PING };
+        const active = resolveActiveGlobalShortcuts(bindings, new Set([MOD_PING]));
+        expect(commandForGlobalShortcut(active, 'Control+Alt+Shift+K', new Set([MOD_PING]))).toBe(MOD_PING);
+        expect(commandForGlobalShortcut(active, 'Control+Alt+Shift+K', new Set())).toBeNull();
     });
 });
 

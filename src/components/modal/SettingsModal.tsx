@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { getCacheUsageByCategory, clearCacheByCategory } from '../../services/db';
+import { forgetSettledDrumHits } from '../../services/analysis/drumHits';
 import { DualTheme, StageStatus, StageSource, Theme, ThemeMode, type NowPlayingConnectionStatus, type ReplayGainMode } from '../../types';
 import { getNavidromeConfig, saveNavidromeConfig, clearNavidromeConfig, hashPassword, navidromeApi, setNavidromeEnabled, getCachedNavidromeServerProfile, refreshNavidromeServerProfile, getNavidromeConfigOrigin, dismissNavidromeServerPreset } from '../../services/navidromeService';
 import { fetchNavidromeServerPreset, markNavidromeConfigAsPresetIfMatching, restoreNavidromeServerPreset } from '../../services/navidromeServerPreset';
@@ -843,6 +844,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const handleClear = async (category: CacheCategory) => {
         setIsCleaning(category);
         await clearCacheByCategory(category);
+        // The drum hits' memory of which tracks are stored goes with the stored analyses.
+        if (category === 'analysis') forgetSettledDrumHits();
         await fetchCacheUsage();
         setIsCleaning(null);
     };

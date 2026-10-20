@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInteractionSettingsStore } from '../../../stores/useInteractionSettingsStore';
+import { getFoliumGlobalShortcutCommandIds, useFoliumGlobalShortcutCommandIds } from '../../../mods/folium/registries/globalShortcutCommands';
 import { commandForGlobalShortcut, PORTAL_GLOBAL_SHORTCUTS, resolveActiveGlobalShortcuts, type ActiveGlobalShortcut } from './globalShortcutRules';
 import { useGlobalShortcutStatusStore, type GlobalShortcutBackend } from './globalShortcutStatusStore';
 
@@ -8,12 +9,17 @@ import { useGlobalShortcutStatusStore, type GlobalShortcutBackend } from './glob
 // command when one is pressed. Natively that is the listener's five bindings; on the Wayland portal
 // it is the fixed table of every playback command, and only once the listener has asked for it.
 // Desktop only: on web `window.electron` is absent and this does nothing.
+//
+// A slot may also hold a mod command (Folium 1.7 `globalShortcut`). Its key is registered only while
+// the mod has that command registered, so stopping the mod lets the key go and starting it again
+// takes it back, without touching the stored binding. The portal table has no mod commands.
 
 const NO_SHORTCUTS: ReadonlyArray<ActiveGlobalShortcut> = [];
 
 export const useGlobalShortcuts = (runCommand: (commandId: string) => void) => {
     const bindings = useInteractionSettingsStore(state => state.globalShortcutBindings);
     const portalEnabled = useInteractionSettingsStore(state => state.globalShortcutPortalEnabled);
+    const modCommandIds = useFoliumGlobalShortcutCommandIds();
     // Asked before anything is registered: on the portal the listener's bindings must not go out.
     const [backend, setBackend] = useState<GlobalShortcutBackend | null>(null);
     useEffect(() => {
@@ -37,8 +43,8 @@ export const useGlobalShortcuts = (runCommand: (commandId: string) => void) => {
         if (backend === 'portal') {
             return portalEnabled ? PORTAL_GLOBAL_SHORTCUTS : NO_SHORTCUTS;
         }
-        return resolveActiveGlobalShortcuts(bindings);
-    }, [backend, bindings, portalEnabled]);
+        return resolveActiveGlobalShortcuts(bindings, modCommandIds);
+    }, [backend, bindings, modCommandIds, portalEnabled]);
     // A press is resolved against the bindings of that moment, so changing only the command of a
     // slot takes effect without registering the key again.
     const activeRef = useRef(active);
@@ -68,7 +74,8 @@ export const useGlobalShortcuts = (runCommand: (commandId: string) => void) => {
     }, [accelerators, backend]);
 
     useEffect(() => window.electron?.onGlobalShortcut?.((accelerator) => {
-        const commandId = commandForGlobalShortcut(activeRef.current, accelerator);
+        // The mod commands as of the press, not of the last render: a mod may have just stopped.
+        const commandId = commandForGlobalShortcut(activeRef.current, accelerator, getFoliumGlobalShortcutCommandIds());
         if (commandId) {
             runCommandRef.current(commandId);
         }

@@ -19,7 +19,7 @@ import { VISUALIZER_FRAME_RATE_STORAGE_KEY, setGlobalVisualizerFrameRate } from 
 import { GLOW_BLUR_QUANTIZE_STORAGE_KEY, readStoredGlowBlurQuantize, setGlowBlurQuantized } from '../utils/glowBlurQuantize';
 import i18n from '../i18n/config';
 import { setStatusMessage } from './useStatusMessageStore';
-import { SMART_BEAT_STORAGE_KEY, type SmartBeatPatch, VISUALIZER_OPACITY_STORAGE_KEY, readStoredBackgroundOpacity, readStoredSmartBeatSettings, resolveSmartBeatSettings, readStoredTuning, readStoredVisualizerBackgroundMode, readStoredVisualizerFrameRate, readStoredVisualizerMode, readStoredVisualizerOpacity, writeStoredTuning } from './visualizerSettingsPersistence';
+import { SMART_BEAT_STORAGE_KEY, type SmartBeatPatch, VISUALIZER_OPACITY_STORAGE_KEY, readStoredBackgroundOpacity, readStoredSmartBeatSettings, resolveSmartBeatSettings, readStoredTuning, readStoredVisualizerBackgroundMode, readStoredVisualizerFrameRate, readStoredVisualizerMode, readStoredVisualizerOpacity, toStoredSmartBeat, writeStoredTuning } from './visualizerSettingsPersistence';
 import { getStoredBoolean, setStoredBoolean, setStoredString } from './storagePrimitives';
 import { RANDOM_VISUALIZER_MODES_STORAGE_KEY, readStoredRandomVisualizerModes } from './visualizerSettingsPersistence';
 import { normalizeRandomVisualizerModes, type RandomVisualizerMode } from '../utils/randomVisualizerModes';
@@ -118,7 +118,7 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
     smartBeat: readStoredSmartBeatSettings(),
     handleSetSmartBeat: (patch) => {
         const next = resolveSmartBeatSettings(patch, get().smartBeat);
-        if (typeof window !== 'undefined') localStorage.setItem(SMART_BEAT_STORAGE_KEY, JSON.stringify(next));
+        if (typeof window !== 'undefined') localStorage.setItem(SMART_BEAT_STORAGE_KEY, JSON.stringify(toStoredSmartBeat(next)));
         set({ smartBeat: next });
     },
     handleToggleDisableVisualizerVignette: (disable) => {

@@ -14,6 +14,7 @@ import { analyseTrackOffThread, melSpectrogramOffThread } from './analysisOffThr
 import { analyseBeatGrid, canRunBeatThis } from '../analysis/beatThis';
 import { getTrackBeatGrid } from '../analysis/beatGrid';
 import { decodeAtRate, readLocalTrackFile, toMidSide } from '../analysis/trackAudio';
+import { decodeTrackAtRate, giveTrackBytes, trackBytesFit } from '../analysis/trackBytes';
 import {
     measureEdges,
     PROFILE_SAMPLE_RATE,
@@ -241,7 +242,9 @@ const PREFIX_BYTES = 1_572_864;
 
 /** Either the bytes, or the reason there are none - which is the more useful answer most days. */
 type BytesResult =
-    | { bytes: ArrayBuffer; partial: boolean }
+    // `held`: already held to the whole-song rule on the way in (or a local file, which is the song),
+    // so the hand-over to the shared bytes need not check it again (from the PR #750 review, B6).
+    | { bytes: ArrayBuffer; partial: boolean; held?: boolean }
     | { skipped: string };
 
 /**
@@ -334,14 +337,14 @@ const readBytes = async (
     if (cached) {
         const notTheSong = await whyNotTheSong(song, null, cached);
         if (notTheSong) return { skipped: noteNotTheSong(notTheSongCopies, copyKey, `the copy in the media cache is ${notTheSong}`) };
-        return { bytes: await cached.arrayBuffer(), partial: false };
+        return { bytes: await cached.arrayBuffer(), partial: false, held: true };
     }
 
     if (!audioUrl) {
         // A local track with no URL in hand (the prefetcher has none to give for a local file) is read
         // off its own file handle (analysis/trackAudio.ts).
         const file = await readLocalTrackFile(song);
-        if (file) return { bytes: file, partial: false };
+        if (file) return { bytes: file, partial: false, held: true };
         return { skipped: 'not cached yet and no URL to read it from' };
     }
     // Before any read: a clip its provider marked is not downloaded only to be refused.
@@ -410,6 +413,7 @@ const readBytes = async (
             // the level the quality option asks for later.
             await saveSongAudioLevel(song, level);
             console.log(`[Automix] "${song.name}" saved to the media cache from the analysis read, fetched at ${level ?? 'an unknown level'}`);
+            return { bytes: await blob.arrayBuffer(), partial: false, held: true };
         }
         return { bytes: await blob.arrayBuffer(), partial: false };
     } catch (error) {
@@ -497,12 +501,42 @@ export const ensureTrackProfile = async (request: ProfileRequest): Promise<void>
             // Asked a second time, because reading the bytes is the slow part: a full track off the
             // media cache or the network is seconds, and everything after this line - the decode, the
             // spectrogram, the beat model - is the expensive part it would be buying for nobody.
+            // Asked before the bytes are kept too (from the PR #750 review): a dropped song's bytes would
+            // push the current or next song's out of the shared cache.
             if (!wanted.has(scopeKey)) {
                 noteOutcome(songKey, 'dropped, not the current or the next track when its turn came');
                 return;
             }
 
-            const buffer = await decodeAtRate(result.bytes, PROFILE_SAMPLE_RATE);
+            // The whole song, read or downloaded under this file's rules, is kept for 智能动感模式 and
+            // the stems (analysis/trackBytes.ts), so neither reads or streams it again. Only kept from
+            // here, never taken: this read's download is also the media-cache write above, which a
+            // copy handed over from elsewhere would skip.
+            // A file its provider keeps was not held to the whole-song rule on the way in: held here,
+            // on a copy taken now (the decode below detaches the read), without holding the decode up.
+            // Only a file that would be kept is copied, and that copy is the one kept (from the PR #750
+            // review: a copy for the cache, then another inside it, and a file over the cache's limit
+            // copied only to be thrown away).
+            // Checked here only when the read did not check it already (`held`): a file its provider
+            // keeps, the playback representation, or a blob: / file: URL (from the PR #750 review, B6).
+            if (!result.partial && trackBytesFit(result.bytes.byteLength)) {
+                const copy = result.bytes.slice(0);
+                if (result.held) {
+                    giveTrackBytes(songKey, copy);
+                } else {
+                    const song = request.song;
+                    void whyNotTheSong(song, null, new Blob([copy]))
+                        .then((notTheSong) => { if (!notTheSong) giveTrackBytes(songKey, copy); })
+                        .catch(() => undefined);
+                }
+            }
+
+            // A head-only read is not the track its key names: decoded on its own, so a whole-track
+            // decode of the same key and rate cannot join it and store the head's beats as the track's
+            // (from the PR #750 review).
+            const buffer = result.partial
+                ? await decodeAtRate(result.bytes, PROFILE_SAMPLE_RATE)
+                : await decodeTrackAtRate(songKey, PROFILE_SAMPLE_RATE, result.bytes, decodeAtRate, 'automix profile', 'own');
             const channels = buffer ? toMidSide(buffer) : null;
             // The beat grid, from a model rather than autocorrelation, when this build has one. Asked
             // for here rather than inside `analyseTrack` because it is the impure step - it crosses

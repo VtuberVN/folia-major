@@ -3,6 +3,7 @@ import { initFoliumClients, onFoliumClientStarted } from './clientLoader';
 import { installFoliumCommandPaletteSync } from '../folium/registries/commandPaletteSync';
 import { installFoliumFaultNotice } from './faultNotice';
 import { installFoliumHostEvents } from './hostEvents';
+import { installFoliumHostAccount } from './hostAccount';
 import { restoreSavedFoliumSelections } from './missingEntries';
 
 // src/mods/runtime/mainWindowStart.ts
@@ -55,6 +56,7 @@ export const noteFoliumFirstScreenMounted = () => markFirstScreenMounted();
 export const startFoliumForMainWindow = async ({ firstScreenWaitMs }: FoliumMainWindowStartOptions): Promise<void> => {
     installFoliumCommandPaletteSync();
     installFoliumHostEvents();
+    installFoliumHostAccount();
     // Before the clients start: a mod that fails while starting is announced too.
     installFoliumFaultNotice();
     // On time or late: a saved selection comes back when the mod that provides it is up.

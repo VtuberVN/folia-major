@@ -1,4 +1,5 @@
 import { useVisualizerSettingsStore, type VisualizerSettingsState } from '../../stores/useVisualizerSettingsStore';
+import { toStoredSmartBeat } from '../../stores/visualizerSettingsPersistence';
 import { useTypographySettingsStore, type TypographySettingsState } from '../../stores/useTypographySettingsStore';
 import { useLyricSettingsStore, type LyricSettingsState } from '../../stores/useLyricSettingsStore';
 import { useHomeLayoutSettingsStore, type HomeLayoutSettingsState } from '../../stores/useHomeLayoutSettingsStore';
@@ -70,7 +71,8 @@ export const buildSyncedVisualSettings = (state: SyncableSettingsState): SyncedV
     monetTuning: state.monetTuning,
     pendoloTuning: state.pendoloTuning,
     sonnetTuning: state.sonnetTuning,
-    smartBeat: state.smartBeat,
+    // With the one switch an older build reads (toStoredSmartBeat).
+    smartBeat: toStoredSmartBeat(state.smartBeat),
     temperaTuning: state.temperaTuning,
     lumiereTuning: state.lumiereTuning,
     urlBackgroundList: state.urlBackgroundList,

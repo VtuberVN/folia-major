@@ -26,6 +26,7 @@ import { describeNeteaseLoginFailure, neteaseCheckFailure } from './neteaseLogin
 import { describeNeteaseFailure, isRefusedNeteaseAnswer, neteaseAnswerError, neteaseNoUrlError } from './neteaseFailure';
 import { neteaseLocalService, watchNeteaseLocalService } from './neteaseLocalService';
 import { createNeteaseExplore } from './neteaseExplore';
+import { neteaseRaw } from './neteaseRaw';
 import { canRunLoginSelfCheck, runLoginSelfCheck } from '../loginSelfCheck';
 import { diagnosticLine, formatDiagnosticClock } from '../login/loginDiagnosticReport';
 
@@ -659,4 +660,6 @@ export const neteaseProvider: OnlineMusicProvider = {
         },
         async subscribeAlbum(id, subscribed) { await neteaseApi.subscribeAlbum(toNeteaseId(id), subscribed); },
     },
+    // The raw endpoints (Folium experimental platform.raw): the table and the request are in neteaseRaw.ts.
+    raw: neteaseRaw,
 };

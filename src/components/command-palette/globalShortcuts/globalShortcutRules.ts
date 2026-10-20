@@ -12,6 +12,11 @@ import { isMacPlatform } from '../../../utils/platform';
 // characters on macOS; Ctrl+Alt alone is taken by Linux desktops (terminal, lock, Ctrl+Alt+F1–F12
 // virtual consoles). What this cannot see: layouts whose AltGr types characters with Shift (Polish
 // Ą and the like), and keys other programs only listen for inside their own window.
+//
+// Besides the host's playback commands, mods may offer commands (Folium 1.7 `globalShortcut`). Which
+// of those exist right now is handed in by the caller as a set of ids, so this file stays pure and
+// does not read the mod registry: a binding to a mod command that is not registered at the moment
+// (mod disabled, stopped, or still starting) is kept in storage and simply not registered.
 
 /** The fixed modifiers in Electron's accelerator syntax: `Control` is Ctrl on every system, `Alt` is Option on macOS. */
 const ACCELERATOR_PREFIX = 'Control+Alt+Shift+';
@@ -37,6 +42,18 @@ export const GLOBAL_SHORTCUT_COMMAND_IDS: ReadonlyArray<string> = [
     'playback-loop',
     'playback-shuffle',
 ];
+
+/** No mod commands: the default for callers that only deal with the host's list. */
+export const NO_MOD_GLOBAL_SHORTCUT_COMMANDS: ReadonlySet<string> = new Set();
+
+/**
+ * Whether a command may be bound and run by a system-wide key: one of the host's playback commands,
+ * or one of the mod commands registered right now with `globalShortcut` and no params
+ * (`modCommandIds`, the command palette ids of those commands).
+ */
+export const isGlobalShortcutCommand = (commandId: string, modCommandIds: ReadonlySet<string>): boolean => (
+    GLOBAL_SHORTCUT_COMMAND_IDS.includes(commandId) || modCommandIds.has(commandId)
+);
 
 /** Keys a desktop already gives this modifier trio: GNOME starts a screencast on Ctrl+Alt+Shift+R. */
 const RESERVED_KEYS = new Set(['r']);
@@ -105,17 +122,30 @@ export const PORTAL_GLOBAL_SHORTCUTS: ReadonlyArray<ActiveGlobalShortcut> = ([
     ['s', 'playback-shuffle'],
 ] as const).map(([key, commandId], slot) => ({ slot, accelerator: toGlobalShortcutAccelerator(key), commandId }));
 
-/** The command a pressed accelerator runs, or null when no current binding has it. */
+/**
+ * The command a pressed accelerator runs, or null when no current binding has it. The command is
+ * checked again against `modCommandIds` as of the press: a mod command unregistered since the
+ * bindings were last resolved (its mod just stopped) does not run.
+ */
 export const commandForGlobalShortcut = (
     active: ReadonlyArray<ActiveGlobalShortcut>,
     accelerator: string,
-): string | null => active.find(shortcut => shortcut.accelerator === accelerator)?.commandId ?? null;
+    modCommandIds: ReadonlySet<string> = NO_MOD_GLOBAL_SHORTCUT_COMMANDS,
+): string | null => {
+    const commandId = active.find(shortcut => shortcut.accelerator === accelerator)?.commandId ?? null;
+    return commandId && isGlobalShortcutCommand(commandId, modCommandIds) ? commandId : null;
+};
 
 /**
  * The bindings that get registered: both halves set, a key the rows would take, a command on the
- * list. A slot whose key repeats an earlier slot's stays quiet rather than fighting it.
+ * list (the host's, or a mod command in `modCommandIds`). A slot whose key repeats an earlier slot's
+ * stays quiet rather than fighting it. A slot whose mod command is not registered now stays quiet
+ * too, and comes back by itself once the command is registered again.
  */
-export const resolveActiveGlobalShortcuts = (bindings: ReadonlyArray<GlobalShortcutBinding>): ActiveGlobalShortcut[] => {
+export const resolveActiveGlobalShortcuts = (
+    bindings: ReadonlyArray<GlobalShortcutBinding>,
+    modCommandIds: ReadonlySet<string> = NO_MOD_GLOBAL_SHORTCUT_COMMANDS,
+): ActiveGlobalShortcut[] => {
     const active: ActiveGlobalShortcut[] = [];
     const seen = new Set<string>();
     bindings.slice(0, GLOBAL_SHORTCUT_SLOTS).forEach((binding, slot) => {
@@ -123,7 +153,7 @@ export const resolveActiveGlobalShortcuts = (bindings: ReadonlyArray<GlobalShort
         if (!key || !commandId || seen.has(key) || !isLetterOrDigit(key) || RESERVED_KEYS.has(key)) {
             return;
         }
-        if (!GLOBAL_SHORTCUT_COMMAND_IDS.includes(commandId)) {
+        if (!isGlobalShortcutCommand(commandId, modCommandIds)) {
             return;
         }
         seen.add(key);

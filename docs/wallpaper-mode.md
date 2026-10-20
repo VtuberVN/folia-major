@@ -137,6 +137,7 @@ Electron 主进程 (main.cjs)，下面三个文件在 electron/wallpaper/
 - **启动与切换**：启动先读壁纸模式与会话类型再决定是否起包装进程；跳板进程只在包装进程成功创建后才退出。包装缺失或启动失败时清除壁纸模式、以普通窗口启动。运行中切换写入持久化配置、短暂合并连续操作，等渲染端返回播放快照后 relaunch（环境标记 + 清理一次性 Wayland socket 与包装标记）；快照以短 TTL 临时持久化，重启后恢复歌曲、队列、进度与播放状态。
 - **故障恢复**（`electron/wallpaper/wallpaperWatchdog.cjs`）：包装状态下监视父进程存活，同时处理窗口创建失败与 renderer 崩溃；以固定父进程身份 + 存在性检查识别包装退出，恢复幂等、避免多故障事件重复拉起。连续启动失败达阈值自动关闭壁纸模式；正常启动或稳定运行后清计数。Wayland 进程模型：跳板 spawn `windowtolayer`（wtl），wtl 再 spawn 真正的包装 Folia（`WAYLAND_SOCKET=<fd>`）；包装子进程的父进程是 wtl，wtl 一死 socketpair EOF、Chromium 通常毫秒级崩溃、watchdog 来不及响应——watchdog 的价值在于 wtl 非致命退出时的恢复与崩溃循环 breaker。计数键 `wallpaper_wrapped_crash_count`。
 - **X11 特殊处理**：桌面窗口取目标显示器（设置里选的，否则主显示器）完整 bounds 且在首次映射前完成尺寸设置（防显示缩放导致的工作区裁剪）；设置里换了选择，或者选的那块屏被拔掉、接回来时，走和开关壁纸模式一样的 relaunch；没有选屏时显示器变化不处理（和原来一样）；不参与普通窗口尺寸记忆（防止退出壁纸模式后把全屏桌面尺寸带回普通窗口）；无背景合成层、透明区域显示为黑；不用 watchdog，异常靠下次启动自愈。
+- **KDE 面板**：Plasma 的「避让窗口」只看任务列表里的窗口，layer-shell 壁纸和 X11 桌面窗口都不在其中，所以避让面板会照常显示在壁纸上，和系统壁纸一样。Folia 不改用户的面板设置（#802 的方案未合入：要改全局 Plasma 配置，崩溃后还得自己恢复）。不想让面板挡住歌词，请把面板设为「自动隐藏」。
 - **打包**：`windowtolayer` 用固定上游提交 + 仓库补丁构建（`packaging/linux/build-windowtolayer.mjs` + `packaging/linux/patches/`），补丁无法应用直接失败；产物及许可证随 Linux 包放 `resources`。联调：`npm run build:windowtolayer` → `build/windowtolayer`（或 `npm run dev:electron:wallpaper`，`dev:electron*` 注入 `FOLIA_WINDOWTOLAYER_PATH=build/windowtolayer`）；二进制缺失时开关自动回退关闭。
 
 ## 四、macOS 壁纸模式

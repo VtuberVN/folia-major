@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { ModClearCacheResult, ModExportProgress, ModFfmpegStatus, ModLogEntry, ModMainCallStats, ModRuntimeInfo, ModRuntimeSnapshot, ModStorageUsageResult } from './mods/types';
+import type { ModClearCacheResult, ModExportProgress, ModFfmpegStatus, ModLogEntry, ModMainCallStats, ModRpcMessage, ModRuntimeInfo, ModRuntimeSnapshot, ModSecretChange, ModStorageUsageResult } from './mods/types';
 
 declare global {
   const __COMMIT_HASH__: string;
@@ -926,6 +926,8 @@ declare global {
       /**
        * Automix switched on or off. While on, the analysis worker keeps htdemucs loaded across tracks;
        * off releases it in that process. One-way.
+       * (From the PR #750 re-review, 2026-10-19: nothing is kept while on any more - the worker releases
+       * htdemucs a minute after each run - and off still releases it at once.)
        */
       setAutomixEnabled?: (enabled: boolean) => void;
       /**
@@ -934,13 +936,22 @@ declare global {
        * `{ declined }` carries the worker's reason when it ran nothing.
        */
       separateStems?: (
-        request: { left: Float32Array<ArrayBuffer>; right: Float32Array<ArrayBuffer> },
-      ) => Promise<Record<
+        /**
+         * `threads`: the CPU threads to run with (analysis/scheduler.ts cpuThreads); four when absent.
+         * `resident: false`: a fallback for a GPU machine, released after a minute idle (phase 4).
+         * (From the PR #750 re-review, 2026-10-19: `resident` is gone - every run's model is released
+         * after a minute idle, on every machine, and the worker ignores the field.)
+         */
+        request: { left: Float32Array<ArrayBuffer>; right: Float32Array<ArrayBuffer>; threads?: number },
+      ) => Promise<(Record<
         'drums' | 'bass' | 'vocals',
         // Never shared memory: this crosses the IPC boundary by structured clone, which always
         // reconstitutes a plain ArrayBuffer on this side.
         { left: Float32Array<ArrayBuffer>; right: Float32Array<ArrayBuffer> }
-      > | { declined: string } | null>;
+      > & {
+        /** How long the worker spent building the model for this request (ms), 0 when it was built: automix's CPU estimate learns from the rest of the wait. */
+        buildMs?: number;
+      }) | { declined: string } | null>;
       /**
        * Which model files are on disk, answered without loading them.
        *
@@ -1256,6 +1267,7 @@ declare global {
         cancelExport: () => Promise<{ ok: boolean }>;
         invokeModRpc: (modId: string, name: string, args: unknown[]) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
         invokeModStorage: (modId: string, operation: string, key?: string, value?: unknown) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
+        invokeModSecrets: (modId: string, operation: string, key?: unknown, value?: unknown) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
         invokeModNetFetch: (modId: string, url: string, init: unknown) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
         invokeModPickFile: (modId: string, accept: string, persist?: boolean) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
         invokeModRestoreFile: (modId: string, grantId: string) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
@@ -1272,6 +1284,8 @@ declare global {
         onModsStateChanged: (callback: (mods: ModRuntimeInfo[]) => void) => () => void;
         onExportProgress: (callback: (progress: ModExportProgress) => void) => () => void;
         onModLog: (callback: (entry: ModLogEntry) => void) => () => void;
+        onModRpcMessage: (callback: (message: ModRpcMessage) => void) => () => void;
+        onModSecretChanged: (callback: (change: ModSecretChange) => void) => () => void;
       };
       wasapi?: {
         listDevices: () => Promise<WasapiDevice[]>;

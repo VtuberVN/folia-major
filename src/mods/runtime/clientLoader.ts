@@ -167,14 +167,15 @@ const activate = async (mod: ModRuntimeInfo, url: string, context: FoliumContext
     let api: FoliumClientApi;
     try {
         // The host's own modules. Loading them is not the mod's time, so the limit starts after.
+        const onRelease = (release: () => void) => { record.releases.push(release); };
         const experimental = context === 'main' && (mod.experimental ?? []).length > 0
-            ? (await loadExperimental()).createFoliumExperimental(mod, stopped)
+            ? (await loadExperimental()).createFoliumExperimental(mod, stopped, onRelease)
             : {};
         const { createFoliumClientApi } = await loadApi();
         api = createFoliumClientApi(mod, {
             context,
             experimental,
-            onRelease: (release) => record.releases.push(release),
+            onRelease,
             stopped,
         });
         // Folium 1.6 only: the client names Folium 2 removed, kept working (folium/deprecated/).

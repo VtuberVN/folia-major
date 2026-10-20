@@ -5435,7 +5435,10 @@ function keepRemoteControlCoverOnScreen(win, event, newBounds) {
   if (x !== newBounds.x) {
     // Windows then keeps the window where this puts it, and the drag slides along the edge.
     event.preventDefault();
-    win.setPosition(x, newBounds.y);
+    // setBounds rather than setPosition: this window's size is fixed for good (resizable: false,
+    // min === max === REMOTE_CONTROL_WINDOW_WIDTH/HEIGHT). Stating it on every move keeps the
+    // window the size the page is laid out to, instead of leaving the platform to re-derive it.
+    win.setBounds({ x, y: newBounds.y, width: REMOTE_CONTROL_WINDOW_WIDTH, height: REMOTE_CONTROL_WINDOW_HEIGHT });
   }
 }
 

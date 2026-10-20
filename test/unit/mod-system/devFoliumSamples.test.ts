@@ -5,6 +5,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type {
+    FoliumAccountState,
     FoliumClientApi,
     FoliumCommandDef,
     FoliumEventMap,
@@ -12,7 +13,9 @@ import type {
     FoliumLoopMode,
     FoliumPanelContext,
     FoliumPlaybackService,
+    FoliumPlatformResponse,
     FoliumQueueSnapshot,
+    FoliumSettingsSectionDef,
     FoliumSong,
 } from '@/mods/folium/contract';
 
@@ -23,6 +26,8 @@ import type {
 // mods/ they are unsigned (installed by hand, never scanned by the loader), so no signature check.
 // sample-playback-console also runs here: its main entry against the real api.storage.paths
 // (append, cache, rebuild after the cache is emptied) and its client against a stand-in folium.
+// So does sample-account-console (Folium 1.7): its main entry against the real api with a stand-in
+// secret store, its client against a stand-in folium with secrets, rpc.on, account and platform.raw.
 
 const require = createRequire(import.meta.url);
 const { validateManifest } = require('../../../electron/modSystem/manifest.cjs');
@@ -46,7 +51,7 @@ afterEach(() => {
 
 describe('dev/folium sample mods', () => {
     it('has the samples the docs point to', () => {
-        expect(samples.map(([name]) => name)).toEqual(expect.arrayContaining(['sample-home-tab', 'sample-playback-console']));
+        expect(samples.map(([name]) => name)).toEqual(expect.arrayContaining(['sample-home-tab', 'sample-playback-console', 'sample-account-console']));
     });
 
     it.each(samples)('%s is a valid Folium 1 mod', (_name, directory) => {
@@ -313,5 +318,337 @@ describe('sample-playback-console client', () => {
         expect(container.childElementCount).toBe(0);
         deactivate?.();
         expect(fake.handlerCount()).toBe(0);
+    });
+});
+
+const ACCOUNT_CONSOLE_DIR = path.join(DEV_FOLIUM_DIR, 'sample-account-console');
+
+/*
+ * sample-account-console's main entry, activated against the real mod api. The secret store is a
+ * stand-in that, the way modSecrets.cjs does before the client declares its keys, reads a key with no
+ * value as null and refuses to write one, and tells its
+ * subscribers the key of every change; what api.rpc.send pushes is read back from sendToClient.
+ */
+const activateAccountConsoleMain = ({ declared = true, minor = 7 } = {}) => {
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'folia-dev-sample-'));
+    temporaryDirectories.push(userData);
+    const { value: manifest } = validateManifest(JSON.parse(fs.readFileSync(path.join(ACCOUNT_CONSOLE_DIR, 'mod.json'), 'utf8')));
+    const dirs = resolveModStorageDirs(userData, manifest.id);
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const disposers: Array<() => void> = [];
+    const sent: Array<{ name: string; payload: unknown }> = [];
+    const logs: string[] = [];
+    const values = new Map<string, string>();
+    const secretListeners = new Set<(key: string) => void>();
+    const check = (key: string) => {
+        if (!declared && !values.has(key)) throw new Error(`secret-undeclared:${key}`);
+    };
+    const secrets = {
+        get: async (key: string) => values.get(key) ?? null,
+        has: async (key: string) => values.has(key),
+        set: async (key: string, value: string | null) => {
+            check(key);
+            if (value) values.set(key, value);
+            else values.delete(key);
+            secretListeners.forEach((listener) => listener(key));
+        },
+        subscribe: (listener: (key: string) => void) => {
+            secretListeners.add(listener);
+            return () => secretListeners.delete(listener);
+        },
+    };
+    const api = createModApi({
+        modId: manifest.id,
+        manifest,
+        dataStore: createModDataStore(dirs.dataDir),
+        filesDir: dirs.filesDir,
+        cacheDir: dirs.cacheDir,
+        hostInfo: { folium: { major: 1, minor }, folia: '0.7.22' },
+        emitLog: (_level: string, message: string) => logs.push(message),
+        getPlaybackSnapshot: () => null,
+        registerDisposer: (disposer: () => void) => disposers.push(disposer),
+        secrets,
+        registerRpc: (name: string, handler: (...args: unknown[]) => unknown) => handlers.set(name, handler),
+        sendToClient: (name: string, json: string) => sent.push({ name, payload: JSON.parse(json) }),
+        requestExport: () => Promise.reject(new Error('unused')),
+    });
+    require(path.join(ACCOUNT_CONSOLE_DIR, 'index.cjs'))(api);
+    const call = (name: string, ...args: unknown[]) => handlers.get(name)!(...args);
+    const stop = () => disposers.splice(0).reverse().forEach((dispose) => dispose());
+    return { call, handlers, sent, logs, secrets, stop };
+};
+
+describe('sample-account-console main entry', () => {
+    it('reports its state and pushes a pong from inside the ping handler', async () => {
+        const main = activateAccountConsoleMain();
+        expect([...main.handlers.keys()].sort()).toEqual(['ping', 'status']);
+        expect(await main.call('status')).toEqual({ startedAt: expect.any(Number), sent: 0, beats: 0, secret: 'unset' });
+
+        expect(main.call('ping', 'hello')).toEqual({ sent: 1 });
+        expect(main.sent).toEqual([{ name: 'pong', payload: { note: 'hello', at: expect.any(Number) } }]);
+        main.stop();
+    });
+
+    it('tells the client whether the secret field is set, never its value', async () => {
+        const main = activateAccountConsoleMain();
+        await main.secrets.set('apiKey', 'sk-not-for-the-window');
+        await flush();
+        await main.secrets.set('other', 'x');
+        await main.secrets.set('apiKey', null);
+        await flush();
+
+        expect(main.sent.map((message) => message.name)).toEqual(['secretStatus', 'secretStatus']);
+        expect(main.sent.map((message) => (message.payload as { status: string }).status)).toEqual(['set', 'unset']);
+        expect(JSON.stringify([main.sent, main.logs])).not.toContain('sk-not-for-the-window');
+        main.stop();
+    });
+
+    it('reads the key as unset before the client registered its section', async () => {
+        const main = activateAccountConsoleMain({ declared: false });
+        expect(await main.call('status')).toMatchObject({ secret: 'unset' });
+        await flush();
+        expect(main.logs).toContain('sample-account-console 1.0.0: secret field unset');
+        main.stop();
+    });
+
+    it('sends a heartbeat every 15 seconds until the mod stops', () => {
+        vi.useFakeTimers();
+        try {
+            const main = activateAccountConsoleMain();
+            vi.advanceTimersByTime(30_000);
+            expect(main.sent.map((message) => message.payload)).toEqual([
+                { count: 1, at: expect.any(Number) },
+                { count: 2, at: expect.any(Number) },
+            ]);
+            main.stop();
+            vi.advanceTimersByTime(60_000);
+            expect(main.sent).toHaveLength(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does nothing on a host older than Folium 1.7', () => {
+        const main = activateAccountConsoleMain({ minor: 6 });
+        expect(main.handlers.size).toBe(0);
+        expect(main.logs).toEqual([expect.stringContaining('needs Folium 1.7')]);
+    });
+});
+
+/*
+ * A stand-in for the parts of folium sample-account-console uses: a settings section handle, secrets
+ * that notify by key, rpc.on listeners the test can send to, the account state, the events bus and a
+ * platform.raw whose requests the test answers (and that rejects with `aborted` when the signal aborts).
+ */
+const createAccountConsoleFolium = (context: 'main' | 'export' = 'main') => {
+    const sections: FoliumSettingsSectionDef[] = [];
+    const homeTabs: FoliumHomeTabDef[] = [];
+    const commands: FoliumCommandDef[] = [];
+    const rpcListeners = new Map<string, Array<(payload: unknown) => void>>();
+    const rpcCalls: Array<{ name: string; args: unknown[]; listening: string[] }> = [];
+    const eventHandlers = new Map<string, Array<(event: unknown) => void>>();
+    const secretValues = new Map<string, string>();
+    const secretListeners = new Set<(key: string) => void>();
+    const settingsListeners = new Set<() => void>();
+    const requests: Array<{ args: unknown[]; resolve: (value: FoliumPlatformResponse) => void; reject: (error: unknown) => void }> = [];
+    let settingsValues: Record<string, unknown> = { range: 'week' };
+    let account: FoliumAccountState | null = Object.freeze({
+        providerId: 'netease', status: 'signed-in', user: { nickname: 'Listener' }, accountKey: 'key-one-0123456789',
+    });
+    const platform = {
+        describe: vi.fn(() => ({ supported: true, backend: { name: 'backend-lib', version: '1.2.3' } })),
+        request: vi.fn((...args: unknown[]) => new Promise<FoliumPlatformResponse>((resolve, reject) => {
+            requests.push({ args, resolve, reject });
+            (args[3] as { signal?: AbortSignal } | undefined)?.signal?.addEventListener('abort', () => {
+                reject(Object.assign(new Error('aborted'), { code: 'aborted' }));
+            });
+        })),
+    };
+    const folium = {
+        modId: 'sample-account-console',
+        host: { folium: { major: 1, minor: 7 }, folia: '0.7.22' },
+        env: { context },
+        log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        registries: {
+            settingsSections: {
+                register: (def: FoliumSettingsSectionDef) => {
+                    sections.push(def);
+                    return {
+                        id: `sample-account-console:${def.id}`,
+                        unregister: () => {},
+                        settings: {
+                            schema: def.settings,
+                            get: () => settingsValues,
+                            set: () => {},
+                            reset: () => {},
+                            onChange: (listener: () => void) => {
+                                settingsListeners.add(listener);
+                                return () => settingsListeners.delete(listener);
+                            },
+                        },
+                    };
+                },
+            },
+            homeTabs: { register: (def: FoliumHomeTabDef) => { homeTabs.push(def); return { id: `sample-account-console:${def.id}`, unregister: () => {} }; } },
+            commands: { register: (def: FoliumCommandDef) => { commands.push(def); return { id: `sample-account-console:${def.id}`, unregister: () => {} }; } },
+        },
+        events: {
+            on: (type: string, handler: (event: unknown) => void) => {
+                eventHandlers.set(type, [...(eventHandlers.get(type) ?? []), handler]);
+                return () => eventHandlers.set(type, (eventHandlers.get(type) ?? []).filter((entry) => entry !== handler));
+            },
+        },
+        secrets: {
+            get: async (key: string) => secretValues.get(key) ?? null,
+            has: async (key: string) => secretValues.has(key),
+            set: async (key: string, value: string | null) => {
+                if (value) secretValues.set(key, value);
+                else secretValues.delete(key);
+                secretListeners.forEach((listener) => listener(key));
+            },
+            subscribe: (listener: (key: string) => void) => {
+                secretListeners.add(listener);
+                return () => secretListeners.delete(listener);
+            },
+        },
+        rpc: {
+            call: async (name: string, ...args: unknown[]) => {
+                rpcCalls.push({ name, args, listening: [...rpcListeners.keys()] });
+                return name === 'status' ? { startedAt: 0, sent: 3, beats: 2, secret: 'unset' } : { sent: 4 };
+            },
+            on: (name: string, listener: (payload: unknown) => void) => {
+                rpcListeners.set(name, [...(rpcListeners.get(name) ?? []), listener]);
+                return () => rpcListeners.set(name, (rpcListeners.get(name) ?? []).filter((entry) => entry !== listener));
+            },
+        },
+        account: {
+            getState: (providerId?: string) => (providerId === undefined || providerId === account?.providerId ? account : null),
+        },
+        experimental: { 'platform.raw': platform },
+        ui: { openHomeTab: vi.fn(), toast: vi.fn() },
+    } as unknown as FoliumClientApi;
+    return {
+        folium,
+        sections,
+        homeTabs,
+        commands,
+        rpcCalls,
+        requests,
+        platform,
+        send: (name: string, payload: unknown) => (rpcListeners.get(name) ?? []).forEach((listener) => listener(payload)),
+        emit: (type: string, payload: unknown) => (eventHandlers.get(type) ?? []).forEach((handler) => handler(payload)),
+        setAccount: (next: FoliumAccountState | null) => { account = next; },
+        setSettings: (next: Record<string, unknown>) => {
+            settingsValues = next;
+            settingsListeners.forEach((listener) => listener());
+        },
+    };
+};
+
+describe('sample-account-console client', () => {
+    const loadClient = async () => (await import('../../../dev/folium/sample-account-console/client.mjs')).default as (folium: FoliumClientApi) => (() => void) | undefined;
+
+    it('registers nothing in the export window', async () => {
+        const activate = await loadClient();
+        const fake = createAccountConsoleFolium('export');
+        expect(activate(fake.folium)).toBeUndefined();
+        expect([fake.sections, fake.homeTabs, fake.rpcCalls]).toEqual([[], [], []]);
+    });
+
+    it('declares a secret field beside an ordinary one, and listens before it asks the main entry', async () => {
+        const activate = await loadClient();
+        const fake = createAccountConsoleFolium();
+        activate(fake.folium);
+        expect(fake.sections[0].settings.map((field) => [field.key, field.type])).toEqual([['apiKey', 'secret'], ['range', 'select']]);
+        expect(fake.rpcCalls[0]).toEqual({ name: 'status', args: [], listening: ['heartbeat', 'pong', 'secretStatus'] });
+        await fake.commands[0].run({ values: {} } as never);
+        expect(fake.folium.ui.openHomeTab).toHaveBeenCalledWith('desk');
+    });
+
+    it('offers a command without params to the global shortcuts, which pings the main entry and says so', async () => {
+        const activate = await loadClient();
+        const fake = createAccountConsoleFolium();
+        activate(fake.folium);
+        const offered = fake.commands.filter((command) => command.globalShortcut === true);
+        expect(offered.map((command) => command.id)).toEqual(['ping']);
+        expect(offered[0].params ?? []).toEqual([]);
+        // The open command stays a palette command only.
+        expect(fake.commands.find((command) => command.id === 'open')?.globalShortcut).toBeUndefined();
+
+        document.documentElement.lang = 'en';
+        await offered[0].run({ values: {} } as never);
+        expect(fake.rpcCalls.at(-1)).toMatchObject({ name: 'ping', args: ['from a global shortcut'] });
+        expect(fake.folium.ui.toast).toHaveBeenCalledWith('The main entry sent a pong (4 messages so far)', { type: 'success' });
+    });
+
+    it('shows the secret status, the messages, the account and the listening records', async () => {
+        const activate = await loadClient();
+        const fake = createAccountConsoleFolium();
+        const deactivate = activate(fake.folium);
+        await flush();
+        const container = document.createElement('div');
+        document.body.append(container);
+        const dispose = fake.homeTabs[0].mount(container, panelContext('en'));
+        const text = () => container.textContent ?? '';
+        const buttonNamed = (name: string) => [...container.querySelectorAll('button')].find((node) => node.textContent === name)!;
+
+        // The secret field: whether it is set, as the client and the main entry read it; never the value.
+        expect(text()).toContain('As the client reads itNot set');
+        expect(text()).toContain('As the main entry reads itNot set');
+        expect(text()).toContain('Keys in settings.get(): range');
+        await fake.folium.secrets.set('apiKey', 'sk-hidden');
+        await flush();
+        fake.send('secretStatus', { status: 'set', at: 1 });
+        expect(text()).toContain('As the client reads itSet');
+        expect(text()).toContain('As the main entry reads itSet');
+        expect(text()).not.toContain('sk-hidden');
+        buttonNamed('Clear the key').click();
+        await flush();
+        expect(text()).toContain('As the client reads itNot set');
+
+        // Messages pushed by the main entry, newest first.
+        fake.send('heartbeat', { count: 1, at: 0 });
+        expect(text()).toContain('heartbeat {"count":1,"at":0}');
+        buttonNamed('Ask the main entry for a message').click();
+        expect(fake.rpcCalls.map((entry) => entry.name)).toContain('ping');
+
+        // The selected source's account.
+        expect(text()).toContain('Listener');
+        expect(text()).toContain('netease · Signed in');
+        expect(text()).toContain('accountKey: key-one-…');
+
+        // Listening records, read as the signed-in account through platform.raw.
+        expect(text()).toContain('Backend backend-lib 1.2.3');
+        buttonNamed('Load').click();
+        expect(fake.platform.request).toHaveBeenCalledWith('netease', 'user_record', { type: 1 }, { signal: expect.any(AbortSignal) });
+        fake.requests[0].resolve({
+            body: { code: 200, weekData: [{ playCount: 12, score: 100, song: { name: 'Song A', ar: [{ name: 'Artist A' }] } }] },
+            accountKey: 'key-one-0123456789',
+        });
+        await flush();
+        expect(text()).toContain('Song A — Artist A12 plays');
+
+        // Another account: the records of the old one are dropped.
+        fake.setAccount({ providerId: 'netease', status: 'signed-in', user: { nickname: 'Second' }, accountKey: 'key-two-0123456789' });
+        fake.emit('account.changed', { providerId: 'netease', status: 'signed-in', user: { nickname: 'Second' }, accountKey: 'key-two-0123456789' });
+        expect(text()).not.toContain('Song A');
+        expect(text()).toContain('Second');
+        expect(text()).toContain('Last account.changed');
+
+        // A request under way when the range changes is aborted and its answer never shown.
+        buttonNamed('Load').click();
+        fake.setSettings({ range: 'all' });
+        await flush();
+        expect((fake.requests[1].args[3] as { signal: AbortSignal }).signal.aborted).toBe(true);
+        expect(text()).not.toContain('Loading');
+        buttonNamed('Load').click();
+        expect(fake.requests[2].args[2]).toEqual({ type: 0 });
+        fake.requests[2].reject(Object.assign(new Error('not-signed-in'), { code: 'not-signed-in' }));
+        await flush();
+        expect(text()).toContain('Not signed in to this platform.');
+
+        (dispose as () => void)();
+        expect(container.childElementCount).toBe(0);
+        deactivate?.();
     });
 });
