@@ -64,6 +64,7 @@ models/
 build/windowtolayer
 build/windowtolayer-COPYING
 build/ffmpeg/
+build/whisper/
 build/koffi/
 # MNN runtime library (build/buildMnnRuntime.mjs): the pinned source, its build tree, and the result.
 build/mnn/

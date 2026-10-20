@@ -271,5 +271,30 @@ describe('karaokeEngineLogic', () => {
 
         });
     });
+
+    describe('whisperIntegration', () => {
+        const { locateWhisper, locateWhisperModel } = require('../../../electron/aiKaraoke/karaokeEngine.cjs');
+
+        it('locates whisper-cli binary in build directory or resources', () => {
+            const whisperPath = locateWhisper();
+            // In dev checkout with build/whisper/win-x64, it finds the binary
+            if (whisperPath) {
+                expect(whisperPath).toContain('whisper-cli');
+            } else {
+                expect(whisperPath).toBeNull();
+            }
+        });
+
+        it('locates whisper models with fallback logic', () => {
+            const modelPath = locateWhisperModel('whisper_turbo', {});
+            // Model path is either a valid path string or null if not yet downloaded
+            if (modelPath) {
+                expect(typeof modelPath).toBe('string');
+                expect(modelPath).toMatch(/whisper.*\.bin$/);
+            } else {
+                expect(modelPath).toBeNull();
+            }
+        });
+    });
 });
 

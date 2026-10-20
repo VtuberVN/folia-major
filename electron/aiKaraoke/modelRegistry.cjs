@@ -97,9 +97,10 @@ const MODEL_CATALOG = [
 ];
 
 const getAiModelsDir = (userDataPath) => {
-    const dir = path.join(userDataPath, 'ai-models');
+    const base = userDataPath || path.join(os.homedir(), '.folia');
+    const dir = path.join(base, 'ai-models');
     if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
     }
     return dir;
 };

@@ -736,18 +736,183 @@ const locateFfmpeg = () => {
 /**
  * Locates HTDemucs weights on disk.
  */
-const locateHtdemucsModel = ({ userDataPath, appModelsDir }) => {
+const locateHtdemucsModel = ({ userDataPath, appModelsDir } = {}) => {
     const candidates = [
         appModelsDir && path.join(appModelsDir, 'htdemucs-wgsl.bin'),
         path.join(__dirname, '..', '..', 'models', 'htdemucs-wgsl.bin'),
         process.resourcesPath && path.join(process.resourcesPath, 'models', 'htdemucs-wgsl.bin'),
-        path.join(getAiModelsDir(userDataPath), 'htdemucs-wgsl.bin'),
+        userDataPath && path.join(getAiModelsDir(userDataPath), 'htdemucs-wgsl.bin'),
     ].filter(Boolean);
 
     for (const cand of candidates) {
         if (fs.existsSync(cand)) return cand;
     }
     return null;
+};
+
+/**
+ * Locates the bundled or system whisper-cli binary.
+ */
+const locateWhisper = () => {
+    const exeName = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
+    const osArch = process.platform === 'win32' ? 'win-x64' : `${process.platform}-${process.arch}`;
+    const candidates = [
+        process.env.FOLIA_WHISPER_PATH,
+        path.join(__dirname, '..', '..', 'build', 'whisper', osArch, exeName),
+        path.join(__dirname, '..', '..', 'build', 'whisper', 'win-x64', exeName),
+        process.resourcesPath && path.join(process.resourcesPath, 'whisper-audio', exeName),
+        process.resourcesPath && path.join(process.resourcesPath, 'whisper', exeName),
+    ].filter(Boolean);
+
+    for (const cand of candidates) {
+        if (fs.existsSync(cand)) return cand;
+    }
+    return null;
+};
+
+/**
+ * Locates Whisper ASR model weights on disk.
+ */
+const locateWhisperModel = (modelId = 'whisper_turbo', { userDataPath, appModelsDir } = {}) => {
+    const primaryName = modelId === 'whisper_small' ? 'whisper-small-int8.bin' : 'whisper-large-v3-turbo-int8.bin';
+    const fallbackName = modelId === 'whisper_small' ? 'whisper-large-v3-turbo-int8.bin' : 'whisper-small-int8.bin';
+
+    const checkDirs = [
+        userDataPath && getAiModelsDir(userDataPath),
+        appModelsDir,
+        path.join(__dirname, '..', '..', 'models'),
+        process.resourcesPath && path.join(process.resourcesPath, 'models'),
+    ].filter(Boolean);
+
+    for (const dir of checkDirs) {
+        const p1 = path.join(dir, primaryName);
+        if (fs.existsSync(p1)) return p1;
+    }
+    for (const dir of checkDirs) {
+        const p2 = path.join(dir, fallbackName);
+        if (fs.existsSync(p2)) return p2;
+    }
+    return null;
+};
+
+/**
+ * Transcribes isolated vocals using whisper-cli into timed LRC string.
+ */
+const transcribeVocalsWithWhisper = async ({
+    vocalsPath,
+    whisperBin,
+    whisperModel,
+    outputDir,
+    songId,
+    optimalThreads = 4,
+    ffmpegBin,
+    activeJob,
+    onProgress,
+}) => {
+    if (!whisperBin || !fs.existsSync(whisperBin) || !whisperModel || !fs.existsSync(whisperModel)) {
+        return '';
+    }
+
+    const vocals16kPath = path.join(outputDir, `${songId || 'vocals'}_16k.wav`);
+    const outPrefix = path.join(outputDir, `${songId || 'lyrics'}_whisper`);
+    const jsonPath = `${outPrefix}.json`;
+
+    try {
+        // Step A: Convert stereo/44.1kHz vocals to 16kHz mono 16-bit PCM for Whisper
+        await new Promise((resolve, reject) => {
+            const ff = spawn(ffmpegBin, [
+                '-y',
+                '-i', vocalsPath,
+                '-ar', '16000',
+                '-ac', '1',
+                '-c:a', 'pcm_s16le',
+                vocals16kPath,
+            ], { windowsHide: true });
+
+            if (activeJob) activeJob.activeProc = ff;
+            ff.on('error', reject);
+            ff.on('close', (code) => {
+                if (code === 0) resolve();
+                else reject(new Error(`FFmpeg 16kHz conversion exited with code ${code}`));
+            });
+        });
+
+        onProgress?.(30, 'Đã chuẩn bị âm thanh 16kHz, bắt đầu nhận diện giọng hát (Whisper ASR)...', path.basename(whisperModel));
+
+        // Step B: Run whisper-cli
+        const args = [
+            '-m', whisperModel,
+            '-f', vocals16kPath,
+            '-oj',
+            '-of', outPrefix,
+            '-l', 'auto',
+            '-t', String(optimalThreads),
+            '--no-prints',
+        ];
+
+        await new Promise((resolve, reject) => {
+            const proc = spawn(whisperBin, args, { windowsHide: true });
+            if (activeJob) activeJob.activeProc = proc;
+
+            proc.stderr?.on('data', () => {
+                onProgress?.(60, 'AI Whisper đang phân tích ngữ âm & từ vựng...', 'Deep Decoder');
+            });
+
+            proc.on('error', (err) => {
+                reject(new Error(`Không thể khởi chạy whisper-cli: ${err.message}`));
+            });
+
+            proc.on('close', (code) => {
+                if (activeJob?.aborted) {
+                    return reject(new Error('Canceled by user'));
+                }
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`whisper-cli kết thúc với mã lỗi ${code}`));
+                }
+            });
+        });
+
+        // Step C: Parse output JSON to standard timed LRC lines
+        if (!fs.existsSync(jsonPath)) {
+            return '';
+        }
+
+        const rawJson = fs.readFileSync(jsonPath, 'utf8');
+        const parsed = JSON.parse(rawJson);
+        const segments = parsed.transcription || [];
+
+        const lrcLines = segments.map((item) => {
+            const text = (item.text || '').trim();
+            if (!text || text.toLowerCase() === '[music]' || text.toLowerCase() === '(music)') return '';
+
+            const timeStr = item.timestamps?.from || '00:00:00,000';
+            const [timePart, fracPart = '00'] = timeStr.split(',');
+            const parts = timePart.split(':');
+            let h = 0, m = 0, s = 0;
+            if (parts.length === 3) {
+                h = parseInt(parts[0], 10) || 0;
+                m = parseInt(parts[1], 10) || 0;
+                s = parseInt(parts[2], 10) || 0;
+            } else if (parts.length === 2) {
+                m = parseInt(parts[0], 10) || 0;
+                s = parseInt(parts[1], 10) || 0;
+            }
+            const totalMinutes = h * 60 + m;
+            const cs = fracPart.slice(0, 2).padEnd(2, '0');
+            const mm = String(totalMinutes).padStart(2, '0');
+            const ss = String(s).padStart(2, '0');
+            return `[${mm}:${ss}.${cs}]${text}`;
+        }).filter(Boolean);
+
+        return lrcLines.join('\n');
+    } finally {
+        try {
+            if (fs.existsSync(vocals16kPath)) fs.unlinkSync(vocals16kPath);
+            if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
+        } catch {}
+    }
 };
 
 /**
@@ -1320,13 +1485,41 @@ const runKaraokePipeline = async ({
 
         // Step 5: Word-level Alignment using vocal segments & syllable weighting
         let lines = [];
-        const cleanRaw = (rawLyrics || '').trim();
+        let cleanRaw = (rawLyrics || '').trim();
+
+        if (!cleanRaw && (alignmentMode === 'auto_transcribe' || !rawLyrics)) {
+            const whisperBin = locateWhisper();
+            const whisperModel = locateWhisperModel(asrModel, { userDataPath, appModelsDir });
+            if (whisperBin && whisperModel) {
+                report('transcribing_lyrics', 75, 'AI Whisper đang lắng nghe và nhận diện lời từ giọng hát ca sĩ...', `Mô hình: ${path.basename(whisperModel)}`);
+                try {
+                    const transcribedText = await transcribeVocalsWithWhisper({
+                        vocalsPath,
+                        whisperBin,
+                        whisperModel,
+                        outputDir,
+                        songId,
+                        optimalThreads,
+                        ffmpegBin,
+                        activeJob: jobRecord,
+                        onProgress: (pct, msg, detail) => {
+                            report('transcribing_lyrics', Math.round(75 + pct * 0.12), msg, detail);
+                        },
+                    });
+                    if (transcribedText && transcribedText.trim()) {
+                        cleanRaw = transcribedText.trim();
+                    }
+                } catch (asrErr) {
+                    console.warn('[karaokeEngine] Whisper transcription failed or skipped:', asrErr.message);
+                }
+            }
+        }
 
         if (cleanRaw) {
-            report('aligning_words', 78, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', `${vocalActivity.segments.length} đoạn giọng hát`);
+            report('aligning_words', 88, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', `${vocalActivity.segments.length} đoạn giọng hát`);
             lines = alignLyricsTextToWords(cleanRaw, null, vocalActivity);
         } else {
-            report('formatting_lrc', 85, 'Đã hoàn tất tạo bản Beat Karaoke và Giọng hát...', 'Beat ready');
+            report('formatting_lrc', 90, 'Đã hoàn tất tạo bản Beat Karaoke và Giọng hát...', 'Bản nhạc không kèm lời');
             lines = [];
         }
 
@@ -1414,5 +1607,8 @@ module.exports = {
     writeWavFile,
     locateFfmpeg,
     locateHtdemucsModel,
+    locateWhisper,
+    locateWhisperModel,
+    transcribeVocalsWithWhisper,
     decodeAudioToPcm,
 };

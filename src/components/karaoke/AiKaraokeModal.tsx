@@ -21,6 +21,7 @@ import {
     Zap,
     Minimize2,
     Activity,
+    Info,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
@@ -354,9 +355,24 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 </span>
             );
         }
+        if (!rawLyricsText.trim()) {
+            if (alignmentMode === 'auto_transcribe') {
+                return (
+                    <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
+                        <Sparkles size={12} />
+                        <span>AI Whisper sẽ tự động nghe từ giọng hát để tạo lời bài hát</span>
+                    </span>
+                );
+            }
+            return (
+                <span className={`text-xs ${subTextColor}`}>
+                    Chưa có lời · Sẽ chỉ xuất bản Beat Karaoke & Giọng hát (.wav)
+                </span>
+            );
+        }
         return (
             <span className={`text-xs ${subTextColor}`}>
-                {activeSong ? `${activeSong.name}` : ''} · Xử lý an toàn trên máy tính
+                {activeSong ? `${activeSong.name}` : ''} · Căn mốc theo lời có sẵn
             </span>
         );
     })();
@@ -923,9 +939,23 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         className={`w-full p-3 rounded-xl text-xs leading-relaxed resize-none border ${cardBg} ${textColor} focus:outline-none focus:ring-1 focus:ring-current font-sans`}
                                     />
                                     {!rawLyricsText.trim() && (
-                                        <p className="text-[11px] text-amber-500/90 leading-normal">
-                                            * Lưu ý: Nếu để trống lời bài hát, AI vẫn tách và lưu Beat Karaoke (.wav) bình thường để bạn hát, và sẽ bỏ qua bước tạo file lời Karaoke .lrc.
-                                        </p>
+                                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                                            <Info size={15} className="mt-0.5 shrink-0 text-amber-400" />
+                                            <div className="text-[11px] leading-relaxed space-y-1">
+                                                <p className="font-bold text-amber-300">
+                                                    Không tìm thấy lời bài hát trên mạng / Tạm thời chưa có lời
+                                                </p>
+                                                <p className="text-amber-200/90">
+                                                    • Bạn có thể <b>dán lời bài hát vào ô trên</b> để AI căn chỉnh từng từ theo giọng hát ca sĩ.
+                                                </p>
+                                                <p className="text-amber-200/90">
+                                                    • Hoặc chọn chế độ <b>"Tự nghe toàn bài (Whisper ASR)"</b> ở trên để AI tự động lắng nghe âm thanh và bóc tách thành lời.
+                                                </p>
+                                                <p className="text-amber-200/90">
+                                                    • Hoặc để trống nếu bạn chỉ cần tạo bản <b>Beat Karaoke & Giọng hát</b> sạch (.wav) mà không cần file lời.
+                                                </p>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}
