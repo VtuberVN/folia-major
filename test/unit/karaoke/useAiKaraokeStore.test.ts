@@ -153,5 +153,63 @@ describe('useAiKaraokeStore', () => {
         expect(state.jobMessage).toBe('Đang tách tần số âm thanh...');
         expect(state.elapsedSeconds).toBe(24);
     });
+
+    it('plays output stem, loads its lyrics, and sets playerState to PLAYING', async () => {
+        const { usePlaybackStore } = await import('@/stores/usePlaybackStore');
+        const { PlayerState } = await import('@/types');
+
+        // Mock window.electron.aiKaraoke
+        (window as any).electron = {
+            aiKaraoke: {
+                getStemAudio: async () => new Uint8Array([1, 2, 3]).buffer,
+                getCachedResult: async () => ({
+                    lrcText: '[00:01.00]Line 1\n[00:05.00]Line 2',
+                    enhancedLrcText: '[00:01.00]<00:01.00>Line <00:01.50>1\n[00:05.00]<00:05.00>Line <00:05.50>2',
+                }),
+            },
+        };
+
+        // Mock URL.createObjectURL
+        window.URL.createObjectURL = () => 'blob:mock-audio-url';
+
+        const sampleOutput = {
+            songId: 'sample-song-id',
+            songTitle: 'Bai Hat Mau',
+            artist: 'Ca Si Mau',
+            duration: 120,
+            mssModelUsed: 'htdemucs_mnn' as const,
+            asrModelUsed: 'whisper_turbo' as const,
+            alignmentMode: 'align_existing' as const,
+            generatedAt: Date.now(),
+            vocalsPath: 'C:\\karaoke\\sample-song-id\\vocals.wav',
+            instrumentalPath: 'C:\\karaoke\\sample-song-id\\instrumental.wav',
+            lrcPath: 'C:\\karaoke\\sample-song-id\\sample-song-id.lrc',
+            enhancedLrcPath: 'C:\\karaoke\\sample-song-id\\sample-song-id.karaoke.lrc',
+            hasVocals: true,
+            hasInstrumental: true,
+            hasLrc: true,
+            totalSizeBytes: 1000,
+        };
+
+        const success = await useAiKaraokeStore.getState().playOutputStem(sampleOutput, 'beat');
+        expect(success).toBe(true);
+
+        const playbackState = usePlaybackStore.getState();
+        expect(playbackState.currentSong?.id).toBe('karaoke-sample-song-id-beat');
+        expect(playbackState.currentSong?.name).toBe('Bai Hat Mau [Beat]');
+        expect((playbackState.currentSong as any)?.filePath).toBe('C:\\karaoke\\sample-song-id\\instrumental.wav');
+        expect(playbackState.playerState).toBe(PlayerState.PLAYING);
+        expect(playbackState.currentSong?.onlineLyricsState?.lyricsSource).toBe('imported');
+        expect(playbackState.lyrics?.lines.length).toBeGreaterThan(0);
+        expect(playbackState.lyrics?.isWordByWord).toBe(true);
+
+        // Test toggle pause on same stem
+        await useAiKaraokeStore.getState().playOutputStem(sampleOutput, 'beat');
+        expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PAUSED);
+
+        // Test toggle resume on same stem
+        await useAiKaraokeStore.getState().playOutputStem(sampleOutput, 'beat');
+        expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PLAYING);
+    });
 });
 

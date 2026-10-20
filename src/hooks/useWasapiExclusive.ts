@@ -68,6 +68,13 @@ const resolveWasapiSource = async (
     song: SongResult,
     audioSrc: string | null,
 ): Promise<{ source: WasapiSource; key: string; isUrl: boolean } | null> => {
+    // A song explicitly providing a direct absolute file path on disk (e.g. AI Karaoke separated stems,
+    // isolated vocals, beats, or explicit local files) is fed directly to the WASAPI engine from disk.
+    const directPath = (song as any).filePath;
+    if (typeof directPath === 'string' && isAbsoluteWindowsPath(directPath)) {
+        return { source: { filePath: directPath }, key: `file:${directPath}`, isUrl: false };
+    }
+
     // Online / Navidrome tracks use exclusive mode once a downloaded/cached copy exists on disk.
     // Downloading seeds Folia's media cache, so a track played from an online playlist - not from
     // the local library - still gets bit-perfect output from that cached file. Without a cached

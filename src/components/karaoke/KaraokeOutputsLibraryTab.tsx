@@ -17,8 +17,11 @@ import {
     Music,
     HardDrive,
     Sparkles,
+    Pause,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { usePlaybackStore, selectDisplayPlayerState } from '../../stores/usePlaybackStore';
+import { PlayerState } from '../../types';
 import { useAiKaraokeStore } from '../../stores/useAiKaraokeStore';
 import { openVisualLrcEditor } from '../../stores/useLrcEditorStore';
 import {
@@ -73,6 +76,8 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
     onSelectSongForReprocess,
 }) => {
     const { t } = useTranslation();
+    const currentSong = usePlaybackStore((state) => state.currentSong);
+    const playerState = usePlaybackStore(selectDisplayPlayerState);
     const {
         outputs,
         isLoadingOutputs,
@@ -338,30 +343,46 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                                 {/* Right: Action buttons */}
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     {/* Play Beat */}
-                                    {item.hasInstrumental && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void playOutputStem(item, 'beat')}
-                                            title="Nghe Beat Karaoke tách từ bài này"
-                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm"
-                                        >
-                                            <Mic size={13} />
-                                            <span>Phát Beat</span>
-                                        </button>
-                                    )}
+                                    {item.hasInstrumental && (() => {
+                                        const isBeatActive = currentSong?.id === `karaoke-${item.songId}-beat`;
+                                        const isBeatPlaying = isBeatActive && playerState === PlayerState.PLAYING;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(item, 'beat')}
+                                                title={isBeatPlaying ? 'Tạm dừng Beat Karaoke' : 'Nghe Beat Karaoke tách từ bài này'}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm ${
+                                                    isBeatActive
+                                                        ? 'bg-emerald-600 ring-2 ring-emerald-400 text-white'
+                                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                }`}
+                                            >
+                                                {isBeatPlaying ? <Pause size={13} /> : <Mic size={13} />}
+                                                <span>{isBeatPlaying ? 'Đang phát Beat' : 'Phát Beat'}</span>
+                                            </button>
+                                        );
+                                    })()}
 
                                     {/* Play Vocal */}
-                                    {item.hasVocals && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void playOutputStem(item, 'vocal')}
-                                            title="Nghe riêng giọng ca sĩ (Isolated Vocal)"
-                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                                        >
-                                            <Volume2 size={13} />
-                                            <span>Giọng hát</span>
-                                        </button>
-                                    )}
+                                    {item.hasVocals && (() => {
+                                        const isVocalActive = currentSong?.id === `karaoke-${item.songId}-vocal`;
+                                        const isVocalPlaying = isVocalActive && playerState === PlayerState.PLAYING;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(item, 'vocal')}
+                                                title={isVocalPlaying ? 'Tạm dừng giọng hát' : 'Nghe riêng giọng ca sĩ (Isolated Vocal)'}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                                    isVocalActive
+                                                        ? 'bg-blue-600 border-blue-400 text-white ring-2 ring-blue-400/50'
+                                                        : 'border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                {isVocalPlaying ? <Pause size={13} /> : <Volume2 size={13} />}
+                                                <span>{isVocalPlaying ? 'Đang phát Vocal' : 'Giọng hát'}</span>
+                                            </button>
+                                        );
+                                    })()}
 
                                     {/* Edit in Visual LRC Studio */}
                                     <button

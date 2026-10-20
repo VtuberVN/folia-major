@@ -171,6 +171,34 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             return false;
         }
         try {
+            const { usePlaybackStore } = await import('./usePlaybackStore');
+            const { getActiveAudioElement } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+            const { PlayerState } = await import('../types');
+            const { LyricParserFactory } = await import('../utils/lyrics/LyricParserFactory');
+            const { currentTime } = await import('./motionSignals');
+            const audioElement = getActiveAudioElement();
+
+            const targetSongId = `karaoke-${output.songId}-${stem}`;
+            const currentSong = usePlaybackStore.getState().currentSong;
+            const playerState = usePlaybackStore.getState().playerState;
+
+            // Toggle play / pause if the same stem is already selected
+            if (currentSong?.id === targetSongId) {
+                if (playerState === PlayerState.PLAYING) {
+                    if (audioElement) {
+                        try { audioElement.pause(); } catch {}
+                    }
+                    usePlaybackStore.getState().setPlayerState(PlayerState.PAUSED);
+                    return true;
+                } else {
+                    if (audioElement) {
+                        void audioElement.play().catch(() => {});
+                    }
+                    usePlaybackStore.getState().setPlayerState(PlayerState.PLAYING);
+                    return true;
+                }
+            }
+
             const audioBuffer = await window.electron?.aiKaraoke?.getStemAudio?.(filePath);
             if (!audioBuffer) {
                 setStatusMessage({ type: 'error', text: 'Không thể nạp tệp âm thanh từ đĩa.' });
@@ -178,27 +206,81 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             }
             const blob = new Blob([audioBuffer as BlobPart], { type: 'audio/wav' });
             const blobUrl = URL.createObjectURL(blob);
-            const { usePlaybackStore } = await import('./usePlaybackStore');
-            const { getActiveAudioElement } = await import('../components/app/playback/usePlaybackRuntimeRefs');
-            const audioElement = getActiveAudioElement();
 
-            usePlaybackStore.getState().setCurrentSong((prev) =>
-                prev
-                    ? { ...prev, name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]` }
-                    : {
-                          id: `karaoke-stem-${output.songId}-${stem}`,
-                          name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]`,
-                          artists: output.artist ? [{ id: 0, name: output.artist }] : [],
-                          album: { id: 0, name: 'AI Karaoke Stems' },
-                          durationMs: (output.duration || 0) * 1000,
-                      },
-            );
+            // Fetch and parse the separated/karaoke lyrics from cached result
+            let parsedLyrics = null;
+            let lrcText = '';
+            if (window.electron?.aiKaraoke?.getCachedResult) {
+                try {
+                    const cached = await window.electron.aiKaraoke.getCachedResult(output.songId);
+                    lrcText = cached?.enhancedLrcText || cached?.lrcText || '';
+                } catch (e) {
+                    console.warn('[aiKaraoke] Error getting cached lyrics for stem:', e);
+                }
+            }
+
+            if (lrcText && lrcText.trim().length > 0) {
+                try {
+                    const { parseLyricsByFormat } = await import('../utils/lyrics/parserCore');
+                    const { detectTimedLyricFormat } = await import('../utils/lyrics/formatDetection');
+                    const format = detectTimedLyricFormat(lrcText);
+                    parsedLyrics = parseLyricsByFormat(format, lrcText);
+                } catch (e) {
+                    console.warn('[aiKaraoke] Error parsing karaoke lyrics:', e);
+                }
+            }
+
+            const stemSong = {
+                id: targetSongId,
+                name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]`,
+                artists: output.artist ? [{ id: 0, name: output.artist }] : [{ id: 0, name: 'AI Karaoke' }],
+                album: { id: 0, name: 'AI Karaoke Stems' },
+                durationMs: (output.duration || 0) * 1000,
+                isLocal: true as const,
+                sourceRef: { kind: 'local' as const, mediaId: targetSongId },
+                localRef: { songId: targetSongId },
+                filePath: filePath,
+                onlineLyricsState: {
+                    lyricsSource: 'imported' as const,
+                    importedLyrics: parsedLyrics,
+                    importedLyricsName: 'AI Karaoke',
+                },
+                audioQualityInfo: {
+                    bitrate: 1411200,
+                    sampleRate: 44100,
+                    bitDepth: 16,
+                },
+            };
+
+            // 1. Reset timeline clocks and indices
+            currentTime.set(0);
+            usePlaybackStore.getState().setCurrentLineIndex(-1);
+            usePlaybackStore.getState().setLyricTimelineOffsetMs(0);
+            usePlaybackStore.getState().setDuration(output.duration || 0);
+
+            // 2. Set parsed lyrics in store (replaces previous song lyrics with stem lyrics or null)
+            usePlaybackStore.getState().setLyricsState(parsedLyrics);
+            usePlaybackStore.getState().setActiveLocalLyricsSource(parsedLyrics ? 'local' : null);
+
+            // 3. Set new song & audio source in store
+            usePlaybackStore.getState().setCurrentSong(stemSong);
             usePlaybackStore.getState().setAudioSrc(blobUrl);
+
+            // 4. Start playback on HTML5 audio element
             if (audioElement) {
+                try {
+                    audioElement.pause();
+                } catch {}
                 audioElement.src = blobUrl;
                 audioElement.currentTime = 0;
-                void audioElement.play().catch(() => {});
+                void audioElement.play().catch((playErr) => {
+                    console.warn('[aiKaraoke] audioElement.play() warning:', playErr);
+                });
             }
+
+            // 5. Explicitly set playerState to PLAYING so WASAPI exclusive and UI controls start immediately
+            usePlaybackStore.getState().setPlayerState(PlayerState.PLAYING);
+
             setStatusMessage({
                 type: 'info',
                 text: `Đang phát ${stem === 'beat' ? 'Beat Karaoke' : 'Giọng hát'}: ${output.songTitle}`,

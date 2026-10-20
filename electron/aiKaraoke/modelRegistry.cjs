@@ -44,7 +44,7 @@ const MODEL_CATALOG = [
         typicalSpeed: '8 - 14s',
         description: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals bằng C++ MNN AVX2 CPU đa nhân, tối ưu hiệu năng và không tranh chấp VRAM GPU với Visualizer 3D.',
         descriptionVi: 'Tích hợp sẵn trong Folia. Tách đồng thời 4 luồng: Drums, Bass, Other, Vocals bằng C++ MNN AVX2 CPU đa nhân, tối ưu hiệu năng và không tranh chấp VRAM GPU với Visualizer 3D.',
-        downloadUrl: '', // Bundled
+        downloadUrl: 'https://github.com/VtuberVN/folia-models/releases/download/v1.0.0/htdemucs-wgsl.bin',
     },
     {
         id: 'bs_roformer',
@@ -308,9 +308,21 @@ const getCachedKaraoke = (userDataPath, songId) => {
         const data = JSON.parse(raw);
         if (data.lrcPath && fs.existsSync(data.lrcPath)) {
             data.lrcText = fs.readFileSync(data.lrcPath, 'utf8');
+        } else {
+            const fallbackLrc = path.join(outputDir, `${songId}.lrc`);
+            if (fs.existsSync(fallbackLrc)) {
+                data.lrcText = fs.readFileSync(fallbackLrc, 'utf8');
+                data.lrcPath = fallbackLrc;
+            }
         }
         if (data.enhancedLrcPath && fs.existsSync(data.enhancedLrcPath)) {
             data.enhancedLrcText = fs.readFileSync(data.enhancedLrcPath, 'utf8');
+        } else {
+            const fallbackKaraokeLrc = path.join(outputDir, `${songId}.karaoke.lrc`);
+            if (fs.existsSync(fallbackKaraokeLrc)) {
+                data.enhancedLrcText = fs.readFileSync(fallbackKaraokeLrc, 'utf8');
+                data.enhancedLrcPath = fallbackKaraokeLrc;
+            }
         }
         return data;
     } catch {
@@ -355,9 +367,24 @@ const listAllKaraokeOutputs = (userDataPath) => {
                 if (data.lrcPath && fs.existsSync(data.lrcPath)) {
                     hasLrc = true;
                     try { totalSizeBytes += fs.statSync(data.lrcPath).size; } catch {}
+                } else {
+                    const fallbackLrc = path.join(songDir, `${data.songId || entry.name}.lrc`);
+                    if (fs.existsSync(fallbackLrc)) {
+                        hasLrc = true;
+                        data.lrcPath = fallbackLrc;
+                        try { totalSizeBytes += fs.statSync(fallbackLrc).size; } catch {}
+                    }
                 }
                 if (data.enhancedLrcPath && fs.existsSync(data.enhancedLrcPath)) {
+                    hasLrc = true;
                     try { totalSizeBytes += fs.statSync(data.enhancedLrcPath).size; } catch {}
+                } else {
+                    const fallbackKaraokeLrc = path.join(songDir, `${data.songId || entry.name}.karaoke.lrc`);
+                    if (fs.existsSync(fallbackKaraokeLrc)) {
+                        hasLrc = true;
+                        data.enhancedLrcPath = fallbackKaraokeLrc;
+                        try { totalSizeBytes += fs.statSync(fallbackKaraokeLrc).size; } catch {}
+                    }
                 }
 
                 results.push({
