@@ -33,8 +33,8 @@ import { clientApiOptions } from './clientApiOptions';
 // Folium 1.7 experimental platform.raw (#788): the opt-in and the permissions (read for reading
 // endpoints, write on top for the ones that change the account), the platform's table (sign-in and
 // unlisted endpoints refused), the answer with the account key folium.account gives, an answer dropped
-// when the account changed meanwhile, abort, the per-mod cap, and the platform's failures as the
-// contract's codes. The platform's adapter is real; only its request to the backend is replaced.
+// when the account changed meanwhile, abort, the per-mod allowance (120 a minute, eight at once and the
+// rest waiting their turn), and the platform's failures as the contract's codes. The platform's adapter is real; only its request to the backend is replaced.
 
 installFoliumHostAccount();
 
@@ -229,14 +229,80 @@ describe('platform.raw request', () => {
         expect(send).not.toHaveBeenCalled();
     });
 
-    it('caps one mod at four requests at once', async () => {
-        send.mockImplementation(() => new Promise(() => {}));
+    /* The platform's answers held back, to be let out one by one: `answer(n)` answers the n-th request sent. */
+    const holdAnswers = () => {
+        const answers: Array<(body: unknown) => void> = [];
+        const sentParams: unknown[] = [];
+        send.mockImplementation((_endpoint: string, params: unknown) => {
+            sentParams.push(params);
+            return new Promise((resolve) => { answers.push(resolve); });
+        });
+        return { sentParams, answer: (index: number) => answers[index]({ code: 200 }) };
+    };
+    const settle = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+
+    it('sends eight requests of one mod at once and lets the rest wait their turn', async () => {
+        const held = holdAnswers();
         const platform = createFoliumPlatformService(mod());
-        for (let i = 0; i < 4; i += 1) void platform.request('netease', 'listen_data_total').catch(() => {});
-        await expect(failureOf(platform.request('netease', 'listen_data_total'))).resolves.toBe('rate-limited');
-        // Another mod has its own allowance.
+        const results = Array.from({ length: 11 }, (_, i) => platform.request('netease', 'listen_data_total', { order: i }));
+        await settle();
+        expect(send).toHaveBeenCalledTimes(8);
+        // One answer frees one place, for the oldest waiting request.
+        held.answer(0);
+        await settle();
+        expect(held.sentParams).toHaveLength(9);
+        expect(held.sentParams[8]).toEqual({ order: 8 });
+        held.answer(2);
+        held.answer(1);
+        await settle();
+        expect(held.sentParams.slice(9)).toEqual([{ order: 9 }, { order: 10 }]);
+        for (let i = 3; i < 11; i += 1) held.answer(i);
+        // Nobody failed for having waited.
+        await expect(Promise.all(results)).resolves.toHaveLength(11);
+        // Another mod has its own places.
         void createFoliumPlatformService(mod({ id: 'mod-b' })).request('netease', 'listen_data_total').catch(() => {});
-        expect(send).toHaveBeenCalledTimes(5);
+        expect(send).toHaveBeenCalledTimes(12);
+    });
+
+    it('drops a waiting request that its signal or the mod\'s stop aborts, and gives its turn on', async () => {
+        const held = holdAnswers();
+        const releases: Array<() => void> = [];
+        const platform = createFoliumPlatformService(mod(), () => false, (release) => releases.push(release));
+        for (let i = 0; i < 8; i += 1) void platform.request('netease', 'listen_data_total', { order: i }).catch(() => {});
+        const caller = new AbortController();
+        const withSignal = failureOf(platform.request('netease', 'listen_data_total', { order: 8 }, { signal: caller.signal }));
+        const next = failureOf(platform.request('netease', 'listen_data_total', { order: 9 }));
+        await settle();
+        caller.abort();
+        await expect(withSignal).resolves.toBe('aborted');
+        // Its turn goes to the one behind it; the aborted one is never sent.
+        held.answer(0);
+        await settle();
+        expect(held.sentParams.slice(8)).toEqual([{ order: 9 }]);
+        // All eight places are taken again. Stopping the mod aborts the waiting one too, unsent, along
+        // with the ones under way.
+        const waiting = failureOf(platform.request('netease', 'listen_data_total', { order: 10 }));
+        await settle();
+        releases.forEach((release) => release());
+        await expect(waiting).resolves.toBe('aborted');
+        await expect(next).resolves.toBe('aborted');
+        expect(held.sentParams).toHaveLength(9);
+    });
+
+    it('refuses one mod past 120 requests a minute, waiting ones included', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            vi.setSystemTime(new Date('2026-10-20T12:00:00Z'));
+            const platform = createFoliumPlatformService(mod());
+            const accepted = Array.from({ length: 120 }, () => platform.request('netease', 'listen_data_total'));
+            await expect(failureOf(platform.request('netease', 'listen_data_total'))).resolves.toBe('rate-limited');
+            await expect(Promise.all(accepted)).resolves.toHaveLength(120);
+            // A minute on, the allowance is back.
+            vi.setSystemTime(new Date('2026-10-20T12:01:00Z'));
+            await expect(platform.request('netease', 'listen_data_total')).resolves.toMatchObject({ accountKey: null });
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('says once in the developer log when Omni already offers the endpoint', async () => {

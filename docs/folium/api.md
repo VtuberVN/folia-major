@@ -1646,7 +1646,8 @@ does not open this one (sign-in, session and credential endpoints never are, and
 the table does not list). `unsupported`: the platform has no raw endpoints in this host.
 `not-signed-in` / `session-expired`: the endpoint needs a signed-in account and there is none, or its
 session ran out. `vip-required`: the platform answers that only paying accounts may. `rate-limited`:
-too many requests, from this mod (the host allows 60 a minute and 4 at a time) or as the platform says.
+too many requests, from this mod (the host allows 120 a minute; past 8 at a time a request waits for
+one of them to finish instead of failing) or as the platform says.
 `network`: the platform could not be reached or did not answer in time. `account-changed`: the account
 signed out or changed while the request was under way, so the answer was dropped. `aborted`: the
 request's `signal` aborted, or the mod stopped (a request still under way then is aborted by the host).

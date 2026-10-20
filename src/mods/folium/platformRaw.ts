@@ -21,10 +21,13 @@ import type { FoliumStoppedCheck } from './api';
 // arguments, a cap on how often one mod may call, dropping an answer that comes after the account
 // changed, and the platform's failures as the contract's codes.
 
-/** Requests one mod may start in a minute, and may have under way at once. */
+/**
+ * Requests one mod may make in a minute, and may have under way at once. Past the minute's allowance a
+ * request is refused; past the ones at once it waits for one of them to finish, first come first served.
+ */
 const RATE_WINDOW_MS = 60_000;
-const RATE_PER_WINDOW = 60;
-const MAX_IN_FLIGHT = 4;
+const RATE_PER_WINDOW = 120;
+const MAX_IN_FLIGHT = 8;
 /** The most `params` may weigh, as JSON. */
 const MAX_PARAMS_LENGTH = 16 * 1024;
 const PARAM_NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -91,7 +94,9 @@ export const createFoliumPlatformService = (
 ): FoliumPlatformService => {
     const started: number[] = [];
     let inFlight = 0;
-    // The requests under way, aborted when the activation ends: each then rejects with `aborted`.
+    // Requests waiting for one of the MAX_IN_FLIGHT places, oldest first: each is the function that lets it in.
+    const waiting: Array<() => void> = [];
+    // The requests under way or waiting, aborted when the activation ends: each then rejects with `aborted`.
     const underWay = new Set<AbortController>();
     onRelease(() => {
         underWay.forEach((controller) => controller.abort(new DOMException('The mod stopped', 'AbortError')));
@@ -99,6 +104,36 @@ export const createFoliumPlatformService = (
     });
     // Endpoints this mod has called, for the log line said once per endpoint.
     const told = new Set<string>();
+
+    /*
+     * Waits for one of the places at once, all of them being taken; rejects with `aborted` if `signal`
+     * aborts first. A free place is taken without waiting (in `request`), so a request is sent in the
+     * same turn as it was made whenever it can be.
+     */
+    const waitForPlace = (signal: AbortSignal): Promise<void> => new Promise<void>((resolve, reject) => {
+        if (signal.aborted) {
+            reject(platformError('aborted'));
+            return;
+        }
+        const enter = () => {
+            signal.removeEventListener('abort', leave);
+            inFlight += 1;
+            resolve();
+        };
+        const leave = () => {
+            const index = waiting.indexOf(enter);
+            if (index >= 0) waiting.splice(index, 1);
+            reject(platformError('aborted'));
+        };
+        waiting.push(enter);
+        signal.addEventListener('abort', leave, { once: true });
+    });
+
+    /* Gives a place back and lets the oldest waiting request in. */
+    const givePlace = () => {
+        inFlight -= 1;
+        waiting.shift()?.();
+    };
 
     const describe = (providerId: string): FoliumPlatformDescription => {
         const info = typeof providerId === 'string' ? omni.getRawRequestInfo(providerId) : null;
@@ -138,12 +173,14 @@ export const createFoliumPlatformService = (
         const problem = omni.checkRawParams(providerId, endpoint, sent);
         if (problem !== null) throw new TypeError(`invalid-params: ${problem}`);
 
+        // A request counts against the minute when it is accepted, waiting for a place included.
         const now = Date.now();
         while (started.length > 0 && now - started[0] >= RATE_WINDOW_MS) started.shift();
-        if (started.length >= RATE_PER_WINDOW || inFlight >= MAX_IN_FLIGHT) {
-            console.warn(`[Folium:${mod.id}] platform.raw ${providerId} ${endpoint}: refused, over ${RATE_PER_WINDOW} requests a minute or ${MAX_IN_FLIGHT} at once`);
+        if (started.length >= RATE_PER_WINDOW) {
+            console.warn(`[Folium:${mod.id}] platform.raw ${providerId} ${endpoint}: refused, over ${RATE_PER_WINDOW} requests a minute`);
             throw platformError('rate-limited');
         }
+        started.push(now);
         if (!told.has(`${providerId}\n${endpoint}`)) {
             told.add(`${providerId}\n${endpoint}`);
             console.info(rule.omni
@@ -151,19 +188,26 @@ export const createFoliumPlatformService = (
                 : `[Folium:${mod.id}] platform.raw ${providerId} ${endpoint}: first call (${rule.access})`);
         }
 
-        // The account the request is made as. An answer that comes after a switch of the provider or the
-        // account is dropped: it may be the previous account's.
-        const generation = omni.getActiveRequestGeneration();
-        const before = readFoliumAccountState(providerId);
-        const signedIn = before?.status === 'signed-in';
-        // Aborted by the caller's signal or by the end of the activation, whichever comes first.
+        // Aborted by the caller's signal or by the end of the activation, whichever comes first, also while
+        // it waits for a place.
         const controller = new AbortController();
         const abort = () => controller.abort(signal?.reason);
         signal?.addEventListener('abort', abort, { once: true });
         underWay.add(controller);
-        started.push(now);
-        inFlight += 1;
+        let hasPlace = false;
         try {
+            // While anyone waits all places are taken (a freed one goes straight to the oldest waiting), so
+            // a free place here never jumps the queue.
+            if (inFlight < MAX_IN_FLIGHT) inFlight += 1;
+            else await waitForPlace(controller.signal);
+            hasPlace = true;
+            // Let in and aborted in the same moment: nothing has been sent yet.
+            if (controller.signal.aborted) throw platformError('aborted');
+            // The account the request is made as, read when it is sent. An answer that comes after a switch
+            // of the provider or the account is dropped: it may be the previous account's.
+            const generation = omni.getActiveRequestGeneration();
+            const before = readFoliumAccountState(providerId);
+            const signedIn = before?.status === 'signed-in';
             const work = omni.requestProviderRaw(providerId, endpoint, sent, controller.signal);
             let body: JsonValue;
             try {
@@ -182,7 +226,7 @@ export const createFoliumPlatformService = (
             }
             return Object.freeze({ body, accountKey: after?.accountKey ?? null });
         } finally {
-            inFlight -= 1;
+            if (hasPlace) givePlace();
             underWay.delete(controller);
             signal?.removeEventListener('abort', abort);
         }
