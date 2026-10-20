@@ -837,9 +837,9 @@ const transcribeVocalsWithWhisper = async ({
             });
         });
 
-        onProgress?.(30, 'Đã chuẩn bị âm thanh 16kHz, bắt đầu nhận diện giọng hát (Whisper ASR)...', path.basename(whisperModel));
+        onProgress?.(5, 'Đã chuẩn bị âm thanh 16kHz, bắt đầu nhận diện lời bài hát (Whisper ASR)...', path.basename(whisperModel));
 
-        // Step B: Run whisper-cli
+        // Step B: Run whisper-cli with real-time progress parsing (-pp)
         const args = [
             '-m', whisperModel,
             '-f', vocals16kPath,
@@ -847,26 +847,51 @@ const transcribeVocalsWithWhisper = async ({
             '-of', outPrefix,
             '-l', 'auto',
             '-t', String(optimalThreads),
-            '--no-prints',
+            '-pp',
         ];
 
         await new Promise((resolve, reject) => {
             const proc = spawn(whisperBin, args, { windowsHide: true });
             if (activeJob) activeJob.activeProc = proc;
 
-            proc.stderr?.on('data', () => {
-                onProgress?.(60, 'AI Whisper đang phân tích ngữ âm & từ vựng...', 'Deep Decoder');
+            let reportedPercent = 5;
+            let targetPercent = 5;
+            const progressRegex = /progress\s*=\s*(\d+)%/i;
+
+            const ticker = setInterval(() => {
+                if (targetPercent > reportedPercent) {
+                    reportedPercent = Math.min(targetPercent, reportedPercent + 2);
+                    onProgress?.(
+                        reportedPercent,
+                        `AI Whisper đang nhận diện ngữ âm & từ vựng (${reportedPercent}%)...`,
+                        `Whisper ASR ${reportedPercent}%`
+                    );
+                }
+            }, 250);
+
+            proc.stderr?.on('data', (chunk) => {
+                const text = chunk.toString();
+                const matches = [...text.matchAll(/progress\s*=\s*(\d+)%/gi)];
+                if (matches.length > 0) {
+                    const lastP = parseInt(matches[matches.length - 1][1], 10);
+                    if (!isNaN(lastP)) {
+                        targetPercent = Math.max(targetPercent, Math.min(99, lastP));
+                    }
+                }
             });
 
             proc.on('error', (err) => {
+                clearInterval(ticker);
                 reject(new Error(`Không thể khởi chạy whisper-cli: ${err.message}`));
             });
 
             proc.on('close', (code) => {
+                clearInterval(ticker);
                 if (activeJob?.aborted) {
                     return reject(new Error('Canceled by user'));
                 }
                 if (code === 0) {
+                    onProgress?.(100, 'AI Whisper đã giải mã ngữ âm hoàn tất 100%!', 'ASR Complete');
                     resolve();
                 } else {
                     reject(new Error(`whisper-cli kết thúc với mã lỗi ${code}`));
@@ -1317,6 +1342,7 @@ const runKaraokePipeline = async ({
     mssModel = 'htdemucs_mnn',
     asrModel = 'whisper_turbo',
     alignmentMode = 'align_existing',
+    mode = 'stem_and_lyrics',
     devicePreference = 'gpu',
     userDataPath,
     appModelsDir,
@@ -1337,11 +1363,8 @@ const runKaraokePipeline = async ({
     };
 
     try {
-        // Step 1: Model validation & loading
         const isTurbo = devicePreference === 'gpu';
         const cpuCount = (os.cpus() || []).length;
-        // In Turbo mode: allocate up to 8 threads on performance cores for maximum speed
-        // In Balanced mode: allocate 4 threads to keep PC cool & smooth
         const optimalThreads = isTurbo
             ? Math.max(4, Math.min(8, cpuCount > 4 ? cpuCount - 2 : cpuCount || 4))
             : Math.max(2, Math.min(4, Math.floor(cpuCount / 2) || 2));
@@ -1349,8 +1372,124 @@ const runKaraokePipeline = async ({
             ? `C++ MNN AVX2 Turbo (${optimalThreads} luồng P-Cores)`
             : `C++ MNN AVX2 Tiết kiệm (${optimalThreads} luồng)`;
 
-        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${isTurbo ? 'WebGPU / C++ MNN' : deviceLabel}`);
         const ffmpegBin = locateFfmpeg();
+
+        // Mode: DIRECT LYRIC EXTRACTION (Skip MSS separation completely)
+        if (mode === 'direct_lyrics') {
+            const whisperBin = locateWhisper();
+            const whisperModel = locateWhisperModel(asrModel, { userDataPath, appModelsDir });
+            if (!whisperBin || !fs.existsSync(whisperBin) || !whisperModel || !fs.existsSync(whisperModel)) {
+                throw new Error('Chưa tìm thấy mô hình Whisper ASR hoặc whisper-cli. Vui lòng tải mô hình Whisper trong Cài đặt.');
+            }
+
+            report('checking_models', 5, 'Khởi động trích xuất lyric siêu tốc (Whisper ASR)...', `ASR: ${path.basename(whisperModel)} · ${optimalThreads} luồng`);
+
+            const outputDir = path.join(getKaraokeOutputDir(userDataPath), songId || 'default');
+            if (!fs.existsSync(outputDir)) {
+                fs.mkdirSync(outputDir, { recursive: true });
+            }
+
+            report('transcribing_lyrics', 10, 'Đang giải mã âm thanh bài hát...', 'FFmpeg PCM 44.1kHz');
+            let audioPcm = null;
+            try {
+                audioPcm = await decodeAudioToPcm({
+                    audioPath,
+                    audioSrc,
+                    ffmpegBin,
+                    songId,
+                    songTitle,
+                    artist,
+                    userDataPath,
+                    activeJob: jobRecord,
+                    onProgress: (pct, msg, detail) => {
+                        report('transcribing_lyrics', Math.min(15, Math.round(pct * 0.15)), msg, detail);
+                    },
+                });
+            } catch (decodeErr) {
+                if (jobRecord.aborted || decodeErr.message === 'Canceled by user' || String(decodeErr).includes('Canceled')) {
+                    try {
+                        onProgress?.({ jobId, stage: 'idle', progress: 0, message: 'Tiến trình đã được hủy bởi người dùng.', detail: 'Canceled', elapsedSeconds: 0 });
+                    } catch {}
+                    return { canceled: true };
+                }
+                throw new Error(`Không thể giải mã âm thanh: ${decodeErr.message}`);
+            }
+
+            const { left, right } = audioPcm;
+            const totalSamples = left.length;
+            const totalDurationSec = Math.round(totalSamples / 44100);
+
+            const tempWavForWhisper = path.join(outputDir, 'temp_whisper_input.wav');
+            writeWavFile(tempWavForWhisper, left, right, 44100);
+
+            report('transcribing_lyrics', 16, 'AI Whisper đang lắng nghe và trích xuất lời trực tiếp...', path.basename(whisperModel));
+            let cleanRaw = '';
+            try {
+                cleanRaw = await transcribeVocalsWithWhisper({
+                    vocalsPath: tempWavForWhisper,
+                    whisperBin,
+                    whisperModel,
+                    outputDir,
+                    songId,
+                    optimalThreads,
+                    ffmpegBin,
+                    activeJob: jobRecord,
+                    onProgress: (pct, msg, detail) => {
+                        const overallPct = Math.min(85, 16 + Math.round((pct / 100) * 69));
+                        report('transcribing_lyrics', overallPct, msg, detail);
+                    },
+                });
+            } finally {
+                try {
+                    if (fs.existsSync(tempWavForWhisper)) fs.unlinkSync(tempWavForWhisper);
+                } catch {}
+            }
+
+            report('aligning_words', 88, 'Căn chỉnh lời bài hát theo từng từ (Word-level Alignment)...', 'Word Alignment');
+            let lines = [];
+            if (cleanRaw && cleanRaw.trim()) {
+                // In direct_lyrics mode, bypass full-mix vocalActivity to prevent drum/percussion transients from hijacking word onsets
+                lines = alignLyricsTextToWords(cleanRaw.trim(), null, null);
+            }
+
+            report('formatting_lrc', 95, 'Tạo file lời Enhanced LRC & Standard LRC...', 'Serializing LRC');
+            const metadata = { title: songTitle, artist, by: 'Folia AI Karaoke (Direct ASR)' };
+            const lrcText = serializeStandardLrc(lines, metadata);
+            const enhancedLrcText = cleanRaw ? serializeEnhancedLrc(lines, metadata) : lrcText;
+
+            const lrcFilePath = path.join(outputDir, `${songId || 'lyrics'}.lrc`);
+            const enhancedLrcFilePath = path.join(outputDir, `${songId || 'lyrics'}.karaoke.lrc`);
+
+            fs.writeFileSync(lrcFilePath, lrcText, 'utf8');
+            fs.writeFileSync(enhancedLrcFilePath, enhancedLrcText, 'utf8');
+
+            const info = {
+                songId,
+                songTitle,
+                artist,
+                hasInstrumental: false,
+                hasVocals: false,
+                lrcPath: lrcFilePath,
+                enhancedLrcPath: enhancedLrcFilePath,
+                lrcText,
+                enhancedLrcText,
+                lines,
+                duration: totalDurationSec,
+                mode: 'direct_lyrics',
+                mssModelUsed: 'none',
+                asrModelUsed: asrModel,
+                alignmentMode: 'auto_transcribe',
+                deviceUsed: devicePreference,
+                generatedAt: Date.now(),
+            };
+            fs.writeFileSync(path.join(outputDir, 'info.json'), JSON.stringify(info, null, 2), 'utf8');
+
+            report('completed', 100, 'Đã trích xuất lời bài hát thành công!', 'Saved to disk');
+            return info;
+        }
+
+        // Mode: STEM AND LYRICS (MSS Htdemucs + Whisper ASR)
+        report('checking_models', 5, 'Kiểm tra cấu hình mô hình AI...', `MSS: ${mssModel} · ${isTurbo ? 'WebGPU / C++ MNN' : deviceLabel}`);
 
         let htdemucsPath = null;
         if (mssModel === 'htdemucs_mnn') {
@@ -1503,7 +1642,8 @@ const runKaraokePipeline = async ({
                         ffmpegBin,
                         activeJob: jobRecord,
                         onProgress: (pct, msg, detail) => {
-                            report('transcribing_lyrics', Math.round(75 + pct * 0.12), msg, detail);
+                            const mappedProgress = Math.min(88, Math.round(75 + (pct / 100) * 13));
+                            report('transcribing_lyrics', mappedProgress, msg, detail);
                         },
                     });
                     if (transcribedText && transcribedText.trim()) {

@@ -1054,9 +1054,10 @@ declare global {
           artist: string;
           duration?: number;
           rawLyrics?: string;
-          mssModel: import('./types/aiKaraoke').MssModelId;
+          mssModel?: import('./types/aiKaraoke').MssModelId;
           asrModel: import('./types/aiKaraoke').AsrModelId;
           alignmentMode: import('./types/aiKaraoke').KaraokeAlignmentMode;
+          mode?: import('./types/aiKaraoke').KaraokeJobMode;
           devicePreference?: import('./types/aiKaraoke').KaraokeDevicePreference;
         }) => Promise<import('./types/aiKaraoke').KaraokeGenerationResult>;
         cancelJob: (jobId: string) => Promise<{ canceled: boolean }>;

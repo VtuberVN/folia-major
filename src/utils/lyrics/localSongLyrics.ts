@@ -55,5 +55,25 @@ export const resolveLocalSongLyrics = async (
         });
         return { lyrics, source };
     }
+
+    // Fallback: check if local song has cached AI Karaoke lyrics from disk
+    if (typeof window !== 'undefined' && window.electron?.aiKaraoke?.getCachedResult) {
+        try {
+            const cached = await window.electron.aiKaraoke.getCachedResult(String(song.id));
+            const lrcText = cached?.enhancedLrcText || cached?.lrcText;
+            if (lrcText && lrcText.trim().length > 0) {
+                const { parseLyricsByFormat } = await import('./parserCore');
+                const { detectTimedLyricFormat } = await import('./formatDetection');
+                const format = detectTimedLyricFormat(lrcText);
+                const parsed = parseLyricsByFormat(format, lrcText);
+                if (parsed && parsed.lines && parsed.lines.length > 0) {
+                    return { lyrics: parsed, source: 'local' };
+                }
+            }
+        } catch {
+            // Best effort
+        }
+    }
+
     return { lyrics: null, source: null };
 };

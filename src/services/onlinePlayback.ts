@@ -394,6 +394,30 @@ export async function loadOnlineSongLyrics(
     );
 
     if (!resolvedLyrics) {
+        // Fallback: check if song has cached AI Karaoke lyrics from disk
+        if (typeof window !== 'undefined' && window.electron?.aiKaraoke?.getCachedResult) {
+            try {
+                const cached = await window.electron.aiKaraoke.getCachedResult(String(song.id));
+                const lrcText = cached?.enhancedLrcText || cached?.lrcText;
+                if (lrcText && lrcText.trim().length > 0) {
+                    const { parseLyricsByFormat } = await import('../utils/lyrics/parserCore');
+                    const { detectTimedLyricFormat } = await import('../utils/lyrics/formatDetection');
+                    const format = detectTimedLyricFormat(lrcText);
+                    const parsed = parseLyricsByFormat(format, lrcText);
+                    if (parsed && parsed.lines && parsed.lines.length > 0) {
+                        onLyrics(parsed);
+                        onPureMusicChange?.(false);
+                        saveToCache(lyricCacheKey, parsed);
+                        saveLyricCacheSongMetadata(song);
+                        onDone();
+                        return;
+                    }
+                }
+            } catch {
+                // Best effort fallback
+            }
+        }
+
         onLyrics(null);
         onDone();
         return;

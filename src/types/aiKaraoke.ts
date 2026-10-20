@@ -37,6 +37,10 @@ export type KaraokeAlignmentMode =
     | 'auto_transcribe' // Pure ASR: Whisper listens and transcribes words + timestamps
     | 'align_existing'; // Forced Alignment: Aligns existing lyrics text to separated vocal audio
 
+export type KaraokeJobMode =
+    | 'stem_and_lyrics' // Separate beat & vocals (MSS) + word-level lyrics (ASR)
+    | 'direct_lyrics';  // Transcribe lyrics directly from audio via Whisper ASR (Super fast, no stem separation)
+
 export type KaraokeDevicePreference = 'gpu' | 'cpu'; // WebGPU vs C++ MNN AVX2 CPU
 
 export interface WordTiming {
@@ -62,9 +66,10 @@ export interface KaraokeGenerationResult {
     enhancedLrcText: string;
     lines: LyricLineTiming[];
     duration: number;
-    mssModelUsed: MssModelId;
+    mssModelUsed?: MssModelId | 'none';
     asrModelUsed: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
+    mode?: KaraokeJobMode;
     generatedAt: number;
     canceled?: boolean;
 }
@@ -94,9 +99,10 @@ export interface KaraokeOutputSummary {
     songTitle: string;
     artist: string;
     duration: number;
-    mssModelUsed: MssModelId;
+    mssModelUsed?: MssModelId | 'none';
     asrModelUsed: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
+    mode?: KaraokeJobMode;
     deviceUsed?: KaraokeDevicePreference;
     generatedAt: number;
     vocalsPath: string;

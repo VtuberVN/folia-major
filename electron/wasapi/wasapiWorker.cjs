@@ -612,6 +612,10 @@ const runPlayback = async (msg) => {
     clearPositionTimer();
     killFfmpeg();
     clearFeedQueue();
+    stopRenderer();
+    try {
+        renderer?.clearBuffer();
+    } catch {}
     // Abort a download for a superseded track so the new one is not stuck behind it.
     if (activeDownload) {
         try {

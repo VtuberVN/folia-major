@@ -10,6 +10,7 @@ import type {
     MssModelId,
     AsrModelId,
     KaraokeAlignmentMode,
+    KaraokeJobMode,
     KaraokeJobProgress,
     KaraokeJobStage,
     KaraokeGenerationResult,
@@ -26,6 +27,7 @@ interface AiKaraokeState {
     selectedMssModel: MssModelId;
     selectedAsrModel: AsrModelId;
     alignmentMode: KaraokeAlignmentMode;
+    jobMode: KaraokeJobMode;
     devicePreference: 'gpu' | 'cpu';
     rawLyricsText: string;
     jobStage: KaraokeJobStage;
@@ -47,6 +49,8 @@ interface AiKaraokeState {
     fetchOutputs: () => Promise<KaraokeOutputSummary[]>;
     deleteOutput: (songId: string) => Promise<boolean>;
     playOutputStem: (output: KaraokeOutputSummary, stem: 'beat' | 'vocal') => Promise<boolean>;
+    applyLyricsToCurrentSong: (result: KaraokeGenerationResult, targetSong?: SongResult | null) => Promise<boolean>;
+    setJobMode: (mode: KaraokeJobMode) => void;
     setMssModel: (model: MssModelId) => void;
     setAsrModel: (model: AsrModelId) => void;
     setAlignmentMode: (mode: KaraokeAlignmentMode) => void;
@@ -66,6 +70,29 @@ interface AiKaraokeState {
     toggleKaraokeBeatMode: (song?: SongResult | null) => Promise<boolean>;
 }
 
+let activeStemBlobUrl: string | null = null;
+let elapsedTicker: any = null;
+const startElapsedTicker = () => {
+    if (elapsedTicker) return;
+    elapsedTicker = setInterval(() => {
+        useAiKaraokeStore.setState((state) => ({
+            elapsedSeconds:
+                state.jobStage !== 'idle' &&
+                state.jobStage !== 'completed' &&
+                state.jobStage !== 'error'
+                    ? state.elapsedSeconds + 1
+                    : state.elapsedSeconds,
+        }));
+    }, 1000);
+};
+
+const stopElapsedTicker = () => {
+    if (elapsedTicker) {
+        clearInterval(elapsedTicker);
+        elapsedTicker = null;
+    }
+};
+
 export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     isOpen: false,
     activeTab: 'process',
@@ -76,6 +103,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     selectedMssModel: 'htdemucs_mnn',
     selectedAsrModel: 'whisper_turbo',
     alignmentMode: 'align_existing',
+    jobMode: 'stem_and_lyrics',
     devicePreference: 'gpu',
     rawLyricsText: '',
     jobStage: 'idle',
@@ -204,8 +232,12 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
                 setStatusMessage({ type: 'error', text: 'Không thể nạp tệp âm thanh từ đĩa.' });
                 return false;
             }
+            if (activeStemBlobUrl) {
+                try { URL.revokeObjectURL(activeStemBlobUrl); } catch {}
+            }
             const blob = new Blob([audioBuffer as BlobPart], { type: 'audio/wav' });
             const blobUrl = URL.createObjectURL(blob);
+            activeStemBlobUrl = blobUrl;
 
             // Fetch and parse the separated/karaoke lyrics from cached result
             let parsedLyrics = null;
@@ -262,23 +294,43 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             usePlaybackStore.getState().setLyricsState(parsedLyrics);
             usePlaybackStore.getState().setActiveLocalLyricsSource(parsedLyrics ? 'local' : null);
 
-            // 3. Set new song & audio source in store
-            usePlaybackStore.getState().setCurrentSong(stemSong);
+            // 3. Mark autoplay and establish song identity across all playback controllers and WASAPI
+            const { makeSongCurrent } = await import('../components/app/playback/currentSong');
+            const { setGlobalShouldAutoPlay } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+            setGlobalShouldAutoPlay(true);
+            makeSongCurrent(stemSong);
             usePlaybackStore.getState().setAudioSrc(blobUrl);
 
-            // 4. Start playback on HTML5 audio element
+            // 4. Handle audio element seamlessly without "phát ảo" or mute
             if (audioElement) {
                 try {
+                    const { markProgrammaticPause } = await import('../services/playbackFade');
+                    markProgrammaticPause(audioElement);
                     audioElement.pause();
                 } catch {}
+
                 audioElement.src = blobUrl;
                 audioElement.currentTime = 0;
-                void audioElement.play().catch((playErr) => {
-                    console.warn('[aiKaraoke] audioElement.play() warning:', playErr);
-                });
+
+                const startAudio = () => {
+                    void audioElement.play().catch((err) => {
+                        console.warn('[playOutputStem] Audio element play caught:', err);
+                    });
+                };
+
+                if (audioElement.readyState >= 2) {
+                    startAudio();
+                } else {
+                    const onCanPlay = () => {
+                        audioElement.removeEventListener('canplay', onCanPlay);
+                        startAudio();
+                    };
+                    audioElement.addEventListener('canplay', onCanPlay, { once: true });
+                    try { audioElement.load(); } catch {}
+                }
             }
 
-            // 5. Explicitly set playerState to PLAYING so WASAPI exclusive and UI controls start immediately
+            // 5. Immediately transition to PLAYING state
             usePlaybackStore.getState().setPlayerState(PlayerState.PLAYING);
 
             setStatusMessage({
@@ -292,6 +344,78 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
         }
     },
 
+    applyLyricsToCurrentSong: async (result, targetSong) => {
+        try {
+            const lrcText = result.enhancedLrcText || result.lrcText;
+            if (!lrcText || !lrcText.trim()) {
+                setStatusMessage({ type: 'error', text: 'Không có nội dung lời bài hát để áp dụng.' });
+                return false;
+            }
+
+            const { parseLyricsByFormat } = await import('../utils/lyrics/parserCore');
+            const { detectTimedLyricFormat } = await import('../utils/lyrics/formatDetection');
+            const format = detectTimedLyricFormat(lrcText);
+            const parsedLyrics = parseLyricsByFormat(format, lrcText);
+
+            if (!parsedLyrics || !parsedLyrics.lines || parsedLyrics.lines.length === 0) {
+                setStatusMessage({ type: 'error', text: 'Định dạng lời bài hát không hợp lệ.' });
+                return false;
+            }
+
+            const { usePlaybackStore } = await import('./usePlaybackStore');
+            const activePlayingSong = usePlaybackStore.getState().currentSong;
+            const songToApply = targetSong || useAiKaraokeStore.getState().activeSong || activePlayingSong;
+            if (!songToApply) {
+                setStatusMessage({ type: 'error', text: 'Không xác định được bài hát cần áp dụng lời.' });
+                return false;
+            }
+
+            // Check if target song is a local song
+            const { isLocalPlaybackSong } = await import('../utils/appPlaybackGuards');
+            if (isLocalPlaybackSong(songToApply)) {
+                const { getLocalSong, saveLocalSong } = await import('../services/db');
+                const localSongId = songToApply.localRef?.songId || (songToApply as any).id;
+                if (localSongId) {
+                    const localData = await getLocalSong(String(localSongId));
+                    if (localData) {
+                        await saveLocalSong({
+                            ...localData,
+                            matchedLyrics: parsedLyrics,
+                            hasLocalLyrics: true,
+                            localLyricsContent: lrcText,
+                            lyricsSource: 'local',
+                        });
+                    }
+                }
+            } else {
+                // Online song
+                const { saveOnlineLyricsState } = await import('../utils/onlineLyricsState');
+                await saveOnlineLyricsState(songToApply, {
+                    lyricsSource: 'imported',
+                    importedLyrics: parsedLyrics,
+                    importedLyricsName: 'AI Karaoke',
+                });
+            }
+
+            // ONLY update active playback lyrics in store if the target song is currently playing!
+            if (activePlayingSong && String(activePlayingSong.id) === String(songToApply.id)) {
+                usePlaybackStore.getState().setLyricsState(parsedLyrics);
+                usePlaybackStore.getState().setActiveLocalLyricsSource('local');
+            }
+
+            setStatusMessage({
+                type: 'success',
+                text: `✨ Đã áp dụng lời AI Karaoke (${parsedLyrics.isWordByWord ? 'Khớp từng từ' : 'Từng dòng'}) cho bài hát ${songToApply.name || ''}!`,
+            });
+            return true;
+        } catch (err) {
+            console.error('[aiKaraoke] Error applying lyrics to song:', err);
+            setStatusMessage({ type: 'error', text: `Lỗi áp dụng lời: ${String(err)}` });
+            return false;
+        }
+    },
+
+    setJobMode: (jobMode) => set({ jobMode }),
     setMssModel: (selectedMssModel) => set({ selectedMssModel }),
     setAsrModel: (selectedAsrModel) => set({ selectedAsrModel }),
     setAlignmentMode: (alignmentMode) => set({ alignmentMode }),
@@ -314,19 +438,29 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             ),
         })),
 
-    updateProgress: (p) =>
+    updateProgress: (p) => {
+        if (p.stage === 'completed' || p.stage === 'error' || p.stage === 'idle') {
+            stopElapsedTicker();
+        } else {
+            startElapsedTicker();
+        }
         set({
             jobStage: p.stage,
             jobProgress: p.progress,
             jobMessage: p.message,
             jobDetail: p.detail || '',
             elapsedSeconds: p.elapsedSeconds,
-        }),
+        });
+    },
 
     setActiveJobId: (activeJobId) => set({ activeJobId }),
-    setResult: (lastResult) => set({ lastResult }),
+    setResult: (lastResult) => {
+        stopElapsedTicker();
+        set({ lastResult });
+    },
 
-    resetJob: () =>
+    resetJob: () => {
+        stopElapsedTicker();
         set({
             jobStage: 'idle',
             jobProgress: 0,
@@ -335,7 +469,8 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             elapsedSeconds: 0,
             activeJobId: null,
             lastResult: null,
-        }),
+        });
+    },
 
     checkCurrentSongKaraoke: async (songId) => {
         if (!songId || !window.electron?.aiKaraoke?.getCachedResult) {
@@ -365,6 +500,8 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             const isPlaying = audioElement ? !audioElement.paused : false;
 
             if (original) {
+                const { setGlobalShouldAutoPlay } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+                setGlobalShouldAutoPlay(isPlaying);
                 usePlaybackStore.getState().setAudioSrc(original);
                 if (audioElement) {
                     audioElement.src = original;
@@ -417,6 +554,8 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
             cachedKaraokeForCurrentSong: cached,
         });
 
+        const { setGlobalShouldAutoPlay } = await import('../components/app/playback/usePlaybackRuntimeRefs');
+        setGlobalShouldAutoPlay(isPlaying);
         usePlaybackStore.getState().setAudioSrc(blobUrl);
         if (audioElement) {
             audioElement.src = blobUrl;

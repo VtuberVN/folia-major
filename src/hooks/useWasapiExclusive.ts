@@ -231,7 +231,7 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
         // output once the endpoint is actually free. Skip the stop when the engine never took the
         // output (e.g. an online track on shared mode), so its element is not disturbed.
         if (hadEngine) void window.electron?.wasapi?.stop();
-        restoreChromiumOutput(false);
+        restoreChromiumOutput(hadEngine);
     };
 
     // Toggling the setting: enter cleanly, or release the engine and restore Chromium output.
@@ -330,10 +330,11 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
                 // The full source (with bytes for a buffer) is sent once; later reuse drops them.
                 rlog(`route-new key=${key}`);
                 lastRouteAtRef.current = Date.now();
+                const isDifferentSong = !active || active.key !== key;
                 activeSourceRef.current = { source: sourceRef(resolved.source), key, playing: true, isUrl: resolved.isUrl };
                 void wasapi.setDevice(wasapiDeviceId);
                 armWatchdog(resolved.isUrl ? WATCHDOG_URL_MS : WATCHDOG_MS);
-                const currentSec = audioRef.current?.currentTime ?? 0;
+                const currentSec = isDifferentSong ? 0 : (audioRef.current?.currentTime ?? 0);
                 void wasapi.play(resolved.source, currentSec);
             } else if (playerState === PlayerState.PAUSED) {
                 // When paused, prepare the active source and ensure mode is marked exclusive.

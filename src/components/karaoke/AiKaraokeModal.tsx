@@ -63,6 +63,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         selectedMssModel,
         selectedAsrModel,
         alignmentMode,
+        jobMode,
         rawLyricsText,
         devicePreference,
         jobStage,
@@ -74,6 +75,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         isKaraokeBeatMode,
         closeModal,
         setActiveTab,
+        setJobMode,
         setMssModel,
         setAsrModel,
         setAlignmentMode,
@@ -82,6 +84,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         setResult,
         resetJob,
         toggleKaraokeBeatMode,
+        applyLyricsToCurrentSong,
     } = useAiKaraokeStore();
 
     const [previewTab, setPreviewTab] = useState<'enhanced' | 'standard'>('enhanced');
@@ -161,7 +164,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         setValidationError(null);
 
         // Model validation
-        if (selectedMssModel !== 'htdemucs_mnn' && !selectedMssModelInfo?.isDownloaded) {
+        if (jobMode === 'stem_and_lyrics' && selectedMssModel !== 'htdemucs_mnn' && !selectedMssModelInfo?.isDownloaded) {
             setValidationError(`Vui lòng tải model "${selectedMssModelInfo?.name || selectedMssModel}" về máy trước khi bắt đầu.`);
             return;
         }
@@ -174,6 +177,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                 mssModel: selectedMssModel,
                 asrModel: selectedAsrModel,
                 alignmentMode,
+                mode: jobMode,
                 devicePreference,
             });
             if (res?.canceled) {
@@ -188,11 +192,19 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         }
     };
 
-    const handleApply = () => {
+    const handleApply = async () => {
         if (!lastResult) return;
-        const textToApply = lastResult.enhancedLrcText || lastResult.lrcText;
-        onApplyLyrics?.(textToApply);
-        closeModal();
+        const success = await applyLyricsToCurrentSong(lastResult, activeSong);
+        if (success) {
+            if (onApplyLyrics) {
+                onApplyLyrics(lastResult.enhancedLrcText || lastResult.lrcText);
+            }
+            closeModal();
+        } else {
+            const textToApply = lastResult.enhancedLrcText || lastResult.lrcText;
+            onApplyLyrics?.(textToApply);
+            closeModal();
+        }
     };
 
     const handleExportLrc = async () => {
@@ -329,7 +341,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         style={{ backgroundColor: accentBg }}
                     >
                         <Sparkles size={15} />
-                        <span>{jobStage === 'error' ? 'Thử lại' : 'Bắt đầu Tách lời và nhạc & Tạo Lyric'}</span>
+                        <span>{jobStage === 'error' ? 'Thử lại' : jobMode === 'direct_lyrics' ? '⚡ Bắt đầu Trích xuất Lyric siêu tốc' : 'Bắt đầu Tách lời và nhạc & Tạo Lyric'}</span>
                     </button>
                 )}
             </div>
@@ -550,6 +562,17 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         </button>
                                         <button
                                             type="button"
+                                            onClick={() => {
+                                                if (lastResult) void applyLyricsToCurrentSong(lastResult, activeSong);
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-sm transition-all"
+                                            title="Áp dụng ngay lời vừa trích xuất cho bài hát đang phát"
+                                        >
+                                            <Sparkles size={14} />
+                                            <span>Áp dụng ngay cho bài hát</span>
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={handleOpenInLrcEditor}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
                                             style={{ backgroundColor: accentBg }}
@@ -694,6 +717,66 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 <span>{validationError}</span>
                             </div>
                         )}
+
+                        {/* Section -1: Pipeline Mode Selection (Stem + Lyrics vs Direct Whisper Lyric Extraction) */}
+                        <div className="space-y-2.5">
+                            <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
+                                <Sparkles size={14} className="text-pink-400" />
+                                <span>Mục đích xử lý (Pipeline Mode)</span>
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div
+                                    onClick={() => setJobMode('stem_and_lyrics')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                        jobMode === 'stem_and_lyrics' ? cardSelectedBg : cardBg
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Mic size={15} className="text-pink-400" />
+                                            <span className={`text-xs font-bold ${textColor}`}>Tách Beat Karaoke & Lời (MSS + Lyric)</span>
+                                        </div>
+                                        <div
+                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                jobMode === 'stem_and_lyrics' ? 'border-transparent' : 'border-neutral-500'
+                                            }`}
+                                            style={{ backgroundColor: jobMode === 'stem_and_lyrics' ? accentBg : 'transparent' }}
+                                        >
+                                            {jobMode === 'stem_and_lyrics' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                        </div>
+                                    </div>
+                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
+                                        Tách riêng Beat Karaoke và Giọng hát (Vocals) bằng HTDemucs, đồng thời nhận diện và khớp lời bài hát nhảy từng từ.
+                                    </p>
+                                </div>
+
+                                <div
+                                    onClick={() => setJobMode('direct_lyrics')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                                        jobMode === 'direct_lyrics' ? cardSelectedBg : cardBg
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Zap size={15} className="text-amber-400" />
+                                            <span className={`text-xs font-bold ${textColor}`}>Chỉ trích xuất Lyric siêu tốc (Whisper ASR)</span>
+                                        </div>
+                                        <div
+                                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                                jobMode === 'direct_lyrics' ? 'border-transparent' : 'border-neutral-500'
+                                            }`}
+                                            style={{ backgroundColor: jobMode === 'direct_lyrics' ? accentBg : 'transparent' }}
+                                        >
+                                            {jobMode === 'direct_lyrics' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                        </div>
+                                    </div>
+                                    <p className={`text-[11px] ${subTextColor} mt-1.5 leading-relaxed`}>
+                                        Trích xuất lời trực tiếp từ bài hát bằng AI Whisper. Không cần tách beat, tốc độ cực nhanh (chỉ 10-20 giây).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Section 0: Hardware Acceleration (Turbo vs Balanced) */}
                         <div className="space-y-2.5">
                             <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
@@ -755,6 +838,14 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                         </div>
 
                         {/* Section 1: MSS Models */}
+                        {jobMode === 'direct_lyrics' ? (
+                            <div className={`p-4 rounded-xl border flex items-center gap-3 ${isDaylight ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-500/30 text-amber-200'}`}>
+                                <Zap size={18} className="text-amber-400 shrink-0" />
+                                <div className="text-xs leading-relaxed">
+                                    <span className="font-bold">Đã kích hoạt chế độ trích xuất Lyric siêu tốc:</span> Bỏ qua bước tách beat MSS để tiết kiệm thời gian và tài nguyên máy tính. Hệ thống sẽ trích xuất lời trực tiếp từ bài hát bằng mô hình Whisper ASR ở bước 2 bên dưới.
+                                </div>
+                            </div>
+                        ) : (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <label className={`text-xs font-bold uppercase tracking-wider ${subTextColor} flex items-center gap-1.5`}>
@@ -870,6 +961,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     })}
                             </div>
                         </div>
+                        )}
 
                         {/* Section 2: Lyrics & Alignment Source */}
                         <div className="space-y-3">

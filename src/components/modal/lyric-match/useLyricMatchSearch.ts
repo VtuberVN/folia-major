@@ -101,6 +101,7 @@ export const useLyricMatchSearch = (
     }, [source]);
 
     return {
+        song,
         songInfo,
         source,
         setSource,

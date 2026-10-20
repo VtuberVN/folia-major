@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, FileAudio, Loader2, Music, Search, X } from 'lucide-react';
+import { Check, FileAudio, Loader2, Music, Search, Sparkles, X } from 'lucide-react';
 import type { SongResult } from '../../../types';
 import { getSizedCoverUrl } from '../../../utils/coverUrl';
 import { calculateMatchScoreDetails } from '../../../utils/lyrics/matchScore';
@@ -80,8 +80,39 @@ export const LyricMatchWindow: React.FC<LyricMatchWindowProps> = ({
 }) => {
     const { t } = useTranslation();
     const [isSaving, setIsSaving] = useState(false);
+    const [cachedKaraoke, setCachedKaraoke] = useState<any>(null);
     const isMouseDownOnOverlayRef = useRef(false);
     const { songInfo, source, sources, query, results, isSearching, selectedResult } = search;
+
+    useEffect(() => {
+        let isCancelled = false;
+        const targetSong = search.song;
+        const candidateIds = [
+            (targetSong as any)?.localRef?.songId,
+            (targetSong as any)?.id,
+            (targetSong as any)?.sourceRef?.mediaId,
+        ].filter(Boolean);
+
+        const checkCache = async () => {
+            if (!window.electron?.aiKaraoke?.getCachedResult) return;
+            for (const cid of candidateIds) {
+                try {
+                    const res = await window.electron.aiKaraoke.getCachedResult(String(cid));
+                    if (res && (res.enhancedLrcText || res.lrcText)) {
+                        if (!isCancelled) setCachedKaraoke(res);
+                        return;
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+        };
+
+        void checkCache();
+        return () => {
+            isCancelled = true;
+        };
+    }, [search.song]);
 
     // Dynamic theme classes
     const bgClass = isDaylight ? 'bg-white/90 border-white/20' : 'bg-zinc-900/95 border-white/10';
@@ -202,6 +233,37 @@ export const LyricMatchWindow: React.FC<LyricMatchWindowProps> = ({
 
                         {/* Results List */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4">
+                            {cachedKaraoke && (
+                                <div className="mb-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                                            <Sparkles size={16} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                                                <span>AI Karaoke (Đã trích xuất sẵn / Khớp từng từ)</span>
+                                            </div>
+                                            <div className="text-[11px] opacity-70 truncate text-neutral-300">
+                                                Bản lời bài hát đã được tạo bằng AI Karaoke cho ca khúc này
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const { useAiKaraokeStore } = await import('../../../stores/useAiKaraokeStore');
+                                            const success = await useAiKaraokeStore.getState().applyLyricsToCurrentSong(cachedKaraoke, (search.song as any));
+                                            if (success) {
+                                                onClose();
+                                            }
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black shrink-0 transition-colors shadow-sm cursor-pointer"
+                                    >
+                                        Sử dụng bản này
+                                    </button>
+                                </div>
+                            )}
+
                             {isSearching ? (
                                 <div className="flex justify-center items-center h-40">
                                     <Loader2 className="animate-spin opacity-50" size={28} />

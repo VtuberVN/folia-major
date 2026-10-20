@@ -115,6 +115,7 @@ export interface StartKaraokeJobOptions {
     mssModel?: MssModelId;
     asrModel?: AsrModelId;
     alignmentMode?: KaraokeAlignmentMode;
+    mode?: import('../types/aiKaraoke').KaraokeJobMode;
     devicePreference?: import('../types/aiKaraoke').KaraokeDevicePreference;
 }
 
@@ -328,6 +329,7 @@ export const startKaraokeJob = async (
             mssModel,
             asrModel,
             alignmentMode,
+            mode: options.mode || store.jobMode || 'stem_and_lyrics',
             devicePreference,
         });
 

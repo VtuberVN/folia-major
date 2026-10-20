@@ -20,9 +20,16 @@ import type { OnlineRecovery } from './restore/createOnlineRecoveryController';
 // A ref that only one hook reads does NOT belong here - it belongs inside that hook.
 
 let globalActiveAudioRef: { current: HTMLAudioElement | null } | null = null;
+let globalShouldAutoPlayRef: { current: boolean } | null = null;
 
 export const getActiveAudioElement = (): HTMLAudioElement | null => {
     return globalActiveAudioRef?.current ?? null;
+};
+
+export const setGlobalShouldAutoPlay = (value: boolean): void => {
+    if (globalShouldAutoPlayRef) {
+        globalShouldAutoPlayRef.current = value;
+    }
 };
 
 export type PlaybackRuntimeRefs = ReturnType<typeof usePlaybackRuntimeRefs>;
@@ -43,6 +50,7 @@ export const usePlaybackRuntimeRefs = () => {
     const blobUrlRef = useRef<string | null>(null);
     const animationFrameRef = useRef<number>(0);
     const shouldAutoPlay = useRef(false);
+    globalShouldAutoPlayRef = shouldAutoPlay;
     const currentSongFullRef = useRef<SongResult | null>(null);
     const playbackAutoSkipCountRef = useRef(0);
     const volumePreviewFrameRef = useRef<number | null>(null);

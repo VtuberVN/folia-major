@@ -211,5 +211,87 @@ describe('useAiKaraokeStore', () => {
         await useAiKaraokeStore.getState().playOutputStem(sampleOutput, 'beat');
         expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PLAYING);
     });
+
+    it('applies lyrics to currently playing song when target matches', async () => {
+        const { usePlaybackStore } = await import('@/stores/usePlaybackStore');
+        const song: SongResult = {
+            id: 'playing-song-1',
+            name: 'Ca Khuc Dang Phat',
+            artists: [{ id: 1, name: 'Ca Si A' }],
+            album: { id: 1, name: 'Album A' },
+            durationMs: 180000,
+        };
+        usePlaybackStore.getState().setCurrentSong(song);
+
+        const sampleResult = {
+            jobId: 'job-1',
+            songId: 'playing-song-1',
+            songTitle: 'Ca Khuc Dang Phat',
+            artist: 'Ca Si A',
+            enhancedLrcText: '[00:01.00]<00:01.00>Xin <00:01.50>chao',
+            lrcText: '[00:01.00]Xin chao',
+            enhancedLrcPath: 'test.karaoke.lrc',
+            lrcPath: 'test.lrc',
+            duration: 180,
+            hasVocals: false,
+            hasInstrumental: false,
+            lines: [],
+            asrModelUsed: 'whisper_turbo' as const,
+            alignmentMode: 'align_existing' as const,
+            generatedAt: Date.now(),
+        };
+
+        const success = await useAiKaraokeStore.getState().applyLyricsToCurrentSong(sampleResult, song);
+        expect(success).toBe(true);
+
+        const state = usePlaybackStore.getState();
+        expect(state.lyrics?.lines.length).toBeGreaterThan(0);
+        expect(state.lyrics?.isWordByWord).toBe(true);
+    });
+
+    it('does not overwrite current playing song lyrics when target song is different', async () => {
+        const { usePlaybackStore } = await import('@/stores/usePlaybackStore');
+        const playingSong: SongResult = {
+            id: 'playing-song-2',
+            name: 'Song Is Playing',
+            artists: [{ id: 2, name: 'Ca Si B' }],
+            album: { id: 2, name: 'Album B' },
+            durationMs: 200000,
+        };
+        usePlaybackStore.getState().setCurrentSong(playingSong);
+        usePlaybackStore.getState().setLyricsState(null);
+
+        const targetSong: SongResult = {
+            id: 'target-song-different',
+            name: 'Different Song In Library',
+            artists: [{ id: 3, name: 'Ca Si C' }],
+            album: { id: 3, name: 'Album C' },
+            durationMs: 150000,
+        };
+
+        const sampleResult = {
+            jobId: 'job-2',
+            songId: 'target-song-different',
+            songTitle: 'Different Song In Library',
+            artist: 'Ca Si C',
+            enhancedLrcText: '[00:02.00]<00:02.00>Loi <00:02.50>bai <00:03.00>khac',
+            lrcText: '[00:02.00]Loi bai khac',
+            enhancedLrcPath: 'test2.karaoke.lrc',
+            lrcPath: 'test2.lrc',
+            duration: 150,
+            hasVocals: false,
+            hasInstrumental: false,
+            lines: [],
+            asrModelUsed: 'whisper_turbo' as const,
+            alignmentMode: 'align_existing' as const,
+            generatedAt: Date.now(),
+        };
+
+        const success = await useAiKaraokeStore.getState().applyLyricsToCurrentSong(sampleResult, targetSong);
+        expect(success).toBe(true);
+
+        // The active playing song's lyrics should NOT have been overwritten
+        expect(usePlaybackStore.getState().lyrics).toBeNull();
+    });
 });
 

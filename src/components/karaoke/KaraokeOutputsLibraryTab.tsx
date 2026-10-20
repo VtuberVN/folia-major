@@ -83,6 +83,7 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
         isLoadingOutputs,
         deleteOutput,
         playOutputStem,
+        applyLyricsToCurrentSong,
         setActiveTab,
     } = useAiKaraokeStore();
 
@@ -286,7 +287,9 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
             ) : (
                 <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
                     {filteredOutputs.map((item) => {
-                        const mssName = MSS_MODEL_NAMES[item.mssModelUsed] || item.mssModelUsed;
+                        const mssName = (item.mssModelUsed && item.mssModelUsed !== 'none')
+                            ? (MSS_MODEL_NAMES[item.mssModelUsed] || item.mssModelUsed)
+                            : 'Trích xuất trực tiếp';
                         const isDeleting = deletingSongId === item.songId;
 
                         return (
@@ -342,6 +345,39 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
 
                                 {/* Right: Action buttons */}
                                 <div className="flex items-center gap-1.5 flex-wrap">
+                                    {/* Direct Lyrics Mode or No Beat: Quick Apply Lyric */}
+                                    {(!item.hasInstrumental && item.hasLrc) && (
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const cached = await window.electron?.aiKaraoke?.getCachedResult?.(item.songId);
+                                                if (cached) {
+                                                    let target = currentSong && String(currentSong.id) === String(item.songId) ? currentSong : null;
+                                                    if (!target) {
+                                                        const { getLocalSong } = await import('../../services/db');
+                                                        const local = await getLocalSong(item.songId);
+                                                        if (local) {
+                                                            target = {
+                                                                id: local.id,
+                                                                name: local.title,
+                                                                isLocal: true,
+                                                                localRef: { songId: local.id },
+                                                            } as any;
+                                                        } else {
+                                                            target = currentSong;
+                                                        }
+                                                    }
+                                                    void applyLyricsToCurrentSong(cached, target);
+                                                }
+                                            }}
+                                            title="Áp dụng bản lyric AI Karaoke này cho bài hát"
+                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black transition-all shadow-sm"
+                                        >
+                                            <Sparkles size={13} />
+                                            <span>Áp dụng Lyric</span>
+                                        </button>
+                                    )}
+
                                     {/* Play Beat */}
                                     {item.hasInstrumental && (() => {
                                         const isBeatActive = currentSong?.id === `karaoke-${item.songId}-beat`;
