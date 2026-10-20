@@ -1489,7 +1489,7 @@ export default {
     "loginTitleSpotify": "Sign in to Spotify",
     "loginNoteSpotify": "Choose Agree on the Spotify page that opens in your browser",
     "loginTitleZing": "Sign in to Zing MP3",
-    "loginNoteZing": "Sign in with your Zing MP3 VIP/Standard account",
+    "loginNoteZing": "A Zalo window will open. Use the Zalo app to scan the QR code or sign in to link Zing MP3.",
     "loginTitleNct": "NhacCuaTui",
     "loginNoteNct": "No sign-in needed for NhacCuaTui",
     "loginCaseSpotifyUnfinished": "Not confirmed within 10 minutes",

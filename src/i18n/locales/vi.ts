@@ -2298,7 +2298,7 @@ const vi = {
     "loginTitleSpotify": "Đăng nhập Spotify",
     "loginNoteSpotify": "Chọn “Đồng ý” trên trang Spotify mở trong trình duyệt của bạn",
     "loginTitleZing": "Đăng nhập Zing MP3",
-    "loginNoteZing": "Đăng nhập tài khoản Zing MP3 để đồng bộ bài hát",
+    "loginNoteZing": "Cửa sổ Zalo sẽ mở ra. Dùng ứng dụng Zalo quét mã QR hoặc đăng nhập để liên kết Zing MP3.",
     "loginTitleNct": "NhacCuaTui",
     "loginNoteNct": "Không cần đăng nhập cho NhacCuaTui",
     "loginCaseSpotifyUnfinished": "Không xác nhận trong vòng 10 phút",

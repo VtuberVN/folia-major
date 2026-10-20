@@ -125,6 +125,79 @@ describe('zingProvider', () => {
         expect(await zingProvider.auth?.getLoginStatus()).toBeNull();
     });
 
+    it('implements full browser login lifecycle via Electron openZingLogin', async () => {
+        const auth = zingProvider.auth!;
+        expect(auth.opensLoginPageItself?.('zing-1')).toBe(true);
+        expect(auth.getLoginTtlMs?.()).toBe(180_000);
+
+        const hadWindow = 'window' in globalThis;
+        const origWindow = (globalThis as any).window;
+
+        try {
+            // When electron is not present (or browser without electron)
+            (globalThis as any).window = {};
+
+            const key1 = await auth.startLogin!();
+            expect(key1).toMatch(/^zing-\d+$/);
+            const errState = await auth.checkLogin!(key1);
+            expect(errState.state).toBe('error');
+            await auth.cancelLogin!(key1);
+
+            // Mock window.electron.openZingLogin
+            let resolveLogin: (val: any) => void = () => {};
+            const loginPromise = new Promise(resolve => {
+                resolveLogin = resolve;
+            });
+
+            (globalThis as any).window = {
+                electron: {
+                    openZingLogin: vi.fn(() => loginPromise),
+                },
+            };
+
+            const key2 = await auth.startLogin!();
+            expect(key2).toMatch(/^zing-\d+$/);
+            // Initially waiting
+            expect(await auth.checkLogin!(key2)).toEqual({ state: 'waiting' });
+
+            // Expired on different key
+            expect(await auth.checkLogin!('wrong-key')).toEqual({ state: 'expired' });
+
+            // Simulate successful login resolution
+            resolveLogin({
+                success: true,
+                cookie: 'za_oauth_v4=test_oauth_cookie; zpsid=123',
+                profile: {
+                    id: '99999',
+                    nickname: 'Zing VIP User',
+                    avatarUrl: 'https://avatar.zing.vn/test.jpg',
+                    vipType: 1,
+                },
+            });
+
+            // Allow microtasks to settle
+            await new Promise(r => setTimeout(r, 10));
+
+            const confirmedState = await auth.checkLogin!(key2);
+            expect(confirmedState).toEqual({ state: 'confirmed' });
+
+            // Check stored profile and cookie
+            const status = await auth.getLoginStatus();
+            expect(status?.id).toBe('99999');
+            expect(status?.nickname).toBe('Zing VIP User');
+
+            // Clean up
+            await auth.logout();
+            expect(await auth.getLoginStatus()).toBeNull();
+        } finally {
+            if (hadWindow) {
+                (globalThis as any).window = origWindow;
+            } else {
+                delete (globalThis as any).window;
+            }
+        }
+    });
+
     it('has album capabilities enabled', () => {
         expect(zingProvider.capabilities.albums).toBe(true);
         expect(zingProvider.capabilities.userAlbums).toBe(true);

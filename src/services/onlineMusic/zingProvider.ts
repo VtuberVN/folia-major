@@ -3,6 +3,7 @@
 
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
+    LoginState,
     MediaId,
     OnlineMusicProvider,
     ProviderAudioSource,
@@ -34,7 +35,39 @@ import {
     getZingUserProfile,
     searchZingSongs,
     setStoredZingCookie,
+    setStoredZingProfile,
 } from './zingApi';
+
+let activeLoginKey: string | null = null;
+let activeLoginResult: LoginState | null = null;
+let activeLoginPromise: Promise<any> | null = null;
+let loginTicket = 0;
+
+function launchElectronZingLogin(key: string): void {
+    if (typeof window === 'undefined' || !window.electron?.openZingLogin) {
+        activeLoginResult = { state: 'error', message: 'Zing MP3 login requires Folia desktop app' };
+        return;
+    }
+    activeLoginResult = null;
+    activeLoginPromise = window.electron.openZingLogin();
+    activeLoginPromise.then((res: any) => {
+        if (activeLoginKey !== key) return;
+        if (res?.success && res.cookie) {
+            setStoredZingCookie(res.cookie);
+            if (res.profile) {
+                setStoredZingProfile(res.profile);
+            }
+            activeLoginResult = { state: 'confirmed' };
+        } else if (res?.error === 'cancelled') {
+            activeLoginResult = { state: 'error', message: 'Login cancelled' };
+        } else {
+            activeLoginResult = { state: 'error', message: res?.error || 'Login failed' };
+        }
+    }).catch((err: any) => {
+        if (activeLoginKey !== key) return;
+        activeLoginResult = { state: 'error', message: err?.message || 'Login failed' };
+    });
+}
 
 export const zingProvider: OnlineMusicProvider = {
     id: 'zing',
@@ -247,7 +280,42 @@ export const zingProvider: OnlineMusicProvider = {
             return getZingUserProfile();
         },
         async logout(): Promise<void> {
+            activeLoginKey = null;
+            activeLoginResult = null;
+            activeLoginPromise = null;
             setStoredZingCookie('');
+            setStoredZingProfile(null);
         },
+        async startLogin(): Promise<string> {
+            const ticket = ++loginTicket;
+            const key = `zing-${ticket}`;
+            activeLoginKey = key;
+            launchElectronZingLogin(key);
+            return key;
+        },
+        async openLoginPage(key: string): Promise<void> {
+            if (activeLoginKey === key) {
+                launchElectronZingLogin(key);
+            }
+        },
+        opensLoginPageItself: () => true,
+        async checkLogin(key: string): Promise<LoginState> {
+            if (activeLoginKey !== key) return { state: 'expired' };
+            if (activeLoginResult) {
+                return activeLoginResult;
+            }
+            return { state: 'waiting' };
+        },
+        async cancelLogin(key: string): Promise<void> {
+            if (activeLoginKey === key) {
+                activeLoginKey = null;
+                activeLoginResult = null;
+                activeLoginPromise = null;
+            }
+        },
+        signInRanOut(): void {
+            setStoredZingProfile(null);
+        },
+        getLoginTtlMs: () => 180_000,
     },
 };

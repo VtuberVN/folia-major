@@ -1489,7 +1489,7 @@ export default {
     "loginTitleSpotify": "登录 Spotify",
     "loginNoteSpotify": "在浏览器打开的 Spotify 页面上点“同意”",
     "loginTitleZing": "登录 Zing MP3",
-    "loginNoteZing": "登录 Zing MP3 账号以同步歌单",
+    "loginNoteZing": "将打开 Zalo 登录窗口。使用手机 Zalo 应用扫码或登录以绑定 Zing MP3",
     "loginTitleNct": "NhacCuaTui",
     "loginNoteNct": "NhacCuaTui 无需登录",
     "loginCaseSpotifyUnfinished": "10 分钟内未确认",

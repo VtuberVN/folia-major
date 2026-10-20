@@ -7107,9 +7107,11 @@ async function getZingOAuthLoginInfo() {
   } catch (err) {
     console.warn('[ZingAuth] Failed to fetch oauth-info URL:', err);
   }
+  const fallbackVerifier = crypto.randomBytes(32).toString('base64url');
+  const fallbackChallenge = crypto.createHash('sha256').update(fallbackVerifier).digest('base64url');
   return {
-    url: 'https://oauth.zaloapp.com/v4/permission?app_id=2588341350709494368&redirect_uri=https://zingmp3.vn/login/zalo',
-    codeChallenge: '',
+    url: `https://oauth.zaloapp.com/v4/permission?app_id=2588341350709494368&redirect_uri=https://zingmp3.vn/login/zalo&code_challenge=${fallbackChallenge}&state=${fallbackChallenge}`,
+    codeChallenge: fallbackChallenge,
   };
 }
 
@@ -7380,6 +7382,25 @@ body{margin:0;display:flex;align-items:center;justify-content:center;height:100v
             if (!authPromise) {
               authPromise = handleAuthCompletion(code, state);
             }
+          }
+        }
+      } catch {}
+    });
+
+    // Final safety net: catch did-navigate if navigation completed before interception
+    loginWin.webContents.on('did-navigate', (e, targetUrl) => {
+      if (settled) return;
+      try {
+        const u = new URL(targetUrl);
+        if (u.hostname.includes('zingmp3.vn') && u.pathname.includes('/login/zalo')) {
+          const code = u.searchParams.get('code');
+          const state = u.searchParams.get('state');
+          if (code && !authPromise) {
+            console.log('[ZingAuth] Intercepted OAuth code at did-navigate:', code.slice(0, 8) + '...');
+            if (!loginWin.isDestroyed()) {
+              loginWin.loadURL(LOADING_HTML);
+            }
+            authPromise = handleAuthCompletion(code, state);
           }
         }
       } catch {}
