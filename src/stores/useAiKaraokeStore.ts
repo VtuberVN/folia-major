@@ -50,7 +50,10 @@ interface AiKaraokeState {
     setOutputs: (outputs: KaraokeOutputSummary[]) => void;
     fetchOutputs: () => Promise<KaraokeOutputSummary[]>;
     deleteOutput: (songId: string) => Promise<boolean>;
-    playOutputStem: (output: KaraokeOutputSummary, stem: 'beat' | 'vocal') => Promise<boolean>;
+    playOutputStem: (
+        output: KaraokeOutputSummary | KaraokeGenerationResult,
+        stem: 'beat' | 'vocal' | 'vocals' | 'instruments' | 'drums' | 'bass',
+    ) => Promise<boolean>;
     applyLyricsToCurrentSong: (result: KaraokeGenerationResult, targetSong?: SongResult | null) => Promise<boolean>;
     setJobMode: (mode: KaraokeJobMode) => void;
     setLanguage: (language: WhisperLanguage) => void;
@@ -203,7 +206,11 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     },
 
     playOutputStem: async (output, stem) => {
-        const filePath = stem === 'beat' ? output.instrumentalPath : output.vocalsPath;
+        let filePath: string | undefined = (stem === 'vocal' || stem === 'vocals') ? output.vocalsPath : output.instrumentalPath;
+        if (stem === 'instruments') filePath = output.instrumentsPath || output.instrumentalPath;
+        else if (stem === 'drums') filePath = output.drumsPath || output.instrumentalPath;
+        else if (stem === 'bass') filePath = output.bassPath || output.instrumentalPath;
+
         if (!filePath) {
             setStatusMessage({ type: 'error', text: 'Tệp âm thanh không tồn tại trên đĩa.' });
             return false;
@@ -272,9 +279,15 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
                 }
             }
 
+            const stemLabel =
+                stem === 'beat' ? 'Beat' :
+                (stem === 'vocal' || stem === 'vocals') ? 'Vocal' :
+                stem === 'instruments' ? 'Đạo cụ' :
+                stem === 'drums' ? 'Trống' : 'Bass';
+
             const stemSong = {
                 id: targetSongId,
-                name: `${output.songTitle} [${stem === 'beat' ? 'Beat' : 'Vocal'}]`,
+                name: `${output.songTitle} [${stemLabel}]`,
                 artists: output.artist ? [{ id: 0, name: output.artist }] : [{ id: 0, name: 'AI Karaoke' }],
                 album: { id: 0, name: 'AI Karaoke Stems' },
                 durationMs: (output.duration || 0) * 1000,
@@ -345,7 +358,7 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
 
             setStatusMessage({
                 type: 'info',
-                text: `Đang phát ${stem === 'beat' ? 'Beat Karaoke' : 'Giọng hát'}: ${output.songTitle}`,
+                text: `Đang phát ${stem === 'beat' ? 'Beat Karaoke' : stemLabel}: ${output.songTitle}`,
             });
             return true;
         } catch (err) {
@@ -455,6 +468,9 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
         } else {
             startElapsedTicker();
         }
+        if (p.stage === 'completed') {
+            void get().fetchOutputs();
+        }
         set({
             jobStage: p.stage,
             jobProgress: p.progress,
@@ -468,6 +484,9 @@ export const useAiKaraokeStore = create<AiKaraokeState>((set, get) => ({
     setResult: (lastResult) => {
         stopElapsedTicker();
         set({ lastResult });
+        if (lastResult) {
+            void get().fetchOutputs();
+        }
     },
 
     resetJob: () => {

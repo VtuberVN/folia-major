@@ -14,8 +14,8 @@
 
 /** The model's own row order. */
 const SOURCES = ['drums', 'bass', 'other', 'vocals'];
-/** What we hand back - 'other' dropped. The renderer reads them by name. */
-const RETURNED = ['drums', 'bass', 'vocals'];
+/** What we hand back - all 4 stems: drums, bass, other (instruments/đạo cụ), and vocals. */
+const RETURNED = ['drums', 'bass', 'other', 'vocals'];
 
 /**
  * The reference's triangular overlap-add window: chunks step by 3/4 of a segment, each faded across

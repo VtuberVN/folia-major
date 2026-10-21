@@ -6,7 +6,14 @@ export type MssModelId =
     | 'uvr_mdxnet_kara_2' // 66.8 MB - Best for karaoke: isolates vocals but keeps backing vocals in instrumental
     | 'kim_vocal_2'        // 66.8 MB - Best for ASR: ultra clean lead vocal isolation
     | 'htdemucs_mnn'       // 80-160 MB - Built-in MNN/WebGPU: separates drums, bass, other, vocals
-    | 'bs_roformer';       // 639 MB - Studio-grade RoFormer: SDR 12.97 dB, pristine vocal separation
+    | 'bs_roformer'        // 639 MB - Studio-grade RoFormer: SDR 12.97 dB, pristine vocal separation
+    | 'uvr_mdxnet_inst_3'  // UVR-MDX-NET-Inst_HQ_3 - High quality instrumental isolation
+    | 'uvr_mdxnet_inst_5'  // UVR-MDX-NET-Inst_HQ_5 - Extra high quality instrumental isolation
+    | 'uvr_crowd_backing'  // UVR-MDX-NET_Crowd_HQ_1 - Isolates backing vocals / crowd screams
+    | 'uvr_wind_inst'      // 17_HP-Wind_Inst-UVR - Isolates wind instruments & lead accompaniment
+    | 'uvr_de_echo'        // UVR-De-Echo-Normal - Isolates/removes studio reverb and echo
+    | 'uvr_denoise'        // UVR-DeNoise-Lite - Isolates/removes background hiss and noise
+    | 'uvr_1_hp';          // 1_HP-UVR - Traditional UVR vocal/instrumental separation
 
 export type AsrModelId =
     | 'whisper_turbo'      // ~800 MB int8 - Fastest Whisper (809M params, 4 decoder layers), 2-4s/song
@@ -25,6 +32,8 @@ export interface AiModelInfo {
     descriptionVi: string;
     downloadUrl: string;
     isDownloaded: boolean;
+    isUvrDetected?: boolean;
+    source?: 'builtin' | 'download' | 'uvr5';
     downloadProgress?: number; // 0-100
     downloadDetails?: {
         receivedBytes: number;
@@ -64,6 +73,9 @@ export interface KaraokeGenerationResult {
     artist: string;
     vocalsPath?: string;
     instrumentalPath?: string;
+    instrumentsPath?: string;
+    drumsPath?: string;
+    bassPath?: string;
     lrcText: string;
     enhancedLrcText: string;
     lines: LyricLineTiming[];
@@ -109,10 +121,16 @@ export interface KaraokeOutputSummary {
     generatedAt: number;
     vocalsPath: string;
     instrumentalPath: string;
+    instrumentsPath?: string;
+    drumsPath?: string;
+    bassPath?: string;
     lrcPath: string;
     enhancedLrcPath: string;
     hasVocals: boolean;
     hasInstrumental: boolean;
+    hasInstruments?: boolean;
+    hasDrums?: boolean;
+    hasBass?: boolean;
     hasLrc: boolean;
     totalSizeBytes: number;
 }

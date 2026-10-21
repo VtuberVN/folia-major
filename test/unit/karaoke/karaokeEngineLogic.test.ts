@@ -282,5 +282,34 @@ describe('karaokeEngineLogic', () => {
             expect(hasVietnameseDiacritics('青花瓷')).toBe(false);
         });
     });
+
+    describe('modelRegistry', () => {
+        it('registers UVR models in MODEL_CATALOG and detects them if present', () => {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { MODEL_CATALOG, getModelsStatus } = require('../../../electron/aiKaraoke/modelRegistry.cjs');
+            const uvrCatalogIds = MODEL_CATALOG.map((m: { id: string }) => m.id);
+            expect(uvrCatalogIds).toContain('uvr_mdxnet_inst_3');
+            expect(uvrCatalogIds).toContain('uvr_mdxnet_inst_5');
+            expect(uvrCatalogIds).toContain('uvr_crowd_backing');
+            expect(uvrCatalogIds).toContain('uvr_wind_inst');
+            expect(uvrCatalogIds).toContain('uvr_de_echo');
+            expect(uvrCatalogIds).toContain('uvr_denoise');
+            expect(uvrCatalogIds).toContain('uvr_1_hp');
+
+            const status = getModelsStatus();
+            expect(Array.isArray(status)).toBe(true);
+            const htdemucs = status.find((s: { id: string }) => s.id === 'htdemucs_mnn');
+            expect(htdemucs?.isDownloaded).toBe(true);
+        });
+
+        it('safely guards against path traversal in getCachedKaraoke', () => {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { getCachedKaraoke } = require('../../../electron/aiKaraoke/modelRegistry.cjs');
+            expect(getCachedKaraoke(process.cwd(), '../../etc/passwd')).toBeNull();
+            expect(getCachedKaraoke(process.cwd(), '..\\..\\windows\\system32')).toBeNull();
+            expect(getCachedKaraoke(process.cwd(), '')).toBeNull();
+            expect(getCachedKaraoke(process.cwd(), null)).toBeNull();
+        });
+    });
 });
 

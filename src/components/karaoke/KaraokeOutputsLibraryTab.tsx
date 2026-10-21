@@ -46,6 +46,13 @@ const MSS_MODEL_NAMES: Record<string, string> = {
     uvr_mdxnet_kara_2: 'UVR-MDX-Net Kara 2',
     kim_vocal_2: 'Kim Vocal 2',
     bs_roformer: 'BS-RoFormer 12.97',
+    uvr_mdxnet_inst_3: 'UVR-MDX-NET Inst 3',
+    uvr_mdxnet_inst_5: 'UVR-MDX-NET Inst 5',
+    uvr_crowd_backing: 'UVR Crowd HQ 1',
+    uvr_wind_inst: '17_HP Wind Inst',
+    uvr_de_echo: 'UVR De-Echo',
+    uvr_denoise: 'UVR DeNoise Lite',
+    uvr_1_hp: '1_HP-UVR',
 };
 
 const formatDuration = (seconds: number): string => {
@@ -81,11 +88,16 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
     const {
         outputs,
         isLoadingOutputs,
+        fetchOutputs,
         deleteOutput,
         playOutputStem,
         applyLyricsToCurrentSong,
         setActiveTab,
     } = useAiKaraokeStore();
+
+    React.useEffect(() => {
+        void fetchOutputs();
+    }, [fetchOutputs]);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedModelFilter, setSelectedModelFilter] = useState<string>('all');
@@ -185,7 +197,7 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => void fetchKaraokeOutputs()}
+                        onClick={() => void fetchOutputs()}
                         disabled={isLoadingOutputs}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
                             isDaylight
@@ -235,13 +247,20 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                 </div>
 
                 {/* Model filter dropdown */}
-                <div className="w-full sm:w-44 shrink-0">
+                <div className="w-full sm:w-52 shrink-0">
                     <CustomSelect
                         value={selectedModelFilter}
                         onChange={setSelectedModelFilter}
                         options={[
                             { value: 'all', label: 'Tất cả model' },
-                            { value: 'htdemucs_mnn', label: 'HTDemucs v4' },
+                            { value: 'htdemucs_mnn', label: 'HTDemucs v4 (MNN)' },
+                            { value: 'uvr_mdxnet_inst_3', label: 'UVR Inst HQ 3' },
+                            { value: 'uvr_mdxnet_inst_5', label: 'UVR Inst HQ 5' },
+                            { value: 'uvr_crowd_backing', label: 'UVR Crowd HQ 1' },
+                            { value: 'uvr_wind_inst', label: '17_HP Wind Inst (Đạo cụ)' },
+                            { value: 'uvr_de_echo', label: 'UVR De-Echo (Âm vang)' },
+                            { value: 'uvr_denoise', label: 'UVR DeNoise (Khử nhiễu)' },
+                            { value: 'uvr_1_hp', label: '1_HP-UVR (Beat & Vocal)' },
                             { value: 'uvr_mdxnet_kara_2', label: 'UVR Kara 2' },
                             { value: 'kim_vocal_2', label: 'Kim Vocal 2' },
                             { value: 'bs_roformer', label: 'BS-RoFormer' },
@@ -416,6 +435,69 @@ export const KaraokeOutputsLibraryTab: React.FC<KaraokeOutputsLibraryTabProps> =
                                             >
                                                 {isVocalPlaying ? <Pause size={13} /> : <Volume2 size={13} />}
                                                 <span>{isVocalPlaying ? 'Đang phát Vocal' : 'Giọng hát'}</span>
+                                            </button>
+                                        );
+                                    })()}
+
+                                    {/* Play Instruments (Đạo cụ) */}
+                                    {item.hasInstruments && (() => {
+                                        const isInstActive = currentSong?.id === `karaoke-${item.songId}-instruments`;
+                                        const isInstPlaying = isInstActive && playerState === PlayerState.PLAYING;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(item, 'instruments')}
+                                                title={isInstPlaying ? 'Tạm dừng đạo cụ / nhạc cụ' : 'Nghe riêng đạo cụ / nhạc cụ (Isolated Instruments)'}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                                    isInstActive
+                                                        ? 'bg-amber-600 border-amber-400 text-white ring-2 ring-amber-400/50'
+                                                        : 'border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                {isInstPlaying ? <Pause size={13} /> : <Layers size={13} />}
+                                                <span>{isInstPlaying ? 'Đang phát Đạo cụ' : 'Đạo cụ'}</span>
+                                            </button>
+                                        );
+                                    })()}
+
+                                    {/* Play Drums (Trống) */}
+                                    {item.hasDrums && (() => {
+                                        const isDrumsActive = currentSong?.id === `karaoke-${item.songId}-drums`;
+                                        const isDrumsPlaying = isDrumsActive && playerState === PlayerState.PLAYING;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(item, 'drums')}
+                                                title={isDrumsPlaying ? 'Tạm dừng trống' : 'Nghe riêng trống (Isolated Drums)'}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                                    isDrumsActive
+                                                        ? 'bg-orange-600 border-orange-400 text-white ring-2 ring-orange-400/50'
+                                                        : 'border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                {isDrumsPlaying ? <Pause size={13} /> : <Music size={13} />}
+                                                <span>{isDrumsPlaying ? 'Đang phát Trống' : 'Trống'}</span>
+                                            </button>
+                                        );
+                                    })()}
+
+                                    {/* Play Bass */}
+                                    {item.hasBass && (() => {
+                                        const isBassActive = currentSong?.id === `karaoke-${item.songId}-bass`;
+                                        const isBassPlaying = isBassActive && playerState === PlayerState.PLAYING;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(item, 'bass')}
+                                                title={isBassPlaying ? 'Tạm dừng bass' : 'Nghe riêng bass (Isolated Bass)'}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                                    isBassActive
+                                                        ? 'bg-purple-600 border-purple-400 text-white ring-2 ring-purple-400/50'
+                                                        : 'border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                {isBassPlaying ? <Pause size={13} /> : <Volume2 size={13} />}
+                                                <span>{isBassPlaying ? 'Đang phát Bass' : 'Bass'}</span>
                                             </button>
                                         );
                                     })()}

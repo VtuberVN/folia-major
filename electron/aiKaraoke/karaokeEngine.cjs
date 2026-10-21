@@ -1325,6 +1325,23 @@ const runKaraokePipeline = async ({
         writeWavFile(vocalsPath, vocals.left, vocals.right, 44100);
         writeWavFile(instrumentalPath, instLeft, instRight, 44100);
 
+        // Also write other stems if produced by 4-stem model (other/instruments, drums, bass)
+        let instrumentsPath = null;
+        if (separated.other && separated.other.left && separated.other.right) {
+            instrumentsPath = path.join(outputDir, 'instruments.wav');
+            writeWavFile(instrumentsPath, separated.other.left, separated.other.right, 44100);
+        }
+        let drumsPath = null;
+        if (separated.drums && separated.drums.left && separated.drums.right) {
+            drumsPath = path.join(outputDir, 'drums.wav');
+            writeWavFile(drumsPath, separated.drums.left, separated.drums.right, 44100);
+        }
+        let bassPath = null;
+        if (separated.bass && separated.bass.left && separated.bass.right) {
+            bassPath = path.join(outputDir, 'bass.wav');
+            writeWavFile(bassPath, separated.bass.left, separated.bass.right, 44100);
+        }
+
         // Step 4: Analyze vocal waveform energy envelope & Voice Activity Detection (VAD)
         report('aligning_words', 74, 'Phân tích sóng âm tần số giọng hát (Vocal Envelope VAD)...', 'VAD Analysis');
         const vocalActivity = detectVocalActivitySegments(vocals.left, vocals.right, 44100);
@@ -1360,6 +1377,9 @@ const runKaraokePipeline = async ({
             artist,
             vocalsPath,
             instrumentalPath,
+            instrumentsPath: instrumentsPath || undefined,
+            drumsPath: drumsPath || undefined,
+            bassPath: bassPath || undefined,
             lrcPath: lrcFilePath,
             enhancedLrcPath: enhancedLrcFilePath,
             lrcText,

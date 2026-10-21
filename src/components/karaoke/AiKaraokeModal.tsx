@@ -23,11 +23,15 @@ import {
     Activity,
     Info,
     Globe,
+    Volume2,
+    Pause,
+    Clock,
+    ArrowRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sheet from '../shared/Sheet';
 import { useAiKaraokeStore } from '../../stores/useAiKaraokeStore';
-import { usePlaybackStore } from '../../stores/usePlaybackStore';
+import { usePlaybackStore, selectDisplayPlayerState } from '../../stores/usePlaybackStore';
 import { openVisualLrcEditor } from '../../stores/useLrcEditorStore';
 import {
     fetchAiModels,
@@ -35,13 +39,13 @@ import {
     deleteAiModel,
     startKaraokeJob,
     cancelCurrentKaraokeJob,
-    exportKaraokeLrcFile,
     openAiKaraokeModelsDirectory,
     openAiKaraokeOutputDirectory,
 } from '../../services/aiKaraokeService';
 import { KaraokeOutputsLibraryTab } from './KaraokeOutputsLibraryTab';
 import type { MssModelId, AsrModelId, KaraokeAlignmentMode, KaraokeDevicePreference } from '../../types/aiKaraoke';
 import type { Theme, SongResult } from '../../types';
+import { PlayerState } from '../../types';
 
 interface AiKaraokeModalProps {
     theme?: Theme;
@@ -88,9 +92,13 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
         resetJob,
         toggleKaraokeBeatMode,
         applyLyricsToCurrentSong,
+        playOutputStem,
+        fetchOutputs,
     } = useAiKaraokeStore();
 
-    const [previewTab, setPreviewTab] = useState<'enhanced' | 'standard'>('enhanced');
+    const currentSong = usePlaybackStore((state) => state.currentSong);
+    const playerState = usePlaybackStore(selectDisplayPlayerState);
+
     const [downloadingModelId, setDownloadingModelId] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -214,13 +222,6 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
             onApplyLyrics?.(textToApply);
             closeModal();
         }
-    };
-
-    const handleExportLrc = async () => {
-        if (!lastResult) return;
-        const defaultName = `${activeSong?.name || 'karaoke'}.lrc`;
-        const content = previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText;
-        await exportKaraokeLrcFile(content, defaultName);
     };
 
     const handleOpenInLrcEditor = (initialContent?: string) => {
@@ -543,70 +544,71 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
 
                         {/* 2. Job Result Card (When job finished or result exists) */}
                         {!isJobRunning && lastResult && (
-                            <div className={`p-4 rounded-2xl border space-y-3 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
-                                <div className="flex items-center justify-between">
+                            <div className={`p-4 rounded-2xl border space-y-3.5 ${isDaylight ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'}`}>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                     <div className="flex items-center gap-2 font-bold text-sm">
                                         <Check size={18} className="text-emerald-500" />
-                                        <span>{lastResult.instrumentalPath ? 'Bản Karaoke (Beat & Lời) đã sẵn sàng!' : 'Bản Lời Bài Hát (Whisper ASR) đã sẵn sàng!'}</span>
+                                        <span>Bản tách Beat & Giọng hát đã sẵn sàng!</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        {Boolean(lastResult.instrumentalPath) && (
-                                            <button
-                                                type="button"
-                                                onClick={() => void toggleKaraokeBeatMode(activeSong)}
-                                                title={isKaraokeBeatMode ? 'Trở lại bài hát gốc có giọng ca sĩ' : 'Chỉ phát Beat karaoke, tắt giọng ca sĩ'}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                                                    isKaraokeBeatMode
-                                                        ? 'bg-amber-500 text-white animate-pulse'
-                                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                }`}
-                                            >
-                                                <Mic size={14} />
-                                                <span>{isKaraokeBeatMode ? 'Đang phát Beat (Tắt)' : 'Phát Beat Karaoke'}</span>
-                                            </button>
-                                        )}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {/* 1. Phát Beat */}
+                                        {Boolean(lastResult.instrumentalPath) && (() => {
+                                            const isBeatActive = currentSong?.id === `karaoke-${lastResult.songId}-beat`;
+                                            const isBeatPlaying = isBeatActive && playerState === PlayerState.PLAYING;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void playOutputStem(lastResult, 'beat')}
+                                                    title={isBeatPlaying ? 'Tạm dừng Beat Karaoke' : 'Phát bản Beat Karaoke'}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                                        isBeatPlaying
+                                                            ? 'bg-emerald-600 ring-2 ring-emerald-400 text-white animate-pulse'
+                                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                    }`}
+                                                >
+                                                    {isBeatPlaying ? <Pause size={14} /> : <Mic size={14} />}
+                                                    <span>{isBeatPlaying ? 'Đang phát Beat' : 'Phát Beat'}</span>
+                                                </button>
+                                            );
+                                        })()}
+
+                                        {/* 2. Phát giọng hát */}
+                                        {Boolean(lastResult.vocalsPath) && (() => {
+                                            const isVocalActive = currentSong?.id === `karaoke-${lastResult.songId}-vocal`;
+                                            const isVocalPlaying = isVocalActive && playerState === PlayerState.PLAYING;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void playOutputStem(lastResult, 'vocal')}
+                                                    title={isVocalPlaying ? 'Tạm dừng giọng hát' : 'Nghe riêng giọng hát ca sĩ'}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                                        isVocalPlaying
+                                                            ? 'bg-blue-600 ring-2 ring-blue-400 text-white animate-pulse'
+                                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                    }`}
+                                                >
+                                                    {isVocalPlaying ? <Pause size={14} /> : <Volume2 size={14} />}
+                                                    <span>{isVocalPlaying ? 'Đang phát Giọng hát' : 'Phát giọng hát'}</span>
+                                                </button>
+                                            );
+                                        })()}
+
+                                        {/* 3. Mở thư mục */}
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                if (lastResult) void applyLyricsToCurrentSong(lastResult, activeSong);
-                                            }}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-sm transition-all"
-                                            title="Áp dụng ngay lời vừa trích xuất cho bài hát đang phát"
-                                        >
-                                            <Sparkles size={14} />
-                                            <span>Áp dụng ngay cho bài hát</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleOpenInLrcEditor()}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90"
-                                            style={{ backgroundColor: accentBg }}
-                                        >
-                                            <Edit3 size={14} />
-                                            <span>Sửa lời trong Visual LRC Studio</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
-                                            title="Mở thư mục chứa file Beat và Lời trên máy"
+                                            onClick={() => void openAiKaraokeOutputDirectory(String(lastResult.songId || activeSong?.id))}
+                                            title="Mở thư mục chứa file Beat và Giọng hát trên máy tính"
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
                                         >
                                             <FolderOpen size={14} />
-                                            <span>Mở thư mục file</span>
+                                            <span>Mở thư mục</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleExportLrc}
-                                            title="Xuất file .lrc"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-current/20 hover:bg-black/5 transition-colors"
-                                        >
-                                            <Download size={14} />
-                                            <span>Xuất .lrc</span>
-                                        </button>
+
+                                        {/* 4. Tách lại */}
                                         <button
                                             type="button"
                                             onClick={() => { setResult(null); setActiveTab('process'); }}
-                                            title="Tách lại bằng model khác"
+                                            title="Tách lại bài này hoặc chọn model khác"
                                             className="px-2.5 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 transition-colors"
                                         >
                                             Tách lại
@@ -614,39 +616,60 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Collapsible preview box */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-xs opacity-75">
-                                        <span>Xem trước lời Karaoke:</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setPreviewTab(previewTab === 'enhanced' ? 'standard' : 'enhanced')}
-                                            className="underline hover:opacity-100"
-                                        >
-                                            {previewTab === 'enhanced' ? 'Chuyển sang Standard LRC' : 'Chuyển sang Enhanced LRC (Nhảy từng từ)'}
-                                        </button>
-                                    </div>
-                                    <div className="max-h-36 overflow-y-auto font-mono text-xs p-3 rounded-xl bg-black/40 text-neutral-200 border border-white/5 whitespace-pre st-scroll">
-                                        {previewTab === 'enhanced' ? lastResult.enhancedLrcText : lastResult.lrcText}
-                                    </div>
+                                {/* Clean stem file pills */}
+                                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono">
+                                    {lastResult.instrumentalPath && (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 border border-white/5">
+                                            <span className="text-emerald-400 font-semibold">🎵 Beat:</span>
+                                            <span className="truncate max-w-[200px]" title={lastResult.instrumentalPath}>instrumental.wav</span>
+                                        </div>
+                                    )}
+                                    {lastResult.vocalsPath && (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 border border-white/5">
+                                            <span className="text-blue-400 font-semibold">🎤 Vocal:</span>
+                                            <span className="truncate max-w-[200px]" title={lastResult.vocalsPath}>vocals.wav</span>
+                                        </div>
+                                    )}
+                                    {lastResult.instrumentsPath && (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 border border-white/5">
+                                            <span className="text-amber-400 font-semibold">🎸 Đạo cụ:</span>
+                                            <span className="truncate max-w-[200px]" title={lastResult.instrumentsPath}>instruments.wav</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(lastResult, 'instruments')}
+                                                className="underline hover:opacity-100 text-amber-400 font-sans ml-1"
+                                            >
+                                                Phát
+                                            </button>
+                                        </div>
+                                    )}
+                                    {lastResult.drumsPath && (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 border border-white/5">
+                                            <span className="text-orange-400 font-semibold">🥁 Trống:</span>
+                                            <span className="truncate max-w-[200px]" title={lastResult.drumsPath}>drums.wav</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(lastResult, 'drums')}
+                                                className="underline hover:opacity-100 text-orange-400 font-sans ml-1"
+                                            >
+                                                Phát
+                                            </button>
+                                        </div>
+                                    )}
+                                    {lastResult.bassPath && (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 border border-white/5">
+                                            <span className="text-purple-400 font-semibold">🔊 Bass:</span>
+                                            <span className="truncate max-w-[200px]" title={lastResult.bassPath}>bass.wav</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => void playOutputStem(lastResult, 'bass')}
+                                                className="underline hover:opacity-100 text-purple-400 font-sans ml-1"
+                                            >
+                                                Phát
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-
-                                {/* File Output Paths */}
-                                {lastResult.instrumentalPath && (
-                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-black/20 border border-white/5 text-[11px] font-mono">
-                                        <span className="truncate opacity-80" title={lastResult.instrumentalPath}>
-                                            🎵 File Beat: <span className="text-emerald-400 font-semibold">{lastResult.instrumentalPath}</span>
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => void openAiKaraokeOutputDirectory(String(activeSong?.id))}
-                                            className="shrink-0 flex items-center gap-1 font-sans text-xs underline font-medium hover:opacity-100 text-emerald-400"
-                                        >
-                                            <FolderOpen size={12} />
-                                            <span>Mở thư mục</span>
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         )}
 
@@ -693,6 +716,108 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                 </button>
                             </div>
                         )}
+
+                        {/* 5. Recent Processing History ("Lịch sử xử lý ở dưới") */}
+                        <div className={`p-4 rounded-2xl border space-y-3 ${cardBg}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-neutral-400">
+                                    <Clock size={14} style={{ color: accentBg }} />
+                                    <span>Lịch sử bài hát đã tách gần đây</span>
+                                    {outputs.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/10 dark:bg-white/10 text-neutral-300">
+                                            {outputs.length}
+                                        </span>
+                                    )}
+                                </div>
+                                {outputs.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('library')}
+                                        className="flex items-center gap-1 text-xs font-medium text-pink-400 hover:underline"
+                                    >
+                                        <span>Xem tất cả thư viện</span>
+                                        <ArrowRight size={13} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {outputs.length === 0 ? (
+                                <p className={`text-xs text-center py-2 ${subTextColor}`}>
+                                    Chưa có bài hát nào trong lịch sử tách.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {outputs.slice(0, 4).map((item) => {
+                                        const isBeatActive = currentSong?.id === `karaoke-${item.songId}-beat`;
+                                        const isBeatPlaying = isBeatActive && playerState === PlayerState.PLAYING;
+                                        const isVocalActive = currentSong?.id === `karaoke-${item.songId}-vocal`;
+                                        const isVocalPlaying = isVocalActive && playerState === PlayerState.PLAYING;
+
+                                        return (
+                                            <div
+                                                key={item.songId}
+                                                className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-colors ${
+                                                    isDaylight ? 'bg-white/70 border-neutral-200' : 'bg-black/20 border-white/5'
+                                                }`}
+                                            >
+                                                <div className="min-w-0 flex-1 space-y-0.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className={`text-xs font-semibold truncate ${textColor}`}>{item.songTitle}</p>
+                                                        {item.mssModelUsed && (
+                                                            <span className="shrink-0 text-[10px] px-1.5 py-0.2 rounded bg-neutral-500/10 text-neutral-400 font-mono">
+                                                                {item.mssModelUsed}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className={`text-[11px] truncate ${subTextColor}`}>{item.artist || 'Nghệ sĩ chưa rõ'}</p>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    {item.hasInstrumental && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void playOutputStem(item, 'beat')}
+                                                            title={isBeatPlaying ? 'Tạm dừng Beat' : 'Phát Beat'}
+                                                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                                                isBeatActive
+                                                                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
+                                                                    : 'bg-emerald-600/80 hover:bg-emerald-600 text-white'
+                                                            }`}
+                                                        >
+                                                            {isBeatPlaying ? <Pause size={12} /> : <Mic size={12} />}
+                                                            <span>Beat</span>
+                                                        </button>
+                                                    )}
+                                                    {item.hasVocals && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void playOutputStem(item, 'vocal')}
+                                                            title={isVocalPlaying ? 'Tạm dừng Vocal' : 'Phát Vocal'}
+                                                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+                                                                isVocalActive
+                                                                    ? 'bg-blue-600 border-blue-400 text-white ring-2 ring-blue-400/50'
+                                                                    : 'border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                                                            }`}
+                                                        >
+                                                            {isVocalPlaying ? <Pause size={12} /> : <Volume2 size={12} />}
+                                                            <span>Vocal</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void openAiKaraokeOutputDirectory(item.songId)}
+                                                        title="Mở thư mục"
+                                                        className="p-1 rounded-lg border border-neutral-300 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                                    >
+                                                        <FolderOpen size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -846,21 +971,25 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                                 {/* Download Status & Progress */}
                                                 <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
                                                     {model.id === 'htdemucs_mnn' ? (
-                                                        <span className="text-[11px] text-emerald-500 font-medium">✓ Có sẵn trong Folia</span>
+                                                        <span className="text-[11px] text-emerald-500 font-medium">✓ Có sẵn trong Folia (4-stem Đa Năng)</span>
                                                     ) : model.isDownloaded ? (
                                                         <div className="flex items-center justify-between w-full">
-                                                            <span className="text-[11px] text-emerald-500 font-medium">✓ Đã sẵn sàng trên máy</span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    void handleDeleteModel(model.id);
-                                                                }}
-                                                                title="Xóa model để giải phóng dung lượng ổ cứng"
-                                                                className="text-neutral-400 hover:text-red-400 p-1 rounded"
-                                                            >
-                                                                <Trash2 size={13} />
-                                                            </button>
+                                                            <span className="text-[11px] text-emerald-500 font-medium">
+                                                                {model.source === 'uvr5' ? '✓ Có sẵn từ UVR5' : '✓ Đã sẵn sàng trên máy'}
+                                                            </span>
+                                                            {model.source !== 'uvr5' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        void handleDeleteModel(model.id);
+                                                                    }}
+                                                                    title="Xóa model để giải phóng dung lượng ổ cứng"
+                                                                    className="text-neutral-400 hover:text-red-400 p-1 rounded"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     ) : isDownloading ? (
                                                         <div className="w-full space-y-1.5">
