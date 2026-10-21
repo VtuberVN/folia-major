@@ -7240,59 +7240,84 @@ ipcMain.handle('auth-open-zing-login', async () => {
       },
     });
 
+    let exchangedZaToken = '';
+
     const finalizeLogin = async () => {
       if (settled) return;
       settled = true;
       console.log('[ZingAuth] Finalizing login and retrieving user profile...');
 
       try {
-        const allCookies = !loginWin.isDestroyed() ? await loginWin.webContents.session.cookies.get({}) : [];
+        let zaCookie = null;
+        let allCookies = [];
+
+        // Poll up to 10 times (3 seconds) for cookies to be committed to session
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const winCookies = !loginWin.isDestroyed() ? await loginWin.webContents.session.cookies.get({}) : [];
+          const defCookies = await session.defaultSession.cookies.get({});
+          allCookies = [...winCookies, ...defCookies];
+
+          zaCookie = allCookies.find(c => c.name === 'za_oauth_v4' && c.value);
+          if (zaCookie && zaCookie.value) break;
+          if (exchangedZaToken) {
+            zaCookie = { name: 'za_oauth_v4', value: exchangedZaToken };
+            break;
+          }
+          await new Promise(r => setTimeout(r, 300));
+        }
+
         const zingOrZaloCookies = allCookies.filter(c => {
           const dom = c.domain || '';
           return dom.includes('zingmp3.vn') || dom.includes('zalo.me') || dom.includes('zaloapp.com') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_') || c.name === 'zpsid';
         });
 
-        let zaCookie = allCookies.find(c => c.name === 'za_oauth_v4' && c.value);
-        if (!zaCookie) {
-          const defCookies = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
-          if (defCookies.length > 0 && defCookies[0].value) {
-            zaCookie = defCookies[0];
-          }
-        }
-
         const uniqueMap = new Map();
         for (const c of zingOrZaloCookies) {
-          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
+          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c.value);
         }
-        if (zaCookie && !uniqueMap.has('za_oauth_v4')) {
-          uniqueMap.set('za_oauth_v4', zaCookie);
+        if (zaCookie && zaCookie.value) {
+          uniqueMap.set('za_oauth_v4', zaCookie.value);
+        } else if (exchangedZaToken) {
+          uniqueMap.set('za_oauth_v4', exchangedZaToken);
         }
-        const cookieStr = Array.from(uniqueMap.values()).map(c => `${c.name}=${c.value}`).join('; ');
+
+        // Always ensure minimal required synthetic cookies if missing
+        if (!uniqueMap.has('zmp3_app_version.1')) uniqueMap.set('zmp3_app_version.1', '1222');
+
+        const cookiePairs = Array.from(uniqueMap.entries()).map(([k, v]) => `${k}=${v}`);
+        const cookieStr = cookiePairs.join('; ');
+        cachedZingSessionCookie = buildMergedZingCookie(cachedZingSessionCookie, cookieStr);
 
         let userProfile = null;
-        if (!loginWin.isDestroyed()) {
-          try {
-            userProfile = await loginWin.webContents.executeJavaScript(`
-              (async () => {
-                try {
-                  const res = await fetch('/api/v2/user/profile/get/info', { credentials: 'include' });
-                  if (res.ok) {
-                    const json = await res.json();
-                    if (json.err === 0 && json.data && (json.data.userid || json.data.id)) return json.data;
-                  }
-                } catch (e) {}
-                return null;
-              })()
-            `);
-          } catch (e) {
-            // ignore
+        // Retry profile fetch up to 8 times (4 seconds) to ensure Zing API returns valid user
+        for (let pAttempt = 0; pAttempt < 8; pAttempt++) {
+          if (!loginWin.isDestroyed()) {
+            try {
+              userProfile = await loginWin.webContents.executeJavaScript(`
+                (async () => {
+                  try {
+                    const res = await fetch('/api/v2/user/profile/get/info', { credentials: 'include' });
+                    if (res.ok) {
+                      const json = await res.json();
+                      if (json.err === 0 && json.data && (json.data.userid || json.data.id)) return json.data;
+                    }
+                  } catch (e) {}
+                  return null;
+                })()
+              `);
+            } catch (e) {}
           }
-        }
 
-        if (!userProfile) {
-          try {
-            userProfile = await fetchZingUserProfileDirect(cookieStr);
-          } catch (e) {}
+          if (!userProfile) {
+            try {
+              userProfile = await fetchZingUserProfileDirect(cookieStr);
+            } catch (e) {}
+          }
+
+          if (userProfile && (userProfile.userid || userProfile.id) && userProfile.userid !== 0) {
+            break;
+          }
+          await new Promise(r => setTimeout(r, 500));
         }
 
         if (!loginWin.isDestroyed()) {
@@ -7303,14 +7328,14 @@ ipcMain.handle('auth-open-zing-login', async () => {
           ? userProfile
           : { userid: 0, displayName: userProfile?.displayName || userProfile?.name || 'Zing MP3 User' };
 
-        console.log('[ZingAuth] Login succeeded for:', resolvedProfile.displayName);
+        console.log('[ZingAuth] Login succeeded with profile:', resolvedProfile.displayName, 'userid:', resolvedProfile.userid || resolvedProfile.id);
         resolve({ success: true, cookie: cookieStr, profile: resolvedProfile });
       } catch (err) {
         console.warn('[ZingAuth] finalizeLogin error:', err);
         if (!loginWin.isDestroyed()) {
           loginWin.close();
         }
-        resolve({ success: true, cookie: '', profile: { userid: 0, displayName: 'Zing MP3 User' } });
+        resolve({ success: true, cookie: cookieStr || '', profile: { userid: 0, displayName: 'Zing MP3 User' } });
       }
     };
 
@@ -7366,6 +7391,9 @@ ipcMain.handle('auth-open-zing-login', async () => {
                   const parts = cookieHeader.split(';').map(p => p.trim());
                   const [name, ...valParts] = parts[0].split('=');
                   const value = valParts.join('=');
+                  if (name === 'za_oauth_v4' && value) {
+                    exchangedZaToken = value;
+                  }
                   let domain = '.zingmp3.vn';
                   let path = '/';
                   for (const part of parts.slice(1)) {
@@ -7396,10 +7424,8 @@ ipcMain.handle('auth-open-zing-login', async () => {
               console.warn('[ZingAuth] Backend postZingLoginZalo error:', e);
             }
 
-            // Small delay for cookie store to commit, then finalize
-            setTimeout(() => {
-              void finalizeLogin();
-            }, 600);
+            // Finalize login now that exchange has occurred
+            void finalizeLogin();
           }
         } catch (err) {
           console.warn('[ZingAuth] handleNavigation parsing error:', err);
