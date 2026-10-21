@@ -7328,14 +7328,21 @@ ipcMain.handle('auth-open-zing-login', async () => {
           ? userProfile
           : { userid: 0, displayName: userProfile?.displayName || userProfile?.name || 'Zing MP3 User' };
 
-        console.log('[ZingAuth] Login succeeded with profile:', resolvedProfile.displayName, 'userid:', resolvedProfile.userid || resolvedProfile.id);
-        resolve({ success: true, cookie: cookieStr, profile: resolvedProfile });
+        const normalizedProfile = {
+          id: String(resolvedProfile.userid || resolvedProfile.id || 'zing_user'),
+          nickname: String(resolvedProfile.nickname || resolvedProfile.displayName || resolvedProfile.name || resolvedProfile.username || 'Zing MP3 User').trim() || 'Zing MP3 User',
+          avatarUrl: resolvedProfile.avatarUrl || (resolvedProfile.avatar ? String(resolvedProfile.avatar).replace(/^http:/, 'https:') : undefined),
+          vipType: (Array.isArray(resolvedProfile.packages) && resolvedProfile.packages.some(p => typeof p === 'string' && (p.includes('VIP') || p.includes('PREMIUM')))) || resolvedProfile.isVip ? 1 : 0,
+        };
+
+        console.log('[ZingAuth] Login succeeded with profile:', normalizedProfile.nickname, 'id:', normalizedProfile.id);
+        resolve({ success: true, cookie: cookieStr, profile: normalizedProfile });
       } catch (err) {
         console.warn('[ZingAuth] finalizeLogin error:', err);
         if (!loginWin.isDestroyed()) {
           loginWin.close();
         }
-        resolve({ success: true, cookie: cookieStr || '', profile: { userid: 0, displayName: 'Zing MP3 User' } });
+        resolve({ success: true, cookie: cookieStr || '', profile: { id: 'zing_user', nickname: 'Zing MP3 User', vipType: 0 } });
       }
     };
 

@@ -38,6 +38,16 @@ import {
     setStoredZingProfile,
 } from './zingApi';
 
+export function normalizeZingUser(raw: unknown): ProviderUser {
+    const item = raw as any;
+    return {
+        id: String(item?.id || item?.userid || 'zing_user'),
+        nickname: String(item?.nickname || item?.displayName || item?.name || item?.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User')).trim() || 'Zing MP3 User',
+        avatarUrl: item?.avatarUrl || (item?.avatar ? String(item.avatar).replace(/^http:/, 'https:') : undefined),
+        vipType: item?.vipType ?? ((item?.packages?.length || item?.isVip) ? 1 : 0),
+    };
+}
+
 let activeLoginKey: string | null = null;
 let activeLoginResult: LoginState | null = null;
 let activeLoginPromise: Promise<any> | null = null;
@@ -55,7 +65,8 @@ function launchElectronZingLogin(key: string): void {
         if (res?.success && res.cookie) {
             setStoredZingCookie(res.cookie);
             if (res.profile) {
-                setStoredZingProfile(res.profile);
+                const normalized = normalizeZingUser(res.profile);
+                setStoredZingProfile(normalized);
             }
             activeLoginResult = { state: 'confirmed' };
         } else if (res?.error === 'cancelled') {
@@ -100,15 +111,7 @@ export const zingProvider: OnlineMusicProvider = {
             sourceRef: item.sourceRef || { kind: 'online', providerId: 'zing', mediaId: String(item.id || '') },
         };
     },
-    normalizeUser(raw: unknown): ProviderUser {
-        const item = raw as any;
-        return {
-            id: item?.id || 'zing_user',
-            nickname: item?.nickname || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
-            avatarUrl: item?.avatarUrl,
-            vipType: item?.vipType ?? 0,
-        };
-    },
+    normalizeUser: normalizeZingUser,
     songMetadata: {
         getSongMetadata: createProviderSongMetadata,
     },

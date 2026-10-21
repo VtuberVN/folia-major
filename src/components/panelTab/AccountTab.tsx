@@ -83,9 +83,9 @@ const AccountTab: React.FC<AccountTabProps> = ({
                     <span className="relative shrink-0">
                         {activeUser.avatarUrl ? (
                             <img
-                                src={activeUser.avatarUrl.replace('http:', 'https:')}
+                                src={String(activeUser.avatarUrl).replace(/^http:/, 'https:')}
                                 className="h-10 w-10 rounded-full bg-[var(--st-fill)] object-cover"
-                                alt={activeUser.nickname}
+                                alt={activeUser.nickname || ''}
                             />
                         ) : (
                             <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--st-fill)] text-[color:var(--st-t3)]">

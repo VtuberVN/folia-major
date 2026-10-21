@@ -86,12 +86,24 @@ let zingWriteVersion = 0;
  * Retrieves the user profile if stored in localStorage.
  */
 export function getStoredZingProfile(): ProviderUser | null {
-    if (typeof localStorage === 'undefined') return inMemoryProfile;
+    if (inMemoryProfile) return inMemoryProfile;
+    if (typeof localStorage === 'undefined') return null;
     try {
         const raw = localStorage.getItem(ZING_PROFILE_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : inMemoryProfile;
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            inMemoryProfile = {
+                id: String(parsed.id || parsed.userid || 'zing_user'),
+                nickname: String(parsed.nickname || parsed.displayName || parsed.name || parsed.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User')).trim() || 'Zing MP3 User',
+                avatarUrl: parsed.avatarUrl || (parsed.avatar ? String(parsed.avatar).replace(/^http:/, 'https:') : undefined),
+                vipType: parsed.vipType ?? (parsed.isVip ? 1 : 0),
+            };
+            return inMemoryProfile;
+        }
+        return null;
     } catch {
-        return inMemoryProfile;
+        return null;
     }
 }
 
@@ -99,10 +111,19 @@ export function getStoredZingProfile(): ProviderUser | null {
  * Stores the user profile in localStorage.
  */
 export function setStoredZingProfile(profile: ProviderUser | null): void {
-    inMemoryProfile = profile;
-    if (typeof localStorage === 'undefined') return;
     if (profile) {
-        localStorage.setItem(ZING_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+        inMemoryProfile = {
+            id: String(profile.id || (profile as any).userid || 'zing_user'),
+            nickname: String(profile.nickname || (profile as any).displayName || (profile as any).name || (profile as any).username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User')).trim() || 'Zing MP3 User',
+            avatarUrl: profile.avatarUrl || ((profile as any).avatar ? String((profile as any).avatar).replace(/^http:/, 'https:') : undefined),
+            vipType: profile.vipType ?? ((profile as any).isVip ? 1 : 0),
+        };
+    } else {
+        inMemoryProfile = null;
+    }
+    if (typeof localStorage === 'undefined') return;
+    if (inMemoryProfile) {
+        localStorage.setItem(ZING_PROFILE_STORAGE_KEY, JSON.stringify(inMemoryProfile));
     } else {
         localStorage.removeItem(ZING_PROFILE_STORAGE_KEY);
     }
@@ -139,7 +160,7 @@ export function getStoredZingCookie(): string {
  * Stores a user-provided Zing MP3 cookie in localStorage.
  */
 export function setStoredZingCookie(cookie: string): void {
-    const trimmed = cookie.trim();
+    const trimmed = String(cookie || '').trim();
     inMemoryCookie = trimmed || null;
     const writeId = ++zingWriteVersion;
     if (typeof localStorage === 'undefined') return;
@@ -541,8 +562,8 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
 
         return {
             id: String(data.userid || data.id || 'zing_user'),
-            nickname: data.displayName || data.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User'),
-            avatarUrl: data.avatar ? String(data.avatar).replace(/^http:/, 'https:') : undefined,
+            nickname: String(data.nickname || data.displayName || data.name || data.username || (i18n.isInitialized ? i18n.t('zing.accountUser') : 'Zing MP3 User')).trim() || 'Zing MP3 User',
+            avatarUrl: data.avatarUrl || (data.avatar ? String(data.avatar).replace(/^http:/, 'https:') : undefined),
             vipType: hasVip ? 1 : 0,
         };
     };

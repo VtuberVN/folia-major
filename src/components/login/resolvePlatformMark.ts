@@ -8,6 +8,7 @@ import type { ProviderMark } from '../../types/onlineMusic';
 // 是深是白要拿它算对比度，窗口带的那一点颜色也从它来。
 const NEUTRAL_MARK_COLOR = '#5d5d66';
 
-export const resolvePlatformMark = (declared: ProviderMark | null, label: string): ProviderMark => (
-    declared ?? { letter: [...label.trim()][0]?.toUpperCase() ?? '?', color: NEUTRAL_MARK_COLOR }
-);
+export const resolvePlatformMark = (declared: ProviderMark | null, label: string): ProviderMark => {
+    const safeLabel = String(label || '').trim();
+    return declared ?? { letter: [...safeLabel][0]?.toUpperCase() ?? '?', color: NEUTRAL_MARK_COLOR };
+};

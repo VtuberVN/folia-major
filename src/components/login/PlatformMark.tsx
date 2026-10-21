@@ -46,9 +46,10 @@ export const PlatformMark: React.FC<PlatformMarkProps> = ({ providerId, label, s
  * 账号头像的地址。网页端把 http 的地址换成 https（https 的页面不让载 http 的图）；桌面端原样用，
  * 有的平台的头像只在 http 上。
  */
-export const accountPictureSrc = (avatarUrl: string, inDesktopApp: boolean): string => (
-    inDesktopApp ? avatarUrl : avatarUrl.replace(/^http:/, 'https:')
-);
+export const accountPictureSrc = (avatarUrl: string, inDesktopApp: boolean): string => {
+    const raw = String(avatarUrl || '');
+    return inDesktopApp ? raw : raw.replace(/^http:/, 'https:');
+};
 
 type AccountPictureProps = {
     user: ProviderUser;
@@ -62,9 +63,11 @@ type AccountPictureProps = {
 
 export const AccountPicture: React.FC<AccountPictureProps> = ({ user, size, providerId, ranOut, cornerRef }) => {
     const corner = Math.max(14, Math.round(size * 0.44));
+    const nickname = String(user?.nickname || '').trim();
+    const initialChar = [...nickname][0] ?? '';
     return (
         <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
-            {user.avatarUrl ? (
+            {user?.avatarUrl ? (
                 <img
                     src={accountPictureSrc(user.avatarUrl, typeof window !== 'undefined' && Boolean(window.electron))}
                     alt=""
@@ -77,7 +80,7 @@ export const AccountPicture: React.FC<AccountPictureProps> = ({ user, size, prov
                     className="grid h-full w-full place-items-center rounded-full bg-[var(--st-fill2)] font-semibold leading-none text-[color:var(--st-t1)]"
                     style={{ fontSize: Math.round(size * 0.42) }}
                 >
-                    {[...user.nickname.trim()][0] ?? ''}
+                    {initialChar}
                 </span>
             )}
             {providerId && (

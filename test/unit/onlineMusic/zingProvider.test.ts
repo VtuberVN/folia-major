@@ -1,6 +1,6 @@
 // test/unit/onlineMusic/zingProvider.test.ts
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { zingProvider } from '@/services/onlineMusic/zingProvider';
+import { zingProvider, normalizeZingUser } from '@/services/onlineMusic/zingProvider';
 import { getOnlineMusicProvider } from '@/services/onlineMusic/providerRegistry';
 import * as zingApi from '@/services/onlineMusic/zingApi';
 import { searchZingSongs as searchZingLyricSongs } from '@/utils/lyrics/providers/zingLyricProvider';
@@ -556,6 +556,44 @@ describe('zingProvider', () => {
         expect(recentCall?.headers['x-zing-cookie']).toContain('za_oauth_v4=test_token_123');
 
         zingApi.setStoredZingCookie('');
+    });
+
+    it('safely normalizes raw profiles without throwing on missing or undefined fields', () => {
+        const emptyProfile = normalizeZingUser({});
+        expect(emptyProfile.id).toBe('zing_user');
+        expect(emptyProfile.nickname).toBeTruthy();
+        expect(typeof emptyProfile.nickname).toBe('string');
+        expect(emptyProfile.avatarUrl).toBeUndefined();
+
+        const undefinedInput = normalizeZingUser(undefined);
+        expect(undefinedInput.id).toBe('zing_user');
+        expect(typeof undefinedInput.nickname).toBe('string');
+
+        const rawZingData = {
+            id: 99887766,
+            displayName: 'Nguyễn Văn Test',
+            avatar: 'http://img.zingmp3.vn/avatar.jpg',
+            isVip: true,
+        };
+        const normalized = normalizeZingUser(rawZingData);
+        expect(normalized.id).toBe('99887766');
+        expect(normalized.nickname).toBe('Nguyễn Văn Test');
+        expect(normalized.avatarUrl).toBe('https://img.zingmp3.vn/avatar.jpg');
+        expect(normalized.vipType).toBe(1);
+
+        zingApi.setStoredZingProfile(normalized);
+        const stored = zingApi.getStoredZingProfile();
+        expect(stored?.nickname).toBe('Nguyễn Văn Test');
+
+        // Handles malformed profile passed to setStoredZingProfile
+        zingApi.setStoredZingProfile({ id: 'bad' } as any);
+        const recovered = zingApi.getStoredZingProfile();
+        expect(recovered?.nickname).toBeTruthy();
+        expect(typeof recovered?.nickname).toBe('string');
+
+        // Handles setStoredZingCookie with empty or undefined without throwing
+        expect(() => zingApi.setStoredZingCookie(undefined as any)).not.toThrow();
+        expect(() => zingApi.setStoredZingCookie('')).not.toThrow();
     });
 });
 
