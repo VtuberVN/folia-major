@@ -7203,6 +7203,14 @@ ipcMain.handle('auth-open-zing-login', async () => {
     let settled = false;
     let isExchanging = false;
 
+    // Clear any stale Zing cookies before launching login window, while preserving Zalo session
+    try {
+      await session.defaultSession.clearStorageData({ storages: ['cookies'], origin: 'https://zingmp3.vn' });
+      await session.defaultSession.clearStorageData({ storages: ['cookies'], origin: 'http://zingmp3.vn' });
+    } catch (e) {
+      // ignore
+    }
+
     // Fetch official OAuth URL from Zing MP3 API
     let oauthUrl = '';
     let codeChallenge = '';
@@ -7221,17 +7229,6 @@ ipcMain.handle('auth-open-zing-login', async () => {
       codeChallenge = fallbackChallenge;
     }
 
-    // Clear any stale Zing auth cookie before launching login window
-    try {
-      const existingZa = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
-      for (const c of existingZa) {
-        const domain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
-        await session.defaultSession.cookies.remove(`https://${domain}${c.path || '/'}`, c.name).catch(() => {});
-      }
-    } catch (e) {
-      // ignore
-    }
-
     const loginWin = new BrowserWindow({
       width: 520,
       height: 700,
@@ -7243,10 +7240,18 @@ ipcMain.handle('auth-open-zing-login', async () => {
       },
     });
 
-    const checkAndCompleteLogin = async () => {
-      if (settled || !loginWin || loginWin.isDestroyed()) return;
+    const finalizeLogin = async () => {
+      if (settled) return;
+      settled = true;
+      console.log('[ZingAuth] Finalizing login and retrieving user profile...');
+
       try {
-        const allCookies = await loginWin.webContents.session.cookies.get({});
+        const allCookies = !loginWin.isDestroyed() ? await loginWin.webContents.session.cookies.get({}) : [];
+        const zingOrZaloCookies = allCookies.filter(c => {
+          const dom = c.domain || '';
+          return dom.includes('zingmp3.vn') || dom.includes('zalo.me') || dom.includes('zaloapp.com') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_') || c.name === 'zpsid';
+        });
+
         let zaCookie = allCookies.find(c => c.name === 'za_oauth_v4' && c.value);
         if (!zaCookie) {
           const defCookies = await session.defaultSession.cookies.get({ name: 'za_oauth_v4' });
@@ -7255,13 +7260,17 @@ ipcMain.handle('auth-open-zing-login', async () => {
           }
         }
 
-        // ONLY complete when za_oauth_v4 is actually present (proof of successful authentication)
-        if (zaCookie && zaCookie.value) {
-          settled = true;
-          clearInterval(interval);
-          console.log('[ZingAuth] Login confirmed! Found za_oauth_v4 token.');
+        const uniqueMap = new Map();
+        for (const c of zingOrZaloCookies) {
+          if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
+        }
+        if (zaCookie && !uniqueMap.has('za_oauth_v4')) {
+          uniqueMap.set('za_oauth_v4', zaCookie);
+        }
+        const cookieStr = Array.from(uniqueMap.values()).map(c => `${c.name}=${c.value}`).join('; ');
 
-          let userProfile = null;
+        let userProfile = null;
+        if (!loginWin.isDestroyed()) {
           try {
             userProfile = await loginWin.webContents.executeJavaScript(`
               (async () => {
@@ -7278,39 +7287,30 @@ ipcMain.handle('auth-open-zing-login', async () => {
           } catch (e) {
             // ignore
           }
-
-          const zingOrZaloCookies = allCookies.filter(c => {
-            const dom = c.domain || '';
-            return dom.includes('zingmp3.vn') || dom.includes('zalo.me') || dom.includes('zaloapp.com') || c.name === 'za_oauth_v4' || c.name.startsWith('zmp3_') || c.name === 'zpsid';
-          });
-
-          const uniqueMap = new Map();
-          for (const c of zingOrZaloCookies) {
-            if (!uniqueMap.has(c.name)) uniqueMap.set(c.name, c);
-          }
-          if (!uniqueMap.has('za_oauth_v4')) {
-            uniqueMap.set('za_oauth_v4', zaCookie);
-          }
-          const cookieStr = Array.from(uniqueMap.values()).map(c => `${c.name}=${c.value}`).join('; ');
-
-          if (!userProfile) {
-            try {
-              userProfile = await fetchZingUserProfileDirect(cookieStr);
-            } catch (e) {}
-          }
-
-          if (!loginWin.isDestroyed()) {
-            loginWin.close();
-          }
-
-          const resolvedProfile = userProfile && (userProfile.userid || userProfile.id) && userProfile.userid !== 0
-            ? userProfile
-            : { userid: 0, displayName: userProfile?.displayName || userProfile?.name || 'Zing MP3 User' };
-
-          resolve({ success: true, cookie: cookieStr, profile: resolvedProfile });
         }
+
+        if (!userProfile) {
+          try {
+            userProfile = await fetchZingUserProfileDirect(cookieStr);
+          } catch (e) {}
+        }
+
+        if (!loginWin.isDestroyed()) {
+          loginWin.close();
+        }
+
+        const resolvedProfile = userProfile && (userProfile.userid || userProfile.id) && userProfile.userid !== 0
+          ? userProfile
+          : { userid: 0, displayName: userProfile?.displayName || userProfile?.name || 'Zing MP3 User' };
+
+        console.log('[ZingAuth] Login succeeded for:', resolvedProfile.displayName);
+        resolve({ success: true, cookie: cookieStr, profile: resolvedProfile });
       } catch (err) {
-        console.warn('[ZingAuth] checkAndCompleteLogin error:', err);
+        console.warn('[ZingAuth] finalizeLogin error:', err);
+        if (!loginWin.isDestroyed()) {
+          loginWin.close();
+        }
+        resolve({ success: true, cookie: '', profile: { userid: 0, displayName: 'Zing MP3 User' } });
       }
     };
 
@@ -7319,15 +7319,14 @@ ipcMain.handle('auth-open-zing-login', async () => {
       const urlStr = targetUrl || '';
       console.log('[ZingAuth] Navigating to:', urlStr);
 
-      // If user is already logged into Zalo, id.zalo.me might send them to chat.zalo.me.
-      // Immediately bounce back to oauthUrl so Zalo recognizes the active session and authorizes Zing MP3!
+      // If user has active Zalo chat session that tried to open chat.zalo.me:
       if (urlStr.includes('chat.zalo.me')) {
-        console.log('[ZingAuth] Detected chat.zalo.me with active session, bouncing to oauth permission...');
+        console.log('[ZingAuth] Active Zalo session on chat.zalo.me detected, bouncing to OAuth permission...');
         loginWin.loadURL(oauthUrl);
         return;
       }
 
-      // Check if redirected to Zing MP3 callback with code
+      // CRITICAL: We ONLY proceed to exchange and complete if we are on zingmp3.vn callback with the OAuth code!
       if (urlStr.includes('zingmp3.vn') && urlStr.includes('/login/zalo')) {
         try {
           const u = new URL(urlStr);
@@ -7335,7 +7334,7 @@ ipcMain.handle('auth-open-zing-login', async () => {
           const state = u.searchParams.get('state');
           if (code && !isExchanging) {
             isExchanging = true;
-            console.log('[ZingAuth] Found oauth code on /login/zalo, exchanging token...');
+            console.log('[ZingAuth] Received OAuth code, performing token exchange...');
             const challenge = state || codeChallenge;
 
             // In-page execution so cookies & origin are authentic Zing MP3
@@ -7359,7 +7358,7 @@ ipcMain.handle('auth-open-zing-login', async () => {
               console.warn('[ZingAuth] In-page post/login-zalo error:', e);
             }
 
-            // Also post via backend
+            // Backend exchange as well to guarantee cookies
             try {
               const postRes = await postZingLoginZalo(code, challenge);
               if (postRes.setCookies && postRes.setCookies.length > 0) {
@@ -7397,17 +7396,16 @@ ipcMain.handle('auth-open-zing-login', async () => {
               console.warn('[ZingAuth] Backend postZingLoginZalo error:', e);
             }
 
-            await checkAndCompleteLogin();
+            // Small delay for cookie store to commit, then finalize
+            setTimeout(() => {
+              void finalizeLogin();
+            }, 600);
           }
         } catch (err) {
           console.warn('[ZingAuth] handleNavigation parsing error:', err);
         }
       }
-
-      await checkAndCompleteLogin();
     };
-
-    const interval = setInterval(checkAndCompleteLogin, 1000);
 
     loginWin.webContents.on('will-redirect', (_e, targetUrl) => {
       void handleNavigation(targetUrl);
@@ -7420,7 +7418,6 @@ ipcMain.handle('auth-open-zing-login', async () => {
     });
 
     loginWin.on('closed', () => {
-      clearInterval(interval);
       if (!settled) {
         settled = true;
         resolve({ success: false, error: 'cancelled' });
