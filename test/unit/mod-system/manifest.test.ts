@@ -80,6 +80,15 @@ describe('validateManifest', () => {
         }
     });
 
+    // Folium 1.7: replaceQueue's own permission, taken on its own (it needs no playback.control).
+    it('accepts playback.queue', () => {
+        const result = validateManifest({ ...validManifest, permissions: ['playback.queue'] });
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.value.permissions).toEqual(['playback.queue']);
+        }
+    });
+
     it('rejects duplicate permissions', () => {
         const result = validateManifest({ ...validManifest, permissions: ['render.export', 'render.export'] });
         expect(result.ok).toBe(false);
@@ -149,6 +158,13 @@ describe('validateManifest Folium entries and opt-ins', () => {
         expect(platform(['platform.nowhere.read']).ok).toBe(false);
         // The opt-in alone asks for nothing.
         expect(platform([]).ok).toBe(true);
+    });
+
+    // Folium 1.7: folium.equalizer's writes; no opt-in and no other permission goes with it.
+    it('accepts equalizer.control on its own', () => {
+        const result = validateManifest({ ...validManifest, permissions: ['equalizer.control'] });
+        expect(result.ok).toBe(true);
+        expect(result.value.permissions).toEqual(['equalizer.control']);
     });
 
     it('accepts an optional preview image path inside the mod directory', () => {

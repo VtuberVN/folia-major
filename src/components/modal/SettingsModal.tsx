@@ -388,6 +388,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const [isElectron, setIsElectron] = useState(hasElectronBridge);
     const [electronSettings, setElectronSettings] = useState({
         GEMINI_API_KEY: '',
+        // Blank: the default model, worked out when the request is made (nothing is written back).
+        GEMINI_API_MODEL: '',
+        AI_PROVIDER_PRESET: '',
         OPENAI_API_KEY: '',
         OPENAI_API_URL: '',
         OPENAI_API_MODEL: '',
@@ -554,6 +557,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             await (window as any).electron.saveSettings('OPENAI_API_MODEL', electronSettings.OPENAI_API_MODEL);
             await (window as any).electron.saveSettings('OPENAI_API_TEMPERATURE', temperature);
             await (window as any).electron.saveSettings('OPENAI_API_STREAM', electronSettings.OPENAI_API_STREAM === true);
+            await (window as any).electron.saveSettings('GEMINI_API_MODEL', electronSettings.GEMINI_API_MODEL);
+            await (window as any).electron.saveSettings('AI_PROVIDER_PRESET', electronSettings.AI_PROVIDER_PRESET);
             await (window as any).electron.saveSettings('AI_PROVIDER', electronSettings.AI_PROVIDER);
             await (window as any).electron.saveSettings('USE_SYSTEM_PROXY_FOR_AI', electronSettings.USE_SYSTEM_PROXY_FOR_AI);
             await (window as any).electron.saveSettings('ENABLE_UPDATE_CHECK', electronSettings.ENABLE_UPDATE_CHECK);

@@ -270,6 +270,17 @@ export const ModListItem: React.FC<ModListItemProps> = ({
                                         : ''}
                                 </div>
                             ) : null}
+                            {/* Folium 1.7: the one permission that lets a mod drop the user's queue, said in words. */}
+                            {mod.permissions.includes('playback.queue') ? (
+                                <div className="text-[11px] opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('mods.queueReplaceHint')}
+                                </div>
+                            ) : null}
+                            {mod.permissions.includes('equalizer.control') ? (
+                                <div className="text-[11px] opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('mods.equalizerControlHint')}
+                                </div>
+                            ) : null}
                             {mod.trustStale ? (
                                 <div className={`flex items-start gap-2 text-xs rounded-lg border px-3 py-2 ${classes.warning}`}>
                                     <TriangleAlert size={14} className="mt-px shrink-0" />

@@ -30,12 +30,26 @@ declare global {
   /** Unsaved AI settings sent by the "test connection" button. */
   interface AiConnectionTestPayload {
     provider: 'gemini' | 'openai';
+    /**
+     * The form's preset (shared/ai/providerRegistry.mjs). 'custom' requires apiUrl: a custom
+     * connection must never fall back to a built-in endpoint. Requests follow apiUrl's host.
+     */
+    presetId?: string;
     /** Typed key; empty means "use the saved key", which only the main process can read. */
     apiKey: string;
     apiUrl?: string;
     model?: string;
     stream?: boolean;
     useSystemProxy?: boolean;
+  }
+
+  interface AiModelListResult {
+    ok: boolean;
+    models?: { id: string; name: string }[];
+    status?: number;
+    errorKind?: 'invalid' | 'config' | 'auth' | 'http' | 'network' | 'timeout' | 'empty';
+    /** On a failure: model ids the provider suggests instead (shared/ai adapters' suggestedModels). */
+    suggestedModels?: string[];
   }
 
   interface AiConnectionTestResult {
@@ -990,13 +1004,34 @@ declare global {
       /** The tray asked to enter wallpaper mode; the renderer shows the confirmation before entering. */
       onWallpaperEntryRequested?: (callback: () => void) => () => void;
       onWallpaperInputMonitorRequested?: (callback: () => void) => () => void;
+      /** macOS wallpaper mode with Stage Manager on and the desktop icons shown, without the Accessibility grant the click guard needs (issue #698). */
+      onWallpaperAccessibilitySuggested?: (callback: () => void) => () => void;
+      /**
+       * Windows only: the GPU choice this run started with (a later change waits for a restart), whether
+       * it came from the setting or a command-line switch, and the name of the adapter Chromium renders
+       * on. null off Windows or when the asking page is not the main window.
+       */
+      getGpuPreferenceState?: () => Promise<{
+          applied: 'auto' | 'high-performance' | 'low-power';
+          source: 'setting' | 'command-line';
+          activeGpu: string | null;
+      } | null>;
       /** The connected displays and the display chosen for wallpaper mode. null when the asking page is not the main window. */
       getWallpaperDisplays?: () => Promise<ElectronWallpaperDisplaysState | null>;
       /** Chooses a connected display by id, or automatic with null; a running wallpaper moves at once. Answers the new state. */
       setWallpaperDisplay?: (displayId: number | null) => Promise<ElectronWallpaperDisplaysState | null>;
       /** A display was connected, removed or changed, or the choice changed. */
       onWallpaperDisplaysChanged?: (callback: (state: ElectronWallpaperDisplaysState) => void) => () => void;
+      /** macOS wallpaper mode: the on-screen controls' rects (viewport CSS px), covered by click catchers so Finder and Stage Manager never see those clicks. */
+      setWallpaperHitRegions?: (rects: Array<{ left: number; top: number; width: number; height: number }>) => void;
       setPlaybackDisplaySleepBlockingActive: (active: boolean) => Promise<boolean>;
+      /**
+       * The 后台节流 switch for the main window: `active` while it is on and not standing down
+       * (wallpaper, video export, OBS browser source); `hidden` while it is and the window is
+       * minimised or hidden to the tray.
+       */
+      getBackgroundThrottlingState?: () => Promise<{ active: boolean; hidden: boolean }>;
+      onBackgroundThrottlingChanged?: (callback: (state: { active: boolean; hidden: boolean }) => void) => () => void;
       setAppLocale: (localeKey: 'en' | 'zh-CN' | 'zh-TW' | 'in' | 'vi') => Promise<string>;
       getCacheDirectory: () => Promise<ElectronCacheDirectoryResult>;
       chooseCacheDirectory: () => Promise<ElectronCacheDirectoryResult>;
@@ -1097,6 +1132,7 @@ declare global {
       segmentLyrics: (lines: string[]) => Promise<string[][]>;
       /** Sends "hello" with the unsaved AI settings from the form and reports the reply. Never rejects on connection failures. */
       testAiConnection: (settings: AiConnectionTestPayload) => Promise<AiConnectionTestResult>;
+      listAiModels: (settings: AiConnectionTestPayload) => Promise<AiModelListResult>;
       fetchLyricProxy: (
         url: string,
         init?: {
@@ -1172,7 +1208,7 @@ declare global {
       publishObsBrowserSourceAudio: (audio: ElectronObsBrowserSourceAudio) => Promise<boolean>;
       getLyricApiStatus: () => Promise<import('./types/lyricApi').LyricApiStatus>;
       setLyricApiEnabled: (enabled: boolean) => Promise<import('./types/lyricApi').LyricApiStatus>;
-      publishLyricApiData: (lyrics: import('./types').LyricData | null, offset: number) => Promise<boolean>;
+      publishLyricApiData: (lyrics: import('./types').LyricData | null, offset: number, clipStartMs?: number) => Promise<boolean>;
       onLyricApiStatusChanged: (callback: (status: import('./types/lyricApi').LyricApiStatus) => void) => () => void;
       getDiscordPresenceStatus: () => Promise<ElectronDiscordPresenceStatus>;
       publishDiscordPresenceSnapshot: (snapshot: ElectronDiscordPresenceSnapshot) => Promise<ElectronDiscordPresenceStatus>;

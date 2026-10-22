@@ -100,6 +100,12 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('wallpaper-input-monitor-requested', listener);
         return () => ipcRenderer.removeListener('wallpaper-input-monitor-requested', listener);
     },
+    onWallpaperAccessibilitySuggested: (callback) => {
+        const listener = () => callback();
+        ipcRenderer.on('wallpaper-accessibility-suggested', listener);
+        return () => ipcRenderer.removeListener('wallpaper-accessibility-suggested', listener);
+    },
+    getGpuPreferenceState: () => ipcRenderer.invoke('gpu-preference-state'),
     getWallpaperDisplays: () => ipcRenderer.invoke('wallpaper-displays-get'),
     setWallpaperDisplay: (displayId) => ipcRenderer.invoke('wallpaper-display-set', displayId),
     onWallpaperDisplaysChanged: (callback) => {
@@ -107,7 +113,14 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('wallpaper-displays-changed', listener);
         return () => ipcRenderer.removeListener('wallpaper-displays-changed', listener);
     },
+    setWallpaperHitRegions: (rects) => ipcRenderer.send('wallpaper-hit-regions', rects),
     setPlaybackDisplaySleepBlockingActive: (active) => ipcRenderer.invoke('playback-display-sleep-set-active', active),
+    getBackgroundThrottlingState: () => ipcRenderer.invoke('background-throttling-get'),
+    onBackgroundThrottlingChanged: (callback) => {
+        const listener = (_event, state) => callback(state);
+        ipcRenderer.on('background-throttling-changed', listener);
+        return () => ipcRenderer.removeListener('background-throttling-changed', listener);
+    },
     setAppLocale: (localeKey) => ipcRenderer.invoke('set-app-locale', localeKey),
     getCacheDirectory: () => ipcRenderer.invoke('get-cache-directory'),
     chooseCacheDirectory: () => ipcRenderer.invoke('choose-cache-directory'),
@@ -209,6 +222,7 @@ contextBridge.exposeInMainWorld('electron', {
     generateTheme: (lyricsText, options) => ipcRenderer.invoke('generate-theme', lyricsText, options),
     segmentLyrics: (lines) => ipcRenderer.invoke('segment-lyrics', lines),
     testAiConnection: (settings) => ipcRenderer.invoke('ai-test-connection', settings),
+    listAiModels: (settings) => ipcRenderer.invoke('ai-list-models', settings),
     fetchLyricProxy: (url, init) => ipcRenderer.invoke('lyric-proxy-fetch', url, init),
     getNeteasePort: () => ipcRenderer.invoke('get-netease-port'),
     getNeteaseApiStatus: () => ipcRenderer.invoke('get-netease-api-status'),
@@ -279,7 +293,7 @@ contextBridge.exposeInMainWorld('electron', {
     publishObsBrowserSourceAudio: (audio) => ipcRenderer.invoke('obs-browser-source-publish-audio', audio),
     getLyricApiStatus: () => ipcRenderer.invoke('lyric-api-get-status'),
     setLyricApiEnabled: (enabled) => ipcRenderer.invoke('lyric-api-set-enabled', enabled),
-    publishLyricApiData: (lyrics, offset) => ipcRenderer.invoke('lyric-api-publish', lyrics, offset),
+    publishLyricApiData: (lyrics, offset, clipStartMs) => ipcRenderer.invoke('lyric-api-publish', lyrics, offset, clipStartMs),
     onLyricApiStatusChanged: (callback) => {
         const listener = (_event, status) => callback(status);
         ipcRenderer.on('lyric-api-status-changed', listener);

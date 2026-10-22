@@ -18,6 +18,14 @@ const { createModSystem } = require('./modSystem/modSystem.cjs');
 const { MOD_PROTOCOL_PRIVILEGED_SCHEME } = require('./modSystem/modProtocol.cjs');
 const { createWindowPlaybackHandoffStore } = require('./windowPlaybackHandoff.cjs');
 const { applyTileMemoryBudget } = require('./tileMemoryBudget.cjs');
+const { BACKGROUND_THROTTLING_SETTING_KEY, createBackgroundThrottling } = require('./backgroundThrottling.cjs');
+const {
+  GPU_PREFERENCE_SETTING_KEY,
+  applyGpuPreference,
+  createActiveGpuReader,
+  logGpuPreference,
+  normalizeGpuPreference,
+} = require('./gpuPreference.cjs');
 const {
   REMOTE_CONTROL_HIDE_TITLEBAR_SETTING_KEY,
   REMOTE_CONTROL_CLICK_THROUGH_SETTING_KEY,
@@ -39,6 +47,14 @@ const windowsWallpaperModule = require('./wallpaper/windowsWallpaperController.c
 const { createWindowsWallpaperTargetResolver } = require('./wallpaper/windowsWallpaperTarget.cjs');
 const { createWindowsWallpaperMouseInjector } = require('./wallpaper/windowsWallpaperMouse.cjs');
 const macWallpaperModule = require('./wallpaper/macWallpaperController.cjs');
+const {
+  MAX_HIT_PANELS,
+  coversWholeWallpaper,
+  createMacWallpaperHitPanels,
+  readStageManagerDesktop,
+  toScreenHitRects,
+} = require('./wallpaper/macWallpaperHitPanels.cjs');
+const { createMacDesktopClickGuard, isAccessibilityTrusted } = require('./wallpaper/macDesktopClickGuard.cjs');
 const {
   WALLPAPER_DISPLAY_SETTING_KEY,
   normalizeWallpaperDisplayChoice,
@@ -90,15 +106,15 @@ const { createTranscodeService } = require('./transcode/service.cjs');
 const { TRANSCODE_PROTOCOL_SCHEME } = require('./transcode/protocol.cjs');
 const { sanitizeDualTheme: sanitizeGeneratedDualTheme } = require('../shared/themeSanitizer.cjs');
 const {
-  detectOpenAICompatibleProvider,
-  normalizeOpenAIChatCompletionsUrl,
+  aiProviderLabel,
   runAiConnectionTest,
   runAiJsonCompletion,
   runGeminiThemeCompletion,
 } = require('./aiTextClient.cjs');
+const { registerAiModelDiscovery } = require('./ai/modelDiscoveryIpc.cjs');
 const { createAiCredentialStore, isAiCredentialKey, isReservedAiCredentialKey } = require('./aiCredentialStore.cjs');
 const {
-  SEGMENTATION_GEMINI_GENERATION_CONFIG,
+  SEGMENTATION_GEMINI_SCHEMA,
   SEGMENTATION_JSON_SCHEMA,
   SEGMENTATION_MAX_OUTPUT_TOKENS,
   SEGMENTATION_SCHEMA_NAME,
@@ -254,6 +270,9 @@ if (process.platform === 'darwin' && process.arch === 'x64') {
 }
 
 const store = new Store({ projectName: 'Folia' });
+// Before ready: the GPU process reads its switches when it starts.
+const gpuPreferenceApplied = applyGpuPreference({ app, store });
+const readActiveGpu = createActiveGpuReader(app);
 const transcodeService = createTranscodeService({
   app,
   protocol,
@@ -330,6 +349,9 @@ const WALLPAPER_ZGUARD_SETTING_KEY = 'wallpaper_zguard';
 // disables even a bottom Dock. Exiting wallpaper mode or quitting restores the user's original Dock
 // state either way.
 const WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY = 'wallpaper_mac_autohide_dock';
+// Set once Folia has asked macOS for the Accessibility grant (issue #698), so a user who declined
+// is not asked again on every launch.
+const WALLPAPER_MAC_ACCESSIBILITY_ASKED_KEY = 'wallpaper_mac_accessibility_asked';
 
 // Thin wrappers over electron/wallpaper/wallpaperWatchdog.cjs so the call sites across the file keep their
 // existing signatures while the predicates stay a single source of truth in the module.
@@ -972,6 +994,21 @@ let macWallpaperEnterPollElapsed = 0;
 let macWallpaperEnterPollTimer = null;
 let macWallpaperSettleTimer = null;
 let macWallpaperSettleAttempts = 0;
+// Click catchers over the wallpaper's controls, so a click on them never reaches Finder's desktop
+// and Stage Manager does not react to it (issue #698; macWallpaperHitPanels.cjs). The renderer
+// reports the controls' rects (viewport CSS px).
+let macWallpaperHitPanelsInstance = null;
+let macWallpaperHitRects = [];
+// Stage Manager (issue #698). With the desktop items hidden while it is on: one catcher over the
+// whole wallpaper (macWallpaperHitPanels.cjs), no grant needed. With the icons shown: the click
+// guard library (macDesktopClickGuard.cjs) once Folia holds the Accessibility grant, else the
+// catchers over the controls only and a one-time hint. Stage Manager's settings and the grant are
+// re-read on a slow timer while the wallpaper takes input, so changes apply without a restart.
+let macWallpaperStageState = { enabled: false, hidesDesktopItems: false, trusted: false };
+let macWallpaperStageManagerTimer = null;
+let macWallpaperClickGuardInstance = null;
+let macWallpaperAccessibilityHinted = false;
+const MAC_WALLPAPER_STAGE_MANAGER_POLL_MS = 3000;
 const MAC_WALLPAPER_TAP_RETRY_DELAY_MS = 2000;
 const MAC_WALLPAPER_TAP_FAILURE_THRESHOLD = 3;
 const MAC_WALLPAPER_DRAG_FLUSH_MS = 16;
@@ -1130,6 +1167,9 @@ function scheduleMacWallpaperFrameSettleVerify() {
     } catch (error) {
       // ignore
     }
+    // The window may have moved to another display at the same size: the renderer reports no new
+    // rects then, so the catchers follow the frame here.
+    syncMacWallpaperHitPanels();
   }, MAC_WALLPAPER_FRAME_SETTLE_DELAY_MS);
 }
 
@@ -1294,6 +1334,8 @@ function deferMacWallpaperEnterUntilFullScreenExit() {
 
 function notifyMacWallpaperModeChanged() {
   refreshTrayMenu();
+  // macOS switches wallpaper mode in place, not always through save-settings: every change ends here.
+  backgroundThrottling.refresh();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('wallpaper-mode-changed', getPublicSettings());
   }
@@ -1466,6 +1508,8 @@ function exitMacWallpaperMode() {
   }
   const wasActive = isMacWallpaperActive;
   isMacWallpaperActive = false;
+  macWallpaperHitRects = [];
+  syncMacWallpaperHitPanels(); // takes the click catchers down
   if (!mainWindow || mainWindow.isDestroyed()) {
     macWallpaperSavedState = null;
     if (wasActive) {
@@ -1705,6 +1749,9 @@ function startMacWallpaperInteraction() {
       // ignore
     }
     isMacWallpaperInteractionEnabled = false;
+    // The grant may have been revoked mid-session: catchers without a tap would leave the
+    // controls dead to every click.
+    syncMacWallpaperHitPanels();
     notifyMacWallpaperInputMonitoringNeeded();
     return false;
   }
@@ -1716,6 +1763,7 @@ function startMacWallpaperInteraction() {
       console.warn('[WallpaperMac] event tap keeps failing, wallpaper is now non-interactive');
       isMacWallpaperInteractionEnabled = false;
       controller.stop();
+      syncMacWallpaperHitPanels();
       notifyMacWallpaperInputMonitoringNeeded();
       return false;
     }
@@ -1733,6 +1781,7 @@ function startMacWallpaperInteraction() {
     return false;
   }
   macWallpaperTapFailures = 0;
+  syncMacWallpaperHitPanels();
   return true;
 }
 
@@ -1745,6 +1794,134 @@ function stopMacWallpaperInteraction() {
     } catch (error) {
       // ignore
     }
+  }
+  syncMacWallpaperHitPanels();
+}
+
+function getMacWallpaperHitPanels(controller) {
+  if (!macWallpaperHitPanelsInstance) {
+    macWallpaperHitPanelsInstance = createMacWallpaperHitPanels({
+      // One above the Finder icons (the wallpaper sits one below them): above the desktop,
+      // below every normal window, the Dock and the menu bar.
+      level: controller.desktopLevel() + 2,
+      primaryHeight: () => screen.getPrimaryDisplay().bounds.height,
+    });
+  }
+  return macWallpaperHitPanelsInstance;
+}
+
+// Puts the click catchers over the controls the renderer last reported (or one over the whole
+// wallpaper while Stage Manager hides the desktop items), or takes them all down.
+// They are only up while the tap runs: a catcher takes the click away from Finder, and only the
+// tap hands it on to the wallpaper, so without it the controls would go dead.
+function syncMacWallpaperHitPanels() {
+  if (process.platform !== 'darwin') {
+    return;
+  }
+  const controller = getMacWallpaperController();
+  const live = isMacWallpaperActive
+    && isMacWallpaperInteractionEnabled
+    && !macWallpaperPendingEnter
+    && controller
+    && controller.isRunning()
+    && mainWindow
+    && !mainWindow.isDestroyed();
+  if (!live) {
+    if (macWallpaperStageManagerTimer) {
+      clearInterval(macWallpaperStageManagerTimer);
+      macWallpaperStageManagerTimer = null;
+    }
+    if (macWallpaperClickGuardInstance) {
+      macWallpaperClickGuardInstance.stop();
+    }
+    if (macWallpaperHitPanelsInstance) {
+      macWallpaperHitPanelsInstance.clear();
+    }
+    return;
+  }
+  if (!macWallpaperStageManagerTimer) {
+    macWallpaperStageState = readMacWallpaperStageState();
+    macWallpaperStageManagerTimer = setInterval(() => {
+      const next = readMacWallpaperStageState();
+      const prev = macWallpaperStageState;
+      if (next.enabled !== prev.enabled || next.hidesDesktopItems !== prev.hidesDesktopItems || next.trusted !== prev.trusted) {
+        macWallpaperStageState = next;
+        syncMacWallpaperHitPanels();
+      }
+    }, MAC_WALLPAPER_STAGE_MANAGER_POLL_MS);
+    if (typeof macWallpaperStageManagerTimer.unref === 'function') {
+      macWallpaperStageManagerTimer.unref();
+    }
+  }
+  try {
+    const bounds = mainWindow.getBounds();
+    const frame = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+    const stage = macWallpaperStageState;
+    const coversWhole = coversWholeWallpaper(stage);
+    const wantsGuard = stage.enabled && !stage.hidesDesktopItems;
+    let guardRunning = false;
+    if (wantsGuard && stage.trusted) {
+      guardRunning = getMacWallpaperClickGuard().start(frame);
+    } else if (macWallpaperClickGuardInstance) {
+      macWallpaperClickGuardInstance.stop();
+    }
+    // Granted while Folia was running: macOS can report the grant but refuse the tap until Folia
+    // restarts. Same one-time hint, which says to restart Folia.
+    const staleGrant = wantsGuard && stage.trusted && !guardRunning
+      && macWallpaperClickGuardInstance?.lastFailure() === 'tap-failed';
+    if (staleGrant && !macWallpaperAccessibilityHinted) {
+      macWallpaperAccessibilityHinted = true;
+      notifyMacWallpaperAccessibilitySuggested();
+    }
+    if (wantsGuard && !stage.trusted && !macWallpaperAccessibilityHinted
+      && store.get(WALLPAPER_MAC_ACCESSIBILITY_ASKED_KEY) !== true) {
+      macWallpaperAccessibilityHinted = true;
+      store.set(WALLPAPER_MAC_ACCESSIBILITY_ASKED_KEY, true);
+      getMacWallpaperClickGuard().requestAccess();
+      notifyMacWallpaperAccessibilitySuggested();
+    }
+    const rects = coversWhole
+      ? [frame]
+      : toScreenHitRects(macWallpaperHitRects, bounds, mainWindow.webContents.getZoomFactor());
+    getMacWallpaperHitPanels(controller).apply(rects);
+  } catch (error) {
+    console.warn('[WallpaperMac] hit panel sync failed:', error && error.message);
+  }
+}
+
+// Stage Manager's switch and "hide desktop items", plus whether Folia holds the Accessibility
+// grant the click guard needs. Both cheap: CFPreferences and AXIsProcessTrusted, no child process.
+function readMacWallpaperStageState() {
+  const stage = readStageManagerDesktop() || { enabled: false, hidesDesktopItems: false };
+  return {
+    enabled: stage.enabled === true,
+    hidesDesktopItems: stage.hidesDesktopItems === true,
+    trusted: stage.enabled === true && stage.hidesDesktopItems !== true && isAccessibilityTrusted(),
+  };
+}
+
+// Packaged: Resources/libfolia_click_guard.dylib (built by packaging/macos/build-desktop-click-guard.mjs).
+// FOLIA_DESKTOP_CLICK_GUARD_PATH overrides it for local runs.
+function resolveMacDesktopClickGuardPath() {
+  if (process.env.FOLIA_DESKTOP_CLICK_GUARD_PATH) {
+    return process.env.FOLIA_DESKTOP_CLICK_GUARD_PATH;
+  }
+  return path.join(process.resourcesPath, 'libfolia_click_guard.dylib');
+}
+
+function getMacWallpaperClickGuard() {
+  if (!macWallpaperClickGuardInstance) {
+    macWallpaperClickGuardInstance = createMacDesktopClickGuard({ libraryPath: resolveMacDesktopClickGuardPath });
+  }
+  return macWallpaperClickGuardInstance;
+}
+
+// Stage Manager is on with the desktop icons shown and Folia lacks the Accessibility grant: clicks
+// on the bare wallpaper still send the stage aside. Asked once per session; never turns the
+// wallpaper off.
+function notifyMacWallpaperAccessibilitySuggested() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('wallpaper-accessibility-suggested', null);
   }
 }
 
@@ -2311,6 +2488,16 @@ let mainWindowClickThroughUnlockHover = false;
 let mainWindowClickThroughUnlockHoverTimer = null;
 let mainWindowSkipTaskbarEnabled = false;
 let videoExportWindowRestoreState = null;
+// The 后台节流 switch; refresh() wherever one of its stand-down reasons can change.
+const backgroundThrottling = createBackgroundThrottling({
+  isEnabled: () => readStoredBoolean(BACKGROUND_THROTTLING_SETTING_KEY, false),
+  getStandDownReason: () => {
+    if (isWallpaperModeEnabled()) return 'wallpaper mode';
+    if (videoExportWindowRestoreState) return 'video export';
+    if (obsBrowserSourceClients.size > 0) return 'OBS browser source';
+    return null;
+  },
+});
 // Chromium's fragmented MP4 leaves the movie duration at the first fragment (#549); patch it
 // from the fragment timeline once recording ends.
 const videoExportFileWriter = createVideoExportFileWriter({ finalizeFile: finalizeVideoExportFile });
@@ -2506,9 +2693,11 @@ function getPublicSettings() {
     [VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY]: readStoredBoolean(VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY, false),
     [PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY]: readStoredBoolean(PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY, false),
     [MOD_SYSTEM_ENABLED_SETTING_KEY]: readStoredBoolean(MOD_SYSTEM_ENABLED_SETTING_KEY, false),
+    [BACKGROUND_THROTTLING_SETTING_KEY]: readStoredBoolean(BACKGROUND_THROTTLING_SETTING_KEY, false),
     [UPDATE_CHANNEL_SETTING_KEY]: getCurrentReleaseChannel().id,
     'enable_player_page_native_blur': store.get('enable_player_page_native_blur') === true,
     'wallpaper_attach_mode': process.platform === 'win32' ? wallpaperWindowsAttachMode : null,
+    [GPU_PREFERENCE_SETTING_KEY]: normalizeGpuPreference(store.get(GPU_PREFERENCE_SETTING_KEY)),
     [WALLPAPER_MODE_SETTING_KEY]: isWallpaperModeEnabled(),
     [WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY]: readStoredBoolean(WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY, false),
     [WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY]: readStoredBoolean(WALLPAPER_MAC_AUTOHIDE_DOCK_SETTING_KEY, true),
@@ -2565,6 +2754,7 @@ function buildObsBrowserSourceStatus() {
 }
 
 function broadcastObsBrowserSourceStatus() {
+  backgroundThrottling.refresh();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('obs-browser-source-status-changed', buildObsBrowserSourceStatus());
   }
@@ -4454,7 +4644,9 @@ function getGeminiResponseSchema() {
 }
 
 const THEME_JSON_SCHEMA_NAME = 'dual_theme';
-const THEME_MAX_OUTPUT_TOKENS = 4096;
+// What the theme's answer needs. Attempts that cannot switch reasoning off get room for it on top
+// (shared/ai/aiTasks.mjs), so this no longer depends on the provider.
+const THEME_MAX_OUTPUT_TOKENS = 8192;
 const THEME_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -5946,6 +6138,7 @@ function createWindow(options = {}) {
   }
 
   mainWindow = win;
+  backgroundThrottling.attach(win);
   ensureTray();
   setMainWindowSkipTaskbarEnabled(mainWindowSkipTaskbarEnabled);
   // Full initializer, not just applyMainWindowMouseIgnoreState(): when click-through is on at
@@ -6161,6 +6354,13 @@ app.whenReady().then(async () => {
 
   if (process.platform === 'win32') {
     app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
+  }
+  logGpuPreference(gpuPreferenceApplied);
+  if (process.platform === 'win32') {
+    // Late, so the DxDiag pass behind the read stays out of startup; the settings page may read it sooner.
+    setTimeout(() => {
+      readActiveGpu().catch(error => console.warn('[Gpu] Could not read the active adapter', error));
+    }, 10_000);
   }
 
   if (process.platform === 'linux' && typeof safeStorage.getSelectedStorageBackend === 'function') {
@@ -6558,6 +6758,16 @@ app.on('before-quit', (event) => {
     isMacWallpaperInteractionEnabled = false;
     macWallpaperSavedState = null;
     const macController = getMacWallpaperController();
+    if (macWallpaperStageManagerTimer) {
+      clearInterval(macWallpaperStageManagerTimer);
+      macWallpaperStageManagerTimer = null;
+    }
+    if (macWallpaperClickGuardInstance) {
+      macWallpaperClickGuardInstance.stop();
+    }
+    if (macWallpaperHitPanelsInstance) {
+      macWallpaperHitPanelsInstance.destroy();
+    }
     if (macController) {
       try {
         macController.stop();
@@ -6598,6 +6808,21 @@ ipcMain.handle('get-settings', () => {
   return getPublicSettings();
 });
 
+// The GPU choice this run started with and the adapter Chromium took; null off Windows, where the
+// setting is not offered, or when the asking page is not the main window.
+ipcMain.handle('gpu-preference-state', async (event) => {
+  if (process.platform !== 'win32' || !isTrustedMainWindowContents(event.sender)) {
+    return null;
+  }
+  let activeGpu = null;
+  try {
+    activeGpu = await readActiveGpu();
+  } catch (error) {
+    console.warn('[Gpu] Could not read the active adapter for the settings page', error);
+  }
+  return { applied: gpuPreferenceApplied.preference, source: gpuPreferenceApplied.source, activeGpu };
+});
+
 // The settings page's choice of the display wallpaper mode uses (see "Wallpaper display choice").
 ipcMain.handle('wallpaper-displays-get', (event) => {
   if (!isTrustedMainWindowContents(event.sender)) {
@@ -6612,6 +6837,24 @@ ipcMain.handle('wallpaper-display-set', (event, displayId) => {
   }
   return setWallpaperDisplayChoice(displayId);
 });
+
+// macOS wallpaper mode: the rects (viewport CSS px) of the controls on screen, for the click
+// catchers that keep those clicks away from Finder and so from Stage Manager (issue #698).
+ipcMain.on('wallpaper-hit-regions', (event, rects) => {
+  if (process.platform !== 'darwin' || !isTrustedMainWindowContents(event.sender)) {
+    return;
+  }
+  macWallpaperHitRects = Array.isArray(rects) ? rects.slice(0, MAX_HIT_PANELS) : [];
+  syncMacWallpaperHitPanels();
+});
+
+// The 后台节流 switch as the main window sees it: in force (on, not standing down), and the window
+// minimised or hidden while it is.
+ipcMain.handle('background-throttling-get', (event) => (
+  isTrustedMainWindowContents(event.sender)
+    ? backgroundThrottling.getState()
+    : { active: false, hidden: false }
+));
 
 ipcMain.handle('playback-display-sleep-set-active', (event, active) => {
   if (!isTrustedMainWindowContents(event.sender)) {
@@ -6671,6 +6914,12 @@ ipcMain.handle('save-settings', async (event, key, value) => {
     getCurrentReleaseChannel();
     nextValue = channel;
   }
+  if (key === GPU_PREFERENCE_SETTING_KEY) {
+    if (normalizeGpuPreference(value) !== value) {
+      return getPublicSettings();
+    }
+    console.info(`[Gpu] Preference set to ${value}; takes effect on the next launch`);
+  }
   if (
     key === MINIMIZE_TO_TRAY_SETTING_KEY ||
     key === CLOSE_TO_TRAY_SETTING_KEY ||
@@ -6685,6 +6934,7 @@ ipcMain.handle('save-settings', async (event, key, value) => {
     key === VOICE_INPUT_PAUSE_ENABLED_SETTING_KEY ||
     key === PREVENT_DISPLAY_SLEEP_DURING_PLAYBACK_SETTING_KEY ||
     key === MOD_SYSTEM_ENABLED_SETTING_KEY ||
+    key === BACKGROUND_THROTTLING_SETTING_KEY ||
     key === WALLPAPER_MODE_SETTING_KEY ||
     key === WALLPAPER_ENTRY_CONFIRMED_SETTING_KEY ||
     key === WALLPAPER_FORWARD_MOUSE_SETTING_KEY ||
@@ -6694,6 +6944,10 @@ ipcMain.handle('save-settings', async (event, key, value) => {
     nextValue = Boolean(value);
   }
   store.set(key, nextValue);
+
+  if (key === BACKGROUND_THROTTLING_SETTING_KEY || key === WALLPAPER_MODE_SETTING_KEY) {
+    backgroundThrottling.refresh();
+  }
 
   if (key === MOD_SYSTEM_ENABLED_SETTING_KEY && modSystem) {
     // Turning the switch off deactivates every running mod immediately rather
@@ -8587,11 +8841,11 @@ ipcMain.handle('lyric-api-set-enabled', (event, enabled) => {
   return lyricApi.setEnabled(Boolean(enabled));
 });
 
-ipcMain.handle('lyric-api-publish', (event, lyrics, offset) => {
+ipcMain.handle('lyric-api-publish', (event, lyrics, offset, clipStartMs) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     return false;
   }
-  return lyricApi.publishLyricData(lyrics, offset);
+  return lyricApi.publishLyricData(lyrics, offset, clipStartMs);
 });
 
 ipcMain.handle('discord-presence-get-status', (event) => {
@@ -9120,6 +9374,7 @@ ipcMain.handle('video-export-prepare-window', (event, size) => {
       isMaximized: mainWindow.isMaximized(),
       isFullScreen: isMainWindowFullscreen(mainWindow),
     };
+    backgroundThrottling.refresh();
   }
 
   if (isMainWindowFullscreen(mainWindow)) {
@@ -9149,11 +9404,13 @@ ipcMain.handle('video-export-restore-window', (event) => {
 
   if (!mainWindow || mainWindow.isDestroyed() || !videoExportWindowRestoreState) {
     videoExportWindowRestoreState = null;
+    backgroundThrottling.refresh();
     return false;
   }
 
   const restoreState = videoExportWindowRestoreState;
   videoExportWindowRestoreState = null;
+  backgroundThrottling.refresh();
   mainWindow.setBounds(restoreState.bounds, true);
 
   if (restoreState.isFullScreen) {
@@ -9227,17 +9484,15 @@ ipcMain.handle('generate-theme', async (event, lyricsText, options = {}) => {
     if (provider === 'openai') {
       const systemPrompt = buildThemeSystemPrompt(true);
       const sourcePrompt = buildThemeSourcePrompt(snippet, isPureMusic, songTitle);
-      const apiUrl = normalizeOpenAIChatCompletionsUrl(store.get('OPENAI_API_URL'));
       const content = await runAiJsonCompletion({
         store: aiCredentials.settingsView,
+        task: 'theme',
         systemPrompt,
         sourcePrompt,
         schema: THEME_JSON_SCHEMA,
         schemaName: THEME_JSON_SCHEMA_NAME,
         customFetch,
-        maxTokens: detectOpenAICompatibleProvider(apiUrl) === 'openai'
-          ? THEME_MAX_OUTPUT_TOKENS
-          : 8192,
+        answerTokens: THEME_MAX_OUTPUT_TOKENS,
       });
 
       let jsonStr = content.trim();
@@ -9246,8 +9501,9 @@ ipcMain.handle('generate-theme', async (event, lyricsText, options = {}) => {
       }
       dualTheme = sanitizeGeneratedDualTheme(JSON.parse(jsonStr));
 
-      dualTheme.light.provider = 'OpenAI Compatible (Local)';
-      dualTheme.dark.provider = 'OpenAI Compatible (Local)';
+      const providerLabel = await aiProviderLabel(aiCredentials.settingsView);
+      dualTheme.light.provider = providerLabel;
+      dualTheme.dark.provider = providerLabel;
 
     } else {
       const systemPrompt = buildThemeSystemPrompt(true);
@@ -9259,6 +9515,7 @@ ipcMain.handle('generate-theme', async (event, lyricsText, options = {}) => {
         systemPrompt,
         sourcePrompt,
         responseSchema: getGeminiResponseSchema(),
+        answerTokens: THEME_MAX_OUTPUT_TOKENS,
         customFetch
       }));
 
@@ -9276,6 +9533,8 @@ ipcMain.handle('generate-theme', async (event, lyricsText, options = {}) => {
     throw new Error(e instanceof Error ? e.message : String(e));
   }
 });
+
+registerAiModelDiscovery({ ipcMain, aiCredentials, store, isTrustedMainWindowContents, fetchWithOptionalSystemProxy });
 
 // "Test connection" button in AI settings: sends "hello" using the values currently in the form
 // (not the saved ones, nothing is persisted) over the same fetch/proxy path as real AI requests.
@@ -9326,19 +9585,20 @@ ipcMain.handle('segment-lyrics', async (event, lines) => {
 
     rawResponse = await runAiJsonCompletion({
       store: aiCredentials.settingsView,
+      // Splitting text at word boundaries has nothing to reason about, and a reasoning model left
+      // to its own devices spends the whole budget thinking and returns nothing. The segmentation
+      // task is what tells each provider's adapter to switch reasoning off (on Gemini, the zero
+      // thinking budget of SEGMENTATION_GEMINI_GENERATION_CONFIG).
+      task: 'segmentation',
       systemPrompt: buildSegmentationSystemPrompt(),
       sourcePrompt: buildSegmentationSourcePrompt(sourceLines),
       schema: SEGMENTATION_JSON_SCHEMA,
       schemaName: SEGMENTATION_SCHEMA_NAME,
-      // Gemini takes its own dialect plus a zero thinking budget; see the config's comment for
-      // the measurements. Sending neither is what made this take 40s.
-      geminiGenerationConfig: SEGMENTATION_GEMINI_GENERATION_CONFIG,
+      // Gemini takes its own dialect; see the generation config's comment for the measurements.
+      // Sending neither the schema nor the zero thinking budget is what made this take 40s.
+      geminiSchema: SEGMENTATION_GEMINI_SCHEMA,
       customFetch,
-      maxTokens: SEGMENTATION_MAX_OUTPUT_TOKENS,
-      // Splitting text at word boundaries has nothing to reason about, and a reasoning model left
-      // to its own devices spends the whole budget thinking and returns nothing. Same reason the
-      // Gemini config sets thinkingBudget to 0.
-      disableReasoning: true,
+      answerTokens: SEGMENTATION_MAX_OUTPUT_TOKENS,
     });
 
     const { boundaries, rejections } = parseSegmentationResponse(rawResponse, sourceLines);

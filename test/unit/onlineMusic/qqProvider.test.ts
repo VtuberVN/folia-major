@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // test/unit/onlineMusic/qqProvider.test.ts
 
 const requestMock = vi.hoisted(() => vi.fn());
+const musicuMock = vi.hoisted(() => vi.fn());
 const clearSessionMock = vi.hoisted(() => vi.fn());
 const writeSessionValueMock = vi.hoisted(() => vi.fn());
 const searchQQSongsMock = vi.hoisted(() => vi.fn());
@@ -16,6 +17,7 @@ vi.mock('@/services/onlineMusic/qq/qqTransport', async importOriginal => ({
     hasQqSession: () => transportState.hasSession,
     clearQqSession: clearSessionMock,
     requestQq: requestMock,
+    requestQqMusicu: musicuMock,
 }));
 
 vi.mock('@/services/onlineMusic/providerStorage', () => ({
@@ -163,6 +165,7 @@ const SINGER_INFO_ITEM = {
 describe('qqProvider', () => {
     beforeEach(() => {
         requestMock.mockReset();
+        musicuMock.mockReset();
         clearSessionMock.mockReset();
         writeSessionValueMock.mockReset();
         searchQQSongsMock.mockReset();
@@ -793,6 +796,196 @@ describe('qqProvider', () => {
             ['music_play', { songmid: '003rJSwm3TechU', mediaId: '001MediaMidFixture', quality: 'flac' }],
             ['music_play', { songmid: '003rJSwm3TechU', mediaId: '001MediaMidFixture', quality: '320' }],
         ]);
+    });
+
+    // A song's UnifiedSong.id is its numeric songid (normalizeQqSong), which `/getSongInfo` on upstream 3.3.3
+    // cannot look up: it hands QQ the songid as a string and gets an empty shell back. So a numeric songid goes
+    // to musicu directly (`requestQqMusicu`), as a JSON number; a single songmid still goes through the backend.
+    describe('song detail by id', () => {
+        const SUNNY_TRACK = {
+            id: 97773,
+            mid: '0039MnYb0qxYhV',
+            name: '晴天',
+            title: '晴天',
+            singer: [{ id: 4558, mid: '0025NhlN2yWrP4', name: '周杰伦' }],
+            album: { id: 8220, mid: '000MkMni19ClKG', name: '叶惠美' },
+            file: { media_mid: '0039MnYb0qxYhV' },
+            interval: 269,
+        };
+        const EMPTY_TRACK = { id: 0, mid: '', name: '' };
+        type Param = { song_type: number; song_id?: unknown; song_mid?: unknown };
+        type Requests = Record<string, { module: string; method: string; param: Param }>;
+        const TRACKS_BY_ID = new Map<unknown, unknown>([[97773, SUNNY_TRACK], [5105918, SEARCH_ITEM], [2147483647, SUNNY_TRACK]]);
+        const TRACKS_BY_MID = new Map<unknown, unknown>([['0039MnYb0qxYhV', SUNNY_TRACK], ['003rJSwm3TechU', SEARCH_ITEM]]);
+        // musicu as QQ answers it: a known song, an empty shell for a songid it has no song by (code 0) and for a
+        // songmid it does not know (code 404).
+        const answerOf = ({ song_id: songId, song_mid: songMid }: Param) => {
+            if (songMid !== undefined) {
+                const track = TRACKS_BY_MID.get(songMid);
+                return track ? { code: 0, data: { track_info: track } } : { code: 404, data: { track_info: EMPTY_TRACK } };
+            }
+            return { code: 0, data: { track_info: TRACKS_BY_ID.get(songId) ?? EMPTY_TRACK } };
+        };
+        const answersOf = (requests: Requests) => Object.fromEntries(
+            Object.entries(requests).map(([key, request]) => [key, answerOf(request.param)]),
+        );
+        const sentRequests = (call: number): Requests[string][] => Object.values(musicuMock.mock.calls[call][0] as Requests);
+        const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        beforeEach(() => {
+            musicuMock.mockImplementation(async (requests: Requests) => answersOf(requests));
+        });
+
+        it('looks a numeric songid up at musicu as a JSON number, not through the backend', async () => {
+            for (const id of ['97773', 97773, ' 5105918 ']) {
+                musicuMock.mockClear();
+                const song = await qqProvider.playback!.getSongDetail(id);
+                expect(musicuMock).toHaveBeenCalledTimes(1);
+                const [request] = sentRequests(0);
+                expect(sentRequests(0)).toHaveLength(1);
+                expect(request).toMatchObject({ module: 'music.pf_song_detail_svr', method: 'get_song_detail_yqq', param: { song_type: 0 } });
+                expect(typeof request.param.song_id).toBe('number');
+                expect(request.param.song_id).toBe(Number(String(id).trim()));
+                expect(request.param).not.toHaveProperty('song_mid');
+                expect(song).toMatchObject(String(id).trim() === '97773'
+                    ? { id: 97773, qqMid: '0039MnYb0qxYhV', name: '晴天' }
+                    : { id: 5105918, qqMid: '003rJSwm3TechU' });
+            }
+            expect(requestMock).not.toHaveBeenCalled();
+        });
+
+        it('still looks a single songmid up through the backend', async () => {
+            requestMock.mockResolvedValueOnce({ response: { songinfo: { data: { track_info: SEARCH_ITEM } } } });
+            await expect(qqProvider.playback!.getSongDetail('003rJSwm3TechU')).resolves.toMatchObject({ qqMid: '003rJSwm3TechU' });
+            // A songmid QQ answers with an empty shell is still none.
+            requestMock.mockResolvedValueOnce({ response: { songinfo: { data: { track_info: { mid: '', id: 0, name: '' } } } } });
+            await expect(qqProvider.playback!.getSongDetail('0039MnYb0qxYhX')).resolves.toBeNull();
+            expect(requestMock.mock.calls).toEqual([
+                ['song_info', { songmid: '003rJSwm3TechU' }],
+                ['song_info', { songmid: '0039MnYb0qxYhX' }],
+            ]);
+            expect(musicuMock).not.toHaveBeenCalled();
+        });
+
+        it('normalizes the same track the same, by songmid through the backend and by songid at musicu', async () => {
+            requestMock.mockResolvedValueOnce({ response: { songinfo: { data: { track_info: SEARCH_ITEM } } } });
+            const bySongmid = await qqProvider.playback!.getSongDetail('003rJSwm3TechU');
+            const bySongid = await qqProvider.playback!.getSongDetail(5105918);
+
+            expect(bySongid).toEqual(bySongmid);
+            expect(bySongid).toEqual(normalizeQqSong(SEARCH_ITEM));
+        });
+
+        it('answers null for an empty shell with code 0 or 404, and rejects any other code', async () => {
+            musicuMock.mockResolvedValueOnce({ q0: { code: 0, data: { track_info: EMPTY_TRACK } } });
+            await expect(qqProvider.playback!.getSongDetail(2000000000)).resolves.toBeNull();
+            musicuMock.mockResolvedValueOnce({ q0: { code: 404, data: { track_info: EMPTY_TRACK } } });
+            await expect(qqProvider.playback!.getSongDetail(2000000001)).resolves.toBeNull();
+            musicuMock.mockResolvedValueOnce({ q0: { code: 500, data: undefined } });
+            await expect(qqProvider.playback!.getSongDetail(97773)).rejects.toMatchObject({
+                code: 'invalid-response',
+                providerId: 'qq',
+                cause: { id: '97773', code: 500 },
+            });
+            musicuMock.mockResolvedValueOnce({ q0: { code: undefined, data: undefined } });
+            await expect(qqProvider.playback!.getSongDetail(97773)).rejects.toMatchObject({ code: 'invalid-response' });
+        });
+
+        it('sends an id that is no int32 songid to the backend as a songmid on the single path', async () => {
+            requestMock.mockResolvedValue({ response: { songinfo: { data: { track_info: { mid: '', id: 0, name: '' } } } } });
+            for (const id of ['2147483648', '0123', '0039MnYb0qxYhV']) {
+                await expect(qqProvider.playback!.getSongDetail(id)).resolves.toBeNull();
+            }
+            expect(requestMock.mock.calls).toEqual([
+                ['song_info', { songmid: '2147483648' }],
+                ['song_info', { songmid: '0123' }],
+                ['song_info', { songmid: '0039MnYb0qxYhV' }],
+            ]);
+            expect(musicuMock).not.toHaveBeenCalled();
+
+            await expect(qqProvider.playback!.getSongDetail('2147483647')).resolves.toMatchObject({ qqMid: '0039MnYb0qxYhV' });
+            expect(sentRequests(0)[0].param.song_id).toBe(2147483647);
+            expect(requestMock).toHaveBeenCalledTimes(3);
+        });
+
+        it('declares songs by id in groups of 25', () => {
+            expect(qqProvider.playback?.getSongDetails).toBeTypeOf('function');
+            expect(qqProvider.playback?.songDetailsPerRequest).toBe(25);
+        });
+
+        it('looks 25 mixed ids up in one musicu request, songids as numbers and songmids by song_mid', async () => {
+            const ids = Array.from({ length: 25 }, (_, index) => (
+                index % 5 === 0 ? '0039MnYb0qxYhV' : index % 5 === 1 ? '003rJSwm3TechU' : index % 5 === 2 ? 97773 : index % 5 === 3 ? '5105918' : 2000000000 + index
+            ));
+            const songs = await qqProvider.playback!.getSongDetails!(ids);
+
+            expect(musicuMock).toHaveBeenCalledTimes(1);
+            const requests = sentRequests(0);
+            expect(requests).toHaveLength(25);
+            requests.forEach((request, index) => {
+                expect(request).toMatchObject({ module: 'music.pf_song_detail_svr', method: 'get_song_detail_yqq' });
+                const id = ids[index];
+                if (typeof id === 'string' && id.startsWith('0')) {
+                    expect(request.param).toEqual({ song_type: 0, song_mid: id });
+                } else {
+                    expect(request.param).toEqual({ song_type: 0, song_id: Number(id) });
+                    expect(typeof request.param.song_id).toBe('number');
+                }
+            });
+            expect(requestMock).not.toHaveBeenCalled();
+            expect(songs.map(song => song?.qqMid ?? null)).toEqual(ids.map(id => (
+                id === '0039MnYb0qxYhV' || id === 97773 ? '0039MnYb0qxYhV'
+                    : id === '003rJSwm3TechU' || id === '5105918' ? '003rJSwm3TechU'
+                        : null
+            )));
+        });
+
+        it('asks more than 25 ids in groups of 25, one request after the other', async () => {
+            const ids = Array.from({ length: 60 }, (_, index) => 1000 + index);
+            const answers: (() => void)[] = [];
+            musicuMock.mockImplementation((requests: Requests) => new Promise(resolve => {
+                answers.push(() => resolve(answersOf(requests)));
+            }));
+
+            const songs = qqProvider.playback!.getSongDetails!(ids);
+            await flush();
+            expect(musicuMock).toHaveBeenCalledTimes(1);
+            answers[0]();
+            await flush();
+            expect(musicuMock).toHaveBeenCalledTimes(2);
+            answers[1]();
+            await flush();
+            expect(musicuMock).toHaveBeenCalledTimes(3);
+            answers[2]();
+
+            await expect(songs).resolves.toEqual(ids.map(() => null));
+            expect([0, 1, 2].map(call => sentRequests(call).length)).toEqual([25, 25, 10]);
+            expect([0, 1, 2].flatMap(call => sentRequests(call).map(request => request.param.song_id))).toEqual(ids);
+        });
+
+        it('rejects the whole call when a group or one of its requests is refused, instead of answering nulls', async () => {
+            const ids = Array.from({ length: 30 }, (_, index) => 1000 + index);
+            const refused = new OnlineProviderError('network', 'QQ musicu request failed: 429', 'qq', undefined, 429);
+            musicuMock
+                .mockImplementationOnce(async (requests: Requests) => answersOf(requests))
+                .mockRejectedValueOnce(refused);
+            await expect(qqProvider.playback!.getSongDetails!(ids)).rejects.toBe(refused);
+
+            musicuMock.mockImplementationOnce(async (requests: Requests) => ({
+                ...answersOf(requests),
+                q3: { code: 2001, data: undefined },
+            }));
+            await expect(qqProvider.playback!.getSongDetails!([97773, 1, 2, 3, 4])).rejects.toMatchObject({
+                code: 'invalid-response',
+                cause: { id: '3', code: 2001 },
+            });
+        });
+
+        it('asks nothing for no ids', async () => {
+            await expect(qqProvider.playback!.getSongDetails!([])).resolves.toEqual([]);
+            expect(musicuMock).not.toHaveBeenCalled();
+            expect(requestMock).not.toHaveBeenCalled();
+        });
     });
 
     // Which error getAudioSource throws when no level gives a URL; what it means is said in qqFailure.ts.

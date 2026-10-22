@@ -150,6 +150,7 @@ const FIELD_GROUPS: Record<string, ImportGroup> = {
     libraryWallSeamStyle: 'libraryWall',
     libraryWallBackdropLyrics: 'libraryWall',
     libraryWallBackdropBlur: 'libraryWall',
+    libraryWallSeamDirection: 'libraryWall',
 };
 
 // Fields the import applies only when the incoming value is truthy, so an incoming null means "the
@@ -194,6 +195,8 @@ const TRUTHY_GUARDED_FIELDS = new Set([
     'stageTrackPillMode',
     // applyImportedConfig only applies a known info strip preset, all of which are truthy strings.
     'libraryWallSeamStyle',
+    // Likewise a known info strip direction (auto / vertical / horizontal).
+    'libraryWallSeamDirection',
 ]);
 
 // Per-renderer tunings the import skips whenever the visualizerTunings bundle is present. The three

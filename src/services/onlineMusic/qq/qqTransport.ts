@@ -2,6 +2,8 @@ import { OnlineProviderError } from '../../../types/onlineMusic';
 import { readProviderSessionValue, removeProviderSessionValue, writeProviderSessionValue } from '../providerStorage';
 import { withLoginRequestLimit } from '../login/loginRequestLimit';
 import { withOnlineRequestLimit } from '../failure/onlineRequestLimit';
+import { lyricProxyWebUrl } from '../../lyricProxy';
+import { errorMessage } from '../../../utils/errorText';
 
 // src/services/onlineMusic/qq/qqTransport.ts
 
@@ -92,7 +94,8 @@ const ENDPOINTS: Record<QqOperation, string> = {
 // The requests a sign-in waits for. They get the sign-in's time limit.
 const LOGIN_REQUESTS: ReadonlySet<QqOperation> = new Set(['login_qr_key', 'login_qr_create', 'login_qr_check']);
 // The requests for a song's address and a collection's tracks. They get the limit below; no other
-// request has a limit.
+// backend request has one. The requests sent to musicu directly (`requestQqMusicu`) have a limit of
+// their own, `QQ_MUSICU_REQUEST_LIMIT_MS`.
 const ONLINE_REQUESTS: ReadonlySet<QqOperation> = new Set([
     'music_play', 'song_list_detail', 'user_playlist_detail', 'user_liked_songs', 'album_info',
     'user_cloud', 'recommend_toplist', 'radio_tracks',
@@ -415,4 +418,112 @@ export const requestQq = async <T = unknown>(
     assertUpstreamAccepted(operation, body);
     persistConfirmedSession(operation, body);
     return body as T;
+};
+
+/** One request inside a musicu call: a module, its method and the method's parameters. */
+export interface QqMusicuRequest {
+    module: string;
+    method: string;
+    param: Record<string, unknown>;
+}
+
+/** What musicu answered for one request of the call: its own code, and its data. */
+export interface QqMusicuAnswer {
+    code: number | undefined;
+    data: unknown;
+}
+
+// QQ 自己的 musicu 入口。QQ 歌词与匿名搜歌也发到这里（qqLyricProvider.ts）。
+export const QQ_MUSICU_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
+
+// 和上游 qq-music-api 的 getSongInfo 发的 comm 相同。
+const QQ_MUSICU_COMM = { ct: 24, cv: 0 };
+
+// 时限：实测一次 0.3–3.1 s；比 folium.omni 闸门每次的 30 s 短，到点是我们自己的 network（OnlineRequestTimeout），请求被中止。
+export const QQ_MUSICU_REQUEST_LIMIT_MS = 20_000;
+
+// 网页中转（api-ts/lyric-proxy.ts、worker/lyric-proxy.ts）自己连不上 QQ 时回 500 / 502，这两个说的不是 QQ 的状态
+// （别的平台经这个中转的旧接口也是这样读的）。
+const isLyricProxyOwnFailureStatus = (status: number): boolean => status === 500 || status === 502;
+
+// 一个子请求的码：有数就是那个数，缺失、空值或读不成数就是 undefined（不能让 null 被读成 0）。
+const readMusicuCode = (value: unknown): number | undefined => {
+    if (typeof value !== 'number' && typeof value !== 'string') return undefined;
+    if (typeof value === 'string' && !value.trim()) return undefined;
+    const code = Number(value);
+    return Number.isFinite(code) ? code : undefined;
+};
+
+/**
+ * 直接向 QQ 的 musicu 发一次匿名请求（不经 qq-music-api 后端）：`requests` 的每个 key 是一个子请求，一次交给 musicu。
+ * 桌面端直连（主进程给 *.qq.com 的回答补了 CORS 头，electron/main.cjs），网页版经前端同源的 `/api/lyric-proxy`；
+ * 不看内嵌后端的端口和 VITE_QQ_API_BASE，两者都没有时也能发。不带会话：这里只读公开数据，也不随登录状态变。
+ * 返回每个 key 的 { code, data }；整次被拒（全局 code ≠ 0）、读不出、连不上时抛 OnlineProviderError。
+ */
+export const requestQqMusicu = async (
+    requests: Readonly<Record<string, QqMusicuRequest>>,
+): Promise<Record<string, QqMusicuAnswer>> => {
+    const direct = typeof window !== 'undefined' && Boolean(window.electron);
+    const url = direct ? QQ_MUSICU_URL : lyricProxyWebUrl(QQ_MUSICU_URL);
+    const init: RequestInit = {
+        method: 'POST',
+        // 网页版要带上同源的 cookie：Vercel 的部署保护靠它放行（qqLyricProvider.ts 同样这样发）。
+        credentials: direct ? 'omit' : 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comm: QQ_MUSICU_COMM, ...requests }),
+    };
+    // The answer and its body, read together: the time limit covers both. A refused answer's body is not read.
+    const send = async (signal: AbortSignal) => {
+        const response = await fetch(url, { ...init, signal });
+        return { response, text: response.ok ? await response.text() : '' };
+    };
+
+    let answer: { response: Response; text: string };
+    try {
+        answer = await withOnlineRequestLimit(send, QQ_MUSICU_REQUEST_LIMIT_MS);
+    } catch (error) {
+        // 到点没有回答：OnlineRequestTimeout 本身就是 network 的错，原样交出去。
+        if (error instanceof OnlineProviderError) throw error;
+        throw new OnlineProviderError('network', `QQ musicu unreachable: ${errorMessage(error)}`, 'qq', error);
+    }
+
+    const { response, text } = answer;
+    if (!response.ok) {
+        // 直连时状态就是 QQ 的；经网页中转时 500 / 502 是中转自己的失败，不带状态，其余是 QQ 的状态由中转转来
+        // （没有中转的静态站点回的 404 / 405 也在这里：是 network，不是 unsupported）。
+        // Retry-After 只在 Cloudflare 中转时读得到（它原样转发回答的头）；Vercel 与开发中转只转 Content-Type，桌面直连时
+        // CORS 放行没有 Access-Control-Expose-Headers，渲染进程读不到这个头。读不到时 429 也照样算限流（看 httpStatus）。
+        const httpStatus = direct || !isLyricProxyOwnFailureStatus(response.status) ? response.status : undefined;
+        throw new OnlineProviderError(
+            'network',
+            `QQ musicu request failed: ${response.status}`,
+            'qq',
+            undefined,
+            httpStatus,
+            readRetryAfterMs(undefined, response),
+        );
+    }
+
+    let body: any;
+    try {
+        body = JSON.parse(text);
+    } catch (error) {
+        // 例如只托管静态文件的站点把 POST 回成 index.html。
+        throw new OnlineProviderError('invalid-response', 'QQ musicu returned an unreadable body', 'qq', error);
+    }
+    if (!body || typeof body !== 'object') {
+        throw new OnlineProviderError('invalid-response', 'QQ musicu returned an unreadable body', 'qq', body);
+    }
+    const code = readMusicuCode(body.code);
+    if (code !== 0) {
+        // 实测一次超过 30 个子请求时整次 500000，各子请求也都是 500000、没有 data。
+        throw new OnlineProviderError('invalid-response', `QQ musicu refused the request (code ${code ?? 'missing'})`, 'qq', { code });
+    }
+
+    const answers: Record<string, QqMusicuAnswer> = {};
+    for (const key of Object.keys(requests)) {
+        const node = body[key];
+        answers[key] = { code: readMusicuCode(node?.code), data: node?.data };
+    }
+    return answers;
 };

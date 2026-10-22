@@ -32,3 +32,9 @@ export const getStoredString = (key: string, fallback: string) => {
 
     return localStorage.getItem(key) || fallback;
 };
+
+export const removeStoredKey = (key: string) => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem(key);
+    }
+};

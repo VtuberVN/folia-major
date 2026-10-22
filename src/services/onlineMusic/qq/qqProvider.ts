@@ -23,9 +23,9 @@ import { clearQqSession, getQqRemoteApiBase, getQqTransportAvailability, hasQqSe
 import { canRunLoginSelfCheck, runLoginSelfCheck } from '../loginSelfCheck';
 import { diagnosticLine, formatDiagnosticClock } from '../login/loginDiagnosticReport';
 import { collectQqLoginDiagnostics } from './qqLoginDiagnostics';
-import { getQqSongDetail, requestQqSongDetail } from './qqSongDetail';
+import { getQqSongDetailById, getQqSongDetails, QQ_SONG_DETAILS_PER_REQUEST, requestQqSongDetail } from './qqSongDetail';
 import { qqRecommendations } from './qqRecommendations';
-import { searchQqSongs } from './qqSearch';
+import { resetQqSearchFallbackMemory, searchQqSongs } from './qqSearch';
 import { getQqSubscriptionStatus, qqMutations } from './qqMutations';
 import { describeQqLoginFailure, qqAccountHintNote, qqCheckFailure, qqHintFailure } from './qqLoginFailure';
 import { describeQqFailure } from './qqFailure';
@@ -123,6 +123,7 @@ export const resetQqProviderRuntimeCache = (): void => {
     playlistRound = null;
     resetQqVipMemory();
     resetQqSessionRefresh();
+    resetQqSearchFallbackMemory();
 };
 
 /**
@@ -1064,7 +1065,7 @@ export const qqProvider: OnlineMusicProvider = {
         return songmid ? `https://y.qq.com/n/ryqq/songDetail/${encodeURIComponent(songmid)}` : null;
     },
     search: { searchSongs: searchQqSongs },
-    playback: { getSongDetail: getQqSongDetail, getAudioSource },
+    playback: { getSongDetail: getQqSongDetailById, getSongDetails: getQqSongDetails, songDetailsPerRequest: QQ_SONG_DETAILS_PER_REQUEST, getAudioSource },
     lyrics: { getLyrics },
     auth: {
         getLoginTexts: () => ({

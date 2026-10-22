@@ -15,6 +15,7 @@ import { projectExploreHeadings, projectExploreItems } from './bravaisExplorePro
 import type { BravaisHomeChrome } from './useBravaisHomeChrome';
 import { useBravaisHomeAccount } from './useBravaisHomeAccount';
 import { useBravaisLayerRegistration } from './useBravaisLayerRegistration';
+import { availableLocalTabLabel, onlineWallHint } from './bravaisEmptyWallHint';
 
 // src/library/suites/bravais/BravaisHomeExplore.tsx
 // 探索页签（设计稿 §10.5 之外的第六个页签）：墙本身就是拼贴，所以不另画一面拼贴——探索页的条目直接铺在 bravais 的墙上，
@@ -23,7 +24,7 @@ import { useBravaisLayerRegistration } from './useBravaisLayerRegistration';
 // - 打开：集合（歌单 / 专辑 / 歌手 / 混音）与网格的探索页一样交给宿主（onOpenGridView），bravais 照常从被点的那张推一层
 //   集合墙；歌曲点了展开聚焦卡，播放时与网格一样连同它所在 section 的歌曲一起放。
 // - 缝：标题与面包屑是「探索」，元数据行是平台；读取中 / 读不到 / 空页的说明进状态行；「⋯」里有「换一批」。
-// - 账户：与另外几个在线页签同一套（未登录、解析中时墙空着，缝里说原因）。
+// - 账户：与另外几个在线页签同一套（未登录、解析中时墙空着，缝里说原因；未登录时墙面上有背景说明，bravaisEmptyWallHint）。
 // 这个组件只渲染 null。
 
 const NO_KEYS: ReadonlySet<string> = new Set();
@@ -104,7 +105,17 @@ const BravaisHomeExplore: React.FC<{
             account: accountSeam,
         },
     }), [accountSeam, chrome.onSelectTab, chrome.scan, chrome.search, chrome.tabs, chrome.title, online.providerLabel, status, t, tools]);
-    const wallRules = useMemo(() => ({ filterKey: 'explore', loading: isOn && items.length === 0 && (!feed || feed.status === 'loading') }), [feed, isOn, items.length]);
+    const localTab = availableLocalTabLabel(chrome.tabs);
+    const { accountView, needsRelogin, providerLabel } = online;
+    const wallHint = useMemo(
+        () => onlineWallHint({ accountView, needsRelogin, providerLabel }, localTab, t),
+        [accountView, localTab, needsRelogin, providerLabel, t],
+    );
+    const wallRules = useMemo(() => ({
+        filterKey: 'explore',
+        loading: isOn && items.length === 0 && (!feed || feed.status === 'loading'),
+        hint: wallHint,
+    }), [feed, isOn, items.length, wallHint]);
     const home = useMemo(() => ({ cycleTab: chrome.cycleTab }), [chrome.cycleTab]);
 
     const layer = useMemo<BravaisLayer>(() => ({

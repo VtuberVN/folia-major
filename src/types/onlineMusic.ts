@@ -18,6 +18,20 @@ export interface ProviderCatalogRef {
     id: MediaId;
 }
 
+/** A catalog ref of a song's album or artist, with the name the song gives that album or artist. */
+export interface ProviderNamedCatalogRef extends ProviderCatalogRef {
+    name: string;
+}
+
+/**
+ * What a song's album and artists open as at its provider (`omni.getSongCatalogRefs`): null, and
+ * left out of `artists`, for one the provider cannot open.
+ */
+export interface ProviderSongCatalogRefs {
+    album: ProviderNamedCatalogRef | null;
+    artists: ProviderNamedCatalogRef[];
+}
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
@@ -57,6 +71,11 @@ export interface ProviderCapabilities {
     playbackReports?: boolean;
     /** The provider has a recommendation page of its own, read through `explore`. */
     explore?: boolean;
+    /**
+     * The provider can look a song up by id with `playback.getSongDetail`; absent reads as true
+     * wherever `playback` is there.
+     */
+    songDetail?: boolean;
 }
 
 export interface ProviderAvailability {
@@ -100,6 +119,12 @@ export interface ProviderAudioSource {
      * playback and the media cache ask.
      */
     preview?: boolean;
+    /**
+     * Where the preview clip starts inside the song, in milliseconds. Only meaningful with `preview`;
+     * absent means the clip starts at the song's start. Playback reads it with the URL
+     * (`omni.previewClipStartMsOfAudioSource`) to line the lyrics up with the clip.
+     */
+    clipStartMs?: number;
 }
 
 export type ProviderSongAvailabilityState = 'playable' | 'unavailable' | 'unknown';
@@ -309,12 +334,42 @@ export class OnlineProviderError extends Error {
     }
 }
 
+/**
+ * Who is searching. `session` tells apart callers whose paging must not disturb each other; absent
+ * is the host's own UI.
+ */
+export interface ProviderSearchContext {
+    session?: string;
+}
+
 export interface OnlineSearchProvider {
-    searchSongs(query: string, limit: number, offset: number): Promise<ProviderPage<UnifiedSong>>;
+    /**
+     * A provider that keeps what it read of a search between its pages keeps it apart for each
+     * `context.session`; one that keeps nothing between pages ignores the context.
+     */
+    searchSongs(query: string, limit: number, offset: number, context?: ProviderSearchContext): Promise<ProviderPage<UnifiedSong>>;
 }
 
 export interface OnlinePlaybackProvider {
+    /**
+     * The song by id, or null where the platform has no song by it. Takes the song's `UnifiedSong.id`
+     * and also its `sourceRef.mediaId`; a platform whose two differ accepts both, in its own folder.
+     */
     getSongDetail(id: MediaId): Promise<UnifiedSong | null>;
+    /**
+     * Songs by id, many at once, in the order of `ids`: null for an id the platform has no song
+     * by. An id is either kind `getSongDetail` takes. Left out where the platform looks songs up
+     * one at a time; `omni.getSongDetails` then asks `getSongDetail` for each. An answer that
+     * refuses the request rejects: it is not a row of nulls.
+     */
+    getSongDetails?(ids: MediaId[]): Promise<(UnifiedSong | null)[]>;
+    /**
+     * How many ids one request of `getSongDetails` carries, for a platform whose request takes no
+     * more. `omni.getSongDetails` hands it groups of at most this many, one after another, each
+     * through the caller's runner, so that each request is counted. Left out: all the ids in one
+     * call. A positive integer; any other value counts as left out.
+     */
+    songDetailsPerRequest?: number;
     // 拿不到地址而知道为什么的抛错（provider 的 `describeFailure` 说它的意思）；null 是没有地址、也没有可说的。
     getAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<ProviderAudioSource | null>;
     /**
@@ -820,3 +875,25 @@ export type OmniExploreSection = ProviderExploreSection;
 export type OmniExplorePage = ProviderExplorePage;
 export type OmniExploreItemsPage = ProviderExploreItemsPage;
 export { OnlineProviderError as OmniError };
+
+/**
+ * Runs one request omni makes to a provider for a caller that counts or limits them
+ * (`omni.getSongDetails`). It may refuse a request by rejecting without running `work`, or stop
+ * waiting for one that runs by rejecting before `work` settles.
+ */
+export type OmniRequestRunner = <T>(work: () => Promise<T>) => Promise<T>;
+
+/**
+ * What `omni.getSongDetails` found for one id.
+ * `found`: the song. `missing`: the provider answered and has no song by that id.
+ * `failed`: the request to the provider that was to answer it failed with `error` (a request for
+ * many ids fails them all); the ids after it are still asked.
+ * `skipped`: no answer for it came through the caller's `run`, which refused that request or an
+ * earlier one, or stopped waiting for it; `error` is what `run` rejected with. Nothing after it was
+ * asked.
+ */
+export type OmniSongDetail =
+    | { status: 'found'; song: UnifiedSong }
+    | { status: 'missing' }
+    | { status: 'failed'; error: unknown }
+    | { status: 'skipped'; error: unknown };

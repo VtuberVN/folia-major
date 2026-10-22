@@ -87,9 +87,37 @@ const cleanComment = (raw) => raw
 
 const squash = (value) => value.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/,\s*\)/g, ')').replace(/\s+\)/g, ')').trim();
 
+/* `text` without its comments (strings kept as they are). */
+const stripComments = (text) => {
+    let out = '';
+    for (let i = 0; i < text.length;) {
+        const skipped = skipCommentOrString(text, i);
+        if (skipped === -1) {
+            out += text[i];
+            i += 1;
+            continue;
+        }
+        if (text.startsWith('//', i) || text.startsWith('/*', i)) out += ' ';
+        else out += text.slice(i, skipped);
+        i = skipped;
+    }
+    return out;
+};
+
+/* The body of an inline object type (`{ … }` and nothing around it), or null for any other type. */
+const inlineObjectBody = (type) => {
+    const trimmed = type.trim();
+    if (!trimmed.startsWith('{')) return null;
+    const close = findAtDepthZero(trimmed, 1, ['}']);
+    return close === trimmed.length - 1 ? trimmed.slice(1, close) : null;
+};
+
 /*
  * Splits an interface body into members. Comments directly above a member
- * (no blank line between) become its description.
+ * (no blank line between) become its description. A member whose type is an
+ * inline object type with described members of its own (FoliumOmniProviderInfo's
+ * `supports`) carries them as `children`, and its type is shown without their
+ * comments.
  */
 const parseMembers = (body) => {
     const members = [];
@@ -115,13 +143,17 @@ const parseMembers = (body) => {
         if (!match) continue;
         const [, readonly, name, optional, rest] = match;
         const isMethod = rest.startsWith('(') || rest.startsWith('<');
+        const type = isMethod ? rest : rest.replace(/^:\s*/, '');
+        const objectBody = isMethod ? null : inlineObjectBody(type);
+        const children = objectBody !== null && /\/\*|\/\//.test(objectBody) ? parseMembers(objectBody) : [];
         members.push({
             name: name.replace(/^['"]|['"]$/g, ''),
             readonly: Boolean(readonly),
             optional: Boolean(optional),
             method: isMethod,
-            type: squash(isMethod ? rest : rest.replace(/^:\s*/, '')),
+            type: squash(stripComments(type)),
             doc: doc.join('\n\n'),
+            ...(children.length > 0 ? { children } : {}),
         });
         doc = [];
     }
@@ -209,7 +241,7 @@ const SECTION_INFO = {
     Services: {
         order: 5,
         title: '服务',
-        intro: '`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account`（不需要权限）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。',
+        intro: '`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account` 和经 Omni 只读在线音源的 `folium.omni`（两者都不需要权限；`folium.omni` 以用户在 Folia 登录的平台账号发请求），以及宿主均衡器 `folium.equalizer`（读不需要权限，写需 `equalizer.control`）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。',
     },
     'Shared helpers': {
         order: 6,
@@ -313,7 +345,11 @@ const renderItem = (item, known, interfaces) => {
         const inherited = inheritedMembers(item, interfaces);
         if (item.members.length > 0 || inherited.length > 0) {
             lines.push('| 成员 | 类型 | 说明 |', '| --- | --- | --- |');
-            for (const member of item.members) lines.push(renderMemberRow(member));
+            for (const member of item.members) {
+                lines.push(renderMemberRow(member));
+                // The members of an inline object type, each on a row of its own under the member's name.
+                for (const child of member.children ?? []) lines.push(renderMemberRow({ ...child, name: `${member.name}.${child.name}` }));
+            }
             for (const { member, from } of inherited) {
                 lines.push(renderMemberRow(member, `继承自 [${from}](#${anchorOf(from)})。`));
             }
