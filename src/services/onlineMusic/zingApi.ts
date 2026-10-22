@@ -619,7 +619,7 @@ export async function getZingUserProfile(): Promise<ProviderUser | null> {
     }
 
     // Default neutral profile for standard users with vipType: 0 (NOT VIP)
-    if (userCookie && userCookie.includes('za_oauth_v4=')) {
+    if (userCookie) {
         const fallbackProfile: ProviderUser = {
             id: 'zing_user',
             nickname: (i18n.isInitialized && i18n.exists('zing.accountUser') ? i18n.t('zing.accountUser') : 'Tài khoản Zing MP3'),
