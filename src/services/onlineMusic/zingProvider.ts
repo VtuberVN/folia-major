@@ -317,6 +317,12 @@ export const zingProvider: OnlineMusicProvider = {
             }
         },
         signInRanOut(): void {
+            const currentCookie = getStoredZingCookie();
+            if (currentCookie && currentCookie.includes('za_oauth_v4=')) {
+                // If we hold za_oauth_v4, the session can be revived and is not permanently ran out
+                console.log('[ZingProvider] signInRanOut invoked but user holds za_oauth_v4 token; preserving profile and session');
+                return;
+            }
             setStoredZingProfile(null);
         },
         getLoginTtlMs: () => 180_000,

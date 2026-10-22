@@ -32,8 +32,7 @@ export interface AiModelInfo {
     descriptionVi: string;
     downloadUrl: string;
     isDownloaded: boolean;
-    isUvrDetected?: boolean;
-    source?: 'builtin' | 'download' | 'uvr5';
+    source?: 'builtin' | 'download';
     downloadProgress?: number; // 0-100
     downloadDetails?: {
         receivedBytes: number;

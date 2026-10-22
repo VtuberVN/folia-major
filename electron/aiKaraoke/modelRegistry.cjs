@@ -64,7 +64,6 @@ const MODEL_CATALOG = [
         name: 'UVR-MDX-NET Inst HQ 3',
         category: 'mss',
         fileName: 'UVR-MDX-NET-Inst_HQ_3.onnx',
-        uvrSubfolder: 'MDX_Net_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '6 - 10s',
@@ -77,7 +76,6 @@ const MODEL_CATALOG = [
         name: 'UVR-MDX-NET Inst HQ 5',
         category: 'mss',
         fileName: 'UVR-MDX-NET-Inst_HQ_5.onnx',
-        uvrSubfolder: 'MDX_Net_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '6 - 10s',
@@ -90,7 +88,6 @@ const MODEL_CATALOG = [
         name: 'UVR-MDX-NET Crowd HQ 1',
         category: 'mss',
         fileName: 'UVR-MDX-NET_Crowd_HQ_1.onnx',
-        uvrSubfolder: 'MDX_Net_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '6 - 10s',
@@ -103,7 +100,6 @@ const MODEL_CATALOG = [
         name: '17_HP-Wind_Inst-UVR (Đạo cụ / Nhạc cụ)',
         category: 'mss',
         fileName: '17_HP-Wind_Inst-UVR.pth',
-        uvrSubfolder: 'VR_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '6 - 12s',
@@ -116,7 +112,6 @@ const MODEL_CATALOG = [
         name: 'UVR-De-Echo-Normal (Khử Âm vang)',
         category: 'mss',
         fileName: 'UVR-De-Echo-Normal.pth',
-        uvrSubfolder: 'VR_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '5 - 10s',
@@ -129,7 +124,6 @@ const MODEL_CATALOG = [
         name: 'UVR-DeNoise-Lite (Khử Nhiễu)',
         category: 'mss',
         fileName: 'UVR-DeNoise-Lite.pth',
-        uvrSubfolder: 'VR_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.0 - 2.0 GB',
         typicalSpeed: '4 - 8s',
@@ -142,7 +136,6 @@ const MODEL_CATALOG = [
         name: '1_HP-UVR (Vocal / Beat)',
         category: 'mss',
         fileName: '1_HP-UVR.pth',
-        uvrSubfolder: 'VR_Models',
         fileSizeMb: 60.0,
         recommendedVram: '1.5 - 2.5 GB',
         typicalSpeed: '6 - 10s',
@@ -205,41 +198,13 @@ const getKaraokeOutputDir = (userDataPath) => {
     return dir;
 };
 
-/** Standard UVR5 base directories across user system and disks */
-const UVR_MODELS_BASE_DIRS = [
-    'D:\\AI-Voice\\Ultimate Vocal Remover\\models',
-    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Ultimate Vocal Remover', 'models'),
-    'C:\\Program Files\\Ultimate Vocal Remover\\models',
-];
-
-const findUvrModelPath = (fileName, uvrSubfolder) => {
-    for (const base of UVR_MODELS_BASE_DIRS) {
-        if (!base) continue;
-        try {
-            if (!fs.existsSync(base)) continue;
-        } catch {
-            continue;
-        }
-        if (uvrSubfolder) {
-            const specific = path.join(base, uvrSubfolder, fileName);
-            if (fs.existsSync(specific)) return specific;
-        }
-        const subdirs = ['VR_Models', 'MDX_Net_Models', 'Demucs_Models', path.join('Demucs_Models', 'v3_v4_repo')];
-        for (const sub of subdirs) {
-            const p = path.join(base, sub, fileName);
-            if (fs.existsSync(p)) return p;
-        }
-        const flat = path.join(base, fileName);
-        if (fs.existsSync(flat)) return flat;
-    }
-    return null;
-};
-
 /** Active downloads map: modelId -> { req, aborted } */
 const activeDownloads = new Map();
 
 /**
  * Checks which models are downloaded and ready on disk.
+ * Strictly scans Folia's dedicated ai-models directory or bundled appModelsDir.
+ * No external machine scanning or arbitrary disk search.
  */
 const getModelsStatus = (userDataPath, appModelsDir) => {
     const modelsDir = getAiModelsDir(userDataPath);
@@ -257,7 +222,7 @@ const getModelsStatus = (userDataPath, appModelsDir) => {
             };
         }
 
-        // 1. Check Folia local models dir
+        // Check Folia local models directory (userData/ai-models)
         const localPath = path.join(modelsDir, model.fileName);
         const exists = fs.existsSync(localPath);
         let sizeMb = 0;
@@ -277,27 +242,6 @@ const getModelsStatus = (userDataPath, appModelsDir) => {
                 actualSizeMb: sizeMb,
                 source: 'download',
             };
-        }
-
-        // 2. Check UVR models directory on disk (e.g. D:\AI-Voice\Ultimate Vocal Remover\models)
-        const uvrPath = findUvrModelPath(model.fileName, model.uvrSubfolder);
-        if (uvrPath && fs.existsSync(uvrPath)) {
-            let uvrSizeMb = 0;
-            try {
-                uvrSizeMb = Math.round((fs.statSync(uvrPath).size / (1024 * 1024)) * 10) / 10;
-            } catch {
-                uvrSizeMb = 0;
-            }
-            if (uvrSizeMb > 0) {
-                return {
-                    ...model,
-                    isDownloaded: true,
-                    isUvrDetected: true,
-                    source: 'uvr5',
-                    localPath: uvrPath,
-                    actualSizeMb: uvrSizeMb,
-                };
-            }
         }
 
         return {

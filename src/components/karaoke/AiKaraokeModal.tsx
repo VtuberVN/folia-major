@@ -722,7 +722,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-neutral-400">
                                     <Clock size={14} style={{ color: accentBg }} />
-                                    <span>Lịch sử bài hát đã tách gần đây</span>
+                                    <span>{t('karaoke.recentHistory')}</span>
                                     {outputs.length > 0 && (
                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/10 dark:bg-white/10 text-neutral-300">
                                             {outputs.length}
@@ -735,7 +735,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                         onClick={() => setActiveTab('library')}
                                         className="flex items-center gap-1 text-xs font-medium text-pink-400 hover:underline"
                                     >
-                                        <span>Xem tất cả thư viện</span>
+                                        <span>{t('karaoke.tabLibrary')}</span>
                                         <ArrowRight size={13} />
                                     </button>
                                 )}
@@ -743,7 +743,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
 
                             {outputs.length === 0 ? (
                                 <p className={`text-xs text-center py-2 ${subTextColor}`}>
-                                    Chưa có bài hát nào trong lịch sử tách.
+                                    {t('karaoke.noRecentHistory')}
                                 </p>
                             ) : (
                                 <div className="space-y-2">
@@ -971,30 +971,28 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                                 {/* Download Status & Progress */}
                                                 <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
                                                     {model.id === 'htdemucs_mnn' ? (
-                                                        <span className="text-[11px] text-emerald-500 font-medium">✓ Có sẵn trong Folia (4-stem Đa Năng)</span>
+                                                        <span className="text-[11px] text-emerald-500 font-medium">✓ {t('karaoke.builtIn')}</span>
                                                     ) : model.isDownloaded ? (
                                                         <div className="flex items-center justify-between w-full">
                                                             <span className="text-[11px] text-emerald-500 font-medium">
-                                                                {model.source === 'uvr5' ? '✓ Có sẵn từ UVR5' : '✓ Đã sẵn sàng trên máy'}
+                                                                ✓ {t('karaoke.readyOnDevice')}
                                                             </span>
-                                                            {model.source !== 'uvr5' && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        void handleDeleteModel(model.id);
-                                                                    }}
-                                                                    title="Xóa model để giải phóng dung lượng ổ cứng"
-                                                                    className="text-neutral-400 hover:text-red-400 p-1 rounded"
-                                                                >
-                                                                    <Trash2 size={13} />
-                                                                </button>
-                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    void handleDeleteModel(model.id);
+                                                                }}
+                                                                title={t('karaoke.deleteModelTip')}
+                                                                className="text-neutral-400 hover:text-red-400 p-1 rounded"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
                                                         </div>
                                                     ) : isDownloading ? (
                                                         <div className="w-full space-y-1.5">
                                                             <div className="flex items-center justify-between text-[11px]">
-                                                                <span className="text-amber-500 font-medium animate-pulse">Đang tải: {model.downloadProgress || 0}%</span>
+                                                                <span className="text-amber-500 font-medium animate-pulse">{t('karaoke.downloading')}: {model.downloadProgress || 0}%</span>
                                                                 {details && details.totalBytes > 0 && (
                                                                     <span className="font-mono text-[10px] text-neutral-400">
                                                                         {(details.receivedBytes / 1048576).toFixed(1)} / {(details.totalBytes / 1048576).toFixed(1)} MB
@@ -1019,7 +1017,7 @@ export const AiKaraokeModal: React.FC<AiKaraokeModalProps> = ({
                                                             className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-black/10 hover:bg-black/20 font-medium transition-colors"
                                                         >
                                                             <Download size={12} />
-                                                            <span>Tải về ({model.fileSizeMb} MB)</span>
+                                                            <span>{t('karaoke.downloadModel')} ({model.fileSizeMb} MB)</span>
                                                         </button>
                                                     )}
                                                 </div>

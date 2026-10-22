@@ -6343,7 +6343,30 @@ const vi = {
     "notDownloaded": "Chưa tải",
     "turnOnBeat": "Bật chế độ Hát Karaoke (Chỉ phát Beat, tắt lời ca sĩ)",
     "turnOffBeat": "Đang phát Beat Karaoke (Bấm để trở lại bản gốc)",
-    "openKaraokeStudio": "Cài đặt Karaoke & Visual LRC Studio"
+    "openKaraokeStudio": "Cài đặt Karaoke & Visual LRC Studio",
+    "readyOnDevice": "Đã sẵn sàng trên máy",
+    "deleteModelTip": "Xóa model để giải phóng dung lượng ổ cứng",
+    "downloadModel": "Tải về",
+    "downloading": "Đang tải",
+    "tabProcess": "Tách lời & nhạc",
+    "tabLibrary": "Thư viện bài đã tách",
+    "tabModels": "Quản lý Model AI",
+    "pipelineFull": "Tách beat & Tạo lời đầy đủ",
+    "pipelineFullDesc": "Tách toàn bộ Beat và Giọng hát, đồng thời tự động nhận diện lời bài hát và căn chỉnh karaoke theo từng từ.",
+    "pipelineLyricsOnly": "Chỉ lấy Lời Karaoke (Không tách beat)",
+    "pipelineLyricsOnlyDesc": "Giữ nguyên file gốc, sử dụng trí tuệ nhân tạo để trích xuất lời và tạo karaoke đồng bộ mili-giây siêu tốc.",
+    "playBeat": "Phát Beat",
+    "playVocals": "Phát giọng hát",
+    "playInstruments": "Phát nhạc cụ",
+    "playDrums": "Phát Drums",
+    "playBass": "Phát Bass",
+    "openFolder": "Mở thư mục",
+    "reprocess": "Tách lại",
+    "recentHistory": "Lịch sử bài hát đã tách gần đây",
+    "noRecentHistory": "Chưa có bài hát nào được tách gần đây",
+    "applyLyricsSuccess": "Đã áp dụng lời karaoke thành công",
+    "errorProcessing": "Xảy ra lỗi trong quá trình xử lý",
+    "emptyProcessPrompt": "Chưa có tiến trình tách nào đang chạy"
   }
 } as const;
 
