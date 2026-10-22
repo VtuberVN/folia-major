@@ -15,6 +15,7 @@ import type {
 import { OnlineProviderError } from '../../types/onlineMusic';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import i18n from 'i18next';
+import { zingExplore } from './zingExplore';
 import {
     getStoredZingCookie,
     getUserZingPlaylists,
@@ -98,6 +99,7 @@ export const zingProvider: OnlineMusicProvider = {
         userAlbums: true,
         artists: false,
         recommendations: true,
+        explore: true,
         mutations: false,
     },
     normalizeSong(raw: unknown): UnifiedSong {
@@ -327,4 +329,5 @@ export const zingProvider: OnlineMusicProvider = {
         },
         getLoginTtlMs: () => 180_000,
     },
+    explore: zingExplore,
 };

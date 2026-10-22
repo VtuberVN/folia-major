@@ -16,7 +16,7 @@ const base: ElectronSettingsState = {
     OPENAI_API_KEY: 'draft-key', OPENAI_API_TEMPERATURE: '0.7', OPENAI_API_STREAM: false,
     GEMINI_API_KEY: '', GEMINI_API_MODEL: 'gemini-selected', USE_SYSTEM_PROXY_FOR_AI: false,
     ENABLE_UPDATE_CHECK: true, ENABLE_AUTO_UPDATE: false, UPDATE_CHANNEL: 'realeco',
-    STAGE_MODE_SOURCE: '', DISCORD_RICH_PRESENCE_ENABLED: false,
+    STAGE_MODE_SOURCE: '', DISCORD_RICH_PRESENCE_ENABLED: false, DISCORD_RICH_PRESENCE_APPLICATION_ID: '',
 };
 const setElectronSettings = vi.fn();
 /** The settings after the form's last change (setElectronSettings takes an updater). */
