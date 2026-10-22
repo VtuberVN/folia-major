@@ -134,6 +134,8 @@ const TRUST_DIALOG_LOCALE = {
         risk: 'Mod là mã nguồn từ bên thứ ba và chưa được kiểm tra an toàn chính thức. Khi được bật, mod sẽ chạy với toàn bộ quyền hạn của ứng dụng: có thể đọc và ghi tệp cục bộ, truy cập mạng, đọc hoặc thay đổi bất kỳ cài đặt nào của ứng dụng (bao gồm địa chỉ và khóa dịch vụ AI), và thực thi mã trong giao diện. Chỉ bật các mod từ nguồn mà bạn tin cậy.',
         permissions: 'Các quyền khai báo: ',
         noPermissions: 'Các quyền khai báo: không có',
+        platformRead: (platforms) => `Đọc dữ liệu nền tảng dưới danh nghĩa tài khoản của bạn (giao diện thử nghiệm platform.raw): ${platforms}. Mod có thể đọc dữ liệu trên các nền tảng này bằng tài khoản bạn đã đăng nhập vào Folia, chẳng hạn như lịch sử nghe.`,
+        platformWrite: (platforms) => `Thay đổi dữ liệu nền tảng dưới danh nghĩa tài khoản của bạn: ${platforms}. Mod cũng có thể thay đổi nội dung trong các tài khoản nền tảng này, chẳng hạn như lượt thích, danh sách phát và lượt theo dõi.`,
         location: 'Vị trí cài đặt: ',
         fingerprint: 'Mã định danh nội dung: ',
         client: 'Mã giao diện: ',
