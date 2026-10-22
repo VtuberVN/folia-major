@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { motion, motionValue, useTransform, type MotionValue } from 'framer-motion';
 import {
-    GripHorizontal,
     Lock,
     Music,
     Pause,
@@ -538,12 +537,12 @@ export default function MiniLyricBarApp() {
         >
             {/* Main Floating Capsule Bar */}
             <div
-                className={`relative w-full h-full flex items-center px-3.5 py-1.5 rounded-2xl transition-all duration-300 ${
+                className={`relative w-full h-full flex items-center px-3 py-1.5 rounded-2xl ${
                     isClickThrough
                         ? 'bg-black/40 backdrop-blur-md border border-white/10 shadow-lg'
                         : isHovered
-                            ? 'bg-neutral-900/90 backdrop-blur-2xl border border-white/20 shadow-2xl ring-1 ring-white/10'
-                            : 'bg-neutral-900/75 backdrop-blur-xl border border-white/15 shadow-xl'
+                            ? 'bg-neutral-900/95 backdrop-blur-2xl border border-white/20 shadow-2xl ring-1 ring-white/10'
+                            : 'bg-neutral-900/80 backdrop-blur-xl border border-white/15 shadow-xl'
                 }`}
                 style={{
                     WebkitAppRegion: isClickThrough ? 'no-drag' : 'drag',
@@ -552,8 +551,8 @@ export default function MiniLyricBarApp() {
             >
                 {/* Left: Dynamic responsive Album cover that grows with window height */}
                 <div
-                    className="flex-shrink-0 flex items-center justify-center h-full aspect-square max-h-[84px] min-h-[36px] min-w-[36px] rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-md mr-3.5 select-none"
-                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    className="flex-shrink-0 flex items-center justify-center h-full aspect-square max-h-[84px] min-h-[36px] min-w-[36px] rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-md mr-2.5 select-none"
+                    style={{ WebkitAppRegion: isClickThrough ? 'no-drag' : 'drag' } as React.CSSProperties}
                 >
                     {snapshot?.coverUrl ? (
                         <img
@@ -567,8 +566,89 @@ export default function MiniLyricBarApp() {
                     )}
                 </div>
 
-                {/* Center: Synced Lyrics display (takes full width with zero cut-off from hidden buttons) */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden pr-2">
+                {/* Left: Integrated Controls toolbar directly in the main bar */}
+                <div
+                    data-mini-interactive="true"
+                    className="flex-shrink-0 flex items-center space-x-0.5 mr-3 select-none"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
+                    {!isClickThrough ? (
+                        <>
+                            {/* Previous track */}
+                            <button
+                                type="button"
+                                data-mini-interactive="true"
+                                onClick={() => handleCommand({ type: 'previous' })}
+                                title={t('ui.previousTrack')}
+                                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/15 active:scale-95 transition-colors cursor-pointer"
+                            >
+                                <SkipBack size={15} />
+                            </button>
+
+                            {/* Play / Pause */}
+                            <button
+                                type="button"
+                                data-mini-interactive="true"
+                                onClick={() => handleCommand({ type: 'play-pause' })}
+                                title={isPlaying ? t('ui.pause') : t('ui.play')}
+                                className="p-1.5 rounded-lg text-white bg-white/20 hover:bg-white/30 active:scale-95 transition-colors shadow-sm cursor-pointer"
+                            >
+                                {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+                            </button>
+
+                            {/* Next track */}
+                            <button
+                                type="button"
+                                data-mini-interactive="true"
+                                onClick={() => handleCommand({ type: 'next' })}
+                                title={t('ui.nextTrack')}
+                                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/15 active:scale-95 transition-colors cursor-pointer"
+                            >
+                                <SkipForward size={15} />
+                            </button>
+
+                            {/* Lock Click-Through Toggle */}
+                            <button
+                                type="button"
+                                data-mini-interactive="true"
+                                onClick={() => handleToggleClickThrough(true)}
+                                title={t('ui.miniLyricBarLock')}
+                                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/15 active:scale-95 transition-colors cursor-pointer"
+                            >
+                                <Unlock size={15} />
+                            </button>
+
+                            {/* Close window */}
+                            <button
+                                type="button"
+                                data-mini-interactive="true"
+                                onClick={handleClose}
+                                title={t('ui.close')}
+                                className="p-1.5 rounded-lg text-white/70 hover:text-red-400 hover:bg-red-500/20 active:scale-95 transition-colors cursor-pointer"
+                            >
+                                <X size={15} />
+                            </button>
+                        </>
+                    ) : (
+                        /* Locked mode: ALWAYS VISIBLE interactive unlock icon with amber accent */
+                        <button
+                            type="button"
+                            data-mini-interactive="true"
+                            onClick={() => handleToggleClickThrough(false)}
+                            title={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
+                            aria-label={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
+                            className="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/25 border border-amber-400/40 shadow-sm transition-colors active:scale-95 cursor-pointer"
+                        >
+                            <Lock size={15} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Center & Right: Synced Lyrics display (occupies remaining width cleanly) */}
+                <div
+                    className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden pr-2"
+                    style={{ WebkitAppRegion: isClickThrough ? 'no-drag' : 'drag' } as React.CSSProperties}
+                >
                     {currentLine ? (
                         <div className="flex flex-col justify-center">
                             {/* Primary lyric line with two-layer GPU text clipping and focal-point autoscroll */}
@@ -643,103 +723,6 @@ export default function MiniLyricBarApp() {
                         </div>
                     )}
                 </div>
-
-                {/* Right: Floating control toolbar (floats over right edge on hover, taking 0 flex space when idle) */}
-                {!isClickThrough ? (
-                    <div
-                        data-mini-interactive="true"
-                        className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-neutral-950/85 backdrop-blur-2xl border border-white/20 shadow-2xl transition-all duration-200 z-20 ${
-                            isHovered
-                                ? 'opacity-100 scale-100 pointer-events-auto'
-                                : 'opacity-0 scale-95 pointer-events-none'
-                        }`}
-                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                    >
-                        {/* Drag Handle */}
-                        <div
-                            title={t('ui.miniLyricBarDrag', 'Kéo để di chuyển')}
-                            aria-label={t('ui.miniLyricBarDrag', 'Kéo để di chuyển')}
-                            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-grab active:cursor-grabbing flex items-center justify-center select-none"
-                            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-                        >
-                            <GripHorizontal size={15} />
-                        </div>
-
-                        {/* Previous track */}
-                        <button
-                            type="button"
-                            onClick={() => handleCommand({ type: 'previous' })}
-                            title={t('ui.previousTrack')}
-                            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                        >
-                            <SkipBack size={15} />
-                        </button>
-
-                        {/* Play / Pause */}
-                        <button
-                            type="button"
-                            onClick={() => handleCommand({ type: 'play-pause' })}
-                            title={isPlaying ? t('ui.pause') : t('ui.play')}
-                            className="p-1.5 rounded-lg text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all shadow-sm"
-                        >
-                            {isPlaying ? <Pause size={15} /> : <Play size={15} />}
-                        </button>
-
-                        {/* Next track */}
-                        <button
-                            type="button"
-                            onClick={() => handleCommand({ type: 'next' })}
-                            title={t('ui.nextTrack')}
-                            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                        >
-                            <SkipForward size={15} />
-                        </button>
-
-                        {/* Lock Click-Through Toggle */}
-                        <button
-                            type="button"
-                            onClick={() => handleToggleClickThrough(true)}
-                            title={t('ui.miniLyricBarLock')}
-                            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                        >
-                            <Unlock size={15} />
-                        </button>
-
-                        {/* Close window */}
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            title={t('ui.close')}
-                            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-red-500/80 active:scale-95 transition-all"
-                        >
-                            <X size={15} />
-                        </button>
-                    </div>
-                ) : (
-                    /* Locked mode: ALWAYS VISIBLE interactive lock icon with amber accent to unlock */
-                    <div
-                        data-mini-interactive="true"
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center transition-all duration-200 z-30 pointer-events-auto"
-                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                        onMouseEnter={() => {
-                            void window.electron?.setMiniLyricBarMouseIgnore?.(false);
-                            setIsHovered(true);
-                        }}
-                    >
-                        <button
-                            type="button"
-                            data-mini-interactive="true"
-                            onClick={() => handleToggleClickThrough(false)}
-                            title={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
-                            aria-label={t('ui.miniLyricBarUnlock', 'Nhấp để mở khóa / di chuyển thanh lời')}
-                            className={`p-1.5 rounded-lg text-amber-400 bg-neutral-950/85 hover:bg-amber-400/30 border border-amber-400/50 shadow-lg transition-all active:scale-95 cursor-pointer ${
-                                isHovered ? 'opacity-100 scale-105' : 'opacity-70 scale-100'
-                            }`}
-                        >
-                            <Lock size={15} />
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
     );
