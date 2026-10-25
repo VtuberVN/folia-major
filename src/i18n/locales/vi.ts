@@ -1,7 +1,8 @@
 // src/i18n/locales/vi.ts
-// Vietnamese translation for Folia
+// Vietnamese (vi) localization for Folia.
+// Synced with upstream main (v0.7.22).
 
-const vi = {
+export default {
   "libraryBravais": {
     "suiteName": "Không gian Bravais",
     "homeTitle": "Thư viện",
@@ -315,6 +316,7 @@ const vi = {
     "dioramaReset": "Đã đặt lại thông số Diorama",
     "temperaReset": "Đã đặt lại thông số Tempera",
     "lumiereReset": "Đã đặt lại thông số Lumiere",
+    "hanabiReset": "Đã đặt lại thông số Hanabi",
     "uploadEmojiFirst": "Cần tải lên gói biểu cảm tùy chỉnh trước",
     "monetBgUpdated": "Đã cập nhật ảnh nền Monet",
     "monetBgCleared": "Đã xóa ảnh nền Monet",
@@ -962,22 +964,6 @@ const vi = {
         "title": "Hẹn giờ ngủ",
         "description": "Tạm dừng phát sau khoảng thời gian đã chọn hoặc đóng ứng dụng"
       },
-      "smart-beat-toggle": {
-        "title": "Bật / tắt chế độ nhịp thông minh",
-        "description": "Bật hoặc tắt các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống)"
-      },
-      "smart-beat-off": {
-        "title": "Chế độ nhịp thông minh: Tắt",
-        "description": "Tắt các hiệu ứng nhịp; giữ nguyên khung hình như ban đầu"
-      },
-      "smart-beat-cached": {
-        "title": "Chế độ nhịp thông minh: Chỉ bài đã phân tích",
-        "description": "Chỉ phát hiệu ứng nhịp từ các bài đã phân tích; bản thân nhịp thông minh không phân tích bài mới và không tải GPU (không ảnh hưởng automix)"
-      },
-      "smart-beat-on": {
-        "title": "Chế độ nhịp thông minh: Bật",
-        "description": "Bật các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống), tự động phân tích bài chưa phân tích"
-      },
       "navigate-home": {
         "title": "Về trang chủ",
         "description": "Quay lại màn hình trang chủ"
@@ -1267,9 +1253,12 @@ const vi = {
         "description": "Hiển thị lời bài hát trong hiệu ứng thị giác phía sau thư viện"
       },
       "library-wall-backdrop-blur-toggle": {
-      "library-wall-seam-direction-picker": {"title":"Chọn hướng dải thông tin","description":"Mở dải thông tin dưới dạng cột dọc, hàng ngang trên tường, hoặc theo hình dáng màn hình"},
         "title": "Làm mờ nền sau thư viện",
         "description": "Làm mờ hiệu ứng thị giác hiển thị phía sau thư viện"
+      },
+      "library-wall-seam-direction-picker": {
+        "title": "Chọn hướng dải thông tin",
+        "description": "Mở dải thông tin dưới dạng cột dọc, hàng ngang trên tường, hoặc theo hình dáng màn hình"
       },
       "settings-theme-presets": {
         "title": "Chủ đề cài sẵn",
@@ -1408,9 +1397,12 @@ const vi = {
         "description": "Xáo trộn hàng đợi phát hiện tại"
       },
       "playback-clear-queue": {
-      "playback-undo-queue-replace": {"title":"Hoàn tác thay thế hàng chờ từ mod","description":"Khôi phục hàng đợi phát từ trước khi mod thay thế"},
         "title": "Xóa hàng đợi",
         "description": "Xóa toàn bộ bài hát khỏi hàng đợi phát"
+      },
+      "playback-undo-queue-replace": {
+        "title": "Hoàn tác thay thế hàng chờ từ mod",
+        "description": "Khôi phục hàng đợi phát từ trước khi mod thay thế"
       },
       "theme-generate-current": {
         "title": "Tạo chủ đề AI",
@@ -1492,6 +1484,22 @@ const vi = {
         "title": "Hiệu ứng thị giác: Sonnet",
         "description": "Chuyển sang PV lời tiếng Nhật Sonnet"
       },
+      "smart-beat-toggle": {
+        "title": "Bật / tắt chế độ nhịp thông minh",
+        "description": "Bật hoặc tắt các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống)"
+      },
+      "smart-beat-off": {
+        "title": "Chế độ nhịp thông minh: Tắt",
+        "description": "Tắt các hiệu ứng nhịp; giữ nguyên khung hình như ban đầu"
+      },
+      "smart-beat-cached": {
+        "title": "Chế độ nhịp thông minh: Chỉ bài đã phân tích",
+        "description": "Chỉ phát hiệu ứng nhịp từ các bài đã phân tích; bản thân nhịp thông minh không phân tích bài mới và không tải GPU (không ảnh hưởng automix)"
+      },
+      "smart-beat-on": {
+        "title": "Chế độ nhịp thông minh: Bật",
+        "description": "Bật các hiệu ứng nhịp (Sonnet và Diorama theo nhịp, Pendolo theo tiếng trống), tự động phân tích bài chưa phân tích"
+      },
       "visualizer-tempera": {
         "title": "Hiệu ứng thị giác: Tempera",
         "description": "Chuyển sang PV lời mảng màu Tempera"
@@ -1499,6 +1507,10 @@ const vi = {
       "visualizer-lumiere": {
         "title": "Hiệu ứng thị giác: Lumiere",
         "description": "Chuyển sang PV lời ánh đèn sân khấu Lumiere"
+      },
+      "visualizer-hanabi": {
+        "title": "Hiệu ứng thị giác: Hanabi",
+        "description": "Chuyển sang PV lời pháo hoa Hanabi"
       },
       "desktop-toggle-remote-control": {
         "title": "Bật/tắt cửa sổ điều khiển",
@@ -1721,6 +1733,7 @@ const vi = {
     "visualizerSonnet": "Sonnet",
     "visualizerTempera": "Tempera",
     "visualizerLumiere": "Lumiere",
+    "visualizerHanabi": "Hanabi",
     "cadenzeTuning": "Hiệu chỉnh Tâm cảnh",
     "resetVisualizerTuning": "Đặt lại thông số hiệu ứng lời",
     "cadenzeOnly": "Chỉ ở Tâm cảnh",
@@ -1734,40 +1747,6 @@ const vi = {
     "foundMatches": "Tìm thấy {{count}} kết quả",
     "waitingForMusic": "",
     "options": "Tùy chọn",
-    "aiProvider_gemini": "Google Gemini",
-    "aiProvider_deepseek": "DeepSeek",
-    "aiProvider_mimo": "Xiaomi MiMo",
-    "aiProvider_qwen": "Alibaba Cloud Qwen",
-    "aiProvider_tencentcloud": "Tencent Cloud TokenHub",
-    "aiProvider_openai": "OpenAI",
-    "aiProvider_anthropic": "Anthropic",
-    "aiProvider_kimi": "Kimi",
-    "aiProvider_glm": "Zhipu GLM",
-    "aiProvider_custom": "Điểm cuối tương thích tùy chỉnh",
-    "aiApiKey": "Khóa API (API Key)",
-    "aiModel": "Mô hình (Model)",
-    "aiApiUrl": "URL API",
-    "aiModelsFetch": "Lấy danh sách mô hình",
-    "aiModelsLoading": "Đang lấy…",
-    "aiModelChoose": "Chọn một mô hình",
-    "aiModelManual": "Nhập thủ công",
-    "aiModelPlaceholder": "Mã ID mô hình",
-    "aiModelsAuthError": "Khóa không hợp lệ hoặc không có quyền liệt kê danh sách mô hình",
-    "aiModelsTimeout": "Yêu cầu danh sách mô hình đã hết thời gian. Vui lòng thử lại.",
-    "aiModelsEmpty": "Không tìm thấy mô hình nào. Bạn có thể nhập mô hình thủ công.",
-    "aiModelsError": "Không thể lấy danh sách mô hình. Vui lòng kiểm tra URL API và khóa API.",
-    "aiModelDefault": "Mặc định: {{model}}",
-    "aiModelRetired": "{{model}} đã ngừng hoạt động. Vui lòng chuyển sang {{replacement}}.",
-    "aiModelAlwaysThinks": "Mô hình này không thể tắt suy nghĩ (thinking), do đó việc phân tách câu lời bài hát sẽ chậm hơn.",
-    "aiEndpoint": "Máy chủ khu vực",
-    "aiApiUrlUnlistedDesc": "Không nằm trong danh sách máy chủ được đề xuất của nhà cung cấp này. Chọn một máy chủ để thay thế, hoặc chuyển sang Điểm cuối tương thích tùy chỉnh để chỉnh sửa.",
-    "aiEndpoint_cn": "Trung Quốc",
-    "aiEndpoint_global": "Quốc tế",
-    "aiEndpoint_singapore": "Singapore",
-    "aiEndpoint_us": "Hoa Kỳ",
-    "aiEndpoint_hongkong": "Hồng Kông",
-    "aiTemperatureRangeDesc": "Phạm vi: {{min}}–{{max}}. Mặc định là 0.7 khi để trống.",
-    "aiTemperaturePerModelDesc": "Phạm vi: {{min}}–{{max}}; một số mô hình có thể bỏ qua tùy chọn này. Mặc định là 0.7 khi để trống.",
     "info": "Thông tin",
     "panelExpand": "Mở rộng",
     "panelCollapse": "Thu gọn",
@@ -2314,6 +2293,8 @@ const vi = {
     "loginTitleKugou": "Quét bằng ứng dụng KuGou",
     "loginNoteKugou": "Mở KuGou Music và quét mã QR này",
     "loginTitleQq": "Quét mã đăng nhập QQ Music",
+    "loginTitleQishui": "Đăng nhập Qishui Music bằng Douyin",
+    "loginNoteQishui": "Quét mã bằng ứng dụng Douyin và xác nhận ủy quyền",
     "loginTitleBodian": "Quét bằng Bodian Music",
     "loginNoteBodian": "Mở ứng dụng Bodian Music quét mã QR và xác nhận đăng nhập",
     "loginTitleYtm": "Đăng nhập YouTube Music",
@@ -2346,8 +2327,8 @@ const vi = {
     "loginMethodTitle": "Chọn phương thức đăng nhập",
     "loginMethodPending": "Chọn phương thức đăng nhập để tạo mã QR",
     "qqLoginMethodMobile": "Quét QQ",
-    "qqLoginMethodQqMusic": "Quét bằng ứng dụng QQ Music",
     "qqLoginMethodWechat": "Quét WeChat",
+    "qqLoginMethodQqMusic": "Quét bằng ứng dụng QQ Music",
     "switchOnlineProvider": "Đổi nền tảng nhạc trực tuyến",
     "confirmOnlineProviderSwitch": "Chuyển sang {{provider}}? Danh sách phát và bài đang phát trực tuyến sẽ bị xóa.",
     "onlineProvider": "Nền tảng nhạc trực tuyến",
@@ -2556,7 +2537,12 @@ const vi = {
     "ponderDescription": "Tìm hiểu thao tác cơ bản và cơ chế vận hành của Folia",
     "version": "phiên bản"
   },
+  "qishui": {
+    "recentPlayed": "Gần đây đã phát trên Qishui",
+    "recommended": "Được đề xuất cho bạn"
+  },
   "lyricProvider": {
+    "qishui": "Qishui Music",
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
@@ -2635,6 +2621,40 @@ const vi = {
     "lyricMatchPriorityDesc": "Khi nhiều nguồn lời đều có kết quả khớp độ tin cậy cao, ưu tiên nguồn này trước."
   },
   "options": {
+    "aiProvider_gemini": "Google Gemini",
+    "aiProvider_deepseek": "DeepSeek",
+    "aiProvider_mimo": "Xiaomi MiMo",
+    "aiProvider_qwen": "Alibaba Cloud Qwen",
+    "aiProvider_tencentcloud": "Tencent Cloud TokenHub",
+    "aiProvider_openai": "OpenAI",
+    "aiProvider_anthropic": "Anthropic",
+    "aiProvider_kimi": "Kimi",
+    "aiProvider_glm": "Zhipu GLM",
+    "aiProvider_custom": "Điểm cuối tương thích tùy chỉnh",
+    "aiApiKey": "Khóa API",
+    "aiModel": "Mô hình",
+    "aiApiUrl": "URL API",
+    "aiModelsFetch": "Lấy danh sách mô hình",
+    "aiModelsLoading": "Đang lấy…",
+    "aiModelChoose": "Chọn một mô hình",
+    "aiModelManual": "Nhập thủ công",
+    "aiModelPlaceholder": "Mã ID mô hình",
+    "aiModelsAuthError": "Khóa không hợp lệ hoặc không có quyền liệt kê danh sách mô hình",
+    "aiModelsTimeout": "Yêu cầu danh sách mô hình đã hết thời gian. Vui lòng thử lại.",
+    "aiModelsEmpty": "Không tìm thấy mô hình nào. Bạn có thể nhập mô hình thủ công.",
+    "aiModelsError": "Không thể lấy danh sách mô hình. Vui lòng kiểm tra URL API và khóa API.",
+    "aiModelDefault": "Mặc định: {{model}}",
+    "aiModelRetired": "{{model}} đã ngừng hoạt động. Vui lòng chuyển sang {{replacement}}.",
+    "aiModelAlwaysThinks": "Mô hình này không thể tắt suy nghĩ (thinking), do đó việc phân tách câu lời bài hát sẽ chậm hơn.",
+    "aiEndpoint": "Máy chủ khu vực",
+    "aiApiUrlUnlistedDesc": "Không nằm trong danh sách máy chủ được đề xuất của nhà cung cấp này. Chọn một máy chủ để thay thế, hoặc chuyển sang Điểm cuối tương thích tùy chỉnh để chỉnh sửa.",
+    "aiEndpoint_cn": "Trung Quốc",
+    "aiEndpoint_global": "Quốc tế",
+    "aiEndpoint_singapore": "Singapore",
+    "aiEndpoint_us": "Hoa Kỳ",
+    "aiEndpoint_hongkong": "Hồng Kông",
+    "aiTemperatureRangeDesc": "Phạm vi: {{min}}–{{max}}. Mặc định là 0.7 khi để trống.",
+    "aiTemperaturePerModelDesc": "Phạm vi: {{min}}–{{max}}; một số mô hình có thể bỏ qua tùy chọn này. Mặc định là 0.7 khi để trống.",
     "randomVisualizerModes": "Phong cách tham gia ngẫu nhiên",
     "randomVisualizerSelectAll": "Chọn tất cả",
     "randomVisualizerCurrentStyle": "Phong cách hiện tại",
@@ -3388,6 +3408,10 @@ const vi = {
     "beatEffect_pendoloGearBeatsDesc": "Các bánh răng dịch chuyển theo các nhịp do beat_this phát hiện. (Không còn dùng)",
     "beatEffect_latentPulse": "Xung nhịp thủy triều",
     "beatEffect_latentPulseDesc": "Dòng chảy nền Latent đập theo các nhịp do beat_this phát hiện. (Không còn dùng)",
+    "beatEffect_hanabiBeatBursts": "Nở hoa theo nhịp",
+    "beatEffect_hanabiBeatBurstsDesc": "Theo các nhịp điệu do beat_this phát hiện: một chùm pháo hoa nhỏ nở rộ trên bầu trời theo từng phách, và một quả pháo bay lên trước phách đầu tiên của mỗi ô nhịp để nổ bung đúng vào phách đó. Nhịp càng mạnh thì pháo nở càng lớn.",
+    "beatEffect_hanabiBeatPulse": "Đẩy góc nhìn theo nhịp",
+    "beatEffect_hanabiBeatPulseDesc": "Theo các nhịp điệu do beat_this phát hiện: toàn bộ khung cảnh được đẩy lại gần và khẽ đung đưa theo từng phách, đẩy sâu hơn vào phách đầu tiên của mỗi ô nhịp.",
     "temperaMotionSection": "Chuyển động & Màu sắc",
     "temperaDisplaySection": "Hiển thị",
     "temperaLyricSection": "Phân cảnh lời",
@@ -3508,6 +3532,46 @@ const vi = {
     "lumiereRenderQualityBalanced": "Cân bằng",
     "lumiereRenderQualityLow": "Thấp",
     "lumiereRenderQualityHint": "Mức Cân bằng và Thấp giảm độ phân giải của trường sáng và vầng sáng, đồng thời giới hạn chi tiết khói mờ để tiết kiệm pin dù giảm độ sắc nét.",
+    "hanabiFontSizeAutoNotice": "Chế độ Hanabi tự động tính cỡ chữ lời bài hát dựa theo kích thước khung hình và vùng văn bản của từng cú máy; cài đặt cỡ phông chữ chung ở chế độ này chỉ áp dụng cho phụ đề bên dưới.",
+    "hanabiFireworksSection": "Pháo hoa",
+    "hanabiStageSection": "Sân khấu & Khung cảnh",
+    "hanabiTextSection": "Văn bản lời bài hát",
+    "hanabiDecorSection": "Trang trí",
+    "hanabiColorSection": "Phối màu",
+    "hanabiSparkAmount": "Tia lửa",
+    "hanabiGlow": "Phát sáng pháo hoa",
+    "hanabiChorusBloom": "Ánh sáng điệp khúc",
+    "hanabiChorusBloomHint": "Toàn bộ khung hình bừng sáng trong đoạn điệp khúc, sáng dần lên khi bắt đầu và dịu lại khi kết thúc. Đoạn điệp khúc được nhận diện qua nguồn lời bài hát hoặc các câu lặp lại.",
+    "hanabiBloom": "Phát sáng tổng thể",
+    "hanabiBloomHint": "Ánh sáng toàn màn hình áp dụng xuyên suốt bài hát, nằm dưới lớp ánh sáng điệp khúc. Giá trị 0 chỉ giữ lại ánh sáng điệp khúc.",
+    "hanabiLaunches": "Vệt bay pháo hoa",
+    "hanabiLaunchesHint": "Mỗi phát pháo hoa bay lên từ đáy màn hình trước khi nổ bung, nối liền từ góc máy này sang góc máy kế tiếp.",
+    "hanabiSky": "Bầu trời đêm",
+    "hanabiSkyHint": "Lớp chuyển sắc bầu trời đêm bên dưới pháo hoa. Giảm mức sẽ để lộ nền dùng chung; dưới 50% sẽ lấy màu theo nền chủ đề.",
+    "hanabiRiseSpeed": "Tốc độ nâng cao",
+    "hanabiRiseSpeedHint": "Khoảng cách máy quay nâng lên giữa các cú máy. Giá trị 0 sẽ chuyển cảnh tại chỗ.",
+    "hanabiSpin": "Xoay góc quay",
+    "hanabiSpinHint": "Giữa các cú máy, toàn bộ khung cảnh xoay một góc rộng cùng lúc bay lên cao, các đoạn chuyển cảnh cũng xoay theo. Giá trị 0 sẽ tắt hiệu ứng xoay.",
+    "hanabiAmbient": "Bụi than bay lơ lửng",
+    "hanabiOverlayFrame": "Khung viền",
+    "hanabiTextOnly": "Chỉ hiển thị lời bài hát",
+    "hanabiTextOnlyHint": "Chỉ vẽ lời bài hát cùng khối màu nền chữ và chuyển động ký tự; ẩn pháo hoa, nhãn dán, bầu trời đêm và khung viền.",
+    "hanabiTextMotion": "Chuyển động ký tự",
+    "hanabiBlockOpacity": "Khối màu nền chữ",
+    "hanabiCollage": "Cắt dán PV (Collage)",
+    "hanabiCollageHint": "Cuộn phim, đường cắt, viền ren, từ ngữ lặp lại, nhãn dán, băng dính và biểu tượng chủ đề quanh lời bài hát.",
+    "hanabiOrnamentAmount": "Họa tiết trang trí MG",
+    "hanabiColorMode": "Bảng màu",
+    "hanabiColorModeHint": "Chế độ hỗn hợp sẽ hướng bảng màu sống động của từng cú máy về phía màu nhấn của chủ đề.",
+    "hanabiColorModeMixed": "Hỗn hợp",
+    "hanabiColorModeVivid": "Sống động",
+    "hanabiColorModeTheme": "Chủ đề",
+    "hanabiPerformanceSection": "Hiệu năng",
+    "hanabiRenderQuality": "Chất lượng hiển thị",
+    "hanabiRenderQualityFull": "Đầy đủ",
+    "hanabiRenderQualityBalanced": "Cân bằng",
+    "hanabiRenderQualityLow": "Tiết kiệm điện",
+    "hanabiRenderQualityHint": "Cân bằng và Tiết kiệm điện sẽ giảm độ phân giải ánh sáng pháo hoa và lược bớt bụi than bay lơ lửng, giúp tiết kiệm pin và mượt hơn trên GPU tích hợp; lời bài hát và ánh sáng tổng thể vẫn giữ độ nét tối đa.",
     "decorNone": "Không",
     "decorSubtle": "Nhẹ",
     "decorFull": "Đầy đủ",
@@ -3667,20 +3731,15 @@ const vi = {
     "cacheClearing": "Đang dọn dẹp...",
     "electronSettings": "Cài đặt chủ đề AI",
     "aiProvider": "Nhà cung cấp AI",
-    "otherCompatibleApi": "API tương thích khác",
     "useSystemProxyAI": "Dùng proxy hệ thống cho AI",
     "useSystemProxyAIDesc": "Chỉ định tuyến các yêu cầu AI qua proxy hệ thống.",
     "geminiApiKey": "Khóa API Gemini",
-    "openaiApiKey": "Khóa API OpenAI",
     "aiApiKeySavedPlaceholder": "Đã lưu (để trống để giữ nguyên)",
     "aiApiKeySavedDesc": "Khóa được lưu mã hóa an toàn trên thiết bị này và sẽ không hiển thị lại. Nhập khóa mới và lưu để thay thế.",
     "aiApiKeyEndpointMismatchDesc": "Khóa đã lưu chỉ được gửi đến {{endpoint}}. Nhập lại khóa để sử dụng địa chỉ khác.",
+    "aiApiKeyOtherProviderDesc": "Khóa đã lưu thuộc về {{provider}} trước đó và không thể sử dụng sau khi đổi dịch vụ. Vui lòng nhập khóa mới rồi lưu.",
     "aiApiKeyClear": "Xóa",
-    "openaiApiUrl": "URL API OpenAI",
-    "openaiApiModel": "Mô hình OpenAI",
-    "openaiApiModelDesc": "Bắt buộc với nhiều nhà cung cấp tương thích OpenAI. Ví dụ: gpt-5.6-luna, gpt-4.1-mini, deepseek-v4-flash.",
     "openaiApiTemperature": "Temperature",
-    "openaiApiTemperatureDesc": "Phạm vi: 0–2. Mặc định là 0.7 nếu để trống.",
     "openaiApiStream": "Truyền luồng",
     "openaiApiStreamDesc": "Chỉ bật nếu nhà cung cấp yêu cầu truyền luồng; kết quả vẫn được xử lý sau khi nhận đủ.",
     "aiTestConnection": "Kiểm tra kết nối",
@@ -3692,8 +3751,6 @@ const vi = {
     "aiTestModel": "Mô hình",
     "aiTestEmptyReasoning": "Đã kết nối nhưng mô hình không trả về văn bản: quá trình suy luận đã dùng hết token.",
     "aiTestEmpty": "Đã kết nối nhưng mô hình không trả về văn bản.",
-    "geminiApiKeyDesc": "Dịch vụ backend API Netease đang chạy nội bộ.",
-    "openaiApiUrlDesc": "API tương thích OpenAI không nhất thiết phải là API chính thức từ OpenAI. Có thể dùng các nhà cung cấp tương thích như DeepSeek.",
     "save": "Lưu",
     "grid3dCardStyle": "Kiểu thẻ lưới 3D",
     "grid3dCardStyleDesc": "Chọn giao diện từng thẻ trong lưới 3D: chỉ ảnh bìa hoặc thẻ chữ Polaroid cổ điển.",
@@ -4104,6 +4161,33 @@ const vi = {
       "qqPrivatePlaylists": {
         "title": "Danh sách phát QQ Music riêng tư",
         "description": "Sau khi đăng nhập, danh sách phát riêng tư của bạn nay có thể tải bài hát với phân trang thực tế. Máy chủ tự lưu trữ cần chạy qq-music-api 3.1.2 trở lên; phiên bản cũ hơn sẽ tự động quay về cơ chế dự phòng, và danh sách phát không đọc được sẽ báo rõ là danh sách không công khai thay vì hiển thị trống."
+      }
+    },
+    "v0_7_22": {
+      "intro": "Chào mừng bạn đến với phiên bản 0.7.22, Bản cập nhật Sparkle — một bản phát hành lớn. Bổ sung nền tảng Qishui Music; giới thiệu phong cách lời bài hát pháo hoa Nhật Bản Hanabi; cho phép tùy chọn phạm vi ngẫu nhiên kiểu lời theo từng bài; trang bị phím tắt điều khiển phát nhạc toàn cầu cho bản máy tính; và cải tiến cài đặt AI chọn trực tiếp nhà cung cấp cùng mô hình.",
+      "qishui": {
+        "title": "Qishui Music",
+        "description": "Qishui Music đã có mặt trên máy tính: đăng nhập từ cửa sổ đăng nhập bằng cách quét mã qua Douyin. Tìm kiếm, phát nhạc (chất lượng tiêu chuẩn), xem lời đồng bộ từng từ và bài hát thịnh hành của nghệ sĩ, mở danh sách phát cá nhân và mục \"Đã phát gần đây trên Qishui\"; luồng gợi ý và đài phát theo chủ đề hoạt động dưới dạng Radio cá nhân, các thẻ chủ đề ở trang chủ chỉ cần chạm một lần là phát ngay. Bạn có thể thả tim yêu thích, thêm/xóa bài hát trong danh sách tự tạo và bấm Không thích trong Radio cá nhân. Những bài không có nguồn phát trực tiếp sẽ không thể phát; hiện chưa hỗ trợ duyệt album, tạo mới hoặc lưu danh sách phát. Bài hát cục bộ khớp với Qishui cũng có thể lấy lời từ nền tảng này."
+      },
+      "hanabi": {
+        "title": "Hanabi",
+        "description": "Phong cách lời bài hát mới mang dáng dấp của một video ca nhạc (PV) phong cách anime Nhật Bản: từng câu lời bước vào theo từng ký tự trên các khối màu rực rỡ, họa tiết trang trí dạng pháo hoa nở rộ dọc theo dòng chữ, và giữa các cú máy toàn bộ khung cảnh xoay nghiêng rồi vút bay lên theo những chùm pháo hoa thắp sáng, điểm xuyết các dải phim nhựa, nhãn dán, băng keo cắt dán và vầng sáng bừng lên trong đoạn điệp khúc. Pháo hoa, câu chữ, đồ trang trí và màu sắc đều có thể tùy chỉnh trong bảng cài đặt phong cách với nhiều mức chất lượng hiển thị; ở chế độ Nhịp thông minh, một chùm pháo hoa sẽ nở rộ trên bầu trời đêm theo từng nhịp điệu và ống kính sẽ đẩy lại gần theo nhịp đập."
+      },
+      "randomStyles": {
+        "title": "Tự chọn kiểu ngẫu nhiên",
+        "description": "Trình chọn phong cách lời bài hát bổ sung tùy chọn Ngẫu nhiên: tích chọn một số hoặc tất cả kiểu có sẵn để tạo thành danh sách ngẫu nhiên; mỗi bài hát sẽ tự đổi sang một kiểu riêng biệt không trùng lặp liên tiếp, mỗi kiểu ghi nhớ đúng cấu hình đã lưu. Từ thanh điều khiển người nghe có thể bốc lại kiểu khác cho bài hiện tại hoặc chỉnh sửa danh sách ngẫu nhiên; danh sách này cũng được lưu và đồng bộ khi xuất/nhập cấu hình."
+      },
+      "globalShortcuts": {
+        "title": "Phím tắt phát nhạc toàn cục",
+        "description": "Bản máy tính bổ sung mục Thao tác nhanh → Phím tắt toàn cục: điều khiển phát nhạc ngay cả khi Folia không ở cửa sổ tiền cảnh bằng tổ hợp Ctrl+Alt+Shift (Control+Option+Shift trên macOS) kèm một phím chữ cái hoặc chữ số. Gán phát/tạm dừng, bài trước, bài kế tiếp, tăng giảm âm lượng, tắt tiếng, lặp lại và xáo trộn, cũng như các lệnh do mod cung cấp; các tổ hợp phím bị ứng dụng khác chiếm dụng sẽ được đánh dấu rõ ràng. Trên Wayland gốc, một nút bấm sẽ đăng ký trực tiếp vào môi trường desktop để bạn gán phím trong cài đặt hệ thống. Bảng lệnh nhanh cũng bổ sung lệnh phát/tạm dừng và tăng/giảm âm lượng."
+      },
+      "aiProviders": {
+        "title": "Dịch vụ & mô hình AI",
+        "description": "Cài đặt AI trên máy tính nay cho phép chọn thẳng nhà cung cấp dịch vụ: Gemini, DeepSeek, Xiaomi MiMo, Alibaba Cloud Qwen, Tencent Cloud TokenHub, OpenAI, Anthropic, Kimi, Zhipu GLM hoặc điểm cuối tương thích tùy chỉnh. Các nhà cung cấp tích hợp sẵn không cần điền URL; chỉ cần nhập khóa API là có thể lấy danh sách mô hình từ menu thả xuống và được điền sẵn mô hình đề xuất; các tham số như suy nghĩ (thinking), nhiệt độ (temperature) được xử lý thông minh theo từng dịch vụ và mô hình, kèm cảnh báo khi mô hình đã ngừng hoạt động. Sau khi chuyển bài hát, chủ đề AI chưa kịp tạo xong của bài trước sẽ không bị ghi đè lên bài mới."
+      },
+      "moreDetails": {
+        "title": "Thêm nhiều cải tiến",
+        "description": "Phiên đăng nhập trên các nền tảng sẽ không còn bị xóa sạch sau khi khởi động lại chỉ vì lỗi mạng hoặc máy chủ gián đoạn tạm thời. Chế độ Nhịp thông minh có thêm tùy chọn \"Chỉ dùng bài đã phân tích\", và công tắc chính được dời sang trang Toàn cục mới trong cửa sổ phong cách lời; các bài hát cục bộ và Navidrome nay cũng được phân tích chuyển bài tự động; quét thư mục nội bộ hỗ trợ chuẩn DSD (.dsf và .dff). Windows bổ sung cài đặt \"GPU kết xuất\", mục Hiệu năng & chuyển động có thêm \"Tiết kiệm tài nguyên khi chạy nền\" (mặc định tắt) giúp tạm dừng hoạt ảnh lời bài hát khi cửa sổ bị thu nhỏ hoặc ẩn. Thanh thông tin của giao diện Bravais có thể chọn Tự động, Dọc hoặc Ngang, và Tường khám phá hiển thị thêm mục Đã phát gần đây. Giao diện mod được nâng cấp lên Folium 1.7."
       }
     },
     "v0_7_21": {
@@ -6174,6 +6258,4 @@ const vi = {
       }
     }
   }
-} as const;
-
-export default vi;
+};

@@ -3,7 +3,7 @@ import type { ProviderPage } from '../../../types/onlineMusic';
 import { OnlineProviderError } from '../../../types/onlineMusic';
 import { searchQQSongs } from './qqLyricProvider';
 import { normalizeQqSong } from './qqNormalize';
-import { hasQqSession, requestQq } from './qqTransport';
+import { hasUsableQqSession, requestQq } from './qqTransport';
 
 // src/services/onlineMusic/qq/qqSearch.ts
 //
@@ -103,7 +103,7 @@ export const searchQqSongs = async (query: string, limit: number, offset: number
     const pageSize = Math.max(1, Math.min(limit, QQ_SEARCH_MAX_PAGE_SIZE));
     const page = Math.floor(Math.max(0, offset) / pageSize) + 1;
 
-    if (hasQqSession()) {
+    if (hasUsableQqSession()) {
         // 首页已确认会拿到空清单时，后续页直接走匿名，别让列表又断在 20 条。
         if (offset > 0 && anonymousSearchFallbackKeywords.has(keyword)) {
             return searchAnonymously(keyword, page, pageSize);

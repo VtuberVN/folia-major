@@ -9,7 +9,7 @@ import { getOnlineMusicProvider, listOnlineMusicProviders } from '@/services/onl
 
 const AUTH_MEMBERS: Record<string, string[]> = {
     netease: [
-        'canRunLoginSelfCheck', 'checkLogin', 'createQr', 'describeLoginFailure', 'getLoginDiagnostics', 'getLoginStatus', 'getLoginTexts', 'localService',
+        'canRunLoginSelfCheck', 'checkLogin', 'createQr', 'describeLoginFailure', 'forgetOldKeptAccount', 'getLoginDiagnostics', 'getLoginStatus', 'getLoginTexts', 'localService',
         'logout', 'oldKeptAccount', 'runLoginSelfCheck', 'showsKeptAccountAtStart', 'signInRanOut', 'startLogin',
     ],
     qq: [
@@ -38,6 +38,11 @@ const AUTH_MEMBERS: Record<string, string[]> = {
     ],
     nct: [
         'getLoginStatus', 'getLoginTexts', 'logout',
+    ],
+    qishui: [
+        'cancelLogin', 'checkLogin', 'createQr', 'describeLoginFailure', 'getLoginDiagnostics', 'getLoginStatus',
+        'getLoginTexts', 'getLoginTtlMs', 'logout', 'signInRanOut', 'startLogin',
+    ],
     ],
 };
 

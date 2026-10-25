@@ -4,6 +4,7 @@ import { sanitizeDualTheme } from "./themeSanitizer";
 import { getWebAiProvider, type WebAiProvider } from "./runtimeConfig";
 export {
   AI_PROVIDER_PRESETS,
+  inferAiProviderFromUrl,
   modelAlwaysThinks,
   resolveAiConnection,
   resolveAiProviderPreset,

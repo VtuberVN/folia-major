@@ -289,6 +289,7 @@ export default {
     "dioramaReset": "Pengaturan Diorama direset",
     "temperaReset": "Setelan Tempera direset",
     "lumiereReset": "Setelan Lumiere direset",
+    "hanabiReset": "Setelan Hanabi direset",
     "uploadEmojiFirst": "Unggah dulu paket emoji kustom",
     "monetBgUpdated": "Gambar latar Monet diperbarui",
     "monetBgCleared": "Gambar latar Monet dihapus",
@@ -816,6 +817,7 @@ export default {
       "smart-beat-on": { "title": "Mode ketukan pintar: Aktif", "description": "Aktifkan efek ketukan (Sonnet dan Diorama mengikuti ketukan, Pendolo mengikuti drum), lagu yang belum dianalisis dianalisis saat itu" },
       "visualizer-tempera": { "title": "Visualizer: Tempera", "description": "Alihkan ke PV lirik blok warna Tempera" },
       "visualizer-lumiere": { "title": "Visualizer: Lumiere", "description": "Alihkan ke PV lirik cahaya panggung Lumiere" },
+      "visualizer-hanabi": { "title": "Visualizer: Hanabi", "description": "Alihkan ke PV lirik kembang api Hanabi" },
       "desktop-toggle-remote-control": { "title": "Alihkan jendela remote control", "description": "Buka atau tutup jendela remote control" },
       "desktop-toggle-main-window-always-on-top": { "title": "Alihkan jendela utama selalu di atas", "description": "Sematkan atau lepas jendela utama di atas jendela lain" },
       "background-monet-full-overlay": { "title": "Latar: Overlay Layar Penuh Monet", "description": "Alihkan latar ke tata letak overlay layar penuh Monet" },
@@ -908,6 +910,7 @@ export default {
     "visualizerSonnet": "Sonnet",
     "visualizerTempera": "Tempera",
     "visualizerLumiere": "Lumiere",
+    "visualizerHanabi": "Hanabi",
     "cadenzeTuning": "Penyetelan Mindscape",
     "resetVisualizerTuning": "Reset Penyetelan Animasi Lirik",
     "cadenzeOnly": "Hanya Mindscape",
@@ -1478,6 +1481,8 @@ export default {
     "loginTitleKugou": "Pindai dengan KuGou Music",
     "loginNoteKugou": "Buka KuGou Music dan pindai kode QR ini",
     "loginTitleQq": "Pindai untuk masuk ke QQ Music",
+    "loginTitleQishui": "Masuk ke Qishui Music dengan Douyin",
+    "loginNoteQishui": "Pindai dengan aplikasi Douyin dan konfirmasi otorisasi",
     "loginTitleBodian": "Pindai dengan Bodian Music",
     "loginNoteBodian": "Pindai kode ini dengan aplikasi Bodian Music dan konfirmasi masuk",
     "loginTitleYtm": "Masuk ke YouTube Music",
@@ -1724,7 +1729,9 @@ export default {
     "ponderDescription": "Pelajari kontrol dasar dan cara kerja Folia",
     "version": "Versi"
   },
+  "qishui": { "recentPlayed": "Terakhir diputar di Qishui", "recommended": "Rekomendasi untuk Anda" },
   "lyricProvider": {
+    "qishui": "Qishui Music",
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
@@ -2756,6 +2763,10 @@ export default {
     "beatEffect_pendoloGearBeatsDesc": "Roda gigi melangkah mengikuti ketukan yang dideteksi beat_this. (Dihentikan)",
     "beatEffect_latentPulse": "Denyut Pasang",
     "beatEffect_latentPulseDesc": "Aliran latar Latent berdenyut mengikuti ketukan yang dideteksi beat_this. (Dihentikan)",
+    "beatEffect_hanabiBeatBursts": "Mekar Ketukan",
+    "beatEffect_hanabiBeatBurstsDesc": "Mengikuti ketukan yang dideteksi beat_this: kembang api kecil mekar di langit setiap ketukan, dan satu peluru naik lebih dulu agar meledak tepat pada ketukan pertama tiap birama. Ketukan yang lebih keras mekar lebih besar.",
+    "beatEffect_hanabiBeatPulse": "Dorong Ketukan",
+    "beatEffect_hanabiBeatPulseDesc": "Mengikuti ketukan yang dideteksi beat_this: seluruh adegan mendekat dan bergoyang sedikit setiap ketukan, lebih dalam pada ketukan pertama tiap birama.",
     "lumiereHideTrails": "Sembunyikan garis lintasan",
     "lumiereHideTrailsHint": "Menyembunyikan semua garis lintasan lirik, termasuk tata letak silang dan perubahan orientasi. Lirik tetap terbang mengikuti lintasan yang sama dan transisi mulus tetap berjalan.",
     "lumiereSeamlessTransitions": "Transisi mulus",
@@ -2769,6 +2780,46 @@ export default {
     "lumiereRenderQualityBalanced": "Seimbang",
     "lumiereRenderQualityLow": "Hemat daya",
     "lumiereRenderQualityHint": "Seimbang dan Hemat daya merender medan cahaya dan pendar pada resolusi lebih rendah serta membatasi detail kabut, lebih hemat daya dengan sedikit mengorbankan ketajaman.",
+    "hanabiFontSizeAutoNotice": "Hanabi menyesuaikan ukuran lirik berdasarkan area pandang dan wilayah teks tiap shot; pengaturan ukuran font umum hanya memengaruhi subtitle dalam mode ini.",
+    "hanabiFireworksSection": "Kembang api",
+    "hanabiStageSection": "Panggung",
+    "hanabiTextSection": "Teks",
+    "hanabiDecorSection": "Dekorasi",
+    "hanabiColorSection": "Warna",
+    "hanabiSparkAmount": "Percikan",
+    "hanabiGlow": "Pendar kembang api",
+    "hanabiChorusBloom": "Pendar reff",
+    "hanabiChorusBloomHint": "Seluruh gambar berpendar saat reff, menyala perlahan di awal dan meredup di akhir. Reff diambil dari lirik: ditandai oleh sumber atau ditemukan dari baris yang berulang.",
+    "hanabiBloom": "Pendar keseluruhan",
+    "hanabiBloomHint": "Pendar layar penuh sepanjang lagu, di bawah pendar reff. 0 hanya menyisakan pendar reff.",
+    "hanabiLaunches": "Jejak luncur",
+    "hanabiLaunchesHint": "Setiap kembang api naik dari tepi bawah sebelum meledak, menyambung satu shot ke shot berikutnya.",
+    "hanabiSky": "Langit malam",
+    "hanabiSkyHint": "Gradasi langit malam di bawah kembang api. Turunkan agar latar bersama terlihat; di bawah setengah, warna mengikuti latar tema.",
+    "hanabiRiseSpeed": "Naik",
+    "hanabiRiseSpeedHint": "Seberapa jauh kamera naik di antara shot. 0 membuat setiap shot tetap di tempat.",
+    "hanabiSpin": "Putar",
+    "hanabiSpinHint": "Di antara shot, seluruh adegan berputar dengan sudut besar sambil naik, dan pergantian bagian ikut berputar. 0 mematikannya.",
+    "hanabiAmbient": "Percikan sekitar",
+    "hanabiOverlayFrame": "Bingkai",
+    "hanabiTextOnly": "Lirik saja",
+    "hanabiTextOnlyHint": "Hanya menggambar lirik beserta blok warna dan gerak hurufnya. Kembang api, stiker, langit malam, dan bingkai disembunyikan.",
+    "hanabiTextMotion": "Gerak huruf",
+    "hanabiBlockOpacity": "Blok warna",
+    "hanabiCollage": "Kolase PV",
+    "hanabiCollageHint": "Pita film, garis potong, renda, kata berulang, stiker, selotip, dan ikon tema di sekitar lirik.",
+    "hanabiOrnamentAmount": "Ornamen MG",
+    "hanabiColorMode": "Palet",
+    "hanabiColorModeHint": "Campuran mencondongkan palet cerah tiap shot ke warna aksen tema.",
+    "hanabiColorModeMixed": "Campuran",
+    "hanabiColorModeVivid": "Cerah",
+    "hanabiColorModeTheme": "Tema",
+    "hanabiPerformanceSection": "Performa",
+    "hanabiRenderQuality": "Kualitas render",
+    "hanabiRenderQualityFull": "Penuh",
+    "hanabiRenderQualityBalanced": "Seimbang",
+    "hanabiRenderQualityLow": "Hemat daya",
+    "hanabiRenderQualityHint": "Seimbang dan Hemat daya merender pendar kembang api pada resolusi lebih rendah, dan Hemat daya juga menggambar lebih sedikit bara di latar; lirik dan pendar layar penuh tetap beresolusi penuh. Layak dicoba jika pemutaran tersendat di grafis terintegrasi.",
     "decorNone": "Tidak Ada",
     "decorSubtle": "Halus",
     "decorFull": "Penuh",
@@ -2942,7 +2993,8 @@ export default {
     "geminiApiKey": "Kunci API Gemini",
     "aiApiKeySavedPlaceholder": "Tersimpan (kosongkan untuk mempertahankan)",
     "aiApiKeySavedDesc": "Kunci disimpan terenkripsi di perangkat ini dan tidak ditampilkan lagi. Masukkan kunci baru lalu simpan untuk menggantinya.",
-    "aiApiKeyEndpointMismatchDesc": "Kunci tersimpan hanya dikirim ke {{endpoint}}. Masukkan kunci lagi untuk memakai alamat lain.",
+    "aiApiKeyEndpointMismatchDesc": "Kunci tersimpan dibuat untuk {{endpoint}} dan tidak bisa dipakai di alamat lain. Masukkan kunci baru lalu simpan.",
+    "aiApiKeyOtherProviderDesc": "Kunci tersimpan dibuat untuk {{provider}} dan tidak bisa dipakai setelah berganti penyedia. Masukkan kunci baru lalu simpan.",
     "aiApiKeyClear": "Hapus",
     "openaiApiTemperature": "Temperatur",
     "openaiApiStream": "Streaming",
@@ -3452,6 +3504,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "Playlist Pribadi QQ Music",
         "description": "Setelah masuk, playlist pribadi buatan Anda kini dapat memuat lagu dengan paging sungguhan. Backend yang di-host sendiri harus memakai qq-music-api 3.1.2 atau lebih baru; backend lama beralih otomatis, dan playlist yang tidak dapat dibaca kini menjelaskan bahwa playlist itu tidak publik, alih-alih tampil kosong tanpa keterangan."
+      }
+    },
+    "v0_7_22": {
+      "intro": "Selamat datang di 0.7.22, Sparkle Update—sebuah rilis besar. Rilis ini menambahkan Qishui Music; menghadirkan Hanabi, gaya lirik kembang api ala Jepang; membiarkan Anda memilih gaya mana yang diacak per lagu; memberi aplikasi desktop pintasan pemutaran global; dan membuat pengaturan AI bisa langsung memilih penyedia dan model.",
+      "qishui": {
+        "title": "Qishui Music",
+        "description": "Qishui Music hadir di desktop: masuk dari jendela login dengan memindai memakai Douyin. Cari, putar (kualitas standar), baca lirik tersinkron per kata dan lagu teratas artis, serta buka playlist Anda sendiri dan \"Terakhir diputar di Qishui\"; feed rekomendasi dan stasiun suasana diputar sebagai FM Pribadi, dan kartu suasana di beranda langsung memutar dengan satu ketukan. Anda bisa menyukai lagu, menambah dan menghapus lagu di playlist buatan sendiri, dan memakai Tidak suka di FM Pribadi. Lagu tanpa sumber yang bisa langsung diputar tidak dapat diputar, dan menjelajah album, membuat playlist, serta menyimpan playlist belum didukung. Lagu lokal yang cocok dengan lagu Qishui juga bisa mengambil liriknya."
+      },
+      "hanabi": {
+        "title": "Hanabi",
+        "description": "Gaya lirik baru bernuansa PV lirik Jepang: setiap baris muncul huruf demi huruf di atas blok warna, ornamen seperti kembang api mekar di sepanjang teks, dan di antara adegan seluruh pemandangan berputar dan naik mengikuti kembang api yang meluncur, dengan potongan film, stiker, dan selotip sebagai hiasan kolase serta cahaya yang menguat saat reff. Kembang api, teks, hiasan, dan warna bisa diatur di pengaturan gaya, dengan tingkat kualitas; di Mode ketukan pintar, kembang api meletus di langit malam setiap ketukan dan kamera mendorong mendekat mengikutinya."
+      },
+      "randomStyles": {
+        "title": "Pilih Gaya Acak Sendiri",
+        "description": "Pemilih gaya lirik mendapat Acak: centang sebagian atau semua gaya bawaan untuk membentuk kumpulan acak, dan setiap lagu beralih ke salah satunya, tidak pernah sama dua kali berturut-turut, masing-masing dengan pengaturan tersimpannya sendiri. Dari panel pemutar Anda bisa mengundi ulang gaya untuk lagu saat ini atau mengubah kumpulannya; kumpulan ini ikut dalam impor, ekspor, dan sinkronisasi konfigurasi."
+      },
+      "globalShortcuts": {
+        "title": "Pintasan Pemutaran Global",
+        "description": "Desktop mendapat Pintasan → Pintasan global: kendalikan pemutaran meski Folia tidak di depan, dengan Ctrl+Alt+Shift (Control+Option+Shift di macOS) ditambah satu huruf atau angka. Ikat putar/jeda, sebelumnya, berikutnya, volume naik dan turun, bisukan, ulangi, dan acak, juga perintah yang disediakan mod; kombinasi yang sudah dipakai aplikasi lain ditandai. Di Wayland asli, satu tombol mendaftarkannya ke lingkungan desktop Anda, tempat Anda menetapkan tombolnya. Palet perintah juga mendapat putar/jeda serta volume naik/turun."
+      },
+      "aiProviders": {
+        "title": "Penyedia dan Model AI",
+        "description": "Pengaturan AI di desktop kini bisa memilih penyedia: Gemini, DeepSeek, Xiaomi MiMo, Alibaba Cloud Qwen, Tencent Cloud TokenHub, OpenAI, Anthropic, Kimi, Zhipu GLM, atau endpoint kompatibel kustom. Penyedia bawaan tidak perlu URL; masukkan kunci untuk mengambil daftar model, pilih dari menu tarik-turun, dan mulai dengan model rekomendasi yang sudah terisi. Pemikiran, suhu, dan parameter serupa ditangani per penyedia dan model, dan model yang sudah dihentikan diberi tanda. Setelah berganti lagu, tema AI lagu sebelumnya yang belum selesai tidak lagi diterapkan ke lagu baru."
+      },
+      "moreDetails": {
+        "title": "Peningkatan Lainnya",
+        "description": "Login di setiap platform tidak lagi terhapus setelah mulai ulang hanya karena jaringan atau server sedang bermasalah. Mode ketukan pintar mendapat pilihan \"Hanya yang sudah dianalisis\", dan sakelar utamanya pindah ke halaman Global baru di jendela gaya lirik; lagu lokal dan Navidrome kini juga mendapat analisis transisi automix; pemindaian lokal mendukung DSD (.dsf dan .dff). Windows mendapat pengaturan GPU render, dan Performa & gerakan menambahkan Pembatasan latar belakang (nonaktif secara bawaan), yang menahan animasi lirik saat jendela diminimalkan atau disembunyikan. Bilah info Bravais bisa otomatis, vertikal, atau horizontal, dan dinding Jelajahi-nya kini menyertakan putaran terakhir. API mod naik ke Folium 1.7."
       }
     },
     "v0_7_21": {

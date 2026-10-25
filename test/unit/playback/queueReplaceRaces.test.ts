@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SongResult } from '@/types';
+import { PlayerState, type SongResult } from '@/types';
 
 // test/unit/playback/queueReplaceRaces.test.ts
 // Pins what the queue controller leaves of a whole-queue write (a mod's folium.playback.replaceQueue, or
@@ -10,6 +10,11 @@ import type { SongResult } from '@/types';
 // whole-queue write everything stays as it was.
 // The waits covered include a mod's beforePlay hook (FM as the write left it, a failure puts back what
 // the play itself overwrote), a top-up batch that fails, and a skip from a song that never became current.
+// The top-up is also pinned against the writes that are not a new queue (an add, an edit in place, a
+// copy the store took before this render): it still adds its batch to the queue as it is and steps on,
+// and drops only for a play, a mode or a scene that came while it waited.
+// Last, which plays count as starting a queue of their own (queueStarts.ts), which the FM mode switch and
+// the home scene card wait on: not a step through the queue there is, nor a copy of it.
 // Written like currentSongPlaySong.test.ts: the hook runs without a renderer, the store is the real one,
 // and the services that wait are stubs held by gates. Unlike there the hook keeps its refs, its state and
 // its effects across calls, as React keeps them across renders, so calling it again after a write is the
@@ -131,6 +136,9 @@ const { noteWholeQueueWrite } = await import('@/services/wholeQueueWrites');
 const { getPlaybackSongKey } = await import('@/utils/appPlaybackGuards');
 const { resetPlaybackStore } = await import('./currentSongWatch');
 const { onlineFailureOf } = await import('@/services/onlineMusic/failure/onlineFailureCase');
+const { usePersonalFmModeStore } = await import('@/stores/usePersonalFmModeStore');
+const { useAudioSettingsStore } = await import('@/stores/useAudioSettingsStore');
+const { queueStartsSoFar } = await import('@/components/app/playback/start/queueStarts');
 
 const online = (id: string): SongResult => ({
     id, name: id.toUpperCase(), artists: [], album: { id: '', name: '' }, durationMs: 1000,
@@ -567,6 +575,185 @@ describe('the Personal FM top-up', () => {
         expect(keys(store().playQueue)).toEqual(keys(replaced));
         expect(store().currentSong).toMatchObject({ id: 'x' });
         expect(store().isFmMode).toBe(false);
+    });
+});
+
+describe('the Personal FM top-up, with writes that are not a new queue', () => {
+    type NextOptions = Parameters<ReturnType<typeof mount>['queue']['handleNextTrack']>[0];
+    /** FM on air: the next step tops up, and waits for the batch. */
+    const topUp = (options: NextOptions = {}) => {
+        const { queue, render } = mount();
+        const batch = deferred<unknown[]>();
+        env.self.fmBatch = batch.promise;
+        const next = queue.handleNextTrack({ allowStopOnMissing: true, ...options });
+        return { next, batch, render };
+    };
+    /** Every song of the queue a new object, as a library refresh, a recovery or a restore writes it. */
+    const copyInPlace = () => setPlayQueue(previous => previous.map(song => ({ ...song })));
+
+    beforeEach(() => {
+        usePersonalFmModeStore.setState({ providerSelections: {} });
+    });
+
+    it('without a write adds the batch and plays the next song', async () => {
+        playerWith([f1, f2], f1, true);
+        const { next, batch } = topUp();
+        await settle();
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2, f3]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+        expect(store().isFmMode).toBe(true);
+    });
+
+    it('still adds and steps on after the queue was copied in place while the batch came', async () => {
+        playerWith([f1, f2], f1, true);
+        const { next, batch } = topUp();
+        await settle();
+        copyInPlace();
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2, f3]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+    });
+
+    it('keeps a song the listener added while the batch came, and adds the batch after it', async () => {
+        useAudioSettingsStore.setState({ queueAddBehavior: 'append' });
+        playerWith([f1, f2], f1, true);
+        const { next, batch, render } = topUp();
+        await settle();
+        render().addOnlineSongToQueue(x);
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2, x, f3]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+    });
+
+    it('steps on through the queue as it is when the batch fails after an edit in place', async () => {
+        playerWith([f1, f2], f1, true);
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { next, batch } = topUp();
+        await settle();
+        copyInPlace();
+        batch.reject(new Error('network'));
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+    });
+
+    it('stops at the end of the last song when the batch fails after an edit in place', async () => {
+        playerWith([f1, f2], f2, true);
+        usePlaybackStore.getState().setPlayerState(PlayerState.PLAYING);
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { next, batch } = topUp();
+        await settle();
+        copyInPlace();
+        batch.reject(new Error('network'));
+        await next;
+        await settle();
+
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+        expect(store().playerState).toBe(PlayerState.IDLE);
+    });
+
+    it('adds to the store\'s queue when this render\'s queue was already an older copy of it', async () => {
+        playerWith([f1, f2], f1, true);
+        const { queue } = mount();
+        // Written after the render, as an edit is before the next render comes.
+        copyInPlace();
+        const batch = deferred<unknown[]>();
+        env.self.fmBatch = batch.promise;
+        const next = queue.handleNextTrack({ allowStopOnMissing: true });
+        await settle();
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2, f3]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+    });
+
+    it('steps from a song that never became current (the skip after a failure) with none shown', async () => {
+        playerWith([f1, f2], null, true);
+        const { next, batch } = topUp({ fromSong: f1 });
+        await settle();
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2, f3]));
+        expect(store().currentSong).toMatchObject({ id: 'f2' });
+    });
+
+    it.each([
+        ['mode', { mode: 'FAMILIAR', scene: null }],
+        ['scene', { mode: 'SCENE_RCMD', scene: 'night' }],
+    ])('drops the batch when the %s changed while it came', async (_what, selection) => {
+        playerWith([f1, f2], f1, true);
+        const { next, batch } = topUp();
+        await settle();
+        usePersonalFmModeStore.setState({ providerSelections: { bodian: selection as never } });
+        batch.resolve([f3]);
+        await next;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([f1, f2]));
+        expect(store().currentSong).toMatchObject({ id: 'f1' });
+    });
+
+    it('drops the batch when another play started while it came, before that play landed', async () => {
+        playerWith([f1, f2], f1, true);
+        const { next, batch, render } = topUp();
+        await settle();
+        const release = holdAddress(p1);
+        const other = render().playSong(p1, [p1, p2], true);
+        await settle();
+        batch.resolve([f3]);
+        await next;
+        await settle();
+        release();
+        await other;
+        await settle();
+
+        expect(keys(store().playQueue)).toEqual(keys([p1, p2]));
+        expect(store().currentSong).toMatchObject({ id: 'p1' });
+    });
+});
+
+describe('a play that starts a queue of its own', () => {
+    /** How many starts `play` counted. */
+    const startsOf = async (play: () => Promise<unknown> | void) => {
+        const before = queueStartsSoFar();
+        await play();
+        await settle();
+        return queueStartsSoFar() - before;
+    };
+
+    it('is counted for a queue the store does not hold, and for Personal FM turned on or off', async () => {
+        playerWith([f1, f2, f3], f1, true);
+        const { render } = mount();
+        expect(await startsOf(() => render().playSong(p1, [p1, p2], true))).toBe(1);
+        expect(await startsOf(() => render().playSong(p1, store().playQueue, false))).toBe(1);
+    });
+
+    it('is not counted for a step through the queue there is, a copy of it, or the FM top-up', async () => {
+        playerWith([f1, f2, f3, x], f1, true);
+        const { render } = mount();
+        expect(await startsOf(() => render().handleNextTrack())).toBe(0);
+        expect(await startsOf(() => render().playSong(f3, store().playQueue.map(song => ({ ...song })), true))).toBe(0);
+        expect(await startsOf(() => render().handleNextTrack())).toBe(0);
+        expect(store().currentSong).toMatchObject({ id: 'x' });
+        env.self.fmBatch = Promise.resolve([y]);
+        expect(await startsOf(() => render().handleNextTrack())).toBe(0);
+        expect(store().currentSong).toMatchObject({ id: 'y' });
     });
 });
 

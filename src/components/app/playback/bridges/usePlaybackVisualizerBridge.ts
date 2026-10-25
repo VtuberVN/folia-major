@@ -121,11 +121,17 @@ export function usePlaybackVisualizerBridge({
     }, [incomingLyricTimelineOffsetMs]);
 
     // A preview clip may start somewhere inside its song: the read-head is the deck's own clock plus
-    // that start. Looked up once per URL, since the frame loop asks every frame.
+    // that start. Cached per URL until the registry changes, since the frame loop asks every frame.
     const clipStartSecRef = useRef(new Map<string, number>());
+    const clipStartVersionRef = useRef(-1);
     const lyricClipStartSec = useCallback((element: HTMLAudioElement | null | undefined): number => {
         const src = element?.currentSrc;
         if (!src) return 0;
+        const version = omni.audioSourceMetadataVersion();
+        if (clipStartVersionRef.current !== version) {
+            clipStartSecRef.current.clear();
+            clipStartVersionRef.current = version;
+        }
         const known = clipStartSecRef.current.get(src);
         if (known !== undefined) return known;
         const seconds = omni.previewClipStartMsOfAudioSource(src) / 1000;
@@ -171,6 +177,47 @@ export function usePlaybackVisualizerBridge({
         currentLineIndexRef.current = clock.lineIndex;
         setCurrentLineIndex(clock.lineIndex);
     }), [audioRef, lyricClipStartSec]);
+
+    // The frame loop moves the read-head only while the deck plays. A deck that loads or seeks while
+    // paused - a restored session, above all a restored preview clip, which starts somewhere inside
+    // its song - would leave it where the song change put it (useLyricReadHead: the top of the whole
+    // song), while the remote window and OBS, which read the deck's position, show the line it is
+    // really at; pressing play would then jump the main read-head forward on its first frame. So the
+    // read-head is also set from those two events, and a paused deck costs nothing per frame.
+    // Listened for on the document in the capture phase (media events do not bubble, but they are
+    // captured), so the listener follows whichever deck is active without re-binding at a deck swap.
+    // Only the main player's own clock: a stage or PlayerCap clock is written by its own branch below.
+    const pausedDeckSyncRef = useRef({ ownsClock: false, lyrics });
+    pausedDeckSyncRef.current = {
+        ownsClock: activePlaybackContext === 'main' && !isNowPlayingStageActive && !isPlayerCapStageActive,
+        lyrics,
+    };
+    useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
+        const syncPausedDeck = (event: Event) => {
+            const element = audioRef.current;
+            if (!element || event.target !== element || !element.paused) return;
+            const { ownsClock, lyrics: displayedLyrics } = pausedDeckSyncRef.current;
+            // While a blend holds the picture this deck is the incoming track, not the one on screen.
+            if (!ownsClock || getDisplayElement?.()) return;
+            const clock = readIncomingLyricClock(
+                element.currentTime + lyricClipStartSec(element),
+                displayOffsetMsRef.current,
+                displayedLyrics?.lines,
+            );
+            lyricCurrentTime.set(clock.lyricTimeSec);
+            if (displayedLyrics && clock.lineIndex !== currentLineIndexRef.current) {
+                currentLineIndexRef.current = clock.lineIndex;
+                setCurrentLineIndex(clock.lineIndex);
+            }
+        };
+        document.addEventListener('loadedmetadata', syncPausedDeck, true);
+        document.addEventListener('seeked', syncPausedDeck, true);
+        return () => {
+            document.removeEventListener('loadedmetadata', syncPausedDeck, true);
+            document.removeEventListener('seeked', syncPausedDeck, true);
+        };
+    }, [audioRef, getDisplayElement, lyricClipStartSec]);
 
     const updateLoop = useCallback(() => {
         // 后台节流 holds the lyric animation while the window is minimised or hidden: the clocks below

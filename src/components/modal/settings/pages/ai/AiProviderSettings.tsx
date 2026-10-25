@@ -1,7 +1,7 @@
 import React from 'react';
 import { Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { AI_PROVIDER_PRESETS, modelAlwaysThinks, resolveAiConnection, resolveAiProviderPreset, retiredModelHint } from '../../../../../services/aiText';
+import { AI_PROVIDER_PRESETS, inferAiProviderFromUrl, modelAlwaysThinks, resolveAiConnection, resolveAiProviderPreset, retiredModelHint } from '../../../../../services/aiText';
 import { openAIEndpointOf } from '../../../../../utils/openAIEndpoint';
 import { Button, FoldedGroup, NumberField, Reveal, Row, Select, TextField, Toggle, Value, option, parseNumberText, type SettingsGroupDef, type SettingsOptionDef } from '../../kit';
 import { AiConnectionTestReply, AiConnectionTestStatus, useAiConnectionTest } from '../AiConnectionTest';
@@ -110,8 +110,13 @@ const AiProviderSettings: React.FC = () => {
             } : {}),
         });
     };
+    // A key saved for another listed provider is named by that provider; one saved for another site
+    // of this provider, or for a custom address, by the address.
+    const previousProvider = mismatchedEndpoint ? AI_PROVIDER_PRESETS.find(value => value.id === inferAiProviderFromUrl(mismatchedEndpoint)) : undefined;
     const keyHint = mismatchedEndpoint && !key.trim()
-        ? t('options.aiApiKeyEndpointMismatchDesc', { endpoint: mismatchedEndpoint })
+        ? previousProvider && previousProvider.id !== 'custom' && previousProvider.id !== adapter.id
+            ? t('options.aiApiKeyOtherProviderDesc', { provider: previousProvider.label })
+            : t('options.aiApiKeyEndpointMismatchDesc', { endpoint: mismatchedEndpoint })
         : usableSavedKey ? t('options.aiApiKeySavedDesc') : undefined;
 
     // Sites: the one the address sends to. An address on none of them (a workspace domain, a Coding

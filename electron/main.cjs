@@ -66,6 +66,8 @@ const {
 const { createKugouApiBridge } = require('./kugou/kugouApiBridge.cjs');
 const { createExternalUrlOpener } = require('./externalUrlPolicy.cjs');
 const { createSenderGuardedHandler } = require('./ipcAccessGuard.cjs');
+const { createQishuiApiBridge } = require('./qishui/qishuiApiBridge.cjs');
+const { createQishuiMediaPolicy } = require('./qishui/mediaCors.cjs');
 const { createBodianApiBridge } = require('./bodian/bodianApiBridge.cjs');
 const { createBodianMediaPolicy } = require('./bodian/mediaCors.cjs');
 const { createYtmApiBridge } = require('./ytm/ytmApiBridge.cjs');
@@ -96,7 +98,7 @@ const { resolveCacheLimit, selectEvictions } = require('./audioCachePrune.cjs');
 const { removeAudioCacheFileOfSize } = require('./audioCacheRemove.cjs');
 const { createAnalysisHost } = require('./analysis/host.cjs');
 const { createDebugHost, runtimeLine } = require('./debug/debugHost.cjs');
-const { createCrashLog, installCrashHandlers } = require('./debug/crashLog.cjs');
+const { createCrashLog, installCrashHandlers, flushPageStorage } = require('./debug/crashLog.cjs');
 const { measureLeftovers, removeDownloadedLeftovers } = require('./analysis/modelPaths.cjs');
 const { resolveLinuxPasswordStore } = require('./linuxPasswordStore.cjs');
 const { resolveLinuxVulkanChoice, logLinuxVulkanChoice } = require('./linuxVulkan.cjs');
@@ -282,6 +284,10 @@ const transcodeService = createTranscodeService({
 // KuGou credentials stay inside the main process and are encrypted lazily after Electron is ready.
 // The bridge refuses Linux's plaintext `basic_text` fallback and degrades to an in-memory session.
 const kugouApiBridge = createKugouApiBridge({ store, safeStorage });
+const qishuiMediaPolicy = createQishuiMediaPolicy();
+const qishuiApiBridge = createQishuiApiBridge({ store, safeStorage, fetch: (url, options) => electronNet.fetch(url, options),
+  onAudioSource: url => qishuiMediaPolicy.register(url),
+});
 const bodianMediaPolicy = createBodianMediaPolicy();
 const bodianApiBridge = createBodianApiBridge({ store, safeStorage,
   onAudioSource: url => bodianMediaPolicy.register(url),
@@ -396,6 +402,18 @@ function resolveWindowToLayerPath() {
   return fs.existsSync(candidate) ? candidate : null;
 }
 
+// app.exit() does not wait for the pages' storage (localStorage, a sign-in among it) to reach the
+// disk: it is asked to be written first (crashLog.cjs `flushPageStorage`). That only asks, so the
+// exit is not held. `what` names the exit in the line that says the asking failed.
+const exitAfterAskingStorageWritten = (code, what) => {
+  try {
+    flushPageStorage();
+  } catch (error) {
+    console.error(`[Wallpaper] Failed to ask for the pages' storage to be written before the ${what}`, error);
+  }
+  app.exit(code);
+};
+
 // Enables wallpaper mode on Wayland: spawn windowtolayer wrapping a fresh Folia child, then the
 // old process exits once the wrapper has spawned. Spawn failure (ENOENT/EACCES) arrives on the
 // async 'error' event, never as a synchronous throw, so we revert the setting instead of crashing.
@@ -430,7 +448,7 @@ function launchWrappedSelf({ onError } = {}) {
       } catch (error) {
         console.error('[Mods] Failed to take up the start note', error);
       }
-      app.exit(0);
+      exitAfterAskingStorageWritten(0, 'restart');
     });
   });
 }
@@ -444,7 +462,8 @@ const wallpaperWatchdog = wallpaperWatchdogModule.createWallpaperWatchdog({
   execPath: () => process.execPath,
   argv: () => process.argv.slice(1),
   getPpid: () => process.ppid,
-  exit: (code) => app.exit(code),
+  // As at the restart above: the pages' storage is asked to be written before app.exit().
+  exit: (code) => exitAfterAskingStorageWritten(code, 'relaunch'),
   killFn: process.kill.bind(process),
   probeIntervalMs: 2000,
 });
@@ -3906,7 +3925,7 @@ function setupCorsBypassHandlers() {
         hostname === 'nct.vn' ||
         hostname.endsWith('.nct.vn') ||
         // Bodian audio and cover CDNs may omit CORS headers needed by Web Audio and canvas/WebGL.
-        bodianMediaPolicy.allows(details);
+        bodianMediaPolicy.allows(details) || qishuiMediaPolicy.allows(details);
     } catch (error) {
       isTargetDomain = false;
     }
@@ -3922,7 +3941,7 @@ function setupCorsBypassHandlers() {
     callback({ cancel: false, responseHeaders });
   });
 
-  ses.webRequest.onBeforeRedirect(details => bodianMediaPolicy.followRedirect(details));
+  ses.webRequest.onBeforeRedirect(details => { bodianMediaPolicy.followRedirect(details); qishuiMediaPolicy.followRedirect(details); });
 
   ses.webRequest.onErrorOccurred({ urls: ['*://*.kugou.com/*'] }, details => {
     const requestInfo = getKugouMediaRequestInfo(details);
@@ -5621,9 +5640,14 @@ function pollRemoteControlPointer() {
 }
 
 // Dragged past the outer left edge of the screens, the idle look's cover would be cut off. On
-// Windows the move can be held there as it happens; elsewhere a move cannot be refused.
+// Windows the move can be held there as it happens; elsewhere a move cannot be refused. With the
+// cover collapsed only the card in use is held, so it can reach the edge.
 function keepRemoteControlCoverOnScreen(win, event, newBounds) {
-  const x = clampRemoteControlWindowX(newBounds, screen.getAllDisplays().map(display => display.bounds));
+  const x = clampRemoteControlWindowX(
+    newBounds,
+    screen.getAllDisplays().map(display => display.bounds),
+    remoteControlExpandCoverEnabled,
+  );
   if (x !== newBounds.x) {
     // Windows then keeps the window where this puts it, and the drag slides along the edge.
     event.preventDefault();
@@ -5631,6 +5655,20 @@ function keepRemoteControlCoverOnScreen(win, event, newBounds) {
     // min === max === REMOTE_CONTROL_WINDOW_WIDTH/HEIGHT). Stating it on every move keeps the
     // window the size the page is laid out to, instead of leaving the platform to re-derive it.
     win.setBounds({ x, y: newBounds.y, width: REMOTE_CONTROL_WINDOW_WIDTH, height: REMOTE_CONTROL_WINDOW_HEIGHT });
+  }
+}
+
+// Switching the cover back on where the card was dragged to the edge: the strip left of the card
+// is off screen, so the window steps right until the cover fits, as a drag would have held it.
+function bringRemoteControlCoverOnScreen(win) {
+  if (process.platform !== 'win32' || !win || win.isDestroyed()) {
+    return;
+  }
+
+  const bounds = win.getBounds();
+  const x = clampRemoteControlWindowX(bounds, screen.getAllDisplays().map(display => display.bounds), true);
+  if (x !== bounds.x) {
+    win.setBounds({ x, y: bounds.y, width: REMOTE_CONTROL_WINDOW_WIDTH, height: REMOTE_CONTROL_WINDOW_HEIGHT });
   }
 }
 
@@ -6684,22 +6722,26 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Set while a quit is held for a YouTube Music web sign-in (see before-quit).
-let isQuitHeldForYtmSignIn = false;
+// The bridges whose work under way holds a quit, each through its shutdown() (see before-quit).
+const quitHoldingBridges = [ytmApiBridge, spotifyApiBridge];
+// Set while a quit is held for such work (see before-quit).
+let isQuitHeldForAccounts = false;
 
 app.on('before-quit', (event) => {
-  // A YouTube Music web sign-in under way: its browser is ended, and its folder holds a whole
-  // Google session. The quit is held until that folder is removed, 3 seconds at most, and then
-  // asked for again; nothing below has run by then. A quit with no such sign-in is not held, and
-  // neither is one that arrives while another is held.
-  const ytmSignInGone = ytmApiBridge.shutdown();
-  if (ytmSignInGone && !isQuitHeldForYtmSignIn) {
-    isQuitHeldForYtmSignIn = true;
+  // Work of a bridge that must not be cut off: a web sign-in under way, whose ended browser leaves
+  // a folder holding a whole sign-in session to remove; a token renewal whose answer is not stored
+  // yet, as the next run may not be able to use the token it replaces. shutdown() answers a promise
+  // while there is such work, settled in 3 seconds at most. The quit is held until all have
+  // settled, and then asked for again; nothing below has run by then. A quit with no such work is
+  // not held, and neither is one that arrives while another is held.
+  const held = quitHoldingBridges.map(bridge => bridge.shutdown()).filter(Boolean);
+  if (held.length > 0 && !isQuitHeldForAccounts) {
+    isQuitHeldForAccounts = true;
     event.preventDefault();
-    void ytmSignInGone.then(() => app.quit());
+    void Promise.all(held).then(() => app.quit());
     return;
   }
-  isQuitHeldForYtmSignIn = false;
+  isQuitHeldForAccounts = false;
   transcodeService.dispose();
   videoExportFileWriter.disposeSync();
   if (wasapiEngine) {
@@ -7118,6 +7160,9 @@ ipcMain.handle('save-settings', async (event, key, value) => {
 
   if (key === REMOTE_CONTROL_EXPAND_COVER_SETTING_KEY) {
     remoteControlExpandCoverEnabled = Boolean(nextValue);
+    if (remoteControlExpandCoverEnabled) {
+      bringRemoteControlCoverOnScreen(remoteControlWindow);
+    }
     applyRemoteControlWindowPresentation(remoteControlWindow);
   }
 
@@ -8550,6 +8595,10 @@ ipcMain.handle('kugou-api-request', createSenderGuardedHandler({
   isTrusted: isFirstPartyWindowContents,
   handler: (_event, operation, params) => kugouApiBridge.request(operation, params),
 }));
+ipcMain.handle('qishui-api-request', (event, operation, params) => {
+  if (!isTrustedMainWindowContents(event.sender)) return { ok: false, error: { code: 'unavailable', message: 'Untrusted Qishui request' } };
+  return qishuiApiBridge.request(operation, params);
+});
 ipcMain.handle('bodian-api-request', (event, operation, params) => {
   if (!isTrustedMainWindowContents(event.sender)) {
     return { ok: false, error: { code: 'unavailable', message: 'Untrusted Bodian request' } };

@@ -150,6 +150,30 @@ const describeEmbeddedStatus = async (): Promise<string> => {
     }
 };
 
+// 主进程这次启动没能读出加密的登录仓库（electron/qq/qqAuthSessionRepository.cjs：这次没有系统加密），这次运行里也还没有
+// 新登录替掉它：内嵌后端里没有一个会话是这次运行之前的。网页版没有这个仓库；状态问不到时也当作读出来了，和以前一样。
+// 读得出（或被替掉）以后整次运行都不会再变回去，所以只记下「读得出」；读不出时每次现问，这次运行里的新登录一到，下一个
+// 请求就照常带上它（页面重新载入以后也是）。lastStoreUnreadable 是最近一次问到的答案，给要同步判断的地方用（hasUsableQqSession）。
+let storeReadable = false;
+let lastStoreUnreadable = false;
+const isQqSessionStoreUnreadable = async (): Promise<boolean> => {
+    if (storeReadable) return false;
+    const readStatus = typeof window === 'undefined' ? undefined : window.electron?.getQqApiStatus;
+    if (typeof readStatus !== 'function') {
+        storeReadable = true;
+        return false;
+    }
+    try {
+        const status = await readStatus();
+        const unreadable = Boolean(status?.sessionStoreUnreadable);
+        if (status?.status === 'running' && !unreadable) storeReadable = true;
+        lastStoreUnreadable = unreadable;
+        return unreadable;
+    } catch {
+        return false;
+    }
+};
+
 const resolveApiBase = async (): Promise<string> => {
     const readPort = getElectronQqPortReader();
     if (readPort) {
@@ -193,6 +217,20 @@ const tokenFromCookieString = (cookie: string): string => {
 const isSameOriginBase = (base: string): boolean => base.startsWith('/');
 
 export const hasQqSession = (): boolean => Boolean(getWebSessionCookie());
+
+/**
+ * 存着的 session 是不是停用的那个：主进程这次启动没读出加密的登录仓库、这次运行里也还没有新登录（isQqSessionStoreUnreadable），
+ * 存着的就只能是之前一次运行的，后端不可能认得，带上它每个要登录的请求（连播放）都回 401。所以这次不带它（requestQq），按游客播放；
+ * 它照旧存着，等能读出仓库的那次启动，读账号时报「查不到」而不是「没登录」（qqProvider 的 getLoginStatus）。这次运行里扫码登录过，
+ * 仓库里读不出的那份就被替掉了：之后存着的 session 照常带，到期了也照常清掉。
+ */
+export const isQqSessionParked = async (): Promise<boolean> => hasQqSession() && await isQqSessionStoreUnreadable();
+
+/**
+ * 有 session，而且这次请求会带上它：只有登录才有的栏目、推荐、收藏状态、试听按它分开走，停用的 session（isQqSessionParked）照游客走。
+ * 要同步回答，用的是最近一次问到的仓库状态；还没问过时当作能带。读账号、退出登录、续期仍看 hasQqSession。
+ */
+export const hasUsableQqSession = (): boolean => hasQqSession() && !lastStoreUnreadable;
 
 export const clearQqSession = (): void => removeProviderSessionValue('qq', 'cookie');
 
@@ -339,6 +377,22 @@ const dropSessionSent = (sent: string): void => {
     if (getWebSessionCookie() === sent) clearQqSession();
 };
 
+// 一个不是 login_status 的请求带着 session 回了 401：问一次 login_status。后端不再认出这个用户、存着的又还是吃了 401 的
+// 那个 session，就清掉它，之后的请求按游客走（免费的歌照常能播）；还认得就留着，问不到也留着。同一时间只问一次。
+let sessionCheck: Promise<void> | null = null;
+const checkSessionAfterRefusal = (sent: string): void => {
+    if (sessionCheck || getWebSessionCookie() !== sent) return;
+    sessionCheck = requestQq<any>('login_status').then(
+        body => !body?.data?.profile,
+        error => error instanceof OnlineProviderError && error.code === 'auth-required',
+    ).then(ended => {
+        console.info(`[QQ] A request was refused with 401; login_status ${ended ? 'no longer names the account, the session goes' : 'did not say the sign-in ended, the session stays'}`);
+        if (ended) dropSessionSent(sent);
+    }).finally(() => {
+        sessionCheck = null;
+    });
+};
+
 // Routes one provider request through the embedded Electron server or the configured Web base URL.
 // It carries the session as the page keeps it when the request is made, before the first wait.
 // 写入路由（POST_OPERATIONS）的参数放在 JSON 正文 `payload` 里；会话照旧走 header 或 `?cookie=`，后端两条路由都认。
@@ -355,8 +409,10 @@ export const requestQq = async <T = unknown>(
             'qq',
         );
     }
-    const cookie = getWebSessionCookie();
+    const stored = getWebSessionCookie();
     const base = await resolveApiBase();
+    // The session parked for this run is not sent (isQqSessionParked). The status is read once the backend has a port.
+    const cookie = stored && await isQqSessionStoreUnreadable() ? '' : stored;
 
     const endpoint = endpointFor(operation, params);
     const query = new URLSearchParams();
@@ -391,8 +447,11 @@ export const requestQq = async <T = unknown>(
         : ONLINE_REQUESTS.has(operation) ? withOnlineRequestLimit(send, QQ_ONLINE_REQUEST_LIMIT_MS) : send());
     if (!response.ok) {
         // A missing, expired, rejected, or non-persisted backend session is surfaced uniformly as 401.
+        // The session does not go at once: any route answers 401 when QQ refuses that one call (upstream 1000 / 104401 /
+        // 104400), which does not by itself say the sign-in ran out. login_status is asked once and decides
+        // (checkSessionAfterRefusal); at an account read login_status itself decides (accountRead, signInRanOut).
         if (response.status === 401) {
-            dropSessionSent(cookie);
+            if (operation !== 'login_status' && cookie) checkSessionAfterRefusal(cookie);
             throw new OnlineProviderError('auth-required', 'QQMusicApi login required', 'qq', body, response.status);
         }
         // 404 是「这个后端没有这条路由」，不是网络故障 —— 用户可以自行部署任意版本的后端，

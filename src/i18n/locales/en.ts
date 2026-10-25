@@ -327,6 +327,7 @@ export default {
     "dioramaReset": "Diorama tuning reset",
     "temperaReset": "Tempera tuning reset",
     "lumiereReset": "Lumiere tuning reset",
+    "hanabiReset": "Hanabi tuning reset",
     "uploadEmojiFirst": "Please upload a custom emoji pack first",
     "monetBgUpdated": "Monet background image updated",
     "monetBgCleared": "Monet background image cleared",
@@ -854,6 +855,7 @@ export default {
       "smart-beat-on": { "title": "Smart beat mode: On", "description": "Turn the beat effects on (Sonnet and Diorama on the beats, Pendolo on the drums), analysing a track not analysed yet" },
       "visualizer-tempera": { "title": "Visualizer: Tempera", "description": "Switch to the Tempera color-block lyric PV" },
       "visualizer-lumiere": { "title": "Visualizer: Lumiere", "description": "Switch to the Lumiere stage-light lyric PV" },
+      "visualizer-hanabi": { "title": "Visualizer: Hanabi", "description": "Switch to the Hanabi fireworks lyric PV" },
       "desktop-toggle-remote-control": { "title": "Toggle remote control window", "description": "Open or close the remote control window" },
       "desktop-toggle-main-window-always-on-top": { "title": "Toggle main window always on top", "description": "Pin or unpin the main window above other windows" },
       "background-monet-full-overlay": { "title": "Background: Monet Full Screen Overlay", "description": "Switch background to Monet full screen overlay layout" },
@@ -946,6 +948,7 @@ export default {
     "visualizerSonnet": "Sonnet",
     "visualizerTempera": "Tempera",
     "visualizerLumiere": "Lumiere",
+    "visualizerHanabi": "Hanabi",
     "cadenzeTuning": "Mindscape Tuning",
     "resetVisualizerTuning": "Reset Lyrics Animation Tuning",
     "cadenzeOnly": "Mindscape only",
@@ -1516,6 +1519,8 @@ export default {
     "loginTitleKugou": "Scan with KuGou Music",
     "loginNoteKugou": "Open KuGou Music and scan this QR code",
     "loginTitleQq": "Scan to sign in to QQ Music",
+    "loginTitleQishui": "Sign in to Qishui Music with Douyin",
+    "loginNoteQishui": "Scan with the Douyin app and confirm authorization",
     "loginTitleBodian": "Scan with Bodian Music",
     "loginNoteBodian": "Scan this code with the Bodian Music app and confirm sign-in",
     "loginTitleYtm": "Sign in to YouTube Music",
@@ -1762,7 +1767,9 @@ export default {
     "ponderDescription": "Learn Folia's basic controls and operating model",
     "version": "Version"
   },
+  "qishui": { "recentPlayed": "Recently played on Qishui", "recommended": "Recommended for you" },
   "lyricProvider": {
+    "qishui": "Qishui Music",
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
@@ -2709,6 +2716,10 @@ export default {
     "beatEffect_pendoloGearBeatsDesc": "The gears step on the beats beat_this detects. (Retired)",
     "beatEffect_latentPulse": "Tidal Pulse",
     "beatEffect_latentPulseDesc": "The Latent background's flow pulses with the beats beat_this detects. (Retired)",
+    "beatEffect_hanabiBeatBursts": "Beat Blooms",
+    "beatEffect_hanabiBeatBurstsDesc": "On the beats beat_this detects: a small firework opens in the sky on every beat, and a shell climbs ahead of each bar's first beat to burst right on it. Harder beats open bigger.",
+    "beatEffect_hanabiBeatPulse": "Beat Push",
+    "beatEffect_hanabiBeatPulseDesc": "On the beats beat_this detects: the whole scene pushes in and sways a little on every beat, deeper on each bar's first beat.",
     "temperaMotionSection": "Motion & Color",
     "temperaDisplaySection": "Visibility",
     "temperaLyricSection": "Lyric Shots",
@@ -2829,6 +2840,46 @@ export default {
     "lumiereRenderQualityBalanced": "Balanced",
     "lumiereRenderQualityLow": "Low",
     "lumiereRenderQualityHint": "Balanced and Low render the light field and glow at reduced resolution and cap haze detail, saving power at some cost in sharpness.",
+    "hanabiFontSizeAutoNotice": "Hanabi sizes lyrics from the viewport and each shot's text region; the generic font size setting only affects the subtitles in this mode.",
+    "hanabiFireworksSection": "Fireworks",
+    "hanabiStageSection": "Stage",
+    "hanabiTextSection": "Text",
+    "hanabiDecorSection": "Decorations",
+    "hanabiColorSection": "Colors",
+    "hanabiSparkAmount": "Sparks",
+    "hanabiGlow": "Firework glow",
+    "hanabiChorusBloom": "Chorus glow",
+    "hanabiChorusBloomHint": "The whole picture glows during the chorus, swelling in as it starts and settling as it ends. Choruses come from the lyrics: marked by the source or found from repeated lines.",
+    "hanabiBloom": "Overall glow",
+    "hanabiBloomHint": "A full-screen glow over the whole song, under the chorus glow. 0 leaves only the chorus glow.",
+    "hanabiLaunches": "Launch trails",
+    "hanabiLaunchesHint": "Each shell climbs from the bottom edge before it bursts, linking one shot to the next.",
+    "hanabiSky": "Night sky",
+    "hanabiSkyHint": "A night gradient under the fireworks. Lower it to let the shared background show through; below half, colors follow your theme background.",
+    "hanabiRiseSpeed": "Rise",
+    "hanabiRiseSpeedHint": "How far the camera climbs between shots. 0 keeps every shot in place.",
+    "hanabiSpin": "Spin",
+    "hanabiSpinHint": "Between shots the whole scene swings round by a large angle as it rises, and section changes turn too. 0 turns it off.",
+    "hanabiAmbient": "Ambient sparks",
+    "hanabiOverlayFrame": "Frame",
+    "hanabiTextOnly": "Lyrics only",
+    "hanabiTextOnlyHint": "Draws just the lyrics with their color blocks and letter motion. Fireworks, stickers, the night sky and the frame are hidden.",
+    "hanabiTextMotion": "Letter motion",
+    "hanabiBlockOpacity": "Color blocks",
+    "hanabiCollage": "PV collage",
+    "hanabiCollageHint": "Film strips, cut lines, lace trims, repeated words, stickers, tape and theme icons around the lyrics.",
+    "hanabiOrnamentAmount": "MG ornaments",
+    "hanabiColorMode": "Palette",
+    "hanabiColorModeHint": "Mixed leans each shot's vivid palette toward your theme accent.",
+    "hanabiColorModeMixed": "Mixed",
+    "hanabiColorModeVivid": "Vivid",
+    "hanabiColorModeTheme": "Theme",
+    "hanabiPerformanceSection": "Performance",
+    "hanabiRenderQuality": "Render quality",
+    "hanabiRenderQualityFull": "Full",
+    "hanabiRenderQualityBalanced": "Balanced",
+    "hanabiRenderQualityLow": "Low",
+    "hanabiRenderQualityHint": "Balanced and Low render the firework glow at reduced resolution, and Low also draws fewer ambient embers; lyrics and the full-screen glow stay at full resolution. Worth trying if playback stutters on integrated graphics.",
     "decorNone": "None",
     "decorSubtle": "Subtle",
     "decorFull": "Full",
@@ -3017,7 +3068,8 @@ export default {
     "geminiApiKey": "Gemini API Key",
     "aiApiKeySavedPlaceholder": "Saved (leave blank to keep it)",
     "aiApiKeySavedDesc": "The key is stored encrypted on this device and is not shown again. Enter a new key and save to replace it.",
-    "aiApiKeyEndpointMismatchDesc": "The saved key is only sent to {{endpoint}}. Enter the key again to use a different address.",
+    "aiApiKeyEndpointMismatchDesc": "The saved key was for {{endpoint}} and can't be used at a different address. Enter a new key and save.",
+    "aiApiKeyOtherProviderDesc": "The saved key was for {{provider}} and can't be used after switching providers. Enter a new key and save.",
     "aiApiKeyClear": "Clear",
     "openaiApiTemperature": "Temperature",
     "openaiApiStream": "Streaming",
@@ -3527,6 +3579,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "Private QQ Music Playlists",
         "description": "When signed in, your own private playlists now load their songs, with real paging. Self-hosted backends must run qq-music-api 3.1.2 or later; older backends fall back automatically, and a playlist that cannot be read now says it is not public instead of silently showing as empty."
+      }
+    },
+    "v0_7_22": {
+      "intro": "Welcome to 0.7.22, the Sparkle Update—a major release. It adds Qishui Music; brings Hanabi, a Japanese fireworks lyric style; lets you choose which styles the per-song random style picks from; gives the desktop app global playback shortcuts; and lets AI settings pick a provider and model directly.",
+      "qishui": {
+        "title": "Qishui Music",
+        "description": "Qishui Music arrives on desktop: sign in from the login window by scanning with Douyin. Search, play (standard quality), read word-synced lyrics and artists' top songs, and open your own playlists and \"Recently played on Qishui\"; the recommendation feed and scene stations play as Personal FM, and the scene cards on the home screen start playing in one tap. You can like songs, add and remove songs in playlists you created, and use Dislike in Personal FM. Songs without a directly playable source can't be played, and browsing albums, creating playlists and saving playlists aren't supported yet. Local songs matched to a Qishui song can fetch its lyrics too."
+      },
+      "hanabi": {
+        "title": "Hanabi",
+        "description": "A new lyric style in the look of a Japanese lyric PV: each line enters character by character on blocks of color, firework-like ornaments bloom along the text, and between shots the whole scene spins and rises with the launching fireworks, with film strips, stickers and tape as collage decor and a glow that lifts during the chorus. Fireworks, text, decor and colors are adjustable in the style settings, with quality tiers; in Smart beat mode a firework bursts in the night sky on every beat and the camera pushes in with it."
+      },
+      "randomStyles": {
+        "title": "Choose Your Random Styles",
+        "description": "The lyric style picker gains Random: tick some or all built-in styles to form a random pool, and each song switches to one of them, never the same twice in a row, each with its own saved settings. From the player panel you can redraw a style for the current song or edit the pool; the pool is included in config import, export and sync."
+      },
+      "globalShortcuts": {
+        "title": "Global Playback Shortcuts",
+        "description": "Desktop gains Shortcuts → Global shortcuts: control playback even when Folia isn't in front, with Ctrl+Alt+Shift (Control+Option+Shift on macOS) plus a letter or digit. Bind play/pause, previous, next, volume up and down, mute, repeat and shuffle, as well as commands provided by mods; combinations taken by another app are marked. Under native Wayland, one button registers them with your desktop environment, where you assign the keys. The command palette also gains play/pause and volume up/down."
+      },
+      "aiProviders": {
+        "title": "AI Providers and Models",
+        "description": "AI settings on desktop now let you pick a provider: Gemini, DeepSeek, Xiaomi MiMo, Alibaba Cloud Qwen, Tencent Cloud TokenHub, OpenAI, Anthropic, Kimi, Zhipu GLM, or a custom compatible endpoint. Built-in providers need no URL; enter a key to fetch the model list, choose from a dropdown, and start with a recommended model prefilled. Thinking, temperature and similar parameters are handled per provider and model, and retired models are flagged. After switching songs, an unfinished AI theme from the previous song no longer lands on the new one."
+      },
+      "moreDetails": {
+        "title": "More Improvements",
+        "description": "Sign-ins on every platform are no longer cleared after a restart just because the network or server was down. Smart beat mode gains an \"Analysed only\" setting, and its main switch moves to a new Global page in the lyric style window; local and Navidrome songs now get automix transition analysis too; local scanning supports DSD (.dsf and .dff). Windows gains a Render GPU setting, and Performance & motion adds Background throttling (off by default), which holds the lyric animation while the window is minimized or hidden. Bravais' info bar can be automatic, vertical or horizontal, and its Explore wall now includes recently played. The mod API moves up to Folium 1.7."
       }
     },
     "v0_7_21": {

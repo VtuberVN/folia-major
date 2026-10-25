@@ -16,8 +16,8 @@
 | components | 1024+ |
 | test/dev | 1024+ |
 | library | 256+ |
+| services | 256+ |
 | backend/electron | 128+ |
-| services | 128+ |
 | utils | 128+ |
 | hooks | 64+ |
 | src (其他) | 64+ |
@@ -50,6 +50,7 @@
 | 32+ | `src/components/modal/settings/kit/motion.ts` |
 | 32+ | `src/components/visualizer/colorMix.ts` |
 | 32+ | `src/components/visualizer/definition.ts` |
+| 32+ | `src/components/visualizer/hanabi/types.ts` |
 | 32+ | `src/components/visualizer/registry.tsx` |
 | 32+ | `src/components/wall/layout.ts` |
 | 32+ | `src/components/wall/wallSlots.ts` |
@@ -250,6 +251,7 @@
 - `src/components/visualizer/classic/entry.tsx`
 - `src/components/visualizer/diorama/entry.tsx`
 - `src/components/visualizer/fume/entry.tsx`
+- `src/components/visualizer/hanabi/entry.tsx`
 - `src/components/visualizer/lumiere/entry.tsx`
 - `src/components/visualizer/monet/entry.tsx`
 - `src/components/visualizer/partita/entry.tsx`
@@ -272,6 +274,7 @@
 - `src/components/visualizer/classic/tuning.ts`
 - `src/components/visualizer/diorama/tuning.ts`
 - `src/components/visualizer/fume/tuning.ts`
+- `src/components/visualizer/hanabi/tuning.ts`
 - `src/components/visualizer/lumiere/tuning.ts`
 - `src/components/visualizer/monet/tuning.ts`
 - `src/components/visualizer/partita/tuning.ts`
@@ -294,6 +297,7 @@
 - `src/components/visualizer/classic/tuning.ts`
 - `src/components/visualizer/diorama/tuning.ts`
 - `src/components/visualizer/fume/tuning.ts`
+- `src/components/visualizer/hanabi/tuning.ts`
 - `src/components/visualizer/lumiere/tuning.ts`
 - `src/components/visualizer/monet/tuning.ts`
 - `src/components/visualizer/partita/tuning.ts`

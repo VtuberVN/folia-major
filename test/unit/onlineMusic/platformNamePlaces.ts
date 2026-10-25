@@ -21,7 +21,7 @@ export const PLACE_KINDS = {
 export type PlaceKind = keyof typeof PLACE_KINDS;
 
 export interface PlatformNamePlace {
-    n: Partial<Record<'netease' | 'qq' | 'kugou' | 'bodian' | 'ytm' | 'spotify', number>>;
+    n: Partial<Record<'netease' | 'qq' | 'kugou' | 'bodian' | 'ytm' | 'spotify' | 'qishui', number>>;
     // The kind of the file's lines of code; its comment lines are counted as comments.
     kind: PlaceKind;
     // What the lines are, where the kind alone does not say it.
@@ -37,9 +37,9 @@ export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'electron/backendLifecycle.cjs': { n: { netease: 1, qq: 1 }, kind: 'doc' },
     'electron/linuxPasswordStore.cjs': { n: { qq: 1, kugou: 1 }, kind: 'main' },
     'electron/loginBackendIpc.cjs': { n: { netease: 6, qq: 6 }, kind: 'main', why: 'the IPC channels of the two embedded backends and the table that finds a backend by its platform id' },
-    'electron/main.cjs': { n: { netease: 8, qq: 15, kugou: 25, bodian: 12, ytm: 30, spotify: 48 }, kind: 'main', why: 'starts each platform\'s local service and bridge, its IPC channels, its media hosts; raised by the upstream merge 2026-10-17' },
+    'electron/main.cjs': { n: { netease: 8, qq: 15, kugou: 25, bodian: 12, ytm: 30, spotify: 48, qishui: 10 }, kind: 'main', why: 'starts each platform\'s local service and bridge, its IPC channels, its media hosts; raised by the upstream merge 2026-10-17' },
     'electron/networkRecorder.cjs': { n: { netease: 4, qq: 3 }, kind: 'main', why: 'the hosts by which a request is filed under the backend that sent it' },
-    'electron/preload.cjs': { n: { netease: 6, qq: 5, kugou: 2, bodian: 1, ytm: 1, spotify: 10 }, kind: 'main', why: 'the bridge methods and IPC channels of each platform' },
+    'electron/preload.cjs': { n: { netease: 6, qq: 5, kugou: 2, bodian: 1, ytm: 1, spotify: 10, qishui: 1 }, kind: 'main', why: 'the bridge methods and IPC channels of each platform' },
     'electron/spotify.cjs': { n: { spotify: 86 }, kind: 'main', why: 'Spotify Electron backend service' },
     'electron/spotifyLocal.cjs': { n: { spotify: 74 }, kind: 'main', why: 'Spotify Local desktop integration' },
     'electron/stageApi.cjs': { n: { netease: 17, spotify: 4 }, kind: 'main', why: 'the stage API: its lyric source type and its search through the local service' },
@@ -104,11 +104,11 @@ export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'src/services/onlineMetadataSearchService.ts': { n: { netease: 6, qq: 8, kugou: 5 }, kind: 'lyric', why: 'the order in which a local song\'s metadata is searched, and the id each source knows a song by' },
     'src/services/onlineMusic/account/accountRead.ts': { n: { netease: 2 }, kind: 'doc' },
     'src/services/onlineMusic/account/keptAfterRead.ts': { n: { qq: 1, kugou: 1, ytm: 1 }, kind: 'doc' },
-    'src/services/onlineMusic/fmModes.ts': { n: { netease: 2 }, kind: 'doc' },
+    'src/services/onlineMusic/fmModes.ts': { n: { netease: 1 }, kind: 'doc' },
     'src/services/onlineMusic/loginSelfCheck.ts': { n: { netease: 1 }, kind: 'doc' },
     'src/services/onlineMusic/omni.ts': { n: { netease: 5, kugou: 2 }, kind: 'doc' },
     'src/services/onlineMusic/providerAccountCache.ts': { n: { kugou: 1 }, kind: 'doc' },
-    'src/services/onlineMusic/providerRegistry.ts': { n: { netease: 2, qq: 2, kugou: 2, bodian: 2, ytm: 2, spotify: 4 }, kind: 'list' },
+    'src/services/onlineMusic/providerRegistry.ts': { n: { netease: 2, qq: 2, kugou: 2, bodian: 2, ytm: 2, spotify: 4, qishui: 2 }, kind: 'list' },
     'src/services/spotifyProvider.ts': { n: { spotify: 44 }, kind: 'file', why: 'Spotify provider bridge' },
     'src/services/onlineMusic/qq/qqProvider.ts': { n: { kugou: 1 }, kind: 'doc' },
     'src/services/onlineMusic/qq/qqTransport.ts': { n: { netease: 1 }, kind: 'doc' },
@@ -138,11 +138,10 @@ export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'src/utils/lyrics/awlrcContainer.ts': { n: { kugou: 1 }, kind: 'doc' },
     'src/utils/lyrics/bodianLyrics.ts': { n: { bodian: 3 }, kind: 'file' },
     'src/utils/lyrics/foliaLyricDocument.ts': { n: { netease: 1 }, kind: 'doc' },
-    'src/utils/lyrics/localSongMatchContext.ts': { n: { netease: 2, qq: 2, kugou: 2 }, kind: 'lyric' },
     'src/utils/lyrics/lyricFileDecoding.ts': { n: { kugou: 2 }, kind: 'lyric', why: 'a lyric file format (.krc) named for the platform that made it, decrypted by that platform\'s code' },
-    'src/utils/lyrics/lyricMatchSources.ts': { n: { netease: 5, qq: 10, kugou: 1 }, kind: 'lyric' },
+    'src/utils/lyrics/lyricMatchSources.ts': { n: { netease: 5, qq: 10, kugou: 1, qishui: 1 }, kind: 'lyric' },
     'src/utils/lyrics/lyricSourceLabels.ts': { n: { netease: 3, qq: 1, bodian: 1, ytm: 1 }, kind: 'lyric' },
-    'src/utils/lyrics/lyricSources.ts': { n: { netease: 2, qq: 2, kugou: 1, bodian: 1, ytm: 1, spotify: 1 }, kind: 'lyric', why: 'the list of lyric sources itself' },
+    'src/utils/lyrics/lyricSources.ts': { n: { netease: 2, qq: 2, kugou: 1, bodian: 1, ytm: 1, spotify: 1, qishui: 1 }, kind: 'lyric', why: 'the list of lyric sources itself' },
     'src/utils/lyrics/neteaseProcessing.ts': { n: { netease: 12 }, kind: 'lyric', why: 'the lyric payload format named for the platform that made it; the stage API takes that format from any client' },
     'src/utils/lyrics/nowPlayingSource.ts': { n: { netease: 2 }, kind: 'stored', why: 'the source names a now-playing payload carries' },
     'src/utils/lyrics/parserCore.ts': { n: { qq: 1, kugou: 7 }, kind: 'lyric', why: 'a lyric format named for the platform that made it' },
@@ -155,7 +154,7 @@ export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'src/utils/playerLikeAvailability.ts': { n: { qq: 1, bodian: 1 }, kind: 'doc' },
     'src/utils/stageClientDemo.ts': { n: { netease: 3 }, kind: 'stored', why: 'the stage API\'s lyric source type' },
     'src/utils/stageSources.ts': { n: { spotify: 5 }, kind: 'stored', why: 'stage mode source identifiers' },
-    'src/vite-env.d.ts': { n: { netease: 23, qq: 13, kugou: 5, bodian: 4, ytm: 6, spotify: 25 }, kind: 'stored', why: 'the types of the preload bridge and of the stage API\'s lyric source; raised by the upstream merge 2026-10-17' },
+    'src/vite-env.d.ts': { n: { netease: 23, qq: 13, kugou: 5, bodian: 4, ytm: 6, spotify: 25, qishui: 4 }, kind: 'stored', why: 'the types of the preload bridge and of the stage API\'s lyric source; raised by the upstream merge 2026-10-17' },
     'worker/index.ts': { n: { qq: 11 }, kind: 'main', why: 'routes the QQ backend' },
     'worker/lyric-proxy.ts': { n: { qq: 1, kugou: 1 }, kind: 'main', why: 'the hosts the lyric relay may reach' },
     'worker/qq.ts': { n: { qq: 32 }, kind: 'main', why: 'the worker entry of the QQ backend' },

@@ -243,6 +243,8 @@ declare global {
     status: 'starting' | 'running' | 'error' | 'unavailable';
     port: number | null;
     error: string | null;
+    /** 这次启动没能读出加密的登录仓库：后端里没有任何会话，后端不认一个 session 不说明登录没了。 */
+    sessionStoreUnreadable?: boolean;
     updatedAt: number;
   }
 
@@ -1151,6 +1153,10 @@ declare global {
       restartNeteaseApi: (reason?: 'needed') => Promise<ElectronNeteaseApiStatus>;
       onNeteaseApiStatusChanged: (callback: (status: ElectronNeteaseApiStatus) => void) => () => void;
       getKugouApiStatus: () => Promise<ElectronKugouApiStatus>;
+      qishuiRequest: (
+        operation: import('./services/onlineMusic/qishui/qishuiTransport').QishuiOperation,
+        params?: import('./services/onlineMusic/qishui/qishuiTransport').QishuiParams,
+      ) => Promise<import('./services/onlineMusic/qishui/qishuiTransport').QishuiBridgeResult>;
       bodianRequest: (
         operation: import('./services/onlineMusic/bodian/bodianTransport').BodianOperation,
         params?: import('./services/onlineMusic/bodian/bodianTransport').BodianParams,

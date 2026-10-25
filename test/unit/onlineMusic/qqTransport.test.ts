@@ -491,11 +491,12 @@ describe('QQ Music Web transport', () => {
         await expect(requestQq('login_status')).resolves.toEqual({ code: 200, data: {} });
     });
 
-    it('maps 401 to auth-required and clears the stored session', async () => {
+    // 任何路由在 QQ 拒绝这一次调用时都回 401，不说明登录没了：问一次 login_status，它还认得这个用户，session 就留着。
+    it('maps 401 to auth-required and keeps the stored session while login_status still names the user', async () => {
         storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
-        const fetchMock = vi.fn().mockResolvedValue(
-            Response.json({ code: 401, message: 'Login required' }, { status: 401 }),
-        );
+        const fetchMock = vi.fn(async (url: string) => (url.includes('/login/status')
+            ? Response.json({ code: 200, data: { profile: { musicid: 123 } } })
+            : Response.json({ code: 401, message: 'Login required' }, { status: 401 })));
         vi.stubGlobal('fetch', fetchMock);
         const { hasQqSession, requestQq } = await import('@/services/onlineMusic/qq/qqTransport');
 
@@ -503,8 +504,85 @@ describe('QQ Music Web transport', () => {
             code: 'auth-required',
             providerId: 'qq',
         });
-        expect(storage.has('online_provider:qq:cookie')).toBe(false);
-        expect(hasQqSession()).toBe(false);
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(storage.get('online_provider:qq:cookie')).toBe(CONFIRMED_COOKIE);
+        expect(hasQqSession()).toBe(true);
+    });
+
+    // 登录在 Folia 开着时到期：第一次 401 后问一次 login_status，后端不再认出这个用户就清掉 session，之后的歌按游客播放。
+    it('drops the session after a 401 once login_status no longer names the user, asking once at a time', async () => {
+        storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
+        const fetchMock = vi.fn(async (url: string) => (url.includes('/login/status')
+            ? Response.json({ code: 200, data: {} })
+            : Response.json({ code: 401, message: 'Login required' }, { status: 401 })));
+        vi.stubGlobal('fetch', fetchMock);
+        const { requestQq } = await import('@/services/onlineMusic/qq/qqTransport');
+
+        await Promise.all(['a', 'b'].map(songmid => expect(requestQq('music_play', { songmid })).rejects.toMatchObject({ code: 'auth-required' })));
+        await vi.waitFor(() => expect(storage.has('online_provider:qq:cookie')).toBe(false));
+        expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/login/status'))).toHaveLength(1);
+        await expect(requestQq('music_play', { songmid: 'c' })).rejects.toMatchObject({ code: 'auth-required' });
+        expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain('cookie=');
+    });
+
+    // login_status 自己的 401 不再问；401 时存着的已经换成别的 session，也不问。
+    it('checks only after a 401 on another route, and only while the session sent is the one stored', async () => {
+        storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
+        let answerRefusal: (() => void) | undefined;
+        const fetchMock = vi.fn((url: string) => (url.includes('/getMusicPlay/held')
+            ? new Promise<Response>(resolve => { answerRefusal = () => resolve(Response.json({}, { status: 401 })); })
+            : Promise.resolve(Response.json({ code: 401 }, { status: 401 }))));
+        vi.stubGlobal('fetch', fetchMock);
+        const { requestQq } = await import('@/services/onlineMusic/qq/qqTransport');
+
+        await expect(requestQq('login_status')).rejects.toMatchObject({ code: 'auth-required' });
+        const refused = requestQq('music_play', { songmid: 'held' });
+        await vi.waitFor(() => expect(answerRefusal).toBeTypeOf('function'));
+        storage.set('online_provider:qq:cookie', 'qqmusic_session=signed-in-again');
+        answerRefusal!();
+        await expect(refused).rejects.toMatchObject({ code: 'auth-required' });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        // A 401 with the session stored now is checked: login_status refuses it as well, and it goes.
+        await expect(requestQq('music_play', { songmid: 'other' })).rejects.toMatchObject({ code: 'auth-required' });
+        await vi.waitFor(() => expect(storage.has('online_provider:qq:cookie')).toBe(false));
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    // 主进程这次没读出加密的登录仓库（没有系统加密）：存着的 session 不带，按游客播放，session 留着。这次扫码登录时仓库把读不出的
+    // 那份删掉（qqAuthSessionRepository 的 save），主进程从此答读得出：新 session 照常带，页面重新载入以后也带。
+    it('does not send the stored session while the sign-in store is unreadable, but sends one signed in this run, also after a reload', async () => {
+        vi.stubEnv('VITE_QQ_API_BASE', '');
+        storage.set('online_provider:qq:cookie', CONFIRMED_COOKIE);
+        const backend = { storeUnreadable: true };
+        const getQqApiStatus = vi.fn(async () => ({ status: 'running', port: 4000, error: null, sessionStoreUnreadable: backend.storeUnreadable }));
+        vi.stubGlobal('window', { electron: { getQqPort: vi.fn().mockResolvedValue(4000), getQqApiStatus } });
+        const fetchMock = vi.fn(async (url: string) => {
+            if (!url.includes('/login/qr/check')) return Response.json({ code: 200, data: {} });
+            backend.storeUnreadable = false;
+            return Response.json({ code: 803, cookie: 'qqmusic_session=signed-in-now' });
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        const transport = await import('@/services/onlineMusic/qq/qqTransport');
+
+        await transport.requestQq('login_status');
+        expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain('cookie=');
+        expect(await transport.isQqSessionParked()).toBe(true);
+        expect(transport.hasUsableQqSession()).toBe(false);
+        expect(storage.get('online_provider:qq:cookie')).toBe(CONFIRMED_COOKIE);
+
+        await transport.requestQq('login_qr_check', { key: 'k' });
+        await transport.requestQq('login_status');
+        expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain(`cookie=${encodeURIComponent('qqmusic_session=signed-in-now')}`);
+        expect(await transport.isQqSessionParked()).toBe(false);
+        expect(transport.hasUsableQqSession()).toBe(true);
+
+        // The page is loaded again in the same run (a renderer crash, a reopening without mods).
+        vi.resetModules();
+        const reloaded = await import('@/services/onlineMusic/qq/qqTransport');
+        await reloaded.requestQq('login_status');
+        expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain(`cookie=${encodeURIComponent('qqmusic_session=signed-in-now')}`);
+        expect(await reloaded.isQqSessionParked()).toBe(false);
     });
 
     it('maps upstream failures to a network error carrying the backoff body', async () => {

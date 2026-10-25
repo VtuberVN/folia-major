@@ -327,6 +327,7 @@ export default {
     "dioramaReset": "镜台参数已重置",
     "temperaReset": "凝彩参数已重置",
     "lumiereReset": "绘光参数已重置",
+    "hanabiReset": "花火参数已重置",
     "uploadEmojiFirst": "请先上传自定义表情包",
     "monetBgUpdated": "Monet 背景图已更新",
     "monetBgCleared": "Monet 背景图已清空",
@@ -854,6 +855,7 @@ export default {
       "smart-beat-on": { "title": "智能动感模式：开启", "description": "开启智能动感模式（商籁、镜台按节拍，时计按鼓点驱动画面），没分析过的歌当场分析" },
       "visualizer-tempera": { "title": "切换到可视化：凝彩", "description": "切换到凝彩色块 PV 可视化" },
       "visualizer-lumiere": { "title": "切换到可视化：绘光", "description": "切换到绘光舞台光 PV 可视化" },
+      "visualizer-hanabi": { "title": "切换到可视化：花火", "description": "切换到花火烟花歌词 PV 可视化" },
       "desktop-toggle-remote-control": { "title": "切换遥控窗口", "description": "打开或关闭遥控窗口" },
       "desktop-toggle-main-window-always-on-top": { "title": "切换主窗口置顶", "description": "置顶或取消置顶主窗口" },
       "background-monet-full-overlay": { "title": "背景切换到 莫奈: 全屏叠色", "description": "切换背景到莫奈全屏叠色" },
@@ -946,6 +948,7 @@ export default {
     "visualizerSonnet": "商籁",
     "visualizerTempera": "凝彩",
     "visualizerLumiere": "绘光",
+    "visualizerHanabi": "花火",
     "cadenzeTuning": "心象参数",
     "resetVisualizerTuning": "重置歌词动画参数",
     "cadenzeOnly": "仅心象",
@@ -1516,6 +1519,8 @@ export default {
     "loginTitleKugou": "使用酷狗音乐APP扫码",
     "loginNoteKugou": "打开酷狗音乐APP扫描二维码",
     "loginTitleQq": "扫码登录QQ音乐",
+    "loginTitleQishui": "用抖音扫码登录汽水音乐",
+    "loginNoteQishui": "请使用抖音 App 扫码并确认授权",
     "loginTitleBodian": "使用波点音乐 App 扫码",
     "loginNoteBodian": "打开波点音乐 App 扫描二维码并确认登录",
     "loginTitleYtm": "登录 YouTube Music",
@@ -1762,7 +1767,9 @@ export default {
     "ponderDescription": "了解 Folia 的基本操作与运行逻辑",
     "version": "版本"
   },
+  "qishui": { "recentPlayed": "汽水最近播放", "recommended": "为你推荐" },
   "lyricProvider": {
+    "qishui": "汽水音乐",
     "netease": "网易云音乐",
     "qq": "QQ 音乐",
     "kugou": "酷狗音乐",
@@ -2709,6 +2716,10 @@ export default {
     "beatEffect_pendoloGearBeatsDesc": "齿轮跟着 beat_this 识别的节拍转动。（已停用）",
     "beatEffect_latentPulse": "潮汐脉动",
     "beatEffect_latentPulseDesc": "隐现背景的流速随 beat_this 识别的节拍脉动。（已停用）",
+    "beatEffect_hanabiBeatBursts": "随拍开花",
+    "beatEffect_hanabiBeatBurstsDesc": "跟着 beat_this 识别的节拍：每拍在夜空里开一朵小烟花，小节第一拍提前升空、正好在拍上开一朵大的；重的拍开得更大。",
+    "beatEffect_hanabiBeatPulse": "随拍推镜",
+    "beatEffect_hanabiBeatPulseDesc": "跟着 beat_this 识别的节拍：整个画面每拍推近一下、轻轻一摆，小节第一拍推得更深。",
     "temperaMotionSection": "动态与调色",
     "temperaDisplaySection": "显示内容",
     "temperaLyricSection": "歌词分镜",
@@ -2829,6 +2840,46 @@ export default {
     "lumiereRenderQualityBalanced": "均衡",
     "lumiereRenderQualityLow": "省电",
     "lumiereRenderQualityHint": "均衡 / 省电会降低光场与辉光的分辨率并限制烟雾细节，画面略软但更省电。",
+    "hanabiFontSizeAutoNotice": "花火模式会根据画面尺寸和每个镜头的文字区自动计算歌词字号；通用字体尺寸设置在此模式下只影响底部字幕。",
+    "hanabiFireworksSection": "烟花",
+    "hanabiStageSection": "画面",
+    "hanabiTextSection": "文字",
+    "hanabiDecorSection": "装饰",
+    "hanabiColorSection": "配色",
+    "hanabiSparkAmount": "火花数量",
+    "hanabiGlow": "烟花辉光",
+    "hanabiChorusBloom": "副歌辉光",
+    "hanabiChorusBloomHint": "副歌时整个画面亮起一层辉光，副歌开始时慢慢亮起、结束时收回。副歌按歌词判断：歌词自带的标记，或按重复的歌词识别。",
+    "hanabiBloom": "整体辉光",
+    "hanabiBloomHint": "整首歌常驻的全屏辉光，叠在副歌辉光下面。0 时只有副歌亮。",
+    "hanabiLaunches": "升空尾迹",
+    "hanabiLaunchesHint": "每发烟花先从画面底边升空再开花，把一个镜头接到下一个镜头。",
+    "hanabiSky": "夜空",
+    "hanabiSkyHint": "烟花底下的一层夜空渐变。调低会透出共享背景；低于一半时配色按主题背景色取。",
+    "hanabiRiseSpeed": "上升",
+    "hanabiRiseSpeedHint": "镜头之间摄影机往上走多远。0 时每个镜头原地切换。",
+    "hanabiSpin": "旋转",
+    "hanabiSpinHint": "镜头之间整个画面随上升一起大角度转过去，段落转场也带着转。0 时不转。",
+    "hanabiAmbient": "环境火星",
+    "hanabiOverlayFrame": "画框",
+    "hanabiTextOnly": "仅显示歌词文字",
+    "hanabiTextOnlyHint": "只画歌词和它的字底色块、逐字动画；烟花、贴纸、夜空和画框都不画。",
+    "hanabiTextMotion": "文字动作",
+    "hanabiBlockOpacity": "字底色块",
+    "hanabiCollage": "PV 拼贴",
+    "hanabiCollageHint": "歌词周围的电影胶片、剪切线、蕾丝花边、重复字、贴纸、胶带和主题图标。",
+    "hanabiOrnamentAmount": "MG 装饰件",
+    "hanabiColorMode": "配色",
+    "hanabiColorModeHint": "混合会把每个镜头的鲜艳配色往主题强调色偏。",
+    "hanabiColorModeMixed": "混合",
+    "hanabiColorModeVivid": "鲜艳",
+    "hanabiColorModeTheme": "主题",
+    "hanabiPerformanceSection": "性能",
+    "hanabiRenderQuality": "画质",
+    "hanabiRenderQualityFull": "全分辨率",
+    "hanabiRenderQualityBalanced": "均衡",
+    "hanabiRenderQualityLow": "省电",
+    "hanabiRenderQualityHint": "均衡 / 省电会降低烟花辉光的分辨率，省电还会少画一些环境火星；歌词和全屏辉光仍是全分辨率。集成显卡上卡顿时可以试试。",
     "decorNone": "无",
     "decorSubtle": "半透明",
     "decorFull": "完整",
@@ -3017,7 +3068,8 @@ export default {
     "geminiApiKey": "Gemini 密钥",
     "aiApiKeySavedPlaceholder": "已保存（留空则保持不变）",
     "aiApiKeySavedDesc": "密钥已加密保存在本机，不会再显示。输入新密钥并保存可替换。",
-    "aiApiKeyEndpointMismatchDesc": "已保存的密钥只会发往 {{endpoint}}。换用其他地址需要重新输入密钥。",
+    "aiApiKeyEndpointMismatchDesc": "已保存的密钥是之前 {{endpoint}} 用的，换了地址就不能再用。请输入新的密钥并保存。",
+    "aiApiKeyOtherProviderDesc": "已保存的密钥是之前 {{provider}} 的，切换服务商后不能再用。请输入新的密钥并保存。",
     "aiApiKeyClear": "清除",
     "openaiApiTemperature": "温度",
     "openaiApiStream": "流式传输",
@@ -3527,6 +3579,33 @@ export default {
       "qqPrivatePlaylists": {
         "title": "QQ 音乐不公开歌单",
         "description": "登录后，自己创建的不公开歌单也能读取歌曲，并支持真正的分页加载。自建后端需要升级到 qq-music-api 3.1.2 或更新版本；旧后端会自动回退，读不到时会明确提示「不是公开歌单」，不再静默显示为空。"
+      }
+    },
+    "v0_7_22": {
+      "intro": "欢迎来到 0.7.22「Sparkle Update」：这是一次重大更新。这一版接入了汽水音乐；新增日系烟花歌词样式「花火」，每首歌随机换样式时可以自己挑范围；桌面版有了全局播放快捷键，AI 设置可以直接选服务商和模型。",
+      "qishui": {
+        "title": "汽水音乐",
+        "description": "桌面版新增汽水音乐，在登录窗口用抖音扫码登录。可以搜索、播放（标准音质）、看逐字歌词和歌手热门歌曲，读取自己的歌单和「汽水最近播放」；推荐流和场景电台作为私人 FM 播放，首页场景卡点一下就开播。可以红心、在自建歌单里加歌删歌，私人 FM 支持「不喜欢」。没有可直接播放音源的歌放不了；暂不支持浏览专辑、新建歌单和收藏歌单。本地歌曲匹配到汽水的歌时，也能取回它的歌词。"
+      },
+      "hanabi": {
+        "title": "花火",
+        "description": "新增歌词样式「花火」：日系歌词 PV 的画风，每句歌词带着色块逐字出场，烟花一样的装饰沿着字开花，镜头之间整个画面跟着升空的烟花一边旋转一边往上走，还有胶片、贴纸、胶带等拼贴装饰，副歌时画面亮起一层辉光。烟花、文字、装饰、配色都能在样式设置里调，也有画质档；智能动感模式下每拍在夜空开一朵烟花、画面随拍推近。"
+      },
+      "randomStyles": {
+        "title": "随机歌词样式自选范围",
+        "description": "歌词样式选择里新增「随机」：从内建样式里勾选几种或全部组成随机池，每首歌换一种，不会连着重复，每种样式用它自己保存的参数。播放面板上可以给这首歌重新抽一种，或改随机池；随机池会跟着配置导入导出和同步。"
+      },
+      "globalShortcuts": {
+        "title": "全局播放快捷键",
+        "description": "桌面版「快捷操作 → 全局快捷键」：Folia 不在前台时也能用 Ctrl+Alt+Shift（macOS 是 Control+Option+Shift）加一个字母或数字控制播放，可绑定播放/暂停、上一首、下一首、音量加减、静音、循环和随机，模组提供的命令也能绑定；被别的程序占用的组合会标出来。原生 Wayland 下改为一键注册到桌面环境，在系统设置里绑定按键。命令面板也新增了播放/暂停和音量加减。"
+      },
+      "aiProviders": {
+        "title": "AI 服务商与模型",
+        "description": "桌面版的 AI 设置改为直接选服务商：Gemini、DeepSeek、小米 MiMo、阿里云 Qwen、腾讯云 TokenHub、OpenAI、Anthropic、Kimi、智谱 GLM，或自定义兼容接口。内置服务商不用填地址，填好密钥就能获取模型列表下拉选择，并预填推荐模型；思考、温度等参数按服务商和模型自动处理，用到已停用的模型会提示。切歌后，上一首没生成完的 AI 主题不会再盖到这首歌上。"
+      },
+      "moreDetails": {
+        "title": "更多改进",
+        "description": "重启后各平台的登录不会再因为断网或服务器出错被清掉。智能动感模式多了「只用已分析」一档，总开关挪到歌词样式窗口新的「全局」页；本地和 Navidrome 的歌也会做自动混音的过渡分析；本地扫描支持 DSD（.dsf、.dff）。Windows 新增「渲染显卡」设置，「性能与动效」新增默认关闭的「后台节流」，窗口最小化或隐藏时停住歌词动画。Bravais 的信息条可以选自动、竖向或横向，探索墙也放上了最近播放。模组接口升级到 Folium 1.7。"
       }
     },
     "v0_7_21": {

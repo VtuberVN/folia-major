@@ -19,7 +19,7 @@ import { toSafePlaybackUrl } from '../../../utils/appPlaybackHelpers';
 import { fetchQQLyrics } from './qqLyricProvider';
 import { writeProviderSessionValue } from '../providerStorage';
 import { normalizeQqCollection, normalizeQqSong, normalizeQqUser } from './qqNormalize';
-import { clearQqSession, getQqRemoteApiBase, getQqTransportAvailability, hasQqSession, requestQq } from './qqTransport';
+import { clearQqSession, getQqRemoteApiBase, getQqTransportAvailability, hasQqSession, hasUsableQqSession, isQqSessionParked, requestQq } from './qqTransport';
 import { canRunLoginSelfCheck, runLoginSelfCheck } from '../loginSelfCheck';
 import { diagnosticLine, formatDiagnosticClock } from '../login/loginDiagnosticReport';
 import { collectQqLoginDiagnostics } from './qqLoginDiagnostics';
@@ -456,14 +456,15 @@ const getAudioSource = async (song: SongResult, quality: AudioQualityPreference)
     if (firstUnreachable !== undefined && !standardTierEmpty) throw firstUnreachable;
     // 没有一档回过空链接：照第一次的失败报，和以前一样。
     if (firstFailure !== undefined && !sawEmptyPlayLink) throw firstFailure;
-    // 有会话、所有音质都没给链接：这个账号可能只能听试听片段，不限后端说的可能原因。没会话时后端不给试听。
-    if (sawEmptyPlayLink && hasQqSession()) {
+    // 有会话、所有音质都没给链接：这个账号可能只能听试听片段，不限后端说的可能原因。没会话时后端不给试听，停用的会话也不带
+    // （hasUsableQqSession）。
+    if (sawEmptyPlayLink && hasUsableQqSession()) {
         const preview = await requestQqPreviewSource(songmid, mediaId);
         if (preview) return preview;
     }
     // 没有会话、而后端只是没给链接：登录后可能能放（只是可能，不能当成登录失效）。形态坏掉的回答不是没给链接。
     throw new OnlineProviderError('not-playable', 'QQMusicApi gave no play link for this song', 'qq', {
-        likelyCause: likelyCause ?? (sawEmptyPlayLink && !hasQqSession() ? 'sign-in' : undefined),
+        likelyCause: likelyCause ?? (sawEmptyPlayLink && !hasUsableQqSession() ? 'sign-in' : undefined),
     });
 };
 
@@ -491,6 +492,16 @@ const noteLoginStatusCheck = (summary: LoginDiagnosticLine): void => {
     lastLoginStatusCheck = diagnosticLine`${formatDiagnosticClock(Date.now())} ${summary}`;
 };
 
+// 后端不认这个 session 就是登录没了，只有一种例外：主进程这次启动没能读出加密的登录仓库，这次运行里也还没有新登录替掉它，
+// 存着的 session 就是停用的（isQqSessionParked），请求没带它。那时是「查不到」：报 unavailable，accountRead 只记这次读失败、留着
+// session；回 null 会让它删掉 session，下次能读出仓库时也找不回来。这次运行里扫码登录过，后端不认了就照常是登录没了。
+const signedOutUnlessStoreUnreadable = async (): Promise<null> => {
+    if (!await isQqSessionParked()) return null;
+    noteLoginStatusCheck(diagnosticLine`login_status: the sign-in store could not be read at this start`);
+    console.warn('[QQProvider] login-status:store-unreadable');
+    throw new OnlineProviderError('unavailable', 'QQ sign-in store could not be read at this start', 'qq');
+};
+
 const getLoginStatus = async (): Promise<ProviderUser | null> => {
     // No opaque backend session means the account cannot be authenticated, so the startup request is skipped.
     if (!hasQqSession()) {
@@ -504,10 +515,10 @@ const getLoginStatus = async (): Promise<ProviderUser | null> => {
         if (!profile) {
             noteLoginStatusCheck(diagnosticLine`login_status: the backend does not recognize the stored session`);
             console.info('[QQProvider] login-status:anonymous');
-            return null;
+            return signedOutUnlessStoreUnreadable();
         }
         const user = await withQqVipType(normalizeQqUser(profile));
-        // 登录还在：Serverless 后端的会话要在到期前续（qqSessionRefresh.ts），先等通道探测说出会话存法。
+        // 登录还在：会话要在到期前续（qqSessionRefresh.ts）；续期的请求排在通道探测之后。
         void refreshDeclaredChannels().then(keepQqSessionFresh);
         // The acceptance test account returned a profile without a display name, so the profile itself is the signal.
         noteLoginStatusCheck(diagnosticLine`signed in (user id ${user.id ? 'present' : 'missing'}, nickname ${user.nickname ? 'present' : 'missing'})`);
@@ -521,7 +532,7 @@ const getLoginStatus = async (): Promise<ProviderUser | null> => {
         // Missing, expired, rejected, or non-persisted backend sessions all arrive as 401.
         if (error instanceof OnlineProviderError && error.code === 'auth-required') {
             console.info('[QQProvider] login-status:auth-required');
-            return null;
+            return signedOutUnlessStoreUnreadable();
         }
         console.warn('[QQProvider] login-status:error', error);
         throw error;

@@ -24,11 +24,11 @@ const changed = (patch: Partial<ElectronSettingsState>) => {
     const update = setElectronSettings.mock.calls.at(-1)![0] as (previous: ElectronSettingsState) => ElectronSettingsState;
     return update({ ...base, ...patch });
 };
-const render = async (patch: Partial<ElectronSettingsState>) => {
+const render = async (patch: Partial<ElectronSettingsState>, savedOpenAIKeyEndpoint: string | null = null) => {
     const value = { viewProps: { desktop: { model: {
         electronSettings: { ...base, ...patch }, setElectronSettings, onSaveElectronSettings: save,
-        electronSaveStatus: 'idle', savedAiApiKeys: { GEMINI_API_KEY: false, OPENAI_API_KEY: false },
-        savedOpenAIKeyEndpoint: null, onClearAiApiKey: vi.fn(),
+        electronSaveStatus: 'idle', savedAiApiKeys: { GEMINI_API_KEY: false, OPENAI_API_KEY: savedOpenAIKeyEndpoint !== null },
+        savedOpenAIKeyEndpoint, onClearAiApiKey: vi.fn(),
     } } } } as unknown as SettingsPageContextValue;
     if (!root) {
         host = document.createElement('div');
@@ -186,6 +186,14 @@ describe('AI provider form per provider', () => {
         expect(host.textContent).not.toContain('options.aiEndpoint');
         await render({ OPENAI_API_URL: 'https://api.moonshot.cn/v1' });
         expect(host.textContent).not.toContain('options.aiEndpoint');
+    });
+    it('names the provider a saved key belongs to once another provider is picked, else its address', async () => {
+        await render({ AI_PROVIDER_PRESET: 'anthropic', OPENAI_API_URL: 'https://api.anthropic.com/v1', OPENAI_API_KEY: '' }, 'https://api.deepseek.com');
+        expect(host.textContent).toContain('options.aiApiKeyOtherProviderDesc');
+        await render({ AI_PROVIDER_PRESET: 'custom', OPENAI_API_URL: 'https://custom.example/v1', OPENAI_API_KEY: '' }, 'https://other.example');
+        expect(host.textContent).toContain('options.aiApiKeyEndpointMismatchDesc');
+        await render({ AI_PROVIDER_PRESET: 'anthropic', OPENAI_API_URL: 'https://api.anthropic.com/v1', OPENAI_API_KEY: 'typed' }, 'https://api.deepseek.com');
+        expect(host.textContent).not.toContain('options.aiApiKeyOtherProviderDesc');
     });
     it('prefills the recommended model and the default site when switching provider', async () => {
         await render({ AI_PROVIDER_PRESET: 'openai', OPENAI_API_MODEL: 'gpt-5.6-luna' });

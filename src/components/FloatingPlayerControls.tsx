@@ -22,6 +22,7 @@ import type { PlayerControlSlotActionId, PlayerControlSlotContext } from './floa
 import { useGlass } from '../mods/useGlass';
 import SignalPath from './audio/SignalPath';
 import { usePlayerOverlayObstacle } from '../hooks/usePlayerOverlayLayout';
+import { resolveLyricSeekMediaTime } from '../utils/lyrics/lyricSeekTime';
 
 export interface TrackNavigation {
     /** Stable identity for the current track to detect genuine song changes */
@@ -474,8 +475,12 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                 duration={duration}
                 currentTime={lyricCurrentTime ?? currentTime}
                 onSeek={(time) => {
-                    const offset = currentTime.get() - (lyricCurrentTime?.get() ?? currentTime.get());
-                    onSeek(Math.max(0, time + offset));
+                    const target = resolveLyricSeekMediaTime(time, {
+                        mediaTimeSec: currentTime.get(),
+                        lyricTimeSec: lyricCurrentTime?.get() ?? currentTime.get(),
+                        durationSec: duration,
+                    });
+                    if (target !== null) onSeek(target);
                 }}
                 primaryColor={primaryColor}
                 secondaryColor={secondaryColor}

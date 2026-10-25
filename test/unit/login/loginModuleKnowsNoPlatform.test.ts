@@ -43,6 +43,7 @@ describe('what each platform declares for the sign-in window', () => {
             spotify: { letter: 'S', color: '#22c55e' },
             zing: { letter: 'Z', color: '#6a35ff' },
             nct: { letter: 'N', color: '#00d3e5' },
+            qishui: { letter: '汽', color: '#19a58c' },
         });
     });
 
@@ -62,6 +63,7 @@ describe('what each platform declares for the sign-in window', () => {
             spotify: { title: 'home.loginTitleSpotify', note: 'home.loginNoteSpotify' },
             zing: { title: 'home.loginTitleZing', note: 'home.loginNoteZing' },
             nct: { title: 'home.loginTitleNct', note: 'home.loginNoteNct' },
+            qishui: { title: 'home.loginTitleQishui', note: 'home.loginNoteQishui' },
         });
     });
 
