@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feat/vietnamese-language-support
+      - extra-features
     tags:
       - 'v*'
     paths-ignore:
