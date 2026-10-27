@@ -264,6 +264,19 @@ const resolveSource = async (source) => {
     throw new Error('unsupported audio source');
 };
 
+const simplifyCodec = (codec) => {
+    if (!codec) return 'PCM';
+    const lower = String(codec).toLowerCase();
+    if (lower.includes('aac') || lower.includes('mp4a')) return 'AAC';
+    if (lower.includes('mp3') || lower.includes('layer 3') || lower.includes('mpeg')) return 'MP3';
+    if (lower.includes('flac')) return 'FLAC';
+    if (lower.includes('alac')) return 'ALAC';
+    if (lower.includes('opus')) return 'Opus';
+    if (lower.includes('vorbis')) return 'Vorbis';
+    if (lower.includes('pcm') || lower.includes('wav') || lower.includes('wave')) return 'WAV';
+    return codec;
+};
+
 // Probes a local audio file for its native format via music-metadata.
 const probeFormat = async (filePath) => {
     const mm = await import('music-metadata');
@@ -523,9 +536,10 @@ const startPlayback = async ({ source, startSec, deviceId: messageDeviceId }, ge
     const format = await probeFormat(filePath);
     // Output the source's native bit depth so exclusive playback stays bit-perfect. Requires an
     // FFmpeg build that carries the matching PCM encoders (see packaging/ffmpeg).
+    const isLossy = /mp3|mpeg|aac|vorbis|opus|ogg|wma/i.test(format.codec || '');
     const { codec, openBits } = pickCodec(format.bitsPerSample);
-    const bitPerfect = openBits >= format.bitsPerSample;
-    wlog(`format sr=${format.sampleRate} ch=${format.channels} bits=${format.bitsPerSample} codec=${codec} openBits=${openBits}`);
+    const bitPerfect = !isLossy && openBits >= (format.bitsPerSample || 16);
+    wlog(`format sr=${format.sampleRate} ch=${format.channels} bits=${format.bitsPerSample} codec=${codec} openBits=${openBits} isLossy=${isLossy} bitPerfect=${bitPerfect}`);
 
     const targetDeviceId = typeof messageDeviceId === 'string' ? messageDeviceId : deviceId;
     const formatKey = `${targetDeviceId || '(default)'}|${format.sampleRate}|${format.channels}|${openBits}`;
@@ -587,8 +601,8 @@ const startPlayback = async ({ source, startSec, deviceId: messageDeviceId }, ge
         format: {
             sampleRate: format.sampleRate,
             channels: format.channels,
-            bitsPerSample: format.bitsPerSample,
-            codec: format.codec,
+            bitsPerSample: isLossy ? undefined : (format.bitsPerSample || 16),
+            codec: simplifyCodec(format.codec),
             bitrate: format.bitrate,
             openBits,
             deviceId: targetDeviceId,

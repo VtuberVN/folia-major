@@ -16,8 +16,8 @@ export const markUserSeek = (): void => {
 };
 
 /** Clear the user seek flag once the engine has confirmed the new position. */
-export const clearUserSeek = (): void => {
-    userSeekUntil = 0;
+export const clearUserSeek = (graceMs = 400): void => {
+    userSeekUntil = graceMs > 0 ? Date.now() + graceMs : 0;
 };
 
 /** True if a user seek is in flight. */

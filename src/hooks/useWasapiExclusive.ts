@@ -9,10 +9,11 @@ import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { setWasapiMode, type WasapiMode } from '../stores/useWasapiStatusStore';
 import { getSongResourceCacheKey } from '../services/onlineMusic/resourceKeys';
 import { recoverAudioOutput } from '../services/audioOutputRecovery';
-import { clearExclusiveClock, setExclusiveClock } from '../services/exclusiveClock';
+import { clearExclusiveClock, setExclusiveClock, isExclusiveClockRunning, getExclusiveClockSec } from '../services/exclusiveClock';
 import { clearUserSeek, isUserSeekInProgress } from '../services/exclusiveSeekSignal';
 import { currentTime as currentTimeSignal } from '../stores/motionSignals';
 import { publishSignalPath, clearSignalPath } from '../stores/useSignalPathStore';
+import { simplifyAudioCodec } from '../utils/audioQualityInfo';
 import i18n from '../i18n/config';
 
 // src/hooks/useWasapiExclusive.ts
@@ -331,6 +332,12 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
                 rlog(`route-new key=${key}`);
                 lastRouteAtRef.current = Date.now();
                 const isDifferentSong = !active || active.key !== key;
+                if (isDifferentSong) {
+                    enginePositionMsRef.current = 0;
+                    engineCorrectionSecRef.current = null;
+                    clearExclusiveClock();
+                    clearUserSeek(0);
+                }
                 activeSourceRef.current = { source: sourceRef(resolved.source), key, playing: true, isUrl: resolved.isUrl };
                 void wasapi.setDevice(wasapiDeviceId);
                 armWatchdog(resolved.isUrl ? WATCHDOG_URL_MS : WATCHDOG_MS);
@@ -341,19 +348,21 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
                 activeSourceRef.current = { source: sourceRef(resolved.source), key, playing: false, isUrl: resolved.isUrl };
                 void wasapi.setDevice(wasapiDeviceId);
                 applyMode('exclusive');
-                // Publish exclusive signal path immediately so UI reflects the bit-perfect mode right away even when paused.
+                const quality = currentSong?.audioQualityInfo;
+                const isLossy = quality?.codec ? /mp3|mpeg|aac|vorbis|opus|ogg|wma/i.test(quality.codec) : false;
+                const bitPerfect = !isLossy && Boolean(quality?.bitDepth && quality.bitDepth >= 16);
                 publishSignalPath({
                     backend: 'wasapi-exclusive',
                     deviceId: wasapiDeviceId || '',
-                    sampleRate: currentSong?.audioQualityInfo?.sampleRate || 44100,
+                    sampleRate: quality?.sampleRate || 44100,
                     channels: 2,
-                    bitsPerSample: currentSong?.audioQualityInfo?.bitDepth || 16,
-                    sourceCodec: currentSong?.name ? 'FLAC/PCM' : undefined,
-                    sourceSampleRate: currentSong?.audioQualityInfo?.sampleRate || 44100,
-                    sourceBitsPerSample: currentSong?.audioQualityInfo?.bitDepth || 16,
-                    sourceBitrate: currentSong?.audioQualityInfo?.bitrate,
-                    bitPerfect: true,
-                    outputFormat: 'WASAPI Exclusive (Ready)',
+                    bitsPerSample: quality?.bitDepth || 16,
+                    sourceCodec: quality?.codec ? simplifyAudioCodec(quality.codec) : (currentSong?.name ? 'FLAC/PCM' : undefined),
+                    sourceSampleRate: quality?.sampleRate || 44100,
+                    sourceBitsPerSample: quality?.bitDepth,
+                    sourceBitrate: quality?.bitrate,
+                    bitPerfect,
+                    outputFormat: quality?.bitDepth ? `PCM ${quality.bitDepth}-bit (WASAPI Exclusive)` : 'WASAPI Exclusive (Ready)',
                     volumeDb: 0,
                 });
             }
@@ -387,9 +396,10 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
             // and the element is pulled back onto the engine's position instead.
             const isUser = isUserSeekInProgress();
             if (exclusiveActiveRef.current && !isUser) {
+                const isRecentlyRouted = Date.now() - lastRouteAtRef.current < 2000;
                 const engineSec = enginePositionMsRef.current / 1000;
                 rlog(`seeked-not-user ignored (engine ${engineSec.toFixed(3)})`);
-                if (engineSec > 0 && Math.abs(element.currentTime - engineSec) > 0.25) {
+                if (!isRecentlyRouted && engineSec > 0 && Math.abs(element.currentTime - engineSec) > 0.5) {
                     engineCorrectionSecRef.current = engineSec;
                     try {
                         element.currentTime = engineSec;
@@ -404,6 +414,8 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
             // Remember the seek target now: a `play` right after a seek (the app seeks and resumes)
             // would otherwise resume from the pre-seek engine position and undo the seek.
             enginePositionMsRef.current = element.currentTime * 1000;
+            setExclusiveClock(element.currentTime);
+            currentTimeSignal.set(element.currentTime);
             armWatchdog();
             void wasapi.seek(active.source, element.currentTime);
         };
@@ -464,28 +476,31 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
             }
             if (event.type === 'started') {
                 rlog(`engine-started pos=${event.positionMs.toFixed(1)}`);
-                clearUserSeek();
+                clearUserSeek(400);
                 enginePositionMsRef.current = event.positionMs;
                 setExclusiveClock(event.positionMs / 1000);
                 currentTimeSignal.set(event.positionMs / 1000);
                 applyMode('exclusive', true);
                 exclusiveActiveRef.current = true;
                 void wasapi.setRendererMuted(true);
+                const isLossy = /mp3|mpeg|aac|vorbis|opus|ogg|wma/i.test(event.format?.codec || '');
+                const effectiveCodec = event.format?.codec || (currentSong?.name ? 'FLAC/PCM' : undefined);
+                const bitPerfect = Boolean(event.bitPerfect && !isLossy);
                 publishSignalPath({
                     backend: 'wasapi-exclusive',
                     deviceId: event.format?.deviceId || wasapiDeviceId || '',
                     sampleRate: event.format?.sampleRate,
                     channels: event.format?.channels,
                     bitsPerSample: event.format?.openBits || event.format?.bitsPerSample,
-                    sourceCodec: event.format?.codec || (currentSong?.name ? 'FLAC/PCM' : undefined),
+                    sourceCodec: effectiveCodec,
                     sourceSampleRate: event.format?.sampleRate,
                     sourceBitsPerSample: event.format?.bitsPerSample,
-                    sourceBitrate: event.format?.bitrate,
-                    bitPerfect: event.bitPerfect,
-                    outputFormat: event.format ? `PCM ${event.format.openBits}-bit (WASAPI Exclusive)` : 'PCM Bit-Perfect',
+                    sourceBitrate: event.format?.bitrate || currentSong?.audioQualityInfo?.bitrate,
+                    bitPerfect,
+                    outputFormat: event.format ? `PCM ${event.format.openBits}-bit (WASAPI Exclusive)` : (bitPerfect ? 'PCM Bit-Perfect' : 'WASAPI Exclusive'),
                     volumeDb: 0,
                 });
-                if (!event.bitPerfect && lastMessageRef.current !== 'not-bit-perfect') {
+                if (!bitPerfect && lastMessageRef.current !== 'not-bit-perfect') {
                     lastMessageRef.current = 'not-bit-perfect';
                     setStatusMessage({ type: 'info', text: i18n.t('options.wasapiNotBitPerfect') });
                 }
@@ -532,16 +547,45 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
                 return;
             }
             if (event.type === 'ended') {
-                // The queue continues on the same exclusive stream (the worker kept the endpoint
-                // open for reuse); leave the output as it is, but hold the clock until the next
-                // `started` so the bar does not run on while nothing sounds.
+                rlog(`engine-ended songId=${currentSongId}`);
                 clearExclusiveClock();
+                enginePositionMsRef.current = 0;
+                engineCorrectionSecRef.current = null;
+                clearUserSeek(0);
+
+                const loopMode = useAudioSettingsStore.getState().loopMode;
+                const active = activeSourceRef.current;
+                const element = audioRef.current;
+
+                if (loopMode === 'one') {
+                    rlog('engine-ended loopMode=one -> replay current song');
+                    currentTimeSignal.set(0);
+                    setExclusiveClock(0);
+                    if (element) {
+                        try {
+                            element.currentTime = 0;
+                        } catch {}
+                    }
+                    if (active && wasapi) {
+                        armWatchdog();
+                        void wasapi.seek(active.source, 0);
+                    }
+                    return;
+                }
+
+                // If not looping single song ('all' or 'off'), advance queue via HTML5 audio element ended event
+                if (element) {
+                    rlog(`engine-ended loopMode=${loopMode} -> dispatch ended event on element`);
+                    element.dispatchEvent(new Event('ended'));
+                }
                 return;
             }
             if (event.type === 'stopped') {
                 // Engine released the endpoint; let the transport be audible again.
                 clearExclusiveClock();
-                clearUserSeek();
+                clearUserSeek(0);
+                enginePositionMsRef.current = 0;
+                engineCorrectionSecRef.current = null;
                 applyMode(enableWasapiExclusive ? 'shared' : 'off');
                 restoreChromiumOutput(true);
                 clearSignalPath();
@@ -550,7 +594,9 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
             if (event.type === 'error') {
                 // Any engine-level failure means exclusive output is not live; let shared mode sound.
                 clearExclusiveClock();
-                clearUserSeek();
+                clearUserSeek(0);
+                enginePositionMsRef.current = 0;
+                engineCorrectionSecRef.current = null;
                 applyMode(enableWasapiExclusive ? 'shared' : 'off', true);
                 restoreChromiumOutput(true);
                 clearSignalPath();
@@ -563,4 +609,44 @@ export const useWasapiExclusive = (audioRef: RefObject<HTMLAudioElement | null>)
             }
         });
     }, [enableWasapiExclusive, audioRef]);
+
+    // High-precision 60fps UI clock: keeps progress bar and lyrics motion silky smooth without jitter.
+    useEffect(() => {
+        if (!enableWasapiExclusive) return;
+        let rafId: number;
+        const tick = () => {
+            if (exclusiveActiveRef.current && isExclusiveClockRunning() && !isUserSeekInProgress()) {
+                const sec = getExclusiveClockSec();
+                currentTimeSignal.set(sec);
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+        rafId = requestAnimationFrame(tick);
+        return () => {
+            cancelAnimationFrame(rafId);
+        };
+    }, [enableWasapiExclusive]);
+
+    // Update signal path when deferred audio quality metadata resolves
+    useEffect(() => {
+        if (!enableWasapiExclusive || !exclusiveActiveRef.current) return;
+        const quality = currentSong?.audioQualityInfo;
+        if (!quality) return;
+        const isLossy = quality.codec ? /mp3|mpeg|aac|vorbis|opus|ogg|wma/i.test(quality.codec) : false;
+        const bitPerfect = !isLossy && Boolean(quality.bitDepth && quality.bitDepth >= 16);
+        publishSignalPath({
+            backend: 'wasapi-exclusive',
+            deviceId: wasapiDeviceId || '',
+            sampleRate: quality.sampleRate,
+            channels: 2,
+            bitsPerSample: quality.bitDepth,
+            sourceCodec: quality.codec ? simplifyAudioCodec(quality.codec) : undefined,
+            sourceSampleRate: quality.sampleRate,
+            sourceBitsPerSample: quality.bitDepth,
+            sourceBitrate: quality.bitrate,
+            bitPerfect,
+            outputFormat: quality.bitDepth ? `PCM ${quality.bitDepth}-bit (WASAPI Exclusive)` : 'WASAPI Exclusive',
+            volumeDb: 0,
+        });
+    }, [currentSong?.audioQualityInfo, enableWasapiExclusive, wasapiDeviceId]);
 };

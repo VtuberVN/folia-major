@@ -144,7 +144,8 @@ import { initializeSyncCoordinator } from './services/sync/syncCoordinator';
 import { applyLocalLibraryEntityDisplay } from './services/playbackAdapters';
 import { transitionCapabilities } from './services/automix/stems';
 import { buildLocalLibraryIndex } from './utils/localLibraryIndex';
-import { markUserSeek } from './services/exclusiveSeekSignal';
+import { markUserSeek, isUserSeekInProgress } from './services/exclusiveSeekSignal';
+import { isExclusiveClockRunning } from './services/exclusiveClock';
 import type { PlayerChromeVisibilityMode } from './types/remoteControl';
 import { setStatusMessage as setStatusMsg, useStatusMessage } from './stores/useStatusMessageStore';
 import { selectVisualizerSettingsSnapshot, useVisualizerSettingsStore } from './stores/useVisualizerSettingsStore';
@@ -2535,7 +2536,9 @@ export default function App() {
                 // the title of yet, and left on it the bar jumps to zero the moment a blend arms.
                 // Only two decks exist and both render this handler, so "not active" is the tail.
                 if (isShowingTail ? !isActive : isActive) {
-                    if (!audioElement.paused && !audioElement.ended) currentTime.set(audioElement.currentTime);
+                    if (!isExclusiveClockRunning() && !audioElement.paused && !audioElement.ended) {
+                        currentTime.set(audioElement.currentTime);
+                    }
                 }
                 // Everything below stays on the active deck whatever the picture is doing: player
                 // state describes what the app is playing, and the transition check has to read
@@ -2576,7 +2579,11 @@ export default function App() {
                 // Same split as onTimeUpdate: whichever deck the bar is showing is the one a seek
                 // on it has to be reflected from.
                 const isActive = automix.isActiveDeck(e.currentTarget);
-                if (isShowingTail ? !isActive : isActive) currentTime.set(e.currentTarget.currentTime);
+                if (isShowingTail ? !isActive : isActive) {
+                    if (!isExclusiveClockRunning() || isUserSeekInProgress()) {
+                        currentTime.set(e.currentTarget.currentTime);
+                    }
+                }
             }}
             // Buffer progress debug helper. Uncomment to inspect how much of
             // the current source the browser has actually buffered.

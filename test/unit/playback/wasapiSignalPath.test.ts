@@ -153,4 +153,64 @@ describe('WASAPI Exclusive & Signal Path', () => {
             store.handleSetShowAudioSignalPath(true);
         });
     });
+
+    describe('exclusiveSeekSignal & exclusiveClock', () => {
+        it('tracks user seek flag and supports grace period', async () => {
+            const { markUserSeek, clearUserSeek, isUserSeekInProgress } = await import('../../../src/services/exclusiveSeekSignal');
+            expect(isUserSeekInProgress()).toBe(false);
+
+            markUserSeek();
+            expect(isUserSeekInProgress()).toBe(true);
+
+            // Clearing with grace period retains active state immediately
+            clearUserSeek(200);
+            expect(isUserSeekInProgress()).toBe(true);
+
+            // Clearing with 0 grace period immediately clears flag
+            clearUserSeek(0);
+            expect(isUserSeekInProgress()).toBe(false);
+        });
+
+        it('interpolates clock and reports running state', async () => {
+            const { setExclusiveClock, getExclusiveClockSec, isExclusiveClockRunning, clearExclusiveClock } = await import('../../../src/services/exclusiveClock');
+            expect(isExclusiveClockRunning()).toBe(false);
+
+            const baseTime = 120.0;
+            const now = 1000;
+            setExclusiveClock(baseTime, now);
+            expect(isExclusiveClockRunning()).toBe(true);
+
+            // Interpolates 500ms forward
+            expect(getExclusiveClockSec(now + 500)).toBeCloseTo(120.5, 2);
+
+            clearExclusiveClock();
+            expect(isExclusiveClockRunning()).toBe(false);
+            expect(getExclusiveClockSec(now + 1000)).toBe(baseTime);
+        });
+    });
+
+    describe('Queue Loop Modes (off, all, one)', async () => {
+        const { nextQueueIndex, prevQueueIndex } = await import('../../../src/utils/playbackNeighbors');
+
+        it('handles loopMode === off: stops at end of queue', () => {
+            const queueLength = 3;
+            expect(nextQueueIndex(queueLength, 0, 'off')).toBe(1);
+            expect(nextQueueIndex(queueLength, 1, 'off')).toBe(2);
+            expect(nextQueueIndex(queueLength, 2, 'off')).toBe(-1); // stop at queue end
+        });
+
+        it('handles loopMode === all: wraps back to index 0 at end of queue', () => {
+            const queueLength = 3;
+            expect(nextQueueIndex(queueLength, 0, 'all')).toBe(1);
+            expect(nextQueueIndex(queueLength, 1, 'all')).toBe(2);
+            expect(nextQueueIndex(queueLength, 2, 'all')).toBe(0); // loops queue
+            expect(prevQueueIndex(queueLength, 0, 'all')).toBe(2); // loops backward
+        });
+
+        it('handles loopMode === one: nextQueueIndex behaves like off', () => {
+            const queueLength = 3;
+            expect(nextQueueIndex(queueLength, 0, 'one')).toBe(1);
+            expect(nextQueueIndex(queueLength, 2, 'one')).toBe(-1);
+        });
+    });
 });
