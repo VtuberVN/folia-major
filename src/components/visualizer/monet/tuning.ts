@@ -1,4 +1,5 @@
 import { DEFAULT_MONET_TUNING, type MonetPortraitSource, type MonetTuning } from '../../../types';
+import { normalizeLyricRenderOverride } from '../../../utils/lyricRenderQuality';
 import { defineVisualizerTuning, type StoredTuningFields } from '../tuningDefinition';
 import { monetPortraitActions, type MonetPortraitActions } from './portraitUpload';
 
@@ -45,6 +46,8 @@ export const resolveStoredMonetTuning = (parsed: Partial<MonetTuning> & Record<s
         : (DEFAULT_MONET_TUNING.portraitOffsetX ?? 0),
     portraitStyle: parsed.portraitStyle === 'rectangular' ? 'rectangular' : DEFAULT_MONET_TUNING.portraitStyle,
     showPortraitDragHanger: parsed.showPortraitDragHanger ?? DEFAULT_MONET_TUNING.showPortraitDragHanger,
+    // 分辨率覆盖（#929）：旧存档没有这一项就是全跟随全局。
+    render: normalizeLyricRenderOverride(parsed.render),
 });
 
 export default defineVisualizerTuning<MonetTuning>({

@@ -1,4 +1,5 @@
 import { DEFAULT_FUME_TUNING, type FumeTuning } from '../../../types';
+import { normalizeLyricRenderOverride } from '../../../utils/lyricRenderQuality';
 import { defineVisualizerTuning, type StoredTuningFields } from '../tuningDefinition';
 
 // src/components/visualizer/fume/tuning.ts
@@ -51,6 +52,8 @@ export default defineVisualizerTuning<FumeTuning>({
                 cameraSpeed: cameraSpeed(stored.cameraSpeed ?? DEFAULT_FUME_TUNING.cameraSpeed, DEFAULT_FUME_TUNING.cameraSpeed),
                 glowIntensity: glowIntensity(stored.glowIntensity ?? DEFAULT_FUME_TUNING.glowIntensity, DEFAULT_FUME_TUNING.glowIntensity),
                 heroScale: heroScale(stored.heroScale ?? DEFAULT_FUME_TUNING.heroScale, DEFAULT_FUME_TUNING.heroScale),
+                // 分辨率覆盖（#929）：旧存档没有这一项就是全跟随全局。
+                render: normalizeLyricRenderOverride(stored.render),
             };
         },
         merge: (held, patch) => ({
@@ -65,6 +68,7 @@ export default defineVisualizerTuning<FumeTuning>({
             cameraSpeed: cameraSpeed(patch.cameraSpeed ?? held.cameraSpeed, held.cameraSpeed),
             glowIntensity: glowIntensity(patch.glowIntensity ?? held.glowIntensity, held.glowIntensity),
             heroScale: heroScale(patch.heroScale ?? held.heroScale, held.heroScale),
+            render: normalizeLyricRenderOverride(patch.render ?? held.render),
         }),
         resetNotice: 'notifications.fumeReset',
     },

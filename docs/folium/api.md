@@ -2,7 +2,7 @@
 
 # Folium API 参考
 
-当前契约版本：**Folium 1.7**。
+当前契约版本：**Folium 1.8**。
 
 本文列出模组能用到的全部公开类型，内容直接来自契约文件 [`src/mods/folium/contract.ts`](../../src/mods/folium/contract.ts)
 （client 入口）与 [`src/mods/folium/mainContract.ts`](../../src/mods/folium/mainContract.ts)（main 入口），
@@ -15,7 +15,7 @@
 - **注册表与条目**：[注册表一览](#注册表一览) · [FoliumVisualizerDef](#foliumvisualizerdef) · [FoliumTuningDef](#foliumtuningdef) · [FoliumCommandContext](#foliumcommandcontext) · [FoliumCommandDef](#foliumcommanddef) · [FoliumBackgroundContext](#foliumbackgroundcontext) · [FoliumBackgroundDef](#foliumbackgrounddef) · [FoliumStageSlot](#foliumstageslot) · [FoliumStageLayerDef](#foliumstagelayerdef) · [FoliumSettingsSectionDef](#foliumsettingssectiondef) · [FoliumPlayerPanelTabDef](#foliumplayerpaneltabdef) · [FoliumHomeTabDef](#foliumhometabdef) · [FoliumProgressContext](#foliumprogresscontext) · [FoliumProgressButtonSlot](#foliumprogressbuttonslot) · [FoliumProgressButtonDef](#foliumprogressbuttondef) · [FoliumProgressLayerDef](#foliumprogresslayerdef) · [FoliumStyleDef](#foliumstyledef) · [FoliumRegistryHandle](#foliumregistryhandle) · [FoliumSettingsSectionHandle](#foliumsettingssectionhandle) · [FoliumRegistry](#foliumregistry) · [FoliumRegistries](#foliumregistries)
 - **宿主容器与上下文**：[FoliumMount](#foliummount) · [FoliumSize](#foliumsize) · [FoliumMountHelpers](#foliummounthelpers) · [FoliumPanelContext](#foliumpanelcontext) · [FoliumSettingsPanelContext](#foliumsettingspanelcontext) · [FoliumClock](#foliumclock) · [FoliumSurface](#foliumsurface) · [FoliumAudioBands](#foliumaudiobands) · [FoliumAudio](#foliumaudio) · [FoliumDisplay](#foliumdisplay) · [FoliumStageContext](#foliumstagecontext)
 - **事件**：[事件一览](#事件一览) · [FoliumEventPriority](#foliumeventpriority) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason) · [FoliumNotificationEvents](#foliumnotificationevents) · [FoliumLyricsTransformEvent](#foliumlyricstransformevent) · [FoliumBeforePlayEvent](#foliumbeforeplayevent) · [FoliumOmniLyricsEvent](#foliumomnilyricsevent) · [FoliumOmniAudioEvent](#foliumomniaudioevent) · [FoliumHookEvents](#foliumhookevents) · [FoliumEventMap](#foliumeventmap) · [FoliumEvents](#foliumevents)
-- **服务**：[FoliumPlaybackService](#foliumplaybackservice) · [FoliumFileHandle](#foliumfilehandle) · [FoliumIconOptions](#foliumiconoptions) · [FoliumUiService](#foliumuiservice) · [FoliumFetchInit](#foliumfetchinit) · [FoliumFetchResponse](#foliumfetchresponse) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumNetService](#foliumnetservice) · [FoliumAccountState](#foliumaccountstate) · [FoliumAccountService](#foliumaccountservice) · [FoliumSongKey](#foliumsongkey) · [FoliumOmniProviderInfo](#foliumomniproviderinfo) · [FoliumOmniPage](#foliumomnipage) · [FoliumSongResolution](#foliumsongresolution) · [FoliumSongDetails](#foliumsongdetails) · [FoliumOmniLyrics](#foliumomnilyrics) · [FoliumCollectionKey](#foliumcollectionkey) · [FoliumCollection](#foliumcollection) · [FoliumOmniErrorCode](#foliumomnierrorcode) · [FoliumOmniService](#foliumomniservice) · [FoliumEqualizerBand](#foliumequalizerband) · [FoliumEqualizerPresetId](#foliumequalizerpresetid) · [FoliumEqualizerCustomId](#foliumequalizercustomid) · [FoliumEqualizerUserMode](#foliumequalizerusermode) · [FoliumEqualizerMode](#foliumequalizermode) · [FoliumEqualizerState](#foliumequalizerstate) · [FoliumEqualizerChangeOrigin](#foliumequalizerchangeorigin) · [FoliumEqualizerRefusal](#foliumequalizerrefusal) · [FoliumEqualizerWriteResult](#foliumequalizerwriteresult) · [FoliumEqualizerService](#foliumequalizerservice)
+- **服务**：[FoliumPlaybackService](#foliumplaybackservice) · [FoliumFileHandle](#foliumfilehandle) · [FoliumIconOptions](#foliumiconoptions) · [FoliumUiService](#foliumuiservice) · [FoliumFetchInit](#foliumfetchinit) · [FoliumFetchResponse](#foliumfetchresponse) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumNetService](#foliumnetservice) · [FoliumAccountState](#foliumaccountstate) · [FoliumAccountService](#foliumaccountservice) · [FoliumSongKey](#foliumsongkey) · [FoliumOmniProviderInfo](#foliumomniproviderinfo) · [FoliumOmniPage](#foliumomnipage) · [FoliumSongResolution](#foliumsongresolution) · [FoliumSongDetails](#foliumsongdetails) · [FoliumOmniLyrics](#foliumomnilyrics) · [FoliumCollectionKey](#foliumcollectionkey) · [FoliumCollection](#foliumcollection) · [FoliumOmniErrorCode](#foliumomnierrorcode) · [FoliumOmniService](#foliumomniservice) · [FoliumEqualizerBand](#foliumequalizerband) · [FoliumEqualizerPresetId](#foliumequalizerpresetid) · [FoliumEqualizerCustomId](#foliumequalizercustomid) · [FoliumEqualizerUserMode](#foliumequalizerusermode) · [FoliumEqualizerMode](#foliumequalizermode) · [FoliumEqualizerState](#foliumequalizerstate) · [FoliumEqualizerChangeOrigin](#foliumequalizerchangeorigin) · [FoliumEqualizerRefusal](#foliumequalizerrefusal) · [FoliumEqualizerWriteResult](#foliumequalizerwriteresult) · [FoliumEqualizerService](#foliumequalizerservice) · [FoliumLyricRenderScale](#foliumlyricrenderscale) · [FoliumLyricAntialias](#foliumlyricantialias) · [FoliumLyricRenderQuality](#foliumlyricrenderquality) · [FoliumRenderQualityChangeOrigin](#foliumrenderqualitychangeorigin) · [FoliumRenderQualityRefusal](#foliumrenderqualityrefusal) · [FoliumRenderQualityWriteResult](#foliumrenderqualitywriteresult) · [FoliumVisualizerService](#foliumvisualizerservice)
 - **共享工具**：[FoliumWordSegment](#foliumwordsegment) · [FoliumWordColorRange](#foliumwordcolorrange) · [FoliumLyricsHelpers](#foliumlyricshelpers) · [FoliumThemeHelpers](#foliumthemehelpers)
 - **设置 schema**：[FoliumSettingType](#foliumsettingtype) · [FoliumSettingOption](#foliumsettingoption) · [FoliumSetting](#foliumsetting) · [FoliumSettingValues](#foliumsettingvalues) · [FoliumSettingAccess](#foliumsettingaccess)
 - **数据结构**：[FoliumLyricRuby](#foliumlyricruby) · [FoliumLyricSyllable](#foliumlyricsyllable) · [FoliumLyricAlternateText](#foliumlyricalternatetext) · [FoliumWord](#foliumword) · [FoliumBackgroundVocal](#foliumbackgroundvocal) · [FoliumLineTimingClass](#foliumlinetimingclass) · [FoliumLineTransitionMode](#foliumlinetransitionmode) · [FoliumWordRevealMode](#foliumwordrevealmode) · [FoliumLineRenderHints](#foliumlinerenderhints) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLoopMode](#foliumloopmode) · [FoliumQueueItem](#foliumqueueitem) · [FoliumQueueSnapshot](#foliumqueuesnapshot) · [FoliumQueueChange](#foliumqueuechange) · [FoliumQueueReplaceRefusal](#foliumqueuereplacerefusal) · [FoliumQueueReplaced](#foliumqueuereplaced) · [FoliumQueueReplaceRefused](#foliumqueuereplacerefused) · [FoliumQueueReplaceResult](#foliumqueuereplaceresult) · [FoliumPlaybackSnapshot](#foliumplaybacksnapshot) · [FoliumLyricFormat](#foliumlyricformat) · [FoliumLyricsTrack](#foliumlyricstrack) · [FoliumLyricsResult](#foliumlyricsresult) · [FoliumLegacyLyricsResult](#foliumlegacylyricsresult) · [FoliumParsedLyrics](#foliumparsedlyrics)
@@ -39,6 +39,7 @@
 | `playback.control` | `folium.playback.play`、`folium.playback.pause`、`folium.playback.toggle`、`folium.playback.seek`、`folium.playback.seekToLyricTime`、`folium.playback.next`、`folium.playback.previous`、`folium.playback.playSong`、`folium.playback.enqueue`、`folium.playback.shuffleQueue`、`folium.playback.toggleLike`、`folium.playback.setVolume`、`folium.playback.setMuted`、`folium.playback.setLoopMode`、`folium.playback.playQueueItem` |
 | `playback.queue` | `folium.playback.replaceQueue` |
 | `equalizer.control` | `folium.equalizer.setMode`、`folium.equalizer.applyCurve`、`folium.equalizer.releaseCurve` |
+| `visualizer.renderQuality` | `folium.visualizer.setRenderQuality` |
 | `render.export` | `api.render.exportVideo` |
 | `net.fetch` | `folium.net.fetch` |
 | `net.embed` | `folium.ui.embed` |
@@ -154,11 +155,12 @@ The object a client entry's `activate(folium)` receives.
 | `readonly account` | `FoliumAccountService` | Folium 1.7: who is signed in to the online sources. |
 | `readonly omni` | `FoliumOmniService` | Folium 1.7: the host's online music sources, read only: search, songs by id, lyrics, albums, artists. |
 | `readonly equalizer` | `FoliumEqualizerService` | Folium 1.7: the host's graphic equalizer: read it, switch the user's sound, put a curve of your own in place. |
+| `readonly visualizer` | `FoliumVisualizerService` | Folium 1.8: the host's settings of the lyric display: the global lyric render quality. |
 | `every()` | `(ms: number, listener: () => void): FoliumDisposer` | Calls `listener` every `ms` milliseconds (at least 16) until the mod stops; the host stops it then. |
 | `onDispose()` | `(disposer: FoliumDisposer): void` | Runs `disposer` when the mod stops, after the disposer `activate` returned; at once when the mod has already stopped. |
 | `readonly experimental` | `Readonly<Record<string, unknown>>` | Unfrozen surfaces; each requires the matching manifest `experimental` opt-in. |
 
-相关：[FoliumHostInfo](#foliumhostinfo) · [FoliumContextKind](#foliumcontextkind) · [FoliumLogger](#foliumlogger) · [FoliumRegistries](#foliumregistries) · [FoliumEvents](#foliumevents) · [FoliumPlaybackService](#foliumplaybackservice) · [FoliumUiService](#foliumuiservice) · [FoliumNetService](#foliumnetservice) · [FoliumStorage](#foliumstorage) · [FoliumSecretAccess](#foliumsecretaccess) · [FoliumRpc](#foliumrpc) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumThemeHelpers](#foliumthemehelpers) · [FoliumAccountService](#foliumaccountservice) · [FoliumOmniService](#foliumomniservice) · [FoliumEqualizerService](#foliumequalizerservice) · [FoliumDisposer](#foliumdisposer)
+相关：[FoliumHostInfo](#foliumhostinfo) · [FoliumContextKind](#foliumcontextkind) · [FoliumLogger](#foliumlogger) · [FoliumRegistries](#foliumregistries) · [FoliumEvents](#foliumevents) · [FoliumPlaybackService](#foliumplaybackservice) · [FoliumUiService](#foliumuiservice) · [FoliumNetService](#foliumnetservice) · [FoliumStorage](#foliumstorage) · [FoliumSecretAccess](#foliumsecretaccess) · [FoliumRpc](#foliumrpc) · [FoliumLyricsService](#foliumlyricsservice) · [FoliumThemeHelpers](#foliumthemehelpers) · [FoliumAccountService](#foliumaccountservice) · [FoliumOmniService](#foliumomniservice) · [FoliumEqualizerService](#foliumequalizerservice) · [FoliumVisualizerService](#foliumvisualizerservice) · [FoliumDisposer](#foliumdisposer)
 
 ### FoliumClientModule
 
@@ -719,6 +721,7 @@ interface FoliumStageContext extends FoliumMountHelpers
 | `playback.failed` | 通知 | — |
 | `account.changed` | 通知 | — |
 | `equalizer.changed` | 通知 | — |
+| `visualizer.renderQualityChanged` | 通知 | — |
 | `lyrics.transform` | 钩子 | — |
 | `playback.beforePlay` | 钩子 | — |
 | `omni.lyricsResolved` | 钩子 | `omni.hooks` |
@@ -766,8 +769,9 @@ Read-only notifications, emitted after the fact.
 | `playback.failed` | `{ readonly song: FoliumSong \| null; readonly reason: FoliumPlaybackFailureReason; readonly phase: 'play' \| 'restore' \| 'mid-playback'; readonly willAutoSkip: boolean; }` | A song failed to play; reported once, after the host's own retries. `phase` says where it failed: `play`, the host got no playable source for the song just picked (sign-in, membership, taken down, the address lookup failed, a missing local file); `restore`, the same while restoring the last session; `mid-playback`, the player failed on the media itself (it would not load, decode or keep streaming). Every media error is `mid-playback`, so a song just picked or restored that fails before any sound is reported as `mid-playback` too. `willAutoSkip`: the host is counting down to skip it (its policy or the user's "skip unplayable songs" setting), so do not call `next()` yourself. Not emitted in the export window. |
 | `account.changed` | `FoliumAccountState` | Folium 1.7: someone signed in to an online source, signed out, or another account took the place of the one there (`accountKey` changed); the payload is the source's new state, as `folium.account.getState(providerId)` reads it. One event per source for all the changes of one task; a source whose status and key end where they began fires none, and a new nickname or avatar alone fires none either. A status that settles from `unknown` (the host finished asking the platform, usually soon after start) fires too, for the same account as before: compare `accountKey` before dropping data. Not emitted in the export window. |
 | `equalizer.changed` | `{ readonly state: FoliumEqualizerState; readonly origin: FoliumEqualizerChangeOrigin }` | Folium 1.7: the equalizer changed: anything `folium.equalizer.getState()` reports (the switch, the mode, the gains, `hostPlaysAudio`, `writable`). One event for all the changes of one task; its origin is the last of them that was not `host`, or `host` when all of them were. Changes that end where they began fire none. Not emitted in the export window. |
+| `visualizer.renderQualityChanged` | `{ readonly quality: FoliumLyricRenderQuality; readonly origin: FoliumRenderQualityChangeOrigin; }` | Folium 1.8: the global lyric render quality changed (`folium.visualizer.getRenderQuality()`), whoever changed it. One event for all the changes of one task; its origin is the last of them. Changes that end where they began fire none, and neither does a change to one style's own override. Not emitted in the export window. |
 
-相关：[FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumLoopMode](#foliumloopmode) · [FoliumQueueChange](#foliumqueuechange) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason) · [FoliumAccountState](#foliumaccountstate) · [FoliumEqualizerState](#foliumequalizerstate) · [FoliumEqualizerChangeOrigin](#foliumequalizerchangeorigin)
+相关：[FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumLoopMode](#foliumloopmode) · [FoliumQueueChange](#foliumqueuechange) · [FoliumPlaybackFailureReason](#foliumplaybackfailurereason) · [FoliumAccountState](#foliumaccountstate) · [FoliumEqualizerState](#foliumequalizerstate) · [FoliumEqualizerChangeOrigin](#foliumequalizerchangeorigin) · [FoliumLyricRenderQuality](#foliumlyricrenderquality) · [FoliumRenderQualityChangeOrigin](#foliumrenderqualitychangeorigin)
 
 ### FoliumLyricsTransformEvent
 
@@ -869,7 +873,7 @@ The event bus, as `folium.events`.
 
 ## 服务
 
-`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account` 和经 Omni 只读在线音源的 `folium.omni`（两者都不需要权限；`folium.omni` 以用户在 Folia 登录的平台账号发请求），以及宿主均衡器 `folium.equalizer`（读不需要权限，写需 `equalizer.control`）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。
+`folium.playback` / `folium.ui` / `folium.net`，以及 Folium 1.7 的登录状态 `folium.account` 和经 Omni 只读在线音源的 `folium.omni`（两者都不需要权限；`folium.omni` 以用户在 Folia 登录的平台账号发请求），以及宿主均衡器 `folium.equalizer`（读不需要权限，写需 `equalizer.control`）；Folium 1.8 加了歌词画布渲染质量 `folium.visualizer`（读不需要权限，写需 `visualizer.renderQuality`）。需要权限的方法见[权限一览](#权限一览)；导出窗口里调用会抛 `*-unavailable-in-export-context`（`ui.icon` 除外）。
 
 ### FoliumPlaybackService
 
@@ -1351,6 +1355,104 @@ throw a TypeError (`invalid-arguments: …`); a write without the permission thr
 | `releaseCurve()` | `(): boolean` | Takes this mod's curve off and goes back to the user's own sound. True when this mod's curve was in place; false otherwise, and nothing changes. Never refused for the rate or the open window. Needs `equalizer.control`. |
 
 相关：[FoliumEqualizerState](#foliumequalizerstate) · [FoliumEqualizerUserMode](#foliumequalizerusermode) · [FoliumEqualizerWriteResult](#foliumequalizerwriteresult)
+
+### FoliumLyricRenderScale
+
+Folium 1.8: how many pixels the host's canvas and WebGL lyric styles draw, as a multiple of each style's own
+default pixel density (for most, the screen's, capped at 2): below 1 draws fewer pixels (lighter, softer),
+above 1 supersamples (sharper, heavier on the GPU). `setRenderQuality` takes each of these for all of
+Folium 1.x; later minors may add more: read one you do not know as the nearest one you do.
+
+```ts
+type FoliumLyricRenderScale = 0.5 | 0.75 | 1 | 1.5 | 2
+```
+
+### FoliumLyricAntialias
+
+Folium 1.8: the antialiasing of the canvas and WebGL lyric styles. `auto`: each style's own default (some
+use multisampling, some smooth in post-processing); `on` and `off` force it. `setRenderQuality` takes each
+of these for all of Folium 1.x; later minors may add modes: read one you do not know as `auto`.
+
+```ts
+type FoliumLyricAntialias = 'auto' | 'on' | 'off'
+```
+
+### FoliumLyricRenderQuality
+
+Folium 1.8: the host's global lyric render quality, the one level in Settings → Performance & motion, as
+`folium.visualizer.getRenderQuality()` and `visualizer.renderQualityChanged` give it. Frozen. The canvas and
+WebGL lyric styles follow it unless the user set an override in a style's own settings; those overrides
+are not part of it, and no mod reads or writes them. Styles drawn with HTML and CSS do not use it.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly scale` | `FoliumLyricRenderScale` | The resolution, as a multiple of each style's own default pixel density. |
+| `readonly antialias` | `FoliumLyricAntialias` | The antialiasing. |
+
+相关：[FoliumLyricRenderScale](#foliumlyricrenderscale) · [FoliumLyricAntialias](#foliumlyricantialias)
+
+### FoliumRenderQualityChangeOrigin
+
+Folium 1.8: who changed the render quality, as `visualizer.renderQualityChanged` reports it. `user`: anyone
+but a mod (the user in Settings → Performance & motion, or the host on the user's behalf). `mod`: a mod,
+through `folium.visualizer.setRenderQuality`; compare `modId` with your own `folium.modId`. Later minors may
+add kinds: read one you do not know as `user`.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `readonly kind` | `'user' \| 'mod'` | Who it was. |
+| `readonly modId` | `string \| null` | The mod, for `mod`; null for `user`. |
+
+### FoliumRenderQualityRefusal
+
+Folium 1.8: why the host did not take a `setRenderQuality`. `stopped`: this mod has stopped.
+`rate-limited`: too many writes (see FoliumVisualizerService). A write that would change nothing is never
+refused `rate-limited`. Later minors may add reasons: treat one you do not know as `rate-limited`, and try
+again later rather than in a loop.
+
+```ts
+type FoliumRenderQualityRefusal = 'stopped' | 'rate-limited'
+```
+
+### FoliumRenderQualityWriteResult
+
+Folium 1.8: the outcome of a `setRenderQuality`; `quality` is the render quality after it.
+
+```ts
+type FoliumRenderQualityWriteResult = | { readonly ok: true; readonly quality: FoliumLyricRenderQuality } | { readonly ok: false; readonly reason: FoliumRenderQualityRefusal }
+```
+
+相关：[FoliumLyricRenderQuality](#foliumlyricrenderquality) · [FoliumRenderQualityRefusal](#foliumrenderqualityrefusal)
+
+### FoliumVisualizerService
+
+Folium 1.8: `folium.visualizer`, the host's settings of the lyric display that mods may share. For now the
+global lyric render quality (FoliumLyricRenderQuality). Reading needs no permission; `setRenderQuality`
+needs `visualizer.renderQuality`. A write is the same as the user changing the level in Settings →
+Performance & motion: the settings page and every canvas or WebGL style that follows the level change with
+it (a style may rebuild its renderer for it), and it is kept across restarts. A style's own override stays
+as the user set it.
+
+The level is the user's: follow `visualizer.renderQualityChanged`, and once its `origin` is the user (or
+another mod), step back rather than setting your level again. Every write that changes something is saved
+and can make the styles rebuild their renderers: write the level you settled on, never animate through it.
+Currently a mod may make one such write a second and 20 a minute; past that a write is refused
+`rate-limited`. A write that leaves the level as it is is accepted, does not count and is never refused
+`rate-limited`.
+
+Main window only: in the export window every method throws an Error whose message is
+`visualizer-unavailable-in-export-context` (a visualizer of yours that also renders there checks
+`folium.env.context` first). The main entry has no `visualizer`; ask the client over `rpc`. An older host
+has no `folium.visualizer`: check `folium.host.folium.minor >= 8` first. Malformed arguments throw a
+TypeError (`invalid-arguments: …`); a write without the permission throws
+`permission-denied:visualizer.renderQuality`.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `getRenderQuality()` | `(): FoliumLyricRenderQuality` | The global lyric render quality now. Synchronous; follow changes with `visualizer.renderQualityChanged`. |
+| `setRenderQuality()` | `(patch: Partial<FoliumLyricRenderQuality>): FoliumRenderQualityWriteResult` | Changes the global lyric render quality: the fields `patch` has, the others as they are. A `scale` or an `antialias` this contract does not list throws a TypeError, and so does a `patch` that is no object; other keys are ignored, and `{}` changes nothing. Needs `visualizer.renderQuality`. |
+
+相关：[FoliumLyricRenderQuality](#foliumlyricrenderquality) · [FoliumRenderQualityWriteResult](#foliumrenderqualitywriteresult)
 
 ## 共享工具
 
@@ -2258,7 +2360,7 @@ What `api.render.exportVideo` resolves to.
 The Folium version this host implements; mods read it at runtime as `folium.host.folium`.
 
 ```ts
-const FOLIUM_VERSION = Object.freeze({ major: 1, minor: 7 })
+const FOLIUM_VERSION = Object.freeze({ major: 1, minor: 8 })
 ```
 
 ### FoliumId

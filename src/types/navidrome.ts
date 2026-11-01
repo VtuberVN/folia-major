@@ -69,8 +69,10 @@ export interface SubsonicSong {
     suffix: string;
     duration: number; // seconds
     bitRate?: number; // Subsonic kilobits per second
-    samplingRate?: number; // OpenSubsonic Hz
+    // OpenSubsonic fields Navidrome sends; absent on older servers.
     bitDepth?: number;
+    samplingRate?: number; // OpenSubsonic Hz
+    channelCount?: number;
     transcodedSuffix?: string;
     transcodedContentType?: string;
     path: string;
@@ -336,6 +338,7 @@ export interface NavidromeSong extends SongResult {
         bitRate?: number; // Subsonic kilobits per second
         samplingRate?: number;
         bitDepth?: number;
+        channelCount?: number;
         contentType?: string;
         transcodedSuffix?: string;
         transcodedContentType?: string;

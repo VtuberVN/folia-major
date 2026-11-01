@@ -12,7 +12,7 @@ Folium 是 Folia 的模组平台，形状参照 Minecraft Forge：模组通过**
 
 > **模组开发与上架注意事项**
 >
-> - 稳定扩展接口目前只有 UI 相关部分、歌词原文解析（`folium.lyrics.parse` 与 `getLyrics` 的返回形状），以及播放控制补全（音量、静音、循环模式、播放队列）、首页页面（`homeTabs`）、播放失败通知（`playback.failed`）与 main 入口的文件目录（`api.storage.paths`）；1.7 加了 main 入口向本模组 client 推送消息（`api.rpc.send` / `folium.rpc.on`）、密钥类设置字段（`secret` 与 `folium.secrets` / `api.secrets`）、登录状态（`folium.account` 与 `account.changed`）、可以放进系统级全局快捷键的命令（`globalShortcut`）、整表替换播放队列（`folium.playback.replaceQueue`，权限 `playback.queue`），经 Omni 只读在线音源的 `folium.omni`（搜索、按 id 解析、歌词、专辑与歌手），以及宿主均衡器（`folium.equalizer` 与 `equalizer.changed`：读宿主的均衡器、切换用户的音效、施加模组自己的曲线；读不需要权限，写需 `equalizer.control`）。其他部分，尤其是 `omni.providers` 等 Omni provider 接口和平台后端直通 `platform.raw`，仍属实验接口，尚不具备应用内置 Omni provider 的对等能力。在 Folium v2 发布前，请绝对不要尝试制作超出当前实验接口能力的完整音源模组；接口缺口必然导致问题，浪费开发者和维护者的时间。
+> - 稳定扩展接口目前只有 UI 相关部分、歌词原文解析（`folium.lyrics.parse` 与 `getLyrics` 的返回形状），以及播放控制补全（音量、静音、循环模式、播放队列）、首页页面（`homeTabs`）、播放失败通知（`playback.failed`）与 main 入口的文件目录（`api.storage.paths`）；1.7 加了 main 入口向本模组 client 推送消息（`api.rpc.send` / `folium.rpc.on`）、密钥类设置字段（`secret` 与 `folium.secrets` / `api.secrets`）、登录状态（`folium.account` 与 `account.changed`）、可以放进系统级全局快捷键的命令（`globalShortcut`）、整表替换播放队列（`folium.playback.replaceQueue`，权限 `playback.queue`），经 Omni 只读在线音源的 `folium.omni`（搜索、按 id 解析、歌词、专辑与歌手），以及宿主均衡器（`folium.equalizer` 与 `equalizer.changed`：读宿主的均衡器、切换用户的音效、施加模组自己的曲线；读不需要权限，写需 `equalizer.control`）；1.8 加了歌词画布渲染质量（`folium.visualizer` 与 `visualizer.renderQualityChanged`：读写「性能与动效」里 canvas / WebGL 歌词样式默认跟随的全局分辨率与抗锯齿；读不需要权限，写需 `visualizer.renderQuality`）。其他部分，尤其是 `omni.providers` 等 Omni provider 接口和平台后端直通 `platform.raw`，仍属实验接口，尚不具备应用内置 Omni provider 的对等能力。在 Folium v2 发布前，请绝对不要尝试制作超出当前实验接口能力的完整音源模组；接口缺口必然导致问题，浪费开发者和维护者的时间。
 > - 任何尝试导出 provider 的原始音频流或解密之后的原始音频文件的模组，都有极高的平台法律风险。无论采用何种实现方式，此类模组都不会上架官方模组市场。
 
 公开类型全部在 [`src/mods/folium/contract.ts`](../src/mods/folium/contract.ts)，这是契约的唯一来源；
@@ -170,6 +170,7 @@ client 只能用相对路径 import 模组目录里的 `.mjs/.js`，**不能 imp
 | `playback.control` | `folium.playback` 的播放、暂停、跳转、切歌、入队、打乱队列、喜爱；1.5 起还有设置音量、静音、循环模式与点播队列里的歌 |
 | `playback.queue` | 1.7：`folium.playback.replaceQueue`（整表替换播放队列，并结束私人 FM）。不需要同时声明 `playback.control` |
 | `equalizer.control` | 1.7：`folium.equalizer` 的 `setMode`、`applyCurve`、`releaseCurve`（改写用户的音效设置） |
+| `visualizer.renderQuality` | 1.8：`folium.visualizer.setRenderQuality`（改写「性能与动效」里歌词画布的全局分辨率与抗锯齿） |
 | `net.fetch` | `folium.net.fetch()`（经主进程代发，不受 CORS 限制） |
 | `net.embed` | `folium.ui.embed()`，还需要 `embedOrigins` |
 | `stageLayers` | `registries.stageLayers`（往播放页上画东西） |
@@ -182,6 +183,7 @@ client 只能用相对路径 import 模组目录里的 `.mjs/.js`，**不能 imp
 密钥字段（`secret`）、`rpc.send` / `rpc.on`、`folium.account` 和 `folium.omni` 不需要权限。`folium.omni` 以你在 Folia 登录的平台账号向平台发请求，
 启用确认窗口里不会为它多写一句，见 [folium.omni](#foliumomni17)。`folium.equalizer` 的读和 `equalizer.changed` 也不需要权限；
 写需要 `equalizer.control`，启用确认窗口和模组面板会为它写一句「会改写你的音效设置」，见 [folium.equalizer](#foliumequalizer17)。
+`folium.visualizer` 的读和 `visualizer.renderQualityChanged` 同样不需要权限；`setRenderQuality` 需要 `visualizer.renderQuality`，启用确认窗口和模组面板会为它写一句「会改写歌词画布的渲染质量」，见 [folium.visualizer](#foliumvisualizer18)。
 
 每个权限解锁的成员以 API 参考的[权限一览](../docs/folium/api.md#权限一览)为准，`npm run folium:check` 用同一张表查模组。
 `platform.*` 例外：`folium:check` 只按代码里 `request('<平台>', …)` 写出的平台 id 查 `platform.<平台>.read`，平台 id 是变量时只提示一句，`.write` 查不到（要看调的接口）。
@@ -233,6 +235,7 @@ export default function activate(folium) {
 | `account.getState(providerId?)` | 1.7。在线音源的登录状态，不需要权限。见 [folium.account](#foliumaccount17) |
 | `omni.*` | 1.7。经 Omni 只读在线音源：搜索、按 `{ source, id }` 解析、歌词、专辑与歌手；不需要权限，以你在 Folia 登录的平台账号发请求。见 [folium.omni](#foliumomni17) |
 | `equalizer.*` | 1.7。宿主的图形均衡器：`getState()` 读当前听到的均衡器（不需要权限）；`setMode` 切到宿主已有的音效、`applyCurve` 施加本模组的曲线、`releaseCurve` 撤下它（需 `equalizer.control`）。见 [folium.equalizer](#foliumequalizer17) |
+| `visualizer.*` | 1.8。歌词画布的全局渲染质量：`getRenderQuality()` 读（不需要权限），`setRenderQuality(patch)` 改（需 `visualizer.renderQuality`）。见 [folium.visualizer](#foliumvisualizer18) |
 | `every(ms, fn)` / `onDispose(fn)` | 定时调用、登记清理函数；模组停掉时宿主替它停掉定时、调用清理函数。见[现成的函数](../docs/folium/contributing.md#现成的函数) |
 | `lyrics` / `theme` | 内置模式共用的函数，见[歌词与主题](#歌词与主题)；导出窗口里也能用。`lyrics.parse` 把歌词原文交给宿主解析；`lyrics.getLines()`、`lyrics.refresh()` 读正在显示的歌词（导出窗口里不能用） |
 | `experimental[name]` | 选用了才能访问，否则抛 `experimental-not-declared:<name>` |
@@ -601,6 +604,7 @@ CSS 放进 `@layer folium-mods`（在 Tailwind 各层之后声明），不用 `!
 | `playback.failed` | `{ song, reason, phase, willAutoSkip }`，一首歌放不了，见下 |
 | `account.changed` | 1.7。`FoliumAccountState`（`{ providerId, status, user, accountKey }`），某个在线音源有人登录、退出或换了号，见 [folium.account](#foliumaccount17) |
 | `equalizer.changed` | 1.7。`{ state, origin }`：均衡器变了（开关、模式、增益、`hostPlaysAudio`、`writable`），`origin` 说是谁改的（`user` / `command` / `mod` / `host`），同一任务合成一次。见 [folium.equalizer](#foliumequalizer17) |
+| `visualizer.renderQualityChanged` | 1.8。`{ quality, origin }`：歌词画布的全局分辨率或抗锯齿变了，`origin` 说是谁改的（`user` / `mod`），同一任务合成一次。见 [folium.visualizer](#foliumvisualizer18) |
 
 **`playback.failed`**只在用户看得见「这首歌放不了」时报一次：
 
@@ -1122,6 +1126,73 @@ Q 值（实现细节，可能调整）；任何音频节点、`AudioContext`（�
 
 完整的例子见 `dev/folium/sample-equalizer-console`。
 
+### folium.visualizer（1.8）
+
+歌词显示里模组可以共享的宿主设置。目前只有一项：**歌词画布的全局渲染质量**，即「设置 → 性能与动效」里的「歌词画布分辨率」和「歌词画布抗锯齿」。
+用 canvas / WebGL 画的歌词样式（町景、花火、绘光、雾笺等）默认跟随它；用户也能在某个样式自己的设置里单独指定，这些覆盖不经过 API，模组读不到也改不了。
+读不需要权限，`setRenderQuality` 需要 `visualizer.renderQuality`，只在主窗口可用。
+
+```js
+export default function activate(folium) {
+  // 1.7 及更早的宿主没有 folium.visualizer；导出窗口里它的每个方法都抛错。
+  if (folium.host.folium.minor < 8 || folium.env.context !== 'main') return;
+  const { visualizer } = folium;
+  const usersScale = visualizer.getRenderQuality().scale;   // 播放时回到用户自己的挡位
+  let following = true;
+
+  folium.events.on('visualizer.renderQualityChanged', ({ origin }) => {
+    if (origin.kind === 'mod' && origin.modId === folium.modId) return;
+    following = false;   // 用户（或别的模组）改了：让步
+  });
+
+  folium.events.on('playback.stateChanged', ({ state }) => {
+    if (!following) return;
+    // 暂停时降到 0.5× 省电，播放时回到用户的挡位；同一个值重复写是安全的。
+    const result = visualizer.setRenderQuality({ scale: state === 'playing' ? usersScale : 0.5 });
+    if (!result.ok) folium.log.info('not now:', result.reason);   // rate-limited……
+  });
+}
+```
+
+**快照**：`getRenderQuality()` 同步返回冻结的 `{ scale, antialias }`，值不变时每次读都是同一个对象。
+
+| 字段 | 说明 |
+| --- | --- |
+| `scale` | 分辨率倍数：`0.5`、`0.75`、`1`、`1.5`、`2`，相对每个样式自己默认的像素密度（多数是屏幕的，最高按 2 算）。低于 1 画得少、更省也更糊；高于 1 是超采样，边缘更细，也更吃显卡 |
+| `antialias` | `auto`（各样式自己的默认）、`on`、`off` |
+
+以后的 minor 可能加新的值：不认识的 `scale` 按最接近的认识的值理解，不认识的 `antialias` 按 `auto`。
+
+**写入**：`setRenderQuality(patch)` 只改 `patch` 里给了的字段，等同用户在「性能与动效」里改：设置页和所有跟随全局的样式一起变（样式可能为此重建渲染器），重启后还在。
+返回 `{ ok: true, quality }`（写入之后的挡位）或 `{ ok: false, reason }`。`scale` / `antialias` 不在上表里、`patch` 不是对象时抛 `TypeError`（message 以 `invalid-arguments:` 开头）；
+别的键忽略，`{}` 就是没有变化。
+
+**用户优先**：挡位是用户的。跟着 `visualizer.renderQualityChanged` 走，`origin` 是用户或别的模组时就停下，不要再把自己的挡位写回去。
+
+**事件 `visualizer.renderQualityChanged`**：`{ quality, origin }`，全局挡位变了就发，不论是谁改的。`origin` 是 `{ kind, modId }`：`user`（用户在设置里改的，或者宿主替用户改的）
+或 `mod`（某个模组经 `setRenderQuality`，`modId` 是它的 id），不认识的 `kind` 按 `user` 处理。同一个任务里的多次变化合成一次，`origin` 取最后一个；改了又改回去不发；
+只改了某个样式自己的覆盖不发；开始监听之前的变化不补发。导出窗口不发。
+
+**检查顺序**（前面的成立就不再看后面的）：
+
+1. 没声明 `visualizer.renderQuality`：`setRenderQuality` 抛 `permission-denied:visualizer.renderQuality`。
+2. 导出窗口：每个方法（包括 `getRenderQuality`）都抛 `visualizer-unavailable-in-export-context`。
+3. 参数不对：抛 `TypeError`。
+4. 这个模组已经停下（旧的 `folium` 对象）：回 `stopped`。
+5. 没有变化（写入后的挡位和现在的相同）：回 `{ ok: true, quality }`，不存盘、不计数、不发事件，冷却期内也照收。
+6. 限频：回 `rate-limited`。
+
+以后的 minor 可能加新的拒绝原因：不认识的按 `rate-limited` 处理，过一会儿再试，不要在循环里重试。
+
+**限频**：和 `folium.equalizer` 一样，目前每个模组离上一次被计数的写入不到 1 秒就拒，一分钟（滑动的 60 秒）里最多 20 次；按模组 id 计，重载模组不清零。
+每次改变挡位的写入都会存盘，还可能让样式重建渲染器：写你定下来的挡位，不要拿它做动画。数值以后可能调整。
+
+**权限与旧宿主**：启用确认窗口和模组面板会为 `visualizer.renderQuality` 写一句「会改写歌词画布的渲染质量」。声明了它的清单在 Folium 1.7 及更早的宿主上**整份被拒**（未知权限一律拒绝）；
+要兼容旧宿主的模组只能只读：不声明权限，用 `folium.host.folium.minor >= 8` 判断有没有 `folium.visualizer`（旧宿主上读它得到 `undefined`）。
+
+**导出窗口与 main 入口**：导出窗口里 `folium.visualizer` 在，但每个方法都抛 `visualizer-unavailable-in-export-context`（写方法先查权限）：模组的 visualizer 也在导出窗口里画，用之前先看 `folium.env.context`。
+main 入口没有 `visualizer`：要改就用 `api.rpc.send` 通知本模组的 client。
+
 ## main 入口（Node）
 
 ```js
@@ -1449,8 +1520,8 @@ const { body, accountKey } = await platform.request('netease', 'user_record', { 
 
 ## 版本与演进
 
-- 清单里的 `folium: 1` 是 major；宿主通过 `folium.host.folium.minor` / `api.host.folium.minor` 暴露 minor。当前是 Folium 1.7，契约里的每个成员 1.7 的宿主上都有；
-  用到 1.7 新加的成员时先检查 `minor >= 7`，旧宿主上没有它们。
+- 清单里的 `folium: 1` 是 major；宿主通过 `folium.host.folium.minor` / `api.host.folium.minor` 暴露 minor。当前是 Folium 1.8，契约里的每个成员 1.8 的宿主上都有；
+  用到 1.7 新加的成员时先检查 `minor >= 7`，用到 1.8 新加的成员时先检查 `minor >= 8`，旧宿主上没有它们。
 - 1.x 内只做新增：可选的清单字段、新注册表、新事件、新服务方法、新权限、新设置字段类型、新公开 part。
 - DTO（`contract.ts`）字段只增不减；宿主内部类型不出现在任何稳定契约里。
 - 删除或改变语义必须升 major；之前至少有一个 minor 在日志里标记废弃。
@@ -1459,6 +1530,11 @@ const { body, accountKey } = await platform.request('netease', 'user_record', { 
   旧名字和现在的写法见 API 参考的[仍可用的旧名字](../docs/folium/api.md#仍可用的旧名字)，`npm run folium:check` 也会列出来。
 - 模组停掉之后，它原来那个 `folium` 对象的 `register` 和 `events.on` 不再生效；挂载结束之后经 `ctx` 订的监听同样不再生效。
 - 监听属于订阅它的那一次挂载：同一个函数在两处挂载里各订一次，每次变化各调用一次。
+
+**Folium 1.8 的变化**（都是新增，为 1.7 写的模组不用改）：
+
+- 歌词画布的全局渲染质量：`folium.visualizer`（`getRenderQuality`、`setRenderQuality`）与通知事件 `visualizer.renderQualityChanged`；新权限 `visualizer.renderQuality`（写需要，读不需要）。
+  只管「性能与动效」里的全局挡位，各样式自己的覆盖不经过 API。稳定。见 [folium.visualizer](#foliumvisualizer18)。
 
 **Folium 1.7 的变化**（都是新增，为 1.6 写的模组不用改）：
 

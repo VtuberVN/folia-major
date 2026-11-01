@@ -1,4 +1,5 @@
 import { DEFAULT_PENDOLO_TUNING, type PendoloTuning } from '../../../types';
+import { normalizeLyricRenderOverride } from '../../../utils/lyricRenderQuality';
 import { defineVisualizerTuning, numberWithin, type StoredTuningFields } from '../tuningDefinition';
 
 // src/components/visualizer/pendolo/tuning.ts
@@ -11,6 +12,8 @@ declare module '../tuningDefinition' {
 
 /** The tuning `values` ask for, with `base` where they say nothing or something that cannot be: every number inside its range. */
 const resolve = (values: Partial<PendoloTuning>, base: PendoloTuning): PendoloTuning => ({
+    // 分辨率与抗锯齿（#929）：旧存档没有这一项，就是全跟随全局；不认识的值回到「跟随全局」。
+    render: values.render === undefined ? base.render ?? DEFAULT_PENDOLO_TUNING.render : normalizeLyricRenderOverride(values.render),
     arcRadius: numberWithin(values.arcRadius, base.arcRadius, 0.25, 0.80),
     arcAngleDeg: numberWithin(values.arcAngleDeg, base.arcAngleDeg, 40, 160),
     wheelCenterX: numberWithin(values.wheelCenterX, base.wheelCenterX, -0.30, 0.50),

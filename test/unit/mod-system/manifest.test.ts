@@ -167,6 +167,13 @@ describe('validateManifest Folium entries and opt-ins', () => {
         expect(result.value.permissions).toEqual(['equalizer.control']);
     });
 
+    // Folium 1.8: folium.visualizer.setRenderQuality; no opt-in and no other permission goes with it.
+    it('accepts visualizer.renderQuality on its own', () => {
+        const result = validateManifest({ ...validManifest, permissions: ['visualizer.renderQuality'] });
+        expect(result.ok).toBe(true);
+        expect(result.value.permissions).toEqual(['visualizer.renderQuality']);
+    });
+
     it('accepts an optional preview image path inside the mod directory', () => {
         expect(validateManifest({ ...validManifest, preview: 'preview.jpg' }).ok).toBe(true);
         expect(validateManifest({ ...validManifest, preview: 'assets/cover.webp' }).ok).toBe(true);

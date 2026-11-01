@@ -1,4 +1,5 @@
 import { DEFAULT_SONNET_TUNING, type SonnetTuning } from '../../../types';
+import { normalizeLyricRenderOverride } from '../../../utils/lyricRenderQuality';
 import { defineVisualizerTuning, numberWithin, type StoredTuningFields } from '../tuningDefinition';
 
 // src/components/visualizer/sonnet/tuning.ts
@@ -13,6 +14,8 @@ const switchOr = (value: unknown, fallback: boolean) => (typeof value === 'boole
 
 /** The tuning `values` ask for, with `base` where they say nothing or something that cannot be: every number inside its range. */
 const resolve = (values: Partial<SonnetTuning>, base: SonnetTuning): SonnetTuning => ({
+    // 分辨率与抗锯齿的覆盖（#929）：旧存档没有这项就是全跟随全局；只改一半的补丁保留另一半，不认识的值回到「跟随全局」。
+    render: normalizeLyricRenderOverride({ ...base.render, ...(values.render ?? {}) }),
     cameraIntensity: numberWithin(values.cameraIntensity, base.cameraIntensity, 0, 2),
     typographyMotion: numberWithin(values.typographyMotion, base.typographyMotion, 0, 2),
     mgDensity: numberWithin(values.mgDensity, base.mgDensity, 0, 2),

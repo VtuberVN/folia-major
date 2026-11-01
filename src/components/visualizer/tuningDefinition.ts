@@ -31,6 +31,11 @@ export interface VisualizerTuningStorage<T> {
     /** The message said after a reset to the defaults (an i18n key); none is said without it. */
     resetNotice?: string;
     /**
+     * What a reset puts back, from the tuning held now: by default the whole of `defaults`. A style
+     * whose panel shows only some of its fields (the rest come only by an import) resets just those.
+     */
+    reset?: (held: T, defaults: T) => T;
+    /**
      * More store actions that belong to this tuning (a picture uploaded for it, an uploaded
      * picture cleared), under the names the store carries them by. The tuning.ts adds their
      * types to VisualizerTuningSettings itself.

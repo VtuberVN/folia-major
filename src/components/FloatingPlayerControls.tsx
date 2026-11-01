@@ -23,6 +23,8 @@ import { useGlass } from '../mods/useGlass';
 import SignalPath from './audio/SignalPath';
 import { usePlayerOverlayObstacle } from '../hooks/usePlayerOverlayLayout';
 import { resolveLyricSeekMediaTime } from '../utils/lyrics/lyricSeekTime';
+import { HifiProgressRow } from './hifi/HifiBadge';
+import { useIsHifiRoute } from './hifi/useHifiSignalPath';
 
 export interface TrackNavigation {
     /** Stable identity for the current track to detect genuine song changes */
@@ -508,6 +510,9 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
     );
 };
 
+/** 展开视图里进度那一行在网格中的位置；HiFi 路线和 Web 路线共用。 */
+const PROGRESS_ROW_CLASS = 'col-span-3 row-start-3 w-full px-2 sm:col-start-2 sm:col-span-1 sm:row-start-2';
+
 // Expanded view component
 interface ExpandedViewProps {
     currentSong: { name: string; audioQualityInfo?: AudioQualityInfo; } | null;
@@ -554,6 +559,19 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
     showAudioSignalPath,
     onOpenSignalPath,
 }) => {
+    const isHifiRoute = useIsHifiRoute();
+    const progressBar = (
+        <ProgressBar
+            currentTime={currentTime}
+            duration={duration}
+            onSeek={onSeek}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            trackColor={trackColor}
+            disabled={controlsDisabled}
+        />
+    );
+
     return (
         <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-2.5 sm:gap-x-3 gap-y-2 sm:grid-cols-[76px_minmax(0,1fr)_76px]">
             {/* Desktop Layout - responsive grid positions apply from the sm breakpoint */}
@@ -632,17 +650,14 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
             </div>
 
             {/* Row 2: Current Time, Progress Bar, Duration */}
-            <div className="col-span-3 row-start-3 w-full px-1 sm:col-start-2 sm:col-span-1 sm:row-start-2 flex items-center justify-center">
-                <ProgressBar
-                    currentTime={currentTime}
-                    duration={duration}
-                    onSeek={onSeek}
-                    primaryColor={primaryColor}
-                    secondaryColor={secondaryColor}
-                    trackColor={trackColor}
-                    disabled={controlsDisabled}
-                />
-            </div>
+            {/* HiFi 路线上时长后面多一块 HiFi 徽标，按这一行的宽度换长短，进度条留够最小宽度；Web 路线和原来一模一样。 */}
+            {isHifiRoute ? (
+                <HifiProgressRow className={PROGRESS_ROW_CLASS} isDaylight={isDaylight} disabled={controlsDisabled}>
+                    {progressBar}
+                </HifiProgressRow>
+            ) : (
+                <div className={`${PROGRESS_ROW_CLASS} flex items-center justify-center`}>{progressBar}</div>
+            )}
         </div>
     );
 };

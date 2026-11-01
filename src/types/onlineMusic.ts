@@ -277,7 +277,7 @@ export interface LoginFailureDetail {
 // 见 services/onlineMusic/failure/onlineFailureCase.ts 的表。
 export type OnlineFailureCaseId =
     | 'unreachable' | 'local-service-stopped' | 'retry-later'
-    | 'sign-in-needed' | 'subscription-required' | 'purchase-required' | 'entitlement-required'
+    | 'sign-in-needed' | 'account-refused' | 'subscription-required' | 'purchase-required' | 'entitlement-required'
     | 'preview-only' | 'region-restricted' | 'not-configured'
     | 'taken-down' | 'no-audio' | 'audio-unplayable' | 'not-public'
     | 'refused' | 'unknown';
@@ -345,12 +345,25 @@ export interface ProviderSearchContext {
     session?: string;
 }
 
+/** What a search looks for: songs, albums or playlists (`omni.getProviderSearchKinds`). */
+export type ProviderSearchKind = 'song' | 'album' | 'playlist';
+
 export interface OnlineSearchProvider {
     /**
      * A provider that keeps what it read of a search between its pages keeps it apart for each
      * `context.session`; one that keeps nothing between pages ignores the context.
      */
     searchSongs(query: string, limit: number, offset: number, context?: ProviderSearchContext): Promise<ProviderPage<UnifiedSong>>;
+    /**
+     * Albums found by the query, as collections of type 'album' that `catalog.getAlbumTracks` opens.
+     * Left out where the platform has no album search: the search page then offers no album tab.
+     */
+    searchAlbums?(query: string, limit: number, offset: number): Promise<ProviderPage<ProviderCollection>>;
+    /**
+     * Playlists found by the query, as collections of type 'playlist' that `catalog.getPlaylistTracks`
+     * opens. Left out where the platform has no playlist search.
+     */
+    searchPlaylists?(query: string, limit: number, offset: number): Promise<ProviderPage<ProviderCollection>>;
 }
 
 export interface OnlinePlaybackProvider {
@@ -385,8 +398,19 @@ export interface OnlinePlaybackProvider {
      * one of them than it was asked for says so in the source's `quality`.
      */
     audioQualityLevels?: readonly AudioQualityPreference[];
+    /**
+     * The i18n key of the notice shown when a preview clip of this provider's song plays
+     * (`ProviderAudioSource.preview`), for a provider whose clips mean something else than
+     * "this account may only preview it". Without it, `status.songPreviewOnly`.
+     */
+    previewNoticeKey?: string;
     getAvailability?(song: SongResult): ProviderSongAvailability;
     getReplacement?(song: SongResult): Promise<ProviderSongReplacement | null>;
+    /**
+     * The song `song` is played as in its place, or null where it plays as itself: a music video
+     * that a list showed as itself, played as its song version.
+     */
+    getPlayedSong?(song: SongResult): Promise<UnifiedSong | null>;
     /**
      * For a provider that keeps its audio in a cache of its own instead of the media cache: puts the
      * file that `url` (one of its audio URLs) plays into that cache, and resolves to whether it is
@@ -755,6 +779,13 @@ export interface ProviderExploreItemsPage {
 export interface OnlineExploreProvider {
     getFeed(cursor?: string, listened?: UnifiedSong[]): Promise<ProviderExplorePage>;
     getSectionItems?(cursor: string): Promise<ProviderExploreItemsPage>;
+    /**
+     * Of the songs played here, as the app recorded them, which song the platform shows each as, by
+     * the id of each: another song (a music video as its song version), or null for the song itself.
+     * One the platform could not be asked about is left out. The app's own record of the songs
+     * played is set right with them, once a run (ownSections.ts).
+     */
+    songsShownAs?(songs: UnifiedSong[]): Promise<Map<string, UnifiedSong | null>>;
 }
 
 export interface OnlineMutationProvider {
@@ -884,6 +915,7 @@ export type OmniExploreItem = ProviderExploreItem;
 export type OmniExploreSection = ProviderExploreSection;
 export type OmniExplorePage = ProviderExplorePage;
 export type OmniExploreItemsPage = ProviderExploreItemsPage;
+export type OmniSearchKind = ProviderSearchKind;
 export { OnlineProviderError as OmniError };
 
 /**

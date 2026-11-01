@@ -14,6 +14,7 @@ import { installFoliumHomePageDismissal } from './components/app/home/foliumHome
 import { installLibrarySuiteChromeCommands } from './library/app/installLibrarySuiteChromeCommands';
 import { noteFoliumFirstScreenMounted, startFoliumForMainWindow } from './mods/runtime/mainWindowStart';
 import { installNativeDragGuard } from './utils/nativeDragGuard';
+import { prewarmSavedVisualizer, prewarmVisualizersWhenIdle } from './components/visualizer/prewarmVisualizers';
 import { bootNavidromeServerPreset } from './services/navidromeServerPreset';
 import { isNavidromeEnabled } from './services/navidromeService';
 import { setNavidromeEnabledState } from './stores/useLibraryStore';
@@ -66,6 +67,7 @@ const isMainApp = isMainAppSurface;
 const FirstScreenMounted: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     React.useEffect(() => {
         noteFoliumFirstScreenMounted();
+        prewarmVisualizersWhenIdle();
     }, []);
     return <>{children}</>;
 };
@@ -93,6 +95,7 @@ const renderApp = () => root.render(
 // like the mod commands below). A clashing execute shortcut throws here, at startup.
 if (isMainApp) installLibrarySuiteChromeCommands();
 
+if (isMainApp) prewarmSavedVisualizer();
 const FOLIUM_BOOT_TIMEOUT_MS = 1500;
 
 const bootFolium = async () => {

@@ -16,7 +16,7 @@
 // 里面的每个文件都算模组的内容），路径改成拷过去的位置。这个文件只给编辑器看，宿主不读它。
 
 /** The Folium version this host implements; mods read it at runtime as `folium.host.folium`. */
-export declare const FOLIUM_VERSION: { readonly major: 1; readonly minor: 7 };
+export declare const FOLIUM_VERSION: { readonly major: 1; readonly minor: 8 };
 
 /** `modid:name`, like a Forge ResourceLocation. The mod id part is added by the host. */
 export type FoliumId = string;
@@ -1146,6 +1146,16 @@ export interface FoliumNotificationEvents {
      * fire none. Not emitted in the export window.
      */
     'equalizer.changed': { readonly state: FoliumEqualizerState; readonly origin: FoliumEqualizerChangeOrigin };
+    /**
+     * Folium 1.8: the global lyric render quality changed (`folium.visualizer.getRenderQuality()`), whoever
+     * changed it. One event for all the changes of one task; its origin is the last of them. Changes that end
+     * where they began fire none, and neither does a change to one style's own override. Not emitted in the
+     * export window.
+     */
+    'visualizer.renderQualityChanged': {
+        readonly quality: FoliumLyricRenderQuality;
+        readonly origin: FoliumRenderQualityChangeOrigin;
+    };
 }
 
 /**
@@ -1954,6 +1964,93 @@ export interface FoliumEqualizerService {
     releaseCurve(): boolean;
 }
 
+/**
+ * Folium 1.8: how many pixels the host's canvas and WebGL lyric styles draw, as a multiple of each style's own
+ * default pixel density (for most, the screen's, capped at 2): below 1 draws fewer pixels (lighter, softer),
+ * above 1 supersamples (sharper, heavier on the GPU). `setRenderQuality` takes each of these for all of
+ * Folium 1.x; later minors may add more: read one you do not know as the nearest one you do.
+ */
+export type FoliumLyricRenderScale = 0.5 | 0.75 | 1 | 1.5 | 2;
+
+/**
+ * Folium 1.8: the antialiasing of the canvas and WebGL lyric styles. `auto`: each style's own default (some
+ * use multisampling, some smooth in post-processing); `on` and `off` force it. `setRenderQuality` takes each
+ * of these for all of Folium 1.x; later minors may add modes: read one you do not know as `auto`.
+ */
+export type FoliumLyricAntialias = 'auto' | 'on' | 'off';
+
+/**
+ * Folium 1.8: the host's global lyric render quality, the one level in Settings → Performance & motion, as
+ * `folium.visualizer.getRenderQuality()` and `visualizer.renderQualityChanged` give it. Frozen. The canvas and
+ * WebGL lyric styles follow it unless the user set an override in a style's own settings; those overrides
+ * are not part of it, and no mod reads or writes them. Styles drawn with HTML and CSS do not use it.
+ */
+export interface FoliumLyricRenderQuality {
+    /** The resolution, as a multiple of each style's own default pixel density. */
+    readonly scale: FoliumLyricRenderScale;
+    /** The antialiasing. */
+    readonly antialias: FoliumLyricAntialias;
+}
+
+/**
+ * Folium 1.8: who changed the render quality, as `visualizer.renderQualityChanged` reports it. `user`: anyone
+ * but a mod (the user in Settings → Performance & motion, or the host on the user's behalf). `mod`: a mod,
+ * through `folium.visualizer.setRenderQuality`; compare `modId` with your own `folium.modId`. Later minors may
+ * add kinds: read one you do not know as `user`.
+ */
+export interface FoliumRenderQualityChangeOrigin {
+    /** Who it was. */
+    readonly kind: 'user' | 'mod';
+    /** The mod, for `mod`; null for `user`. */
+    readonly modId: string | null;
+}
+
+/**
+ * Folium 1.8: why the host did not take a `setRenderQuality`. `stopped`: this mod has stopped.
+ * `rate-limited`: too many writes (see FoliumVisualizerService). A write that would change nothing is never
+ * refused `rate-limited`. Later minors may add reasons: treat one you do not know as `rate-limited`, and try
+ * again later rather than in a loop.
+ */
+export type FoliumRenderQualityRefusal = 'stopped' | 'rate-limited';
+
+/** Folium 1.8: the outcome of a `setRenderQuality`; `quality` is the render quality after it. */
+export type FoliumRenderQualityWriteResult =
+    | { readonly ok: true; readonly quality: FoliumLyricRenderQuality }
+    | { readonly ok: false; readonly reason: FoliumRenderQualityRefusal };
+
+/**
+ * Folium 1.8: `folium.visualizer`, the host's settings of the lyric display that mods may share. For now the
+ * global lyric render quality (FoliumLyricRenderQuality). Reading needs no permission; `setRenderQuality`
+ * needs `visualizer.renderQuality`. A write is the same as the user changing the level in Settings →
+ * Performance & motion: the settings page and every canvas or WebGL style that follows the level change with
+ * it (a style may rebuild its renderer for it), and it is kept across restarts. A style's own override stays
+ * as the user set it.
+ *
+ * The level is the user's: follow `visualizer.renderQualityChanged`, and once its `origin` is the user (or
+ * another mod), step back rather than setting your level again. Every write that changes something is saved
+ * and can make the styles rebuild their renderers: write the level you settled on, never animate through it.
+ * Currently a mod may make one such write a second and 20 a minute; past that a write is refused
+ * `rate-limited`. A write that leaves the level as it is is accepted, does not count and is never refused
+ * `rate-limited`.
+ *
+ * Main window only: in the export window every method throws an Error whose message is
+ * `visualizer-unavailable-in-export-context` (a visualizer of yours that also renders there checks
+ * `folium.env.context` first). The main entry has no `visualizer`; ask the client over `rpc`. An older host
+ * has no `folium.visualizer`: check `folium.host.folium.minor >= 8` first. Malformed arguments throw a
+ * TypeError (`invalid-arguments: …`); a write without the permission throws
+ * `permission-denied:visualizer.renderQuality`.
+ */
+export interface FoliumVisualizerService {
+    /** The global lyric render quality now. Synchronous; follow changes with `visualizer.renderQualityChanged`. */
+    getRenderQuality(): FoliumLyricRenderQuality;
+    /**
+     * Changes the global lyric render quality: the fields `patch` has, the others as they are. A `scale` or an
+     * `antialias` this contract does not list throws a TypeError, and so does a `patch` that is no object;
+     * other keys are ignored, and `{}` changes nothing. Needs `visualizer.renderQuality`.
+     */
+    setRenderQuality(patch: Partial<FoliumLyricRenderQuality>): FoliumRenderQualityWriteResult;
+}
+
 // ---------------------------------------------------------------- Experimental
 
 /** EXPERIMENTAL (`player.layout`): a rectangle in viewport CSS pixels. */
@@ -2367,6 +2464,8 @@ export interface FoliumClientApi {
     readonly omni: FoliumOmniService;
     /** Folium 1.7: the host's graphic equalizer: read it, switch the user's sound, put a curve of your own in place. */
     readonly equalizer: FoliumEqualizerService;
+    /** Folium 1.8: the host's settings of the lyric display: the global lyric render quality. */
+    readonly visualizer: FoliumVisualizerService;
     /**
      * Calls `listener` every `ms` milliseconds (at least 16) until the mod stops; the host stops
      * it then.

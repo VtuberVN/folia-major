@@ -281,6 +281,12 @@ export const ModListItem: React.FC<ModListItemProps> = ({
                                     {t('mods.equalizerControlHint')}
                                 </div>
                             ) : null}
+                            {/* Folium 1.8: the global lyric render quality, which every canvas or WebGL style follows. */}
+                            {mod.permissions.includes('visualizer.renderQuality') ? (
+                                <div className="text-[11px] opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('mods.renderQualityHint')}
+                                </div>
+                            ) : null}
                             {mod.trustStale ? (
                                 <div className={`flex items-start gap-2 text-xs rounded-lg border px-3 py-2 ${classes.warning}`}>
                                     <TriangleAlert size={14} className="mt-px shrink-0" />

@@ -102,7 +102,7 @@ export const useBravaisCollectionSeam = (input: BravaisCollectionSeamInput) => {
     const status = projection.status;
     const syncLine = projection.sync && (projection.sync.onResume && !declares('resume-sync') ? { ...projection.sync, onResume: undefined } : projection.sync);
 
-    // 「⋯ 更多」：低频的集合动作（重新拉取、改名、加入歌单、重扫、整理、导出、实体信息、删除）。
+    // 「⋯ 更多」：低频的集合动作（重新拉取、改名、加入歌单、重扫、整理、导出、实体信息、设置封面、删除）。
     const menu = useMemo<BravaisSeamMenuItem[]>(() => {
         const items: BravaisSeamMenuItem[] = [];
         const runMutation = (action: (controller: CollectionMutationController) => Promise<LibraryMutationResult>) => () => {
@@ -121,6 +121,15 @@ export const useBravaisCollectionSeam = (input: BravaisCollectionSeamInput) => {
                 run: () => latest.current.forms.openPick({ kind: 'collection' }),
             });
         }
+        // 收进速记簿（core 的 collect-scope）：当前范围，过滤时只收匹配项，不动队列。
+        if (declares('collect-scope') && actions.capabilities.collect) {
+            items.push({
+                id: 'collect-scratchpad',
+                label: t('scratchpad.collectScope'),
+                disabled: view.contextTracks.length === 0,
+                run: () => latest.current.actions.collectScope(),
+            });
+        }
         if (offers('resync-folder')) items.push({ id: 'resync-folder', label: t('localMusic.reimport'), disabled: pending, run: runMutation(c => c.resyncFolder()) });
         if (offers('resync-all-folders')) items.push({ id: 'resync-all-folders', label: t('localMusic.reimport'), disabled: pending, run: runMutation(c => c.resyncAllFolders()) });
         if (offers('organize-song-info')) items.push({ id: 'organize-song-info', label: t('localMusic.organizeSongInfo'), run: runMutation(c => c.organizeSongInfo()) });
@@ -132,6 +141,7 @@ export const useBravaisCollectionSeam = (input: BravaisCollectionSeamInput) => {
                 run: runMutation(c => c.editEntity()),
             });
         }
+        if (offers('set-cover')) items.push({ id: 'set-cover', label: t('localCollectionCover.menuLabel'), run: runMutation(c => c.setCover()) });
         if (offers('delete-collection')) {
             items.push({
                 id: 'delete-collection',
@@ -142,7 +152,7 @@ export const useBravaisCollectionSeam = (input: BravaisCollectionSeamInput) => {
             });
         }
         return items;
-    }, [actions.capabilities.reload, collection.type, declares, forms.openDelete, forms.openRename, isLocalFolder, offers, pending, t, view.playableTracks.length]);
+    }, [actions.capabilities.collect, actions.capabilities.reload, collection.type, declares, forms.openDelete, forms.openRename, isLocalFolder, offers, pending, t, view.contextTracks.length, view.playableTracks.length]);
 
     // 每日推荐的日期步进：‹ 更早 · 日期 · 更近 ›，今天还能「刷新今天」。换日期就是换内容：整面翻牌，不换层。
     const daily = useMemo<BravaisSeamCollection['daily']>(() => {

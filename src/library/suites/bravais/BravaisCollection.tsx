@@ -74,8 +74,12 @@ const BravaisCollection: React.FC<LibraryCollectionSurfaceProps> = ({
         supportsLocalTrackSorting ? { songsById: localSongsById, field: sortField, direction: sortDirection } : null
     ), [localSongsById, sortDirection, sortField, supportsLocalTrackSorting]);
     const view = useCollectionView({ tracks, committedQuery: filter.committedQuery, localSort });
-    const actions = useCollectionActions({ resource, snapshot, view, port: playback, collectionType: collection.type });
     const mutationSnapshot = useCollectionMutationSnapshot(mutations);
+    // 收进速记簿时记下的出处：改过名就用新名字（与缝里的标题一致）。
+    const actions = useCollectionActions({
+        resource, snapshot, view, port: playback, collectionType: collection.type,
+        collectionName: mutationSnapshot.renamedTo ?? collection.name,
+    });
 
     // 命令面板：与网格、TUI 同一个构建函数，按 entry 的声明过滤；bravais 没有网格的三个局部动作（见 entry）。
     const surfaceParams = buildCoreSurfaceParams({
@@ -88,6 +92,7 @@ const BravaisCollection: React.FC<LibraryCollectionSurfaceProps> = ({
         sortDirection,
         playFiltered: actions.playScope,
         enqueueFiltered: actions.enqueueScope,
+        collectFiltered: actions.capabilities.collect ? actions.collectScope : undefined,
         setSortField,
         setSortDirection,
         reloadOnlineCollection: actions.reload,
@@ -112,7 +117,11 @@ const BravaisCollection: React.FC<LibraryCollectionSurfaceProps> = ({
     const { playbackKey, queuedPlaybackKeys } = useBravaisPlaybackMarks();
     const unknownArtist = t('player.unknownArtist');
     // 专辑页：曲目封面的画法（整面墙拼成封面，或带单曲封面时切成碎片，bravaisAlbumWall）；只在专辑海报在场时画出来。
-    const albumCoverUrl = collection.type === 'album' ? snapshot?.detail?.coverUrl || collection.coverUrl || undefined : undefined;
+    // 墙画的是曲目，用自动封面（由歌推出来的那张）：本地专辑设了自定义集合封面时，海报换成那张，墙上的曲目不变。
+    const wallCoverUrl = collection.source === 'local' && collection.automaticCoverUrl !== undefined
+        ? collection.automaticCoverUrl
+        : collection.coverUrl;
+    const albumCoverUrl = collection.type === 'album' ? snapshot?.detail?.coverUrl || wallCoverUrl || undefined : undefined;
     const isAlbum = collection.type === 'album';
     const allItems = useMemo(() => {
         const projected = projectCollectionTracks(view.displayTracks, view.entryKeyAt, describeBravaisTrack, unknownArtist);
@@ -211,6 +220,19 @@ const BravaisCollection: React.FC<LibraryCollectionSurfaceProps> = ({
                 const track = trackOf(key);
                 if (track && declared('enqueue')) latest.current.actions.enqueueTrack(track);
             },
+            canCollectItem: (key: string) => Boolean(trackOf(key)) && declared('collect') && latest.current.actions.capabilities.collect,
+            onCollectItem: (key: string) => {
+                const track = trackOf(key);
+                if (track && declared('collect')) latest.current.actions.collectTrack(track);
+            },
+            canSaveItemToPlaylist: (key: string) => {
+                const track = trackOf(key);
+                return Boolean(track) && declared('save-to-playlist') && latest.current.actions.canSaveTrackToPlaylist(track!);
+            },
+            onSaveItemToPlaylist: (key: string) => {
+                const track = trackOf(key);
+                if (track && declared('save-to-playlist')) latest.current.actions.saveTrackToPlaylist(track);
+            },
             canOpenAlbum: (key: string) => Boolean(albumLink(key)),
             onOpenAlbum: (key: string) => {
                 const track = trackOf(key);
@@ -288,6 +310,10 @@ const BravaisCollection: React.FC<LibraryCollectionSurfaceProps> = ({
         queuedKeys,
         onPlayItem: callbacks.onPlayItem,
         onEnqueueItem: callbacks.onEnqueueItem,
+        canCollectItem: callbacks.canCollectItem,
+        onCollectItem: callbacks.onCollectItem,
+        canSaveItemToPlaylist: callbacks.canSaveItemToPlaylist,
+        onSaveItemToPlaylist: callbacks.onSaveItemToPlaylist,
         canOpenAlbum: callbacks.canOpenAlbum,
         onOpenAlbum: callbacks.onOpenAlbum,
         canOpenArtist: callbacks.canOpenArtist,

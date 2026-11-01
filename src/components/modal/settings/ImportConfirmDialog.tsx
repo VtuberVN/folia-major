@@ -54,6 +54,7 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
     hidePlayerTranslationSubtitle: 'options.hidePlayerTranslationSubtitle',
     showSubtitleTranslation: 'options.showSubtitleTranslation',
     subtitleContentMode: 'options.subtitleContentMode',
+    subtitleOverlayLayout: 'options.subtitleOverlayRows',
     subtitleOverlayBackground: 'options.subtitleOverlayBackground',
     subtitleOverlayOpacity: 'options.subtitleOverlayOpacity',
     showHarmonySubtitle: 'options.showHarmonySubtitle',
@@ -94,12 +95,14 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
     stageTrackPillMode: 'options.stageTrackPill',
     stageTrackPillTimeoutSec: 'options.stageTrackPillTimeout',
     stageTrackPillOnHome: 'options.stageTrackPillOnHome',
+    stageTrackPillPosition: 'options.stageTrackPillPosition',
     libraryWallStackEdges: 'options.bravaisStackEdges',
     libraryWallSeamClear: 'options.bravaisSeamClear',
     libraryWallSeamStyle: 'options.bravaisSeamStyle',
     libraryWallBackdropLyrics: 'options.bravaisBackdropLyrics',
     libraryWallBackdropBlur: 'options.bravaisBackdropBlur',
     libraryWallSeamDirection: 'options.bravaisSeamDirection',
+    playerHeaderBlur: 'options.playerHeaderBlur',
 };
 
 // The per-renderer tunings borrow the renderer's own display name instead of inventing one.
