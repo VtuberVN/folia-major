@@ -211,36 +211,6 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                 })}
                             </motion.div>
                         </div>
-                    ) : activeLyricText ? (
-                        <div className={contentClassName}>
-                            {subtitleOverlayBackground && (
-                                <div
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute -inset-x-10 -inset-y-6 z-0 blur-2xl"
-                                    style={subtitleGlowStyle}
-                                />
-                            )}
-                            <motion.div
-                                key={`active-${activeLine?.startTime}`}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className="relative z-10 max-w-4xl mx-auto"
-                            >
-                                <p
-                                    data-subtitle-track="active-lyric"
-                                    style={{
-                                        color: theme.secondaryColor,
-                                        fontSize: scaleFontSize(translationFontSize),
-                                        fontFamily: resolveThemeTranslationFontStack(subtitleTheme ?? theme),
-                                        fontWeight: resolveThemeFontWeight(subtitleTheme ?? theme, 500),
-                                        textShadow,
-                                    }}
-                                >
-                                    {activeLyricText}
-                                </p>
-                            </motion.div>
-                        </div>
                     ) : activeLine && upcomingLines.length > 0 ? (
                         <div className={`${contentClassName} space-y-2`}>
                             {subtitleOverlayBackground && (

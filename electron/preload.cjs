@@ -567,6 +567,4 @@ contextBridge.exposeInMainWorld('electron', {
             return () => ipcRenderer.removeListener('hifi:read', listener);
         },
     },
-        },
-    },
 });

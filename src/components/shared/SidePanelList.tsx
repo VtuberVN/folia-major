@@ -255,8 +255,6 @@ export const TrackListItem = React.memo<{
                         <Download size={16} />
                     </button>
                 )}
-                    </button>
-                )}
                 {!isUnavailable && onAddToQueue && (
                     <button
                         onClick={(e) => {

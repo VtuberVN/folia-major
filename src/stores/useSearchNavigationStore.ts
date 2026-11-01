@@ -215,13 +215,13 @@ const executeSearch = async (
     if (sourceTab === 'zing') {
         const songs = await searchZingSongs(query, limit);
         const results = songs.map(song => song as UnifiedSong);
-        return { results, hasMore: false, nextOffset: results.length };
+        return { results, collections: [], hasMore: false, nextOffset: results.length };
     }
 
     if (sourceTab === 'nct') {
         const songs = await searchNctSongs(query, limit);
         const results = songs.map(song => song as UnifiedSong);
-        return { results, hasMore: false, nextOffset: results.length };
+        return { results, collections: [], hasMore: false, nextOffset: results.length };
     }
 
     return kind === 'song'

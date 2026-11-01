@@ -1380,7 +1380,6 @@ declare global {
         onInstallProgress: (callback: (progress: import('./types/hifi').HifiInstallProgress) => void) => () => void;
         onReadRequest: (callback: (request: import('./types/hifi').HifiReadRequest) => void) => () => void;
       };
-      };
     };
   }
 }

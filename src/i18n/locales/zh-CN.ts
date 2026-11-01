@@ -1923,8 +1923,7 @@ export default {
     "testInputPlaceholder": "输入或粘贴需要测试过滤的歌曲标题...",
     "testOutputLabel": "过滤去杂后用于搜索歌词的标题",
     "removedWordsBadge": "已剔除：",
-    "emptyCleanedTitle": "(空)"
-  },
+    "emptyCleanedTitle": "(空)",
     "tabSong": "当前歌曲",
     "tabLibrary": "听过的歌",
     "tabLibraryCount": "听过的歌 {{count}} 首",

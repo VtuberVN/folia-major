@@ -1923,8 +1923,7 @@ export default {
     "testInputPlaceholder": "Enter or paste video/song title to test...",
     "testOutputLabel": "Cleaned title for lyrics search",
     "removedWordsBadge": "Removed:",
-    "emptyCleanedTitle": "(empty)"
-  },
+    "emptyCleanedTitle": "(empty)",
     "tabSong": "This song",
     "tabLibrary": "Songs heard",
     "tabLibraryCount": "Songs heard ({{count}})",
