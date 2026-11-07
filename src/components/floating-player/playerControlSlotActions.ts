@@ -60,7 +60,7 @@ export const PLAYER_CONTROL_SLOT_OPTIONS: readonly { id: PlayerControlSlotAction
  * 槽位动作和命令面板里做同一件事的那条命令。歌词时间轴没有对应命令，不在表里。
  * 用来判断「面板里常用的这条命令能不能放进槽位」。
  */
-export const PLAYER_CONTROL_SLOT_COMMAND_IDS: Readonly<Record<Exclude<PlayerControlSlotActionId, 'lyrics-timeline'>, string>> = {
+export const PLAYER_CONTROL_SLOT_COMMAND_IDS: Readonly<Record<Exclude<PlayerControlSlotActionId, 'lyrics-timeline' | 'lyrics-list'>, string>> = {
     loop: 'playback-loop',
     prev: 'playback-prev',
     next: 'playback-next',

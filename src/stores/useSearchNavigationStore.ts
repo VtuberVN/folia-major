@@ -307,7 +307,7 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         };
     }),
     hideSearchOverlay: () => set({ isSearchOpen: false, searchReturnView: 'home' }),
-    resetRuntime: (onlineProviderId) => set(state => ({
+    resetRuntime: (onlineProviderId?: SearchSource) => set(state => ({
         searchQuery: '',
         submittedQuery: '',
         searchSourceTab: onlineProviderId ?? state.searchSourceTab,
@@ -328,7 +328,7 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
     // the active provider also changes without one (startup, session restore, a Folium mod source going
     // away), so this keeps it in step. Local and Navidrome are left alone, and the results stay: clearing
     // them is the switch's job.
-    followOnlineProvider: (providerId) => set(state => (
+    followOnlineProvider: (providerId: SearchSource) => set(state => (
         state.searchSourceTab === 'local'
         || state.searchSourceTab === 'navidrome'
         || state.searchSourceTab === 'zing'

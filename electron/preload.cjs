@@ -460,7 +460,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('spotify-status-changed', listener);
         return () => ipcRenderer.removeListener('spotify-status-changed', listener);
     },
-    },
     debugGetRenderedFonts: (selector) => ipcRenderer.invoke('debug-get-rendered-fonts', selector),
     mods: {
         listMods: () => ipcRenderer.invoke('folia-mods:list'),

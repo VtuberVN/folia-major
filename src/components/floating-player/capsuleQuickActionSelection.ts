@@ -14,9 +14,9 @@ import { PLAYER_CONTROL_SLOT_COMMAND_IDS, type PlayerControlSlotActionId } from 
  */
 export const CAPSULE_QUICK_ACTION_LIMIT = 6;
 
-/** 槽位动作对应的命令 id；歌词时间轴没有命令，得 null。 */
+/** 槽位动作对应的命令 id；歌词时间轴和歌词列表没有命令，得 null。 */
 export const slotCommandId = (actionId: PlayerControlSlotActionId): string | null => (
-    actionId === 'lyrics-timeline' ? null : PLAYER_CONTROL_SLOT_COMMAND_IDS[actionId]
+    actionId === 'lyrics-timeline' || actionId === 'lyrics-list' ? null : PLAYER_CONTROL_SLOT_COMMAND_IDS[actionId]
 );
 
 export type CapsuleQuickActionsInput = {
