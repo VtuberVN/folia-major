@@ -1,4 +1,4 @@
-import { Captions, CloudRain, ListMusic, Sparkles, Store } from 'lucide-react';
+import { Globe, KeyRound, Music, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // src/components/modal/newFeaturesRelease.ts
@@ -18,13 +18,11 @@ type NewFeaturesRelease = {
 
 // Defines the current release's cards; their localized text lives under i18nKey in every locale.
 export const NEW_FEATURES_RELEASE: NewFeaturesRelease = {
-    i18nKey: 'releaseNotes.v0_7_25',
-    majorUpdate: { codename: 'Rainy', servicePack: 1 },
+    i18nKey: 'releaseNotes.v0_7_27',
     features: [
-        { id: 'nebbia', icon: CloudRain },
-        { id: 'machi', icon: Store },
-        { id: 'subtitleRows', icon: Captions },
-        { id: 'remoteQueue', icon: ListMusic },
+        { id: 'soloist', icon: KeyRound },
+        { id: 'amUpdate', icon: Music },
+        { id: 'fnConnect', icon: Globe },
         { id: 'moreDetails', icon: Sparkles },
     ],
 };

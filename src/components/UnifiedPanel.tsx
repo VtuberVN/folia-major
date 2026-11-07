@@ -30,6 +30,7 @@ import { FOLIUM_PANEL_TAB_PREFIX, FoliumPanelTabBody, useFoliumPanelTabs } from 
 import { countRender } from '../dev/renderCount';
 import { useGlass } from '../mods/useGlass';
 import { useAppViewStore } from '../stores/useAppViewStore';
+import { openScratchpadQueueCanvas } from '../stores/useScratchpadStore';
 
 // src/components/UnifiedPanel.tsx
 // The playing page's panel: which tabs there are for the playing song, and what each one is given.
@@ -437,6 +438,11 @@ const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                         onMoveSongToEnd={onMoveSongToEnd}
                         onMoveSongToNext={onMoveSongToNext}
                         onOpenLattice={queue.onOpenLattice}
+                        // 在速记簿里展开队列：面板收起来，让开给展开的速记簿画布。
+                        onOpenScratchpadQueue={() => {
+                            openScratchpadQueueCanvas();
+                            onToggle();
+                        }}
                         // TODO: Define cross-source playlist export before enabling playlist creation for mixed queues.
                         canSaveLocalPlaylist={canSaveQueueAsLocalPlaylist(currentSong, playQueue)}
                         onSaveCurrentQueueAsPlaylist={onSaveCurrentQueueAsPlaylist}

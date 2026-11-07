@@ -8,14 +8,14 @@ import {
 
 describe('lyric source priority', () => {
     it('defaults to QQ and retains every fallback exactly once', () => {
-        expect(buildLyricSourceOrder()).toEqual(['qq', 'netease', 'amll', 'kugou', 'qishui', 'zing', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('kugou')).toEqual(['kugou', 'netease', 'amll', 'qq', 'qishui', 'zing', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('netease')).toEqual(['netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('amll')).toEqual(['amll', 'netease', 'qq', 'kugou', 'qishui', 'zing', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('qishui')).toEqual(['qishui', 'netease', 'amll', 'qq', 'kugou', 'zing', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('zing')).toEqual(['zing', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'nct', 'spotify']);
-        expect(buildLyricSourceOrder('nct')).toEqual(['nct', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'spotify']);
-        expect(buildLyricSourceOrder('spotify')).toEqual(['spotify', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'nct']);
+        expect(buildLyricSourceOrder()).toEqual(['qq', 'netease', 'amll', 'kugou', 'qishui', 'zing', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('kugou')).toEqual(['kugou', 'netease', 'amll', 'qq', 'qishui', 'zing', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('netease')).toEqual(['netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('amll')).toEqual(['amll', 'netease', 'qq', 'kugou', 'qishui', 'zing', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('qishui')).toEqual(['qishui', 'netease', 'amll', 'qq', 'kugou', 'zing', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('zing')).toEqual(['zing', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'nct', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('nct')).toEqual(['nct', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'spotify', 'appleMusic']);
+        expect(buildLyricSourceOrder('spotify')).toEqual(['spotify', 'netease', 'amll', 'qq', 'kugou', 'qishui', 'zing', 'nct', 'appleMusic']);
     });
 
     it('migrates missing, invalid, and legacy NetEase preferences to QQ', () => {

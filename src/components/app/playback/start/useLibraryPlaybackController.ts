@@ -56,7 +56,7 @@ import { getLocalLibraryCatalogSnapshot } from '../../../../services/localLibrar
 import { setStatusMessage as setStatusMsg } from '../../../../stores/useStatusMessageStore';
 import { useLyricSettingsStore } from '../../../../stores/useLyricSettingsStore';
 import { setActiveLocalLyricsSource, setAudioSrc, setCachedCoverUrl, setCurrentLineIndex, setCurrentSong, setPlayerState, setPlayQueue, startLoadingToPlay } from '../../../../stores/usePlaybackStore';
-import { askedSongKeyRef, askForSong, playsDroppedSoFar, replaceShownSong, showSong, startPlay } from '../currentSong';
+import { askedSongKeyRef, askForSong, keepSongsOfProvidersStanding, playsDroppedSoFar, providerDropsSoFar, replaceShownSong, showSong, startPlay } from '../currentSong';
 import { loadLocalSongAudio, loadLocalSongHifiSource, loadNavidromeSongAudio } from '../source/songAudioSource';
 import { beginHifiTrack, hifiRouteFor } from '../../../../services/hifi/hifiPlayback';
 import { supplyLyricsAfterEmptyLoad } from '../createLyricsSetter';
@@ -148,9 +148,16 @@ const settlePlayerStateForStart = (autoplay: boolean) => {
 
 /*
  * The queue a library play lands in. Rewritten meanwhile: the store's queue as it is now, with the song
- * swapped in only where it holds it (`write` null: nothing to write). Otherwise the play's own.
+ * swapped in only where it holds it (`write` null: nothing to write). Otherwise the play's own, without
+ * the songs of a platform signed out of since the play started (`providerDropsAtStart`).
  */
-const landingQueue = (rewritten: boolean, own: SongResult[], song: SongResult): { write: SongResult[] | null; queue: SongResult[] } => {
+const landingQueue = (
+    rewritten: boolean,
+    givenQueue: SongResult[],
+    song: SongResult,
+    providerDropsAtStart: number,
+): { write: SongResult[] | null; queue: SongResult[] } => {
+    const own = keepSongsOfProvidersStanding(givenQueue, providerDropsAtStart);
     if (!rewritten) return { write: own, queue: own };
     const live = usePlaybackStore.getState().playQueue;
     const swapped = replacePlaybackSongWhereQueued(live, song);
@@ -700,6 +707,7 @@ export function useLibraryPlaybackController({
 
     const onPlayLocalSong = useCallback(async (localSong: LocalSong, queue: LocalSong[] = [], options: PlaybackNavigationOptions = {}) => {
         const stillWanted = startPlay();
+        const providerDropsAtStart = providerDropsSoFar();
         const queueRewritten = queueRewrittenFor(options);
         const start = playStartOf(options);
         interruptStagePlaybackForMainTransition();
@@ -786,7 +794,7 @@ export function useLibraryPlaybackController({
             ? replacePlaybackSongInQueue(options.unifiedQueue, initialMeta.unifiedSong)
             : queue.length > 0
                 ? buildLocalQueue(queue, initialMeta.unifiedSong, initialMeta.catalog)
-                : [initialMeta.unifiedSong], initialMeta.unifiedSong);
+                : [initialMeta.unifiedSong], initialMeta.unifiedSong, providerDropsAtStart);
         const finalQueue = landed.queue;
         if (landed.write) setPlayQueue(landed.write);
         void persistLastPlaybackCache(initialMeta.unifiedSong, finalQueue);
@@ -893,6 +901,7 @@ export function useLibraryPlaybackController({
         options: PlaybackNavigationOptions = {},
     ) => {
         const stillWanted = startPlay();
+        const providerDropsAtStart = providerDropsSoFar();
         const queueRewritten = queueRewrittenFor(options);
         const start = playStartOf(options);
         interruptStagePlaybackForMainTransition();
@@ -1121,7 +1130,7 @@ export function useLibraryPlaybackController({
                 ? replacePlaybackSongInQueue(options.unifiedQueue, unifiedSong)
                 : queue.length > 0
                     ? buildNavidromeQueue(queue, unifiedSong)
-                    : [unifiedSong], unifiedSong);
+                    : [unifiedSong], unifiedSong, providerDropsAtStart);
             const finalQueue = landed.queue;
             if (landed.write) setPlayQueue(landed.write);
             void persistLastPlaybackCache(unifiedSong, finalQueue);
@@ -1620,7 +1629,9 @@ export function useLibraryPlaybackController({
             const bestMatch = await autoMatchBestLyric(currentSong.name, artistName, currentSongMetadata.durationMs, {
                 album: albumName,
                 preferredSource: settingsLyricSettings.preferredAlternativeLyricSource,
+                keepOwnWordTiming: settingsLyricSettings.keepProviderWordTiming,
                 alternateArtist: () => omni.getAlternateArtistName(currentSong),
+                searchAlias: () => omni.getLyricSearchAlias(currentSong),
                 providerCandidate: ownLyricSource
                     ? { providerId: ownLyricSource.id, song: currentSong, lyricsResult: ownLyricsResult }
                     : undefined,

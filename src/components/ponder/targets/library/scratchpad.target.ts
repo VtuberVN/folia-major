@@ -18,8 +18,8 @@ import type { PonderAnchorSource, PonderRelativeRect, PonderSceneScript, PonderT
 // 速记簿：从左缘滑出来的歌曲暂存区。
 //
 // 单独成目标的理由：入口全藏在悬停后面（磁贴、曲目行、搜索结果右上角的那颗只在指针停着时出现），
-// 把手平时只是左缘的一道细线（速记簿空着时整个看不见），指针移到左缘上部才展开；放进去的歌不进播放队列，处理过也不会自己消失；
-// 分组按的是来源而不是出处，因为一个歌单只收一个来源的歌；画布里的拖动只在组内、松手吸附。
+// 标签平时只是左缘一个小而半透明的记号，指针移到左缘上部才展开；放进去的歌不进播放队列，处理过也不会自己消失；
+// 分组按的是来源而不是出处，因为一个歌单只收一个来源的歌；展开整页里的拖动只在组内、松手吸附。
 // 这些在画面上都看不出来。
 //
 // 几何来自 scratchpad.geometry，和 scratchpad.surface.tsx 画的是同一组数。
@@ -51,13 +51,14 @@ const anchors = {
     row: region('drawer', scratchpadRowRect(hoverGroup, hoverRow), 'ponder.anchors.scratchpad.row'),
     rowActions: region('drawer', scratchpadRowActionsRect(hoverGroup, hoverRow), 'ponder.anchors.scratchpad.rowActions'),
     footer: region('drawer', D.footer, 'ponder.anchors.scratchpad.footer'),
+    historyTab: region('drawer', D.slimUpper, 'ponder.anchors.scratchpad.historyTab'),
     expand: region('drawer', D.expand, 'ponder.anchors.scratchpad.expand'),
     canvas: region('page', G.canvas, 'ponder.anchors.scratchpad.canvas'),
     canvasGroup: region('canvas', scratchpadCanvasHeaderRect(0), 'ponder.anchors.scratchpad.canvasGroup'),
     dragFrom: region('canvas', scratchpadCanvasSlotRect(SCRATCHPAD_DRAG.group, SCRATCHPAD_DRAG.from), 'ponder.anchors.scratchpad.card'),
     dragTo: region('canvas', scratchpadCanvasSlotRect(SCRATCHPAD_DRAG.group, SCRATCHPAD_DRAG.to), 'ponder.anchors.scratchpad.slot'),
     marquee: region('canvas', C.marquee, 'ponder.anchors.scratchpad.marquee'),
-    selection: region('canvas', C.selectionBar, 'ponder.anchors.scratchpad.selection'),
+    selection: region('canvas', C.menu, 'ponder.anchors.scratchpad.selection'),
 } satisfies Record<string, PonderAnchorSource>;
 
 /** 第一章：指针停在一张歌曲磁贴上，右上角出两颗；点左边那颗，这首就进了速记簿，把手上多出首数。 */
@@ -106,7 +107,7 @@ const collect: PonderSceneScript = {
     ],
 };
 
-/** 第二章：打开抽屉。按来源分组；组头和每一行右端的按钮；最底下一排。 */
+/** 第二章：打开抽屉。按来源分组；组头和每一行右端的按钮；最底下一排；第二页播放历史。 */
 const drawer: PonderSceneScript = {
     id: 'scratchpad-drawer',
     titleKey: 'ponder.scenes.scratchpadDrawer',
@@ -159,6 +160,17 @@ const drawer: PonderSceneScript = {
             pointTo: { anchor: 'footer' }, durationMs: 7000, withPrevious: true,
         },
         { kind: 'pause', id: 'readFooter' },
+
+        { kind: 'highlight', id: 'dimFooter', anchor: 'footer', intensity: [0.8, 0], durationMs: 360, keyframe: true },
+        { kind: 'cursor', id: 'pressHistory', to: { anchor: 'historyTab' }, press: 'tap', durationMs: 660, withPrevious: true },
+        { kind: 'surfaceState', id: 'toHistory', anchor: 'page', state: 'history', durationMs: 420 },
+        { kind: 'highlight', id: 'markHistoryTab', anchor: 'historyTab', intensity: [0, 0.8], durationMs: 420, withPrevious: true },
+        {
+            kind: 'caption', id: 'history',
+            textKey: 'ponder.captions.scratchpad.history',
+            pointTo: { anchor: 'drawer' }, durationMs: 8000, withPrevious: true,
+        },
+        { kind: 'pause', id: 'readHistory' },
     ],
 };
 

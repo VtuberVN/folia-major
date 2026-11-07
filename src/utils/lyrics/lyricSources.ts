@@ -48,6 +48,9 @@ const ENTRIES = [
     { id: 'zing', labelKey: 'lyricProvider.zing', platform: true },
     { id: 'nct', labelKey: 'lyricProvider.nct', platform: true },
     { id: 'spotify', labelKey: 'lyricProvider.spotify', platform: true, needsAccount: true, linesOnly: true },
+    // Apple's timed lyrics are TTML: word-level where Apple supplies it, line-level otherwise, and
+    // the parsed lyric says which. The companion must be there to ask.
+    { id: 'appleMusic', labelKey: 'lyricProvider.appleMusic', platform: true, needsAccount: true, needsConfiguredProvider: true },
 ] as const satisfies readonly LyricSourceEntry[];
 
 export type LyricProviderSource = (typeof ENTRIES)[number]['id'];

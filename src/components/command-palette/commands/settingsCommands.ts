@@ -7,8 +7,10 @@ import type { GpuPreference } from '../../../stores/useDesktopSettingsStore';
 import { createToggleCommand, createAppLanguageCommand, createSettingsCommand, createSettingsAnchorCommand, defineCommand } from '../commandFactories';
 import { nowPlayingCardPositionCommand } from './nowPlayingCardPositionCommand';
 import { sleepTimerCommand } from './sleepTimerCommand';
+import { providerSetupCommand } from './providerSetupCommand';
+import { subtitleSettingsCommand } from './subtitleSettingsCommand';
 import { lyricExportCommands } from './lyricExportCommands';
-import { Gauge, Images, Layers3, Library } from 'lucide-react';
+import { Gauge, Images, Languages, Layers3, Library } from 'lucide-react';
 import { latticePosterTintSurface } from '../surfaces/latticePosterTintSurface';
 import { gridViewCardsSurface } from '../surfaces/gridViewCardsSurface';
 import { reduceMotionSurface } from '../surfaces/reduceMotionSurface';
@@ -62,6 +64,7 @@ export const settingsCommands: CommandPaletteCommand[] = [
     },
     sleepTimerCommand,
     nowPlayingCardPositionCommand,
+    providerSetupCommand,
     createSettingsCommand('settings-options', 'Open Options', 'Open the options center', ['settings', 'options', '设置', '选项'], 'options', null, { executeShortcut: 'o' }),
     createSettingsCommand('settings-appearance', 'Appearance settings', 'Open visual and appearance settings', ['appearance', 'visual settings', '外观', '视觉'], 'options', 'appearance'),
     createSettingsAnchorCommand('settings-ai-provider', 'AI provider settings', 'Choose an AI provider and model', ['model connection', 'api key', '模型设置', '供应商', '密钥', 'deepseek', 'kimi', 'glm', 'qwen', '通义', '智谱'], 'electronSettings', { platform: ['electron'] }),
@@ -167,6 +170,22 @@ export const settingsCommands: CommandPaletteCommand[] = [
     createSettingsAnchorCommand('settings-audio-output', 'Audio output', 'Jump to the audio output device and format settings', ['output device', 'audio device', 'sound card', '输出设备'], 'audioOutputSettings'),
     createSettingsAnchorCommand('settings-transition', 'Smart transition', 'Jump to the FOLIA transition settings', ['automix', 'crossfade', 'transition', '智能过渡', '转场'], 'transitionSettings'),
     createSettingsAnchorCommand('settings-local-lyrics-priority', 'Local song lyrics priority', 'Choose whether local songs prefer local or online lyrics', ['local lyrics priority', 'online lyrics first', 'local song lyrics', '本地歌曲歌词优先级', '在线优先', '本地歌词', 'bendigeciyouxianji', 'bdgcyxj'], 'lyrics'),
+    createToggleCommand(
+        'auto-ai-lyric-segmentation-toggle',
+        'settings',
+        'Automatic AI lyric segmentation',
+        'Turn on or off segmenting each new song’s lyrics into words with AI by itself',
+        ['auto segmentation', 'ai word split', 'auto ai segmentation', '自动分词', '自动AI分词', 'AI分词'],
+        context => context.settings.toggleAutoAiLyricSegmentation(),
+    ),
+    createToggleCommand(
+        'keep-provider-word-timing-toggle',
+        'settings',
+        'Keep platform word-timed lyrics',
+        'Turn on or off keeping the word-timed lyrics a song’s own platform comes with',
+        ['platform lyrics', 'own lyrics', 'word timing', 'lyric source', '自带歌词', '逐字歌词', '歌词源', '平台歌词'],
+        context => context.settings.toggleKeepProviderWordTiming(),
+    ),
     createSettingsAnchorCommand('settings-local-lyric-format-order', 'Local lyric file format priority', 'Choose which format wins when a track has several lyric files', ['lyric format priority', 'lyric file order', 'lrc ttml priority', '本地歌词文件格式优先级', '歌词格式', '格式优先级', 'geciwenjiangeshi', 'gcgsyxj'], 'localLyricFormatOrder'),
     createSettingsCommand('settings-integration', 'Integration settings', 'Open Stage, Now Playing, and Navidrome settings', ['integration', 'stage', 'now playing', 'navidrome settings', '集成', '连接'], 'options', 'integration'),
     createSettingsCommand('settings-spotify', 'Spotify Web API integration', 'Configure and connect Spotify Web API', ['spotify web api', 'spotify api', 'spotify connect', 'spotify settings', 'spotify', 'Spotify连接', 'Spotify设置', '连接Spotify', 'lianjie spotify', 'sz spotify'], 'options', 'integration', { platform: ['electron'] }),
@@ -256,6 +275,15 @@ export const settingsCommands: CommandPaletteCommand[] = [
         ['obs keep animation', 'obs main window', 'browser source animation', 'obs 保持动画', 'obs 主窗口动画', '浏览器源主窗口动画', 'obs bcdh', 'obszckdh'],
         context => context.settings.toggleObsKeepMainWindowAnimation(),
         { platform: ['electron'] },
+    ),
+    // Both browser sources draw the card (the local one and the web link), so no platform filter.
+    createToggleCommand(
+        'obs-toggle-track-card',
+        'settings',
+        'OBS: show the now playing card',
+        'Toggle whether the now playing card is drawn in the OBS browser source',
+        ['obs card', 'now playing card', 'browser source card', 'track card', 'obs 卡片', '歌曲信息卡片', '浏览器源卡片', '直播卡片'],
+        context => context.settings.toggleTrackCardInObs(),
     ),
     {
         id: 'desktop-toggle-lyric-api',
@@ -650,6 +678,7 @@ export const settingsCommands: CommandPaletteCommand[] = [
     createToggleCommand('settings-toggle-daylight', 'settings', 'Toggle light/dark', 'Toggle theme daylight/midnight mode', ['daylight', 'midnight', 'light', 'dark', '明暗', '切换明暗', '日夜', '日间', '夜间'], context => context.settings.toggleDaylightMode(), { executeShortcut: 'd' }),
     createToggleCommand('settings-toggle-player-back-button', 'settings', 'Always show player back button', 'Toggle whether the player page back button stays visible', ['always show back button', 'player back button', 'back button', '返回按钮', '始终显示返回按钮', '播放页返回按钮', 'fanhui annniu', 'bofangye fanhui annniu', 'fh', 'bfyfh'], context => context.settings.toggleAlwaysShowPlayerBackButton()),
     createToggleCommand('settings-toggle-lattice-vignette', 'settings', 'Poster wall vignette', 'Turn the edge vignette on the queue collage (Lattice) and the library wall on or off', ['lattice', 'vignette', 'lattice vignette', 'queue collage vignette', 'collage vignette', 'library wall vignette', 'tile wall appearance', 'bravais', '暗角', '边缘暗角', '队列拼贴', '队列拼贴暗角', '拼贴暗角', '资料库墙', '海报墙暗角', '拼贴墙外观'], context => context.settings.toggleLatticeVignette()),
+    createToggleCommand('settings-toggle-lattice-badge-current-only', 'settings', 'Number only the playing song', 'Hide the corner numbers on the song cards of the queue collage (Lattice) and the Bravais wall except the playing one', ['lattice', 'bravais', 'badge', 'number badge', 'track number', 'now playing badge', 'hide numbers', 'queue collage', 'library wall', 'tile wall appearance', '序号', '角标', '序号角标', '正在播放', '只显示正在播放', '隐藏序号', '队列拼贴', '资料库墙', '拼贴墙外观'], context => context.settings.toggleLatticeBadgeCurrentOnly()),
     createToggleCommand('settings-toggle-lattice-auto-focus', 'settings', 'Lattice auto-focus', 'Toggle whether the queue collage follows the playing song when tracks change', ['lattice', 'lattice auto focus', 'queue collage', 'follow playing song', 'follow track changes', 'poster wall follow', '队列拼贴', '切歌自动聚焦', '自动聚焦当前歌曲', '海报墙跟随'], context => context.settings.toggleLatticeAutoFocusOnSongChange()),
     defineCommand({
         id: 'settings-gridview-cards',
@@ -751,7 +780,9 @@ export const settingsCommands: CommandPaletteCommand[] = [
             '罗马字',
             '双行字幕',
             '副字幕',
-        ], context => context.settings.cycleSubtitleContentMode()),
+        ], context => context.settings.cycleSubtitleContentMode(), { icon: Languages }),
+    // 字幕的完整调节（行数、每行内容、背景、副字幕）；浮在进度条上方的字幕按钮也是它。
+    subtitleSettingsCommand,
     createToggleCommand('settings-toggle-subtitle-background', 'settings', 'Toggle subtitle background', 'Show or hide the readability background behind visualizer subtitles', [
             'subtitle background',
             'subtitle readability background',

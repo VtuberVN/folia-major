@@ -42,17 +42,23 @@
 | 64+ | `src/components/modal/settings/kit/index.ts` |
 | 64+ | `src/components/visualizer/definition.ts` |
 | 64+ | `src/i18n/config.ts` |
+| 64+ | `src/library/core/collection/collection.contract.ts` |
 | 64+ | `src/library/core/suite/suite.contract.ts` |
 | 64+ | `src/mods/folium/contract.ts` |
 | 64+ | `src/services/db.ts` |
 | 64+ | `src/services/onlineMusic/omni.ts` |
 | 64+ | `src/stores/useAppViewStore.ts` |
 | 64+ | `src/stores/useAudioSettingsStore.ts` |
+| 64+ | `src/stores/useOnlineProviderAccountStore.ts` |
 | 64+ | `src/stores/useStatusMessageStore.ts` |
+| 64+ | `src/types/hifi.ts` |
 | 64+ | `src/utils/lyrics/renderHints.ts` |
 | 32+ | `dev/probes/definition.ts` |
+| 32+ | `src/components/command-palette/commandRegistry.ts` |
+| 32+ | `src/components/modal/settings/kit/kitTheme.ts` |
 | 32+ | `src/components/modal/settings/kit/motion.ts` |
 | 32+ | `src/components/ponder/surfaces/relativeRectStyle.ts` |
+| 32+ | `src/components/ponder/surfaces/surfaceDeclarations.ts` |
 | 32+ | `src/components/visualizer/colorMix.ts` |
 | 32+ | `src/components/visualizer/hanabi/types.ts` |
 | 32+ | `src/components/visualizer/machi/engine/materials.ts` |
@@ -61,8 +67,8 @@
 | 32+ | `src/components/visualizer/tuningRegistry.ts` |
 | 32+ | `src/components/wall/layout.ts` |
 | 32+ | `src/components/wall/wallSlots.ts` |
+| 32+ | `src/hooks/useReducedMotionFor.ts` |
 | 32+ | `src/library/core/account/account.contract.ts` |
-| 32+ | `src/library/core/collection/collection.contract.ts` |
 | 32+ | `src/library/core/directory/directory.contract.ts` |
 | 32+ | `src/library/core/home/homeModel.contract.ts` |
 | 32+ | `src/library/suites/bravais/bravaisLayer.ts` |
@@ -73,11 +79,10 @@
 | 32+ | `src/services/onlineMusic/songMetadata.ts` |
 | 32+ | `src/stores/motionSignals.ts` |
 | 32+ | `src/stores/useCollectionNavigationStore.ts` |
-| 32+ | `src/stores/useOnlineProviderAccountStore.ts` |
 | 32+ | `src/stores/usePlayerChromeSettingsStore.ts` |
+| 32+ | `src/stores/useSettingsModalStore.ts` |
 | 32+ | `src/stores/useThemeSettingsStore.ts` |
 | 32+ | `src/stores/useVisualizerSettingsStore.ts` |
-| 32+ | `src/types/hifi.ts` |
 | 32+ | `src/types/localLibrary.ts` |
 | 32+ | `src/types/navidrome.ts` |
 | 32+ | `src/utils/coverUrl.ts` |
@@ -169,6 +174,7 @@
 - `src/components/ponder/surfaces/panel/lyricMatch.surface.tsx`
 - `src/components/ponder/surfaces/panel/sidePanel.surface.tsx`
 - `src/components/ponder/surfaces/plain.surface.tsx`
+- `src/components/ponder/surfaces/player/capsule.surface.tsx`
 - `src/components/ponder/surfaces/player/latticeChrome.surface.tsx`
 - `src/components/ponder/surfaces/player/latticePage.surface.tsx`
 - `src/components/ponder/surfaces/player/playerBar.surface.tsx`

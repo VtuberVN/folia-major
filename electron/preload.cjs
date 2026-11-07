@@ -238,8 +238,10 @@ contextBridge.exposeInMainWorld('electron', {
     getKugouApiStatus: () => ipcRenderer.invoke('kugou-api-status'),
     kugouRequest: (operation, params) => ipcRenderer.invoke('kugou-api-request', operation, params),
     qishuiRequest: (operation, params) => ipcRenderer.invoke('qishui-api-request', operation, params),
+    fnmusicRequest: (operation, params) => ipcRenderer.invoke('fnmusic-api-request', operation, params),
     bodianRequest: (operation, params) => ipcRenderer.invoke('bodian-api-request', operation, params),
     ytmRequest: (operation, params) => ipcRenderer.invoke('ytm-api-request', operation, params),
+    appleMusicRequest: (operation, params) => ipcRenderer.invoke('apple-music-request', operation, params),
     spotifyRequest: (operation, params) => ipcRenderer.invoke('spotify-api-request', operation, params),
     getQqPort: () => ipcRenderer.invoke('get-qq-port'),
     getQqApiStatus: () => ipcRenderer.invoke('get-qq-api-status'),
@@ -276,9 +278,10 @@ contextBridge.exposeInMainWorld('electron', {
         return () => ipcRenderer.removeListener('window-playback-handoff-requested', listener);
     },
     setNativeTheme: (themeSource) => ipcRenderer.invoke('window-set-native-theme', themeSource),
+    setKeyCaptureActive: (active) => ipcRenderer.send('key-capture-active', active === true),
     getMainWindowClickThroughEnabled: () => ipcRenderer.invoke('window-get-click-through'),
     setMainWindowClickThroughEnabled: (enabled) => ipcRenderer.invoke('window-set-click-through', enabled),
-    setMainWindowClickThroughUnlockHover: (active) => ipcRenderer.invoke('window-set-click-through-unlock-hover', active),
+    setMainWindowClickThroughUnlockHover: (active, viewportWidth, coordinates) => ipcRenderer.invoke('window-set-click-through-unlock-hover', active, viewportWidth, coordinates),
     getMainWindowAlwaysOnTop: () => ipcRenderer.invoke('window-get-always-on-top'),
     setMainWindowAlwaysOnTop: (enabled) => ipcRenderer.invoke('window-set-always-on-top', enabled),
     onMainWindowClickThroughChanged: (callback) => {
@@ -409,6 +412,7 @@ contextBridge.exposeInMainWorld('electron', {
     publishStagePlayerSnapshot: (snapshot, options) => ipcRenderer.invoke('stage-publish-player-snapshot', snapshot, options),
     completeStagePlayerControlRequest: (result) => ipcRenderer.invoke('stage-complete-player-control', result),
     completeStagePlayerQueueRequest: (result) => ipcRenderer.invoke('stage-complete-player-queue', result),
+    completeStagePlayerSearchRequest: (result) => ipcRenderer.invoke('stage-complete-player-search', result),
     onStageSessionUpdated: (callback) => {
         const listener = (_event, status) => callback(status);
         ipcRenderer.on('stage-session-updated', listener);
@@ -418,6 +422,12 @@ contextBridge.exposeInMainWorld('electron', {
         const listener = (_event, status) => callback(status);
         ipcRenderer.on('stage-session-cleared', listener);
         return () => ipcRenderer.removeListener('stage-session-cleared', listener);
+    },
+    // POST /stage/lyrics/clock: an external player's position for the lyrics session on screen.
+    onStageLyricsClockUpdated: (callback) => {
+        const listener = (_event, update) => callback(update);
+        ipcRenderer.on('stage-lyrics-clock-updated', listener);
+        return () => ipcRenderer.removeListener('stage-lyrics-clock-updated', listener);
     },
     onStageExternalPlayRequest: (callback) => {
         const listener = (_event, request) => callback(request);
@@ -434,6 +444,11 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('stage-player-queue-request', listener);
         return () => ipcRenderer.removeListener('stage-player-queue-request', listener);
     },
+    onStagePlayerSearchRequest: (callback) => {
+        const listener = (_event, request) => callback(request);
+        ipcRenderer.on('stage-player-search-request', listener);
+        return () => ipcRenderer.removeListener('stage-player-search-request', listener);
+    },
     getSpotifyStatus: () => ipcRenderer.invoke('spotify-get-status'),
     connectSpotify: (clientId) => ipcRenderer.invoke('spotify-connect', clientId),
     disconnectSpotify: () => ipcRenderer.invoke('spotify-disconnect'),
@@ -444,6 +459,7 @@ contextBridge.exposeInMainWorld('electron', {
         const listener = (_event, status) => callback(status);
         ipcRenderer.on('spotify-status-changed', listener);
         return () => ipcRenderer.removeListener('spotify-status-changed', listener);
+    },
     },
     debugGetRenderedFonts: (selector) => ipcRenderer.invoke('debug-get-rendered-fonts', selector),
     mods: {

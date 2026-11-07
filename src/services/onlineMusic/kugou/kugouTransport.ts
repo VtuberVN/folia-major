@@ -9,7 +9,7 @@ import { withLoginRequestLimit } from '../login/loginRequestLimit';
 export const KUGOU_OPERATIONS = [
     'register_dev', 'login_qr_key', 'login_qr_create', 'login_qr_check', 'logout',
     'user_detail', 'user_vip_detail', 'youth_union_vip', 'youth_day_vip', 'youth_day_vip_upgrade',
-    'user_playlist', 'user_cloud', 'user_cloud_url', 'search',
+    'user_playlist', 'user_cloud', 'user_cloud_url', 'user_listen', 'search',
     'audio', 'krm_audio', 'song_url', 'song_climax', 'search_lyric', 'lyric', 'playlist_track_all',
     'playlist_detail',
     'album_detail', 'album_songs', 'artist_detail', 'artist_albums', 'artist_audios',
@@ -37,6 +37,7 @@ const ENDPOINTS: Record<KugouOperation, string> = {
     user_playlist: '/user/playlist',
     user_cloud: '/user/cloud',
     user_cloud_url: '/user/cloud/url',
+    user_listen: '/user/listen',
     search: '/search',
     audio: '/audio',
     krm_audio: '/krm/audio',
@@ -400,17 +401,38 @@ const clearWebDeviceIdentity = (): void => {
     }
 };
 
-const persistWebSession = (response: any): void => {
-    const cookies = response?.cookie || response?.data?.cookie;
-    if (typeof cookies === 'string' && cookies) writeProviderSessionValue('kugou', 'cookie', cookies);
-    if (Array.isArray(cookies) && cookies.length) writeProviderSessionValue('kugou', 'cookie', cookies.join('; '));
+const responsePayload = (response: any): any => response?.data || response?.body?.data || response?.body || response;
 
-    const payload = response?.data || response?.body?.data || response?.body || response;
-    const token = payload?.token;
+/**
+ * The account a confirmed QR sign-in (status 4) brings, as a whole pair, or null. Other answers
+ * carry the userid of whoever owns what was read (a public playlist's creator), not of who is
+ * signed in, so they never change the account (#1101).
+ */
+const confirmedSignIn = (operation: KugouOperation, response: any): { token?: string; userId: string } | null => {
+    if (operation !== 'login_qr_check') return null;
+    const payload = responsePayload(response);
+    if (Number(payload?.status) !== 4) return null;
     const userId = payload?.userid ?? payload?.user_id;
-    const dfid = payload?.dfid;
-    if (token) writeProviderSessionValue('kugou', 'token', String(token));
-    if (userId) writeProviderSessionValue('kugou', 'userid', String(userId));
+    return userId ? { token: payload?.token ? String(payload.token) : undefined, userId: String(userId) } : null;
+};
+
+const persistWebSession = (operation: KugouOperation, response: any): void => {
+    const signIn = confirmedSignIn(operation, response);
+    const cookies = response?.cookie || response?.data?.cookie;
+    const cookieEntries: string[] = typeof cookies === 'string' ? cookies.split(';')
+        : Array.isArray(cookies) ? cookies.map(String) : [];
+    // Account cookies of any other answer are left out, like its account fields.
+    const keptCookies = cookieEntries
+        .map(entry => entry.trim())
+        .filter(entry => entry && (signIn?.token || !/^(token|userid|user_id)=/i.test(entry)));
+    if (keptCookies.length) writeProviderSessionValue('kugou', 'cookie', keptCookies.join('; '));
+
+    // Half of a pair is not taken: the other half would be the previous account's.
+    if (signIn?.token) {
+        writeProviderSessionValue('kugou', 'token', signIn.token);
+        writeProviderSessionValue('kugou', 'userid', signIn.userId);
+    }
+    const dfid = responsePayload(response)?.dfid;
     if (dfid) writeProviderSessionValue('kugou', 'dfid', String(dfid));
 };
 
@@ -424,8 +446,11 @@ const persistElectronAccountHint = (operation: KugouOperation, response: any): v
         removeProviderSessionValue('kugou', 'userid');
         return;
     }
-    const payload = response?.data || response?.body?.data || response?.body || response;
-    const userId = payload?.userid ?? payload?.user_id;
+    // The bridge strips the token from the sign-in answer, and writes the session's own account id
+    // into the profile answer: those two are the only answers that say who is signed in.
+    const userId = operation === 'user_detail'
+        ? responsePayload(response)?.userid
+        : confirmedSignIn(operation, response)?.userId;
     if (userId) writeProviderSessionValue('kugou', 'userid', String(userId));
 };
 
@@ -485,7 +510,7 @@ export const requestKugou = async <T = unknown>(operation: KugouOperation, param
         // Every request made for a sign-in operation is limited, the device registration it may need too.
         const responseBody = await (limited ? withLoginRequestLimit(send) : send());
         // What a sign-out is answered with is the session that just left: it is not written back.
-        if (targetOperation !== 'logout') persistWebSession(responseBody);
+        if (targetOperation !== 'logout') persistWebSession(targetOperation, responseBody);
         const body = responseBody?.body ?? responseBody;
         return body;
     };
