@@ -76,6 +76,7 @@ export const autoRetryDelaysMs = (shown: OnlineFailure): readonly number[] => (
 const REFUSAL_CASES: Partial<Record<ProviderErrorCode, OnlineFailureCaseId>> = {
     'auth-required': 'sign-in-needed',
     'subscription-required': 'subscription-required',
+    'vip-only': 'subscription-required',
     'preview-only': 'preview-only',
     'region-restricted': 'region-restricted',
     'not-public': 'not-public',

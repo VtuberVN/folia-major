@@ -595,5 +595,184 @@ describe('zingProvider', () => {
         expect(() => zingApi.setStoredZingCookie(undefined as any)).not.toThrow();
         expect(() => zingApi.setStoredZingCookie('')).not.toThrow();
     });
+
+    describe('zingExplore and getZingHome', () => {
+        it('getZingHome fetches home page and parses banner, new-release, and playlists', async () => {
+            const mockHomeResponse: zingApi.ZingHomeResponse = {
+                err: 0,
+                msg: 'Success',
+                data: {
+                    items: [
+                        {
+                            sectionType: 'banner',
+                            sectionId: 'hBanner',
+                            title: 'Banner Title',
+                            items: [
+                                {
+                                    type: 1,
+                                    encodeId: 'ZW78BANNER1',
+                                    title: 'Spotlight Song 1',
+                                    banner: 'https://photo-zmp3.zmdcdn.me/banner1.jpg',
+                                    artistsNames: 'Artist 1',
+                                    duration: 210,
+                                },
+                                {
+                                    type: 4,
+                                    encodeId: 'ZW78BANNER2',
+                                    title: 'Spotlight Album 2',
+                                    banner: 'https://photo-zmp3.zmdcdn.me/banner2.jpg',
+                                    description: 'Album description',
+                                },
+                            ],
+                        },
+                        {
+                            sectionType: 'new-release',
+                            sectionId: 'hNewRelease',
+                            title: 'Mới Phát Hành',
+                            items: [
+                                {
+                                    encodeId: 'ZW78NR1',
+                                    title: 'New Release 1',
+                                    artistsNames: 'Artist NR',
+                                    duration: 180,
+                                    thumbnailM: 'https://photo-zmp3.zmdcdn.me/nr1.jpg',
+                                },
+                            ],
+                        },
+                        {
+                            sectionType: 'playlist',
+                            sectionId: 'hChillPlaylist',
+                            title: 'Giai Điệu Chill',
+                            items: [
+                                {
+                                    encodeId: 'ZW78PL1',
+                                    title: 'Chill Hits',
+                                    thumbnailM: 'https://photo-zmp3.zmdcdn.me/pl1.jpg',
+                                    sortDescription: 'Thư giãn cuối tuần',
+                                },
+                            ],
+                        },
+                        {
+                            sectionType: 'RTChart',
+                            sectionId: 'hRTChart',
+                            title: '#zingchart',
+                            items: [
+                                {
+                                    encodeId: 'ZW78CHART1',
+                                    title: 'No 1 Chart Song',
+                                    artistsNames: 'Top Artist',
+                                    thumbnailM: 'https://photo-zmp3.zmdcdn.me/c1.jpg',
+                                    duration: 240,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            };
+
+            vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: any) => {
+                const urlStr = String(input);
+                if (urlStr.includes('/api/v2/page/get/home')) {
+                    return {
+                        ok: true,
+                        headers: { get: () => '' },
+                        json: async () => mockHomeResponse,
+                    } as any;
+                }
+                return {
+                    ok: true,
+                    headers: { get: () => '' },
+                    json: async () => ({ err: 0, data: {} }),
+                } as any;
+            });
+
+            const homeData = await zingApi.getZingHome(1);
+            expect(homeData).toBeDefined();
+            expect(homeData?.err).toBe(0);
+            expect(homeData?.data?.items).toHaveLength(4);
+
+            const feed = await zingProvider.explore?.getFeed();
+            expect(feed).toBeDefined();
+            expect(feed?.sections).toHaveLength(4);
+
+            // 1. Banner section
+            const bannerSec = feed?.sections.find(s => s.id === 'hBanner');
+            expect(bannerSec).toBeDefined();
+            expect(bannerSec?.items).toHaveLength(2);
+            expect(bannerSec?.items[0].kind).toBe('song');
+            expect((bannerSec?.items[0] as any).song.name).toBe('Spotlight Song 1');
+            expect(bannerSec?.items[0].wideCoverUrl).toBe('https://photo-zmp3.zmdcdn.me/banner1.jpg');
+            expect(bannerSec?.items[1].kind).toBe('collection');
+            expect((bannerSec?.items[1] as any).collection.name).toBe('Spotlight Album 2');
+            expect(bannerSec?.items[1].wideCoverUrl).toBe('https://photo-zmp3.zmdcdn.me/banner2.jpg');
+
+            // 2. New Release section
+            const nrSec = feed?.sections.find(s => s.id === 'hNewRelease');
+            expect(nrSec).toBeDefined();
+            expect(nrSec?.items).toHaveLength(1);
+            expect(nrSec?.items[0].kind).toBe('song');
+            expect((nrSec?.items[0] as any).song.name).toBe('New Release 1');
+
+            // 3. Realtime Chart section
+            const chartSec = feed?.sections.find(s => s.id === 'hRTChart');
+            expect(chartSec).toBeDefined();
+            expect(chartSec?.items).toHaveLength(1);
+            expect(chartSec?.items[0].kind).toBe('song');
+            expect(chartSec?.items[0].subtitle).toContain('#1');
+
+            // 4. Playlist section
+            const plSec = feed?.sections.find(s => s.id === 'hChillPlaylist');
+            expect(plSec).toBeDefined();
+            expect(plSec?.items).toHaveLength(1);
+            expect(plSec?.items[0].kind).toBe('collection');
+            expect((plSec?.items[0] as any).collection.name).toBe('Chill Hits');
+        });
+
+        it('zingExplore gracefully falls back to chart, top100, and radio when getZingHome fails', async () => {
+            vi.spyOn(zingApi, 'getZingHome').mockResolvedValue(null);
+            vi.spyOn(zingApi, 'getZingChartSongs').mockResolvedValue([
+                {
+                    id: 'FB_CHART1',
+                    name: 'Fallback Chart Song',
+                    artists: [{ id: 1, name: 'Fallback Artist' }],
+                    album: { id: 1, name: 'Fallback Album' },
+                    durationMs: 200000,
+                    sourceRef: { kind: 'online', providerId: 'zing', mediaId: 'FB_CHART1' },
+                },
+            ]);
+            vi.spyOn(zingApi, 'getZingTop100Albums').mockResolvedValue({
+                items: [
+                    {
+                        providerId: 'zing',
+                        id: 'FB_TOP100_1',
+                        name: 'Fallback Top 100',
+                        type: 'album',
+                        trackCount: 100,
+                        isOwned: false,
+                    },
+                ],
+                total: 1,
+                hasMore: false,
+                nextOffset: 1,
+            });
+            vi.spyOn(zingApi, 'getZingRadioStations').mockResolvedValue([
+                {
+                    providerId: 'zing',
+                    id: 'FB_RADIO_1',
+                    name: 'Fallback Radio',
+                    type: 'radio',
+                    trackCount: 50,
+                    isOwned: false,
+                },
+            ]);
+
+            const feed = await zingProvider.explore?.getFeed();
+            expect(feed).toBeDefined();
+            expect(feed?.sections).toHaveLength(3);
+            expect(feed?.sections[0].id).toBe('zing-chart-section');
+            expect(feed?.sections[1].id).toBe('zing-top100-section');
+            expect(feed?.sections[2].id).toBe('zing-radio-section');
+        });
+    });
 });
 

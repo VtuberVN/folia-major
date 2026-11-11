@@ -250,6 +250,47 @@ export interface ZingStreamResult {
     isVipOnly?: boolean;
 }
 
+export interface ZingHomeBannerItem {
+    id?: string;
+    encodeId?: string;
+    title?: string;
+    description?: string;
+    banner?: string;
+    cover?: string;
+    thumbnail?: string;
+    thumbnailM?: string;
+    type?: number;
+    link?: string;
+    artists?: Array<{ id?: string | number; name?: string }>;
+    artistsNames?: string;
+    song?: any;
+    album?: any;
+}
+
+export interface ZingHomeSection<T = any> {
+    sectionType: 'banner' | 'playlist' | 'new-release' | 'RTChart' | 'songStation' | 'livestream' | 'artistSpotlight' | string;
+    sectionId?: string;
+    viewType?: string;
+    title?: string;
+    link?: string;
+    items?: T[];
+    chart?: any;
+    promotes?: any[];
+    options?: any;
+}
+
+export interface ZingHomeData {
+    items: ZingHomeSection[];
+    hasMore?: boolean;
+    total?: number;
+}
+
+export interface ZingHomeResponse {
+    err: number;
+    msg?: string;
+    data?: ZingHomeData;
+}
+
 /**
  * Fetches the direct audio streaming URL for a song from Zing MP3.
  */
@@ -1531,6 +1572,47 @@ export async function getZingChartSongs(limit: number = 50): Promise<UnifiedSong
     } catch (err) {
         console.warn('[ZingApi] Failed to fetch chart songs:', err);
         return [];
+    }
+}
+
+/**
+ * Fetches Zing MP3 Home page structure (/api/v2/page/get/home).
+ * Returns sections including banner, new-release, playlist shelves, and RTChart.
+ */
+export async function getZingHome(page: number = 1): Promise<ZingHomeResponse | null> {
+    const path = '/api/v2/page/get/home';
+    const ctime = String(Math.floor(Date.now() / 1000));
+    const sig = await getZingSignature(path, { page, ctime });
+    const cookie = await resolveCookie();
+
+    const url = new URL(`${ZING_BASE_URL}${path}`);
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('ctime', ctime);
+    url.searchParams.set('version', ZING_VERSION);
+    url.searchParams.set('apiKey', ZING_API_KEY);
+    url.searchParams.set('sig', sig);
+
+    try {
+        const res = await fetch(toZingWebProxyUrl(url.toString()), {
+            headers: buildZingRequestHeaders(cookie),
+            signal: AbortSignal.timeout(ZING_FETCH_TIMEOUT),
+        });
+
+        if (!res.ok) {
+            console.warn(`[ZingApi] getZingHome HTTP error: ${res.status}`);
+            return null;
+        }
+
+        const json: ZingHomeResponse = await res.json();
+        if (json.err !== 0 || !json.data) {
+            console.warn(`[ZingApi] getZingHome API error err=${json.err} msg=${json.msg}`);
+            return null;
+        }
+
+        return json;
+    } catch (err) {
+        console.warn('[ZingApi] Failed to fetch zing home:', err);
+        return null;
     }
 }
 
