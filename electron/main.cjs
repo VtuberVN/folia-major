@@ -4043,7 +4043,6 @@ function isSameAppPage(currentUrl, nextUrl) {
     return false;
   }
 }
-}
 
 function getMainWindowUrl() {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -7468,7 +7467,7 @@ ipcMain.handle('set-app-locale', firstParty('set-app-locale', (event, localeKey)
   return localeKey;
 }));
 
-ipcMain.handle('save-settings', firstParty('save-settings', (event, key, value) => {
+ipcMain.handle('save-settings', firstParty('save-settings', async (event, key, value) => {
   // electron-store's set() also accepts an object of key/value pairs, which would bypass the
   // per-key guards below.
   if (typeof key !== 'string') {
