@@ -29,7 +29,7 @@
 |---|------|-------|-------------|--------|
 | M1 | Zing Home API & Feed Adapter | Implement `getZingHome()` in `zingApi.ts` and extend `zingExplore.ts` to transform 4 core sections (Banner, Suggestions, Mood playlists, Realtime chart) | none | DONE |
 | M2 | Playback & UI Interaction Verification | Ensure seamless stream resolution (128k/320k), queue controller integration, and ExploreSurface rendering | M1 | DONE |
-| M3 | Unit Testing & Regression Guard | Create `test/unit/onlineMusic/zingExplore.test.ts`, run full unit tests in `test/unit/onlineMusic/`, verify typecheck & lint | M2 | IN_PROGRESS |
+| M3 | Unit Testing & Regression Guard | Create `test/unit/onlineMusic/zingExplore.test.ts`, run full unit tests in `test/unit/onlineMusic/`, verify typecheck & lint | M2 | DONE |
 
 ## Interface Contracts
 ### `zingApi.ts` ↔ `zingExplore.ts`
