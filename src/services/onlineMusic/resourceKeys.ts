@@ -3,7 +3,7 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybac
 
 // src/services/onlineMusic/resourceKeys.ts
 
-export type SongResourceKind = 'audio' | 'lyric' | 'cover' | 'theme' | 'replayGain' | 'audioQuality';
+export type SongResourceKind = 'audio' | 'lyric' | 'cover' | 'replayGain' | 'theme' | 'audioQuality';
 
 export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult): string => {
     const sourceRef = getPlaybackSourceRef(song);
